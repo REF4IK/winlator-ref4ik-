@@ -2,21 +2,28 @@
 	<img src="logo.png" width="376" height="128" alt="Winlator Logo" />
 </p>
 
-# Winlator
+# Winlator ref4ik mod
 
 Winlator is an Android application that lets you to run Windows (x86_64) applications with Wine and Box86/Box64.
+ 
+[![Latest Release Downloads](https://img.shields.io/github/downloads/REF4IK/winlator-ref4ik-/latest/total?label=Latest%20Release%20Downloads&color=brightgreen)](https://github.com/REF4IK/winlator-ref4ik-/releases/latest)  
+[![Total Downloads](https://img.shields.io/github/downloads/REF4IK/winlator-ref4ik-/total?label=Total%20All%20Releases%20Downloads&color=blue)](https://github.com/REF4IK/winlator-ref4ik-/releases)
 
 # Installation
 
-1. Download and install the APK (Winlator_10.1.apk) from [GitHub Releases](https://github.com/brunodev85/winlator/releases)
+1. Download and install the APK (Winlator.apk) from [GitHub Releases](https://github.com/REF4IK/winlator-ref4ik-/releases)   
 2. Launch the app and wait for the installation process to finish
 
 ----
+# Community Tests
 
-[![Play on Youtube](https://img.youtube.com/vi/ETYDgKz4jBQ/3.jpg)](https://www.youtube.com/watch?v=ETYDgKz4jBQ)
-[![Play on Youtube](https://img.youtube.com/vi/9E4wnKf2OsI/2.jpg)](https://www.youtube.com/watch?v=9E4wnKf2OsI)
-[![Play on Youtube](https://img.youtube.com/vi/czEn4uT3Ja8/2.jpg)](https://www.youtube.com/watch?v=czEn4uT3Ja8)
-[![Play on Youtube](https://img.youtube.com/vi/eD36nxfT_Z0/2.jpg)](https://www.youtube.com/watch?v=eD36nxfT_Z0)
+Thank you to everyone who posts tests using my mods!
+
+[![Play on Youtube](https://img.youtube.com/vi/NKZ00wE9AeM/0.jpg)](https://youtu.be/NKZ00wE9AeM)
+[![Play on Youtube](https://img.youtube.com/vi/5EMvyRd0EF8/0.jpg)](https://youtu.be/5EMvyRd0EF8)
+[![Play on Youtube](https://img.youtube.com/vi/Ui6ZrJwO_2o/0.jpg)](https://youtu.be/Ui6ZrJwO_2o)
+[![Play on Youtube](https://img.youtube.com/vi/DeFavAnOaw8/0.jpg)](https://youtu.be/DeFavAnOaw8)
+
 
 ----
 
@@ -32,7 +39,6 @@ Winlator is an Android application that lets you to run Windows (x86_64) applica
 # Information
 
 This project has been in constant development since version 1.0, the current app source code is up to version 7.1, I do not update this repository frequently precisely to avoid unofficial releases before the official releases of Winlator.
-
 # Credits and Third-party apps
 - GLIBC Patches by [Termux Pacman](https://github.com/termux-pacman/glibc-packages)
 - Wine ([winehq.org](https://www.winehq.org/))
@@ -43,4 +49,5 @@ This project has been in constant development since version 1.0, the current app
 - CNC DDraw ([github.com/FunkyFr3sh/cnc-ddraw](https://github.com/FunkyFr3sh/cnc-ddraw))
 
 Special thanks to all the developers involved in these projects.<br>
+
 Thank you to all the people who believe in this project.
