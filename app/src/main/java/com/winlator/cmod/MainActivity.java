@@ -295,6 +295,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public void onBackPressed() {
         FragmentManager fragmentManager = getSupportFragmentManager();
+
+        if (fragmentManager.getBackStackEntryCount() > 0) {
+            fragmentManager.popBackStack();
+            return;
+        }
+
         List<Fragment> fragments = fragmentManager.getFragments();
         for (Fragment fragment : fragments) {
             if (fragment instanceof ContainersFragment && fragment.isVisible()) {
@@ -398,9 +404,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 break;
             case R.id.main_menu_contents:
                 show(new ContentsFragment(), false);  // Forward animation
-                break;
-            case R.id.main_menu_installed_components:
-                show(new InstalledComponentsFragment(), false);
                 break;
             case R.id.main_menu_steam:
                 drawerLayout.closeDrawer(GravityCompat.START, false);
