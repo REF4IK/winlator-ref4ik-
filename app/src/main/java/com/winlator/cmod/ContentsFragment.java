@@ -139,6 +139,13 @@ public class ContentsFragment extends Fragment {
             });
         });
 
+        layout.findViewById(R.id.BTInstalledComponents).setOnClickListener(v -> {
+            getParentFragmentManager().beginTransaction()
+                .replace(R.id.FLFragmentContainer, new InstalledComponentsFragment())
+                .addToBackStack(null)
+                .commit();
+        });
+
         recyclerView = layout.findViewById(R.id.RecyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(recyclerView.getContext()));
         recyclerView.addItemDecoration(new DividerItemDecoration(recyclerView.getContext(), DividerItemDecoration.VERTICAL));
