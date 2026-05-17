@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Внешнее кольцо с градиентом -->
+    <item>
+        <rotate
+            android:fromDegrees="0"
+            android:toDegrees="0"
+            android:pivotX="50%"
+            android:pivotY="50%">
+            <shape android:shape="ring"
+                android:innerRadius="18dp"
+                android:thickness="4dp"
+                android:useLevel="false">
+                <gradient
+                    android:type="sweep"
+                    android:startColor="@color/colorAccent"
+                    android:centerColor="#64B5F6"
+                    android:endColor="#00FFFFFF"
+                    android:angle="0" />
+            </shape>
+        </rotate>
+    </item>
+    
+    <!-- Дополнительный акцент -->
+    <item>
+        <rotate
+            android:fromDegrees="180"
+            android:toDegrees="180"
+            android:pivotX="50%"
+            android:pivotY="50%">
+            <shape android:shape="ring"
+                android:innerRadius="18dp"
+                android:thickness="4dp"
+                android:useLevel="false">
+                <gradient
+                    android:type="sweep"
+                    android:startColor="#00FFFFFF"
+                    android:centerColor="@color/colorPrimary"
+                    android:endColor="#00FFFFFF"
+                    android:angle="0" />
+            </shape>
+        </rotate>
+    </item>
+</layer-list>

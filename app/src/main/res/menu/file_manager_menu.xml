@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_up"
+        android:title="@string/fm_action_up"
+        android:icon="@drawable/icon_open"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_new_folder"
+        android:title="@string/fm_action_new_folder"
+        android:icon="@drawable/icon_input_controls"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_toggle_layout"
+        android:title="@string/fm_action_toggle_layout"
+        android:icon="@drawable/icon_container"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_refresh"
+        android:title="@string/fm_action_refresh"
+        android:icon="@drawable/icon_open"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_paste"
+        android:title="@string/fm_action_paste"
+        android:icon="@drawable/icon_save"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_clipboard_cancel"
+        android:title="@string/fm_action_cancel"
+        android:icon="@drawable/icon_about"
+        android:visible="false"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_sort"
+        android:title="@string/fm_action_sort"
+        app:showAsAction="never">
+        <menu>
+            <item android:id="@+id/sort_name" android:title="@string/fm_sort_name" />
+            <item android:id="@+id/sort_date" android:title="@string/fm_sort_date" />
+            <item android:id="@+id/sort_size" android:title="@string/fm_sort_size" />
+        </menu>
+    </item>
+
+    <item
+        android:id="@+id/action_search"
+        android:title="@string/fm_search_hint"
+        android:icon="@drawable/icon_settings"
+        app:actionViewClass="androidx.appcompat.widget.SearchView"
+        app:showAsAction="always|collapseActionView" />
+
+</menu>

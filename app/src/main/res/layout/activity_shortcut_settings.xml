@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground"
+    android:fitsSystemWindows="true">
+
+    <!-- Toolbar: back arrow + shortcut name title -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/Toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/shortcut_settings_toolbar_height"
+        android:minHeight="@dimen/shortcut_settings_toolbar_height"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.Winlator.Toolbar"
+        app:contentInsetStartWithNavigation="0dp"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@android:color/white"
+        app:title="@string/shortcut_settings"
+        app:titleTextColor="@android:color/white"
+        app:titleTextAppearance="@style/TextAppearance.Material3.TitleMedium"
+        android:elevation="4dp" />
+
+    <!-- Embedded dialog content lives here -->
+    <FrameLayout
+        android:id="@+id/FLContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Bottom action bar -->
+    <com.google.android.material.divider.MaterialDivider
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end|center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="@dimen/shortcut_settings_bottom_bar_padding_v"
+        android:paddingBottom="@dimen/shortcut_settings_bottom_bar_padding_v"
+        android:background="?attr/colorSurface">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/BTCancel"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/shortcut_settings_button_height"
+            android:minHeight="@dimen/shortcut_settings_button_height"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:layout_marginEnd="8dp"
+            android:text="@string/cancel" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/BTSave"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/shortcut_settings_button_height"
+            android:minHeight="@dimen/shortcut_settings_button_height"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/save" />
+    </LinearLayout>
+</LinearLayout>

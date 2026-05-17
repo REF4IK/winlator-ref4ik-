@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/transparent"
+    android:padding="3dp"
+    android:elevation="0dp">
+
+    <!-- Drag handle -->
+    <ImageView
+        android:id="@+id/btnQuickAccessMove"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_gravity="center_horizontal"
+        android:src="@android:drawable/ic_menu_sort_by_size"
+        android:contentDescription="Move"
+        android:padding="2dp"
+        app:tint="#4CAF50" />
+
+    <!-- Task Manager button -->
+    <ImageView
+        android:id="@+id/btnQuickTaskManager"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginTop="3dp"
+        android:layout_gravity="center_horizontal"
+        android:src="@drawable/icon_task_manager"
+        android:contentDescription="Task Manager"
+        android:padding="2dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="#4CAF50" />
+
+    <!-- FPS Counter button -->
+    <ImageView
+        android:id="@+id/btnQuickFpsCounter"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginTop="3dp"
+        android:layout_gravity="center_horizontal"
+        android:src="@drawable/icon_debug"
+        android:contentDescription="FPS Counter"
+        android:padding="2dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="#4CAF50" />
+
+    <!-- Input Controls button -->
+    <ImageView
+        android:id="@+id/btnQuickInputControls"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginTop="3dp"
+        android:layout_gravity="center_horizontal"
+        android:src="@drawable/icon_input_controls"
+        android:contentDescription="Input Controls"
+        android:padding="2dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="#4CAF50" />
+
+</LinearLayout>

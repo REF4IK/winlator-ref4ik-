@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    app:cardElevation="1dp"
+    app:cardCornerRadius="14dp"
+    app:cardBackgroundColor="?attr/colorSurface"
+    android:foreground="?attr/selectableItemBackground"
+    app:strokeWidth="1dp"
+    app:strokeColor="?attr/colorOutline">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+
+        <ImageView
+            android:id="@+id/IVIcon"
+            android:layout_width="38dp"
+            android:layout_height="43dp"
+            android:contentDescription="@string/dxvk_download_icon_desc"
+            android:src="@drawable/ic_dxvkk"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/IVStatus"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@android:drawable/stat_sys_download"
+            android:tint="?attr/colorOnSurfaceVariant"
+            android:contentDescription="@string/dxvk_download_status_desc"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/IVIcon" />
+
+        <TextView
+            android:id="@+id/TVVersionName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/dxvk_download_item_sample_name"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
+            android:maxLines="2"
+            android:ellipsize="end"
+            app:layout_constraintStart_toEndOf="@+id/IVIcon"
+            app:layout_constraintEnd_toStartOf="@+id/IVStatus"
+            app:layout_constraintTop_toTopOf="@+id/IVIcon"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:id="@+id/TVVersionCode"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/dxvk_download_item_sample_version_code"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginTop="2dp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="@+id/TVVersionName"
+            app:layout_constraintEnd_toEndOf="@+id/TVVersionName"
+            app:layout_constraintTop_toBottomOf="@+id/TVVersionName" />
+
+        <TextView
+            android:id="@+id/TVDescription"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/dxvk_download_item_sample_description"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginTop="3dp"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:lineSpacingMultiplier="1.1"
+            app:layout_constraintStart_toStartOf="@+id/TVVersionName"
+            app:layout_constraintEnd_toEndOf="@+id/TVVersionName"
+            app:layout_constraintTop_toBottomOf="@+id/TVVersionCode"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

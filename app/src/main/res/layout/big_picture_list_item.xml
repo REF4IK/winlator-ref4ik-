@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    android:layout_width="160dp"
+    android:layout_height="100dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="4dp"
+    android:focusable="true"
+    android:clickable="true"
+    android:foreground="?android:selectableItemBackground"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="8dp"
+    app:cardBackgroundColor="#2A2A2A">
+    
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        
+        <!-- Game Cover Image -->
+        <ImageView
+            android:id="@id/IVCoverArt"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:adjustViewBounds="true" />
+        
+        <!-- Gradient Overlay for better text readability -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_alignParentBottom="true"
+            android:background="@drawable/gradient_overlay" />
+        
+        <!-- Game Title (Optional - can be added if needed) -->
+        <TextView
+            android:id="@+id/gameTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:padding="8dp"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:shadowColor="#000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="4"
+            android:visibility="gone" />
+        
+        <!-- Hover/Focus Effect -->
+        <View
+            android:id="@+id/hoverOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#20FFFFFF"
+            android:visibility="gone" />
+        
+        <!-- Play indicator (Optional) -->
+        <ImageView
+            android:id="@+id/playIndicator"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_centerInParent="true"
+            android:src="@drawable/icon_play"
+            android:tint="#FFFFFF"
+            android:visibility="gone"
+            android:elevation="4dp" />
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>

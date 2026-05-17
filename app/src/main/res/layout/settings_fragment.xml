@@ -1,0 +1,774 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/midi_sound_font"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <Spinner
+                            android:id="@+id/SMIDISoundFont"
+                            style="@style/ComboBox"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTInstallSF"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_add"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTRemoveSF"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginRight="0dp"
+                            app:icon="@drawable/icon_remove"
+                            app:iconTint="?attr/colorOnSurface" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVSound"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/sound" />
+            </FrameLayout>
+
+            <!-- Theme Settings -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <LinearLayout style="@style/FieldSet">
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBDarkMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Enable Dark Mode"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/app_language"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textColor="?attr/colorOnSurface"
+                        android:layout_marginTop="16dp" />
+
+                    <Spinner
+                        android:id="@+id/SPAppLanguage"
+                        style="@style/ComboBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:entries="@array/app_languages" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/transition_animation"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textColor="?attr/colorOnSurface"
+                        android:layout_marginTop="16dp" />
+
+                    <Spinner
+                        android:id="@+id/SPTransitionAnimation"
+                        style="@style/ComboBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:entries="@array/transition_animations" />
+                </LinearLayout>
+                <TextView
+                    android:id="@+id/TVTheme"
+                    style="@style/FieldSetLabel"
+                    android:text="Theme" />
+            </FrameLayout>
+
+            <!-- Updates -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <LinearLayout style="@style/FieldSet">
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBReceiveBetaUpdates"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/receive_beta_updates"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/BTCheckForUpdates"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/check_for_updates" />
+                </LinearLayout>
+                <TextView
+                    android:id="@+id/TVUpdates"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/update_available" />
+            </FrameLayout>
+
+            <!-- Shortcuts -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <LinearLayout style="@style/FieldSet">
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Frontend Export Path"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/TVFrontendExportPath"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Default Path: Downloads/Winlator/Frontend"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?attr/colorOnSurface" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTChooseFrontendExportPath"
+                            style="@style/Widget.Material3.Button"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Choose Path" />
+                    </LinearLayout>
+                </LinearLayout>
+                <TextView
+                    android:id="@+id/TVShortcutSettings"
+                    style="@style/FieldSetLabel"
+                    android:text="Shortcut Settings" />
+            </FrameLayout>
+
+
+            <!-- Frame Generation -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/lsfg_lossless_dll"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/TVGlobalLosslessDllStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/lsfg_global_lossless_dll_missing"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/BTImportGlobalLosslessDll"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/lsfg_select_lossless_dll"
+                        app:icon="@drawable/icon_open"
+                        app:iconGravity="textStart" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVFrameGenerationSettings"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/lsfg_title" />
+            </FrameLayout>
+
+
+            <!-- Big Picture Mode -->
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <!-- SteamGridDB API Key Section -->
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBEnableBigPictureMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Enable Big Picture Mode on App Launch"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <LinearLayout style="@style/FieldSet">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <com.google.android.material.checkbox.MaterialCheckBox
+                                    android:id="@+id/CBEnableCustomApiKey"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Set SteamGrid API Key? (Cover Art)"
+                                    android:textColor="?attr/colorOnSurface"
+                                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                                <ImageView
+                                    android:id="@+id/BTHelpApiKey"
+                                    style="@style/HelpButton"
+                                    android:contentDescription="@string/help_steamgrid"
+                                    android:src="@drawable/icon_help" />
+                            </LinearLayout>
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:visibility="gone"
+                                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+                                
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/ETCustomApiKey"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:hint="Enter your API Key here" />
+                            </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/TVCustomApiKey"
+                            style="@style/FieldSetLabel"
+                            android:text="SteamGridDB API Key" />
+                    </FrameLayout>
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVBigPictureMode"
+                    style="@style/FieldSetLabel"
+                    android:text="Big Picture Mode" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/cursor_speed"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface"/>
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/TVCursorSpeed"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?attr/colorOnSurface" />
+                    </LinearLayout>
+
+                    <SeekBar
+                        android:id="@+id/SBCursorSpeed"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:min="10"
+                        android:max="200" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBUseDRI3"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/use_dri3_extension"
+                        android:layout_marginTop="8dp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBUseXR"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/use_xr"
+                        android:layout_marginTop="8dp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                    <!-- New Cursor Lock Checkbox -->
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBCursorLock"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="True Mouse Control (Deactivate with Volume Down)"
+                        android:layout_marginTop="8dp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                    <!-- New Xinput Toggle Checkbox -->
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBXinputToggle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Disable Xinput (Used for Exclusive M/KB support)"
+                        android:layout_marginTop="8dp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVXServer"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/xserver" />
+            </FrameLayout>
+
+            <!-- GPU Performance Settings Section -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <!-- GPU Performance Configuration Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/BTGPUPerformance"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/configure_gpu_performance"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="8dp" />
+
+                    <!-- GPU Info Display -->
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/TVGPUInfoDisplay"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/gpu_loading"
+                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                        android:textColor="?attr/colorOnSurface"
+                        android:layout_marginTop="8dp"
+                        android:padding="8dp"
+                        android:background="@drawable/bordered_panel" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVGPUPerformance"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/gpu_performance_label" />
+            </FrameLayout>
+
+            <!-- Adreno Turbo Mode Section (Separate) -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <!-- Adreno Turbo Mode Checkbox -->
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBAdrenoTurboMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/adreno_turbo_mode"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                    <!-- Description -->
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/adreno_turbo_mode_desc"
+                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:layout_marginTop="4dp" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVAdrenoTurbo"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/gpu_max_frequency_label" />
+            </FrameLayout>
+
+            <!-- Gyroscope Settings Section -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"> <!-- Add margin for spacing -->
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <!-- Enable Gyroscope Checkbox -->
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBGyroEnabled"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Enable Right-Stick Gyroscope (Experimental)"
+                        android:layout_marginBottom="16dp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" /> <!-- Added margin for better spacing -->
+
+                    <!-- Gyro Activator Button Label -->
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/TVGyroTriggerLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Gyro Activator Button:"
+                        android:layout_marginBottom="8dp"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textColor="?attr/colorOnSurface"/> <!-- Add some bottom margin for better spacing -->
+
+                    <!-- Spinner for selecting the gyro trigger button -->
+                    <Spinner
+                        android:id="@+id/SBGyroTriggerButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:entries="@array/button_options"
+                        android:layout_marginBottom="16dp" /> <!-- Add bottom margin to separate it from other elements -->
+
+                    <!-- RadioGroup for selecting gyro mode (toggle/hold) -->
+                    <RadioGroup
+                        android:id="@+id/RGyroMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <RadioButton
+                            android:id="@+id/RBHoldMode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Hold Mode"
+                            android:layout_marginEnd="16dp" /> <!-- Add end margin for spacing -->
+
+                        <RadioButton
+                            android:id="@+id/RBToggleMode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Toggle Mode" />
+                    </RadioGroup>
+
+                    <!-- Configure Gyroscope Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/BTConfigureGyro"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Calibrate Gyroscope"
+                        android:layout_marginTop="16dp" /> <!-- Add top margin for spacing -->
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVGyroSettings"
+                    style="@style/FieldSetLabel"
+                    android:text="Gyro Settings" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBEnableWineDebug"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/enable_wine_debug"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <LinearLayout
+                            android:id="@+id/LLWineDebugChannels"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="4dp" />
+                    </HorizontalScrollView>
+
+                    <View style="@style/FieldSeparator" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBEnableBox86_64Logs"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/enable_box86_64_logs"
+                        android:layout_marginTop="8dp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVLogs"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/logs" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/trigger_type"
+                            android:layout_gravity="center"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface"/>
+
+                        <ImageView
+                            android:id="@+id/BTHelpTriggerMode"
+                            android:layout_gravity="center"
+                            style="@style/HelpButton" />
+                    </LinearLayout>
+
+
+                    <RadioGroup
+                        android:id="@+id/RGTriggerType"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/RBTriggerIsButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/as_button"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface"/>
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/RBTriggerIsAxis"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/as_axis"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface"/>
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/RBTriggerIsMixed"
+                            android:visibility="gone"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/mixed"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface"/>
+                    </RadioGroup>
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/CBLegacyInputMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/enable_legacy_input_mode"
+                        android:layout_marginTop="8dp"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/BTConfigureAnalogSticks"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Configure Analog Sticks"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="16dp"
+                        style="@style/Widget.Material3.Button" />
+
+                </LinearLayout>
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/TVGameControllerLabel"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/game_controller" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.checkbox.MaterialCheckBox
+                            android:id="@+id/CBEnableFileProvider"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="@string/enable_file_provider"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <ImageView
+                            android:id="@+id/BTHelpFileProvider"
+                            android:layout_gravity="center"
+                            style="@style/HelpButton" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" >
+
+                        <com.google.android.material.checkbox.MaterialCheckBox
+                            android:id="@+id/CBOpenWithAndroidBrowser"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="left|center"
+                            android:text="@string/open_with_android_browser"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <com.google.android.material.checkbox.MaterialCheckBox
+                            android:id="@+id/CBShareAndroidClipboard"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="left|center"
+                            android:text="@string/share_android_clipboard"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <View style="@style/FieldSeparator" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Downloadable Contents URL"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <EditText
+                            android:id="@+id/ETDownloadableContentsURL"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="left|center"
+                            android:inputType="textUri"
+                            android:text="https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?attr/colorOnSurface" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/TVExperimental"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/experimental" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <com.google.android.material.button.MaterialButton
+                        style="@style/Widget.Material3.Button"
+                        android:id="@+id/BTReInstallImagefs"
+                        android:layout_width="240dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:text="@string/reinstall_imagefs" />
+
+                    <com.google.android.material.button.MaterialButton
+                        style="@style/Widget.Material3.Button"
+                        android:id="@+id/BTBackupData"
+                        android:layout_width="240dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:text="Backup Data" />
+
+                    <com.google.android.material.button.MaterialButton
+                        style="@style/Widget.Material3.Button"
+                        android:id="@+id/BTRestoreData"
+                        android:layout_width="240dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:text="Restore Data" />
+
+                </LinearLayout>
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/TVImageFs"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/imagefs" />
+            </FrameLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/BTConfirm"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="right|bottom"
+        android:tint="#ffffff"
+        android:src="@drawable/icon_confirm"
+        android:layout_margin="16dp" />
+</FrameLayout>

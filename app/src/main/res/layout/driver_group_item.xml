@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/rounded_background"
+    android:backgroundTint="?attr/colorSurface"
+    android:elevation="2dp"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- Заголовок группы (кликабельный) -->
+    <LinearLayout
+        android:id="@+id/groupHeaderLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:orientation="horizontal"
+        android:background="?android:attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="4dp">
+
+        <!-- Контент заголовка -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/groupNameText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:text="Mr. Purple Turnip"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/groupDescriptionText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Высокопроизводительные драйверы для Adreno GPU"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+        <!-- Стрелка расширения -->
+        <ImageView
+            android:id="@+id/expandArrow"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_expand_more"
+            android:tint="?attr/colorOnSurfaceVariant" />
+
+    </LinearLayout>
+
+    <!-- Контейнер для списка драйверов (скрываемый по умолчанию) -->
+    <LinearLayout
+        android:id="@+id/driversContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- Разделитель -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="4dp"
+            android:background="?attr/colorOutline"
+            android:alpha="0.3" />
+
+        <!-- RecyclerView для драйверов в группе -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/driversRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="260dp"
+            android:nestedScrollingEnabled="true"
+            android:scrollbars="vertical"
+            app:layoutManager="LinearLayoutManager" />
+
+    </LinearLayout>
+
+</LinearLayout>

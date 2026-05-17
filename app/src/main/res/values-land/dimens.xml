@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Landscape overrides: short bars so the small viewport gets more content space. -->
+    <dimen name="shortcut_settings_toolbar_height">40dp</dimen>
+    <dimen name="shortcut_settings_bottom_bar_padding_v">2dp</dimen>
+    <dimen name="shortcut_settings_button_height">32dp</dimen>
+</resources>

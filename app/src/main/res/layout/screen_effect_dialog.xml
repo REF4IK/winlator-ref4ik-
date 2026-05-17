@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+    
+    <LinearLayout
+        android:id="@+id/LLScreenEffectsRoot"
+        android:orientation="vertical"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+        <LinearLayout
+            android:id="@+id/LLScreenEffectsContent"
+            android:orientation="horizontal"
+            android:layout_width="520.0dip"
+            android:layout_height="wrap_content">
+            <LinearLayout android:orientation="vertical" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0">
+                <FrameLayout android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <LinearLayout
+                        android:id="@+id/LLColorFieldSet"
+                        style="@style/FieldSet">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/brightness" />
+                        <com.winlator.cmod.widget.SeekBar
+                            android:id="@+id/SBBrightness" android:layout_width="fill_parent" android:layout_height="60dp" app:maxValue="50" app:minValue="-50" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/contrast" />
+                        <com.winlator.cmod.widget.SeekBar
+                            android:id="@+id/SBContrast" android:layout_width="fill_parent" android:layout_height="60dp" app:maxValue="100" app:minValue="-100" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/gamma" />
+                        <com.winlator.cmod.widget.SeekBar
+                            android:id="@+id/SBGamma" android:layout_width="fill_parent" android:layout_height="60dp" app:maxValue="3.0" app:minValue="0.5" app:step="0.01" />
+                    </LinearLayout>
+                    <TextView
+                        android:id="@+id/LBLColorAdjustment"
+                        android:background="@color/window_background_color"
+                        android:text="@string/color_adjustment"
+                        style="@style/FieldSetLabel" />
+                </FrameLayout>
+            </LinearLayout>
+            <View
+                android:id="@+id/VScreenEffectsDivider"
+                style="@style/VerticalLine" />
+            <LinearLayout android:orientation="vertical" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0">
+                <TextView
+                    android:id="@+id/TVProfileTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/profile" />
+                <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <Spinner android:id="@id/SProfile" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" style="@style/ComboBox" />
+                    <LinearLayout style="@style/Toolbox">
+                        <ImageButton android:id="@id/BTAddProfile" android:src="@drawable/icon_add" style="@style/ListMenuButton" />
+                        <ImageButton android:id="@id/BTRemoveProfile" android:layout_marginRight="0.0dip" android:src="@drawable/icon_remove" style="@style/ListMenuButton" />
+                    </LinearLayout>
+                </LinearLayout>
+                <CheckBox android:id="@+id/CBEnableFXAA" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8.0dip" android:text="@string/enable_fxaa" />
+                <CheckBox android:id="@+id/CBEnableCRTShader" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_crt_shader" />
+                <CheckBox android:id="@+id/CBEnableToonShader" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_toon_shader" />
+                <CheckBox android:id="@+id/CBEnableNTSCEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_ntsc_effect" />
+                <CheckBox android:id="@+id/CBEnableVignetteEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_vignette_effect" />
+                <CheckBox android:id="@+id/CBEnableSepiaEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_sepia_effect" />
+                <CheckBox android:id="@+id/CBEnableBlurEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_blur_effect" />
+                <CheckBox android:id="@+id/CBEnablePixelateEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_pixelate_effect" />
+                <CheckBox android:id="@+id/CBEnableGrayscaleEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_grayscale_effect" />
+                <CheckBox android:id="@+id/CBEnableSharpenEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_sharpen_effect" />
+                <CheckBox android:id="@+id/CBEnableSmoothEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_smooth_effect" />
+                <CheckBox android:id="@+id/CBEnableHDREffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="HDR" />
+                <CheckBox android:id="@+id/CBEnableFSREffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_fsr_effect" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/fsr_quality" />
+                <Spinner android:id="@+id/SFsrQuality" android:layout_width="fill_parent" android:layout_height="wrap_content" style="@style/ComboBox" />
+                <CheckBox android:id="@+id/CBFsrAspectFit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/fsr_aspect_fit" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/fsr_sharpness" />
+                <com.winlator.cmod.widget.SeekBar
+                    android:id="@+id/SBFsrSharpness" android:layout_width="fill_parent" android:layout_height="60dp" app:maxValue="100" app:minValue="0" />
+
+                <Button
+                    android:id="@+id/ButtonAddGenerationView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start"
+                    android:text="@string/frame_generation"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

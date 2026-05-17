@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- FPS line chart -->
+    <com.winlator.cmod.widget.ProfilingChartView
+        android:id="@+id/ProfilingChart"
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:background="#FF101820" />
+
+    <!-- Summary text -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:fillViewport="false">
+
+        <TextView
+            android:id="@+id/TVProfilingSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:lineSpacingExtra="2dp" />
+    </ScrollView>
+</LinearLayout>

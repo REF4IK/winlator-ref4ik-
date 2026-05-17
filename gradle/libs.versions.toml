@@ -1,0 +1,56 @@
+[versions]
+agp = "8.1.1"
+kotlin = "2.2.21"
+commonsCompress = "1.21"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
+appcompat = "1.7.0"
+material = "1.12.0"
+preference = "1.2.1"
+xz = "1.7"
+zstdJni = "1.5.2-3"
+room = "2.8.4"
+composeBom = "2025.02.00"
+coroutines = "1.10.2"
+serializationJson = "1.9.0"
+lifecycle = "2.8.4"
+securityCrypto = "1.1.0-alpha06"
+timber = "5.0.1"
+zxing = "3.5.3"
+protobuf = "4.30.2"
+javasteam = "1.8.0"
+
+[libraries]
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+preference = { module = "androidx.preference:preference", version.ref = "preference" }
+xz = { module = "org.tukaani:xz", version.ref = "xz" }
+zstd-jni = { module = "com.github.luben:zstd-jni", version.ref = "zstdJni" }
+room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-jdk8 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
+lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
+lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+activity-compose = { module = "androidx.activity:activity-compose", version = "1.9.2" }
+security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
+javasteam = { module = "in.dragonbra:javasteam", version.ref = "javasteam" }
+javasteam-depotdownloader = { module = "in.dragonbra:javasteam-depotdownloader", version.ref = "javasteam" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+

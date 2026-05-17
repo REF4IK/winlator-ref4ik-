@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Человеко-читаемые названия языков (для отображения в UI) - каждый язык на своем родном языке -->
+    <string-array name="some_lc_all_names">
+        <item>العربية (مصر)</item>
+        <item>العربية (السعودية)</item>
+        <item>Deutsch (Österreich)</item>
+        <item>Deutsch (Schweiz)</item>
+        <item>Deutsch (Deutschland)</item>
+        <item>Deutsch (Luxemburg)</item>
+        <item>English (Australia)</item>
+        <item>English (Canada)</item>
+        <item>English (United Kingdom)</item>
+        <item>English (India)</item>
+        <item>English (United States)</item>
+        <item>Español (Argentina)</item>
+        <item>Español (España)</item>
+        <item>Español (México)</item>
+        <item>Français (Belgique)</item>
+        <item>Français (Canada)</item>
+        <item>Français (Suisse)</item>
+        <item>Français (France)</item>
+        <item>Italiano (Svizzera)</item>
+        <item>Italiano (Italia)</item>
+        <item>日本語 (日本)</item>
+        <item>한국어 (대한민국)</item>
+        <item>Português (Brasil)</item>
+        <item>Português (Portugal)</item>
+        <item>Русский (Россия)</item>
+        <item>Русский (Україна)</item>
+        <item>中文 (中国)</item>
+        <item>中文 (香港)</item>
+        <item>中文 (新加坡)</item>
+        <item>中文 (台灣)</item>
+    </string-array>
+    
+    <string-array name="app_languages">
+        <item>@string/app_language_system</item>
+        <item>@string/app_language_english</item>
+        <item>@string/app_language_russian</item>
+        <item>@string/app_language_chinese</item>
+    </string-array>
+
+    <string-array name="app_languages_values">
+        <item>system</item>
+        <item>en</item>
+        <item>ru</item>
+        <item>zh</item>
+    </string-array>
+</resources>

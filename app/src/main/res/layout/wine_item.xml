@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingLeft="12dp"
+    android:paddingRight="12dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp">
+ 
+     <TextView
+         android:id="@+id/TVTitle"
+         android:layout_width="0dp"
+         android:layout_height="wrap_content"
+         android:layout_weight="1"
+         android:maxLines="1"
+         android:ellipsize="end" />
+ 
+     <ImageButton
+         android:id="@+id/BTDownload"
+         style="@style/ListMenuButton"
+         android:layout_marginStart="8dp"
+         android:src="@drawable/icon_popup_menu_download"
+         android:visibility="gone" />
+ 
+     <ProgressBar
+         android:id="@+id/Progress"
+         style="@style/ListMenuButton"
+         android:layout_marginStart="8dp"
+         android:visibility="gone" />
+ </LinearLayout>

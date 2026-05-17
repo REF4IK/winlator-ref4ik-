@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Current Path -->
+    <TextView
+        android:id="@+id/TVCurrentPath"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="/"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:paddingBottom="12dp"
+        android:textColor="?attr/colorPrimary" />
+
+    <!-- File List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/RecyclerViewFiles"
+        android:layout_width="match_parent"
+        android:layout_height="450dp"
+        android:scrollbars="vertical" />
+
+</LinearLayout>

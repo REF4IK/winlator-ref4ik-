@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/shortcutsFragment">
+
+    <fragment
+        android:id="@+id/shortcutsFragment"
+        android:name="com.winlator.cmod.ShortcutsFragment"
+        android:label="@string/shortcuts"
+        tools:layout="@layout/shortcuts_fragment" />
+
+    <fragment
+        android:id="@+id/containersFragment"
+        android:name="com.winlator.cmod.ContainersFragment"
+        android:label="@string/containers"
+        tools:layout="@layout/containers_fragment" />
+
+    <fragment
+        android:id="@+id/inputControlsFragment"
+        android:name="com.winlator.cmod.InputControlsFragment"
+        android:label="@string/input_controls"
+        tools:layout="@layout/input_controls_fragment" />
+
+    <fragment
+        android:id="@+id/savesFragment"
+        android:name="com.winlator.cmod.SavesFragment"
+        android:label="@string/saves"
+        tools:layout="@layout/saves_fragment" />
+
+    <fragment
+        android:id="@+id/box86_64RCFragment"
+        android:name="com.winlator.cmod.Box86_64RCFragment"
+        android:label="@string/box64_rc"
+        tools:layout="@layout/box86_64_rc_fragment" />
+
+    <fragment
+        android:id="@+id/contentsFragment"
+        android:name="com.winlator.cmod.ContentsFragment"
+        android:label="@string/contents"
+        tools:layout="@layout/contents_fragment" />
+
+    <fragment
+        android:id="@+id/installedComponentsFragment"
+        android:name="com.winlator.cmod.InstalledComponentsFragment"
+        android:label="@string/installed_components"
+        tools:layout="@layout/installed_components_fragment" />
+
+    <fragment
+        android:id="@+id/steamFragment"
+        android:name="com.winlator.cmod.SteamFragment"
+        android:label="@string/steam"
+        tools:layout="@layout/steam_fragment" />
+
+    <fragment
+        android:id="@+id/adrenotoolsFragment"
+        android:name="com.winlator.cmod.AdrenotoolsFragment"
+        android:label="@string/adrenotools"
+        tools:layout="@layout/adrenotools_fragment" />
+
+    <fragment
+        android:id="@+id/driverStoreFragment"
+        android:name="com.winlator.cmod.DriverStoreFragment"
+        android:label="@string/driver_store"
+        tools:layout="@layout/fragment_driver_store" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.winlator.cmod.SettingsFragment"
+        android:label="@string/settings"
+        tools:layout="@xml/preferences" />
+
+    <fragment
+        android:id="@+id/fileManagerFragment"
+        android:name="com.winlator.cmod.FileManagerFragment"
+        android:label="@string/file_manager"
+        tools:layout="@layout/activity_file_manager" />
+
+    <!-- Actions с анимациями переходов -->
+    <action
+        android:id="@+id/action_global_shortcutsFragment"
+        app:destination="@id/shortcutsFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_containersFragment"
+        app:destination="@id/containersFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_inputControlsFragment"
+        app:destination="@id/inputControlsFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_savesFragment"
+        app:destination="@id/savesFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_box86_64RCFragment"
+        app:destination="@id/box86_64RCFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_contentsFragment"
+        app:destination="@id/contentsFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_installedComponentsFragment"
+        app:destination="@id/installedComponentsFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_steamFragment"
+        app:destination="@id/steamFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_adrenotoolsFragment"
+        app:destination="@id/adrenotoolsFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_driverStoreFragment"
+        app:destination="@id/driverStoreFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_settingsFragment"
+        app:destination="@id/settingsFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+
+    <action
+        android:id="@+id/action_global_fileManagerFragment"
+        app:destination="@id/fileManagerFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+</navigation>

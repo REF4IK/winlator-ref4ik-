@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minWidth="320dp"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minWidth="320dp"
+        android:orientation="vertical">
+
+        <!-- Информация о GPU -->
+        <TextView
+            android:id="@+id/TVGPUInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/gpu_detecting"
+            android:textSize="14sp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bordered_panel"
+            android:padding="12dp" />
+
+        <!-- Текущая частота -->
+        <TextView
+            android:id="@+id/TVCurrentFreq"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/gpu_current_freq_loading"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp"
+            android:padding="8dp" />
+
+        <!-- Максимальная частота -->
+        <TextView
+            android:id="@+id/TVMaxFreq"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/gpu_max_freq_loading"
+            android:textSize="14sp"
+            android:layout_marginBottom="16dp"
+            android:padding="8dp" />
+
+        <!-- Режим производительности -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/gpu_performance_mode_label"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/SPerformanceMode"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Описание режимов -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/gpu_performance_modes_description"
+            android:textSize="12sp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bordered_panel"
+            android:padding="12dp" />
+
+        <!-- Предупреждение -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/gpu_performance_warning"
+            android:textSize="12sp"
+            android:textColor="#FF6B35"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/bordered_panel"
+            android:padding="12dp" />
+
+        <!-- Кнопки управления -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/BTApply"
+                style="@style/ButtonNeutral"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/apply"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/BTRestore"
+                style="@style/ButtonPositive"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/restore"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>
