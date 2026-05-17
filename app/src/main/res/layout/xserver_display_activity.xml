@@ -13,15 +13,24 @@
         android:layout_height="match_parent" />
 
     <com.google.android.material.navigation.NavigationView
-        android:layout_width="wrap_content"
+        android:id="@+id/NavigationView"
+        android:layout_width="260dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:id="@+id/NavigationView"
-        android:background="#ffffff"
+        android:background="?attr/colorSurface"
+        android:elevation="8dp"
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:pointerIcon="arrow"
+        app:itemIconSize="22dp"
+        app:itemIconPadding="12dp"
+        app:itemHorizontalPadding="16dp"
+        app:itemVerticalPadding="2dp"
+        app:itemShapeFillColor="@android:color/transparent"
+        app:itemShapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium"
         app:itemIconTint="@color/colorAccent"
+        app:itemTextColor="?attr/colorOnSurface"
+        app:itemTextAppearance="@style/TextAppearance.Material3.LabelLarge"
         app:menu="@menu/xserver_menu"/>
 
     <EditText

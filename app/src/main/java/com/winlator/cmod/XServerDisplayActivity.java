@@ -868,16 +868,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        if (isDarkMode) {
-
-            navigationView.setItemTextColor(ContextCompat.getColorStateList(this, R.color.white));
-
-            navigationView.setBackgroundResource(R.color.content_dialog_background_dark);
-
-        }
-
-
-
         boolean enableLogs = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box86_64_logs", false);
 
         Menu menu = navigationView.getMenu();
