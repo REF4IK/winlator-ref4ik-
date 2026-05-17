@@ -985,4 +985,20 @@
     <string name="fps_counter_show_cpu_load">Show CPU Load</string>
     <string name="fps_counter_show_gpu_load">Show GPU Load</string>
     <string name="fps_counter_show_gpu_temp">Show GPU Temperature</string>
+
+    <!-- Contents source dialog -->
+    <string name="contents_source">内容来源</string>
+    <string name="custom_profile">自定义</string>
+    <string name="profile_name_hint">配置名称</string>
+    <string name="profile_url_hint">Contents URL</string>
+
+    <!-- FPS Counter short labels -->
+    <string name="fps_short_ft_graph">图表</string>
+    <string name="fps_short_gpu_load">GPU负载</string>
+    <string name="fps_short_gpu_temp">GPU温度</string>
+    <string name="fps_short_renderer">渲染器</string>
+    <string name="fps_short_cpu_load">CPU负载</string>
+    <string name="fps_short_cpu_temp">CPU温度</string>
+    <string name="fps_short_batt_temp">电池温度</string>
+    <string name="fps_short_power">功耗</string>
 </resources>

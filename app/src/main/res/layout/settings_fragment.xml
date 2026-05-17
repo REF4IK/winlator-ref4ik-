@@ -696,24 +696,6 @@
                             android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                             android:textColor="?attr/colorOnSurface" />
 
-                        <View style="@style/FieldSeparator" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Downloadable Contents URL"
-                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                            android:textColor="?attr/colorOnSurface" />
-
-                        <EditText
-                            android:id="@+id/ETDownloadableContentsURL"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="left|center"
-                            android:inputType="textUri"
-                            android:text="https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json"
-                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                            android:textColor="?attr/colorOnSurface" />
                     </LinearLayout>
                 </LinearLayout>
 

@@ -1356,4 +1356,20 @@
         <item quantity="many">%d файлов</item>
         <item quantity="other">%d файлов</item>
     </plurals>
+
+    <!-- Contents source dialog -->
+    <string name="contents_source">Источник контента</string>
+    <string name="custom_profile">Свой профиль</string>
+    <string name="profile_name_hint">Название профиля</string>
+    <string name="profile_url_hint">Ссылка на contents.json</string>
+
+    <!-- FPS Counter short labels -->
+    <string name="fps_short_ft_graph">График</string>
+    <string name="fps_short_gpu_load">Загр. GPU</string>
+    <string name="fps_short_gpu_temp">Темп. GPU</string>
+    <string name="fps_short_renderer">Рендерер</string>
+    <string name="fps_short_cpu_load">Загр. CPU</string>
+    <string name="fps_short_cpu_temp">Темп. CPU</string>
+    <string name="fps_short_batt_temp">Темп. бат.</string>
+    <string name="fps_short_power">Питание</string>
 </resources>
