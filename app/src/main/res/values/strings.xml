@@ -1368,6 +1368,12 @@
     <string name="fps_short_batt_temp">Batt Temp</string>
     <string name="fps_short_power">Power</string>
 
+    <!-- Contents source dialog -->
+    <string name="contents_source">Contents Source</string>
+    <string name="custom_profile">Custom</string>
+    <string name="profile_name_hint">Profile name</string>
+    <string name="profile_url_hint">Contents URL</string>
+
     <!-- Shortcut Settings Activity -->
     <string name="shortcut_settings">Shortcut settings</string>
 

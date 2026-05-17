@@ -17,6 +17,7 @@ import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -125,6 +126,8 @@ public class ContentsFragment extends Fragment {
 
         emptyText = layout.findViewById(R.id.TVEmptyText);
 
+        layout.findViewById(R.id.BTContentsSettings).setOnClickListener(v -> showContentsUrlDialog());
+
         View btInstallContent = layout.findViewById(R.id.BTInstallContent);
         btInstallContent.setOnClickListener(v -> {
             ContentDialog.confirm(getContext(), getString(R.string.do_you_want_to_install_content) + " " + getString(R.string.pls_make_sure_content_trustworthy) + " "
@@ -165,6 +168,77 @@ public class ContentsFragment extends Fragment {
 
             }
         });
+    }
+
+    private static final String URL_REF4IK = "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json";
+    private static final String URL_THE412BANNER = "https://raw.githubusercontent.com/The412Banner/winlator-contents/main/contents.json";
+
+    private void showContentsUrlDialog() {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
+        builder.setTitle(R.string.contents_source);
+
+        String currentUrl = sp.getString("downloadable_contents_url", URL_REF4IK);
+
+        final String[] presets = {"REF4IK", "The412Banner", getString(R.string.custom_profile)};
+        final String[] urls = {URL_REF4IK, URL_THE412BANNER, null};
+
+        int checkedItem = 2;
+        if (currentUrl.equals(URL_REF4IK)) checkedItem = 0;
+        else if (currentUrl.equals(URL_THE412BANNER)) checkedItem = 1;
+
+        builder.setSingleChoiceItems(presets, checkedItem, (dialog, which) -> {
+            if (which < 2) {
+                sp.edit().putString("downloadable_contents_url", urls[which]).apply();
+                dialog.dismiss();
+                onResume();
+            } else {
+                dialog.dismiss();
+                showCustomUrlDialog();
+            }
+        });
+        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.show();
+    }
+
+    private void showCustomUrlDialog() {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
+        builder.setTitle(R.string.custom_profile);
+
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(getContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad, pad, pad, pad / 2);
+
+        final EditText inputName = new EditText(getContext());
+        inputName.setHint(R.string.profile_name_hint);
+        inputName.setSingleLine(true);
+        inputName.setText(sp.getString("custom_contents_name", ""));
+        layout.addView(inputName);
+
+        final EditText inputUrl = new EditText(getContext());
+        inputUrl.setHint(R.string.profile_url_hint);
+        inputUrl.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        inputUrl.setSingleLine(true);
+        String savedCustomUrl = sp.getString("custom_contents_url", "");
+        inputUrl.setText(savedCustomUrl);
+        layout.addView(inputUrl);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+            String name = inputName.getText().toString().trim();
+            String url = inputUrl.getText().toString().trim();
+            if (!url.isEmpty()) {
+                sp.edit()
+                    .putString("custom_contents_name", name)
+                    .putString("custom_contents_url", url)
+                    .putString("downloadable_contents_url", url)
+                    .apply();
+                onResume();
+            }
+        });
+        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.show();
     }
 
     private void updateContentsListView() {

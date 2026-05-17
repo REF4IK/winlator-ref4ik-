@@ -521,52 +521,46 @@ public class SettingsFragment extends Fragment {
         btHelpFileProvider.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_file_provider));
 
         final CheckBox cbOpenInBrowser = view.findViewById(R.id.CBOpenWithAndroidBrowser);
-        cbOpenInBrowser.setChecked(preferences.getBoolean("open_with_android_browser", false));
 
-        final CheckBox cbShareClipboard = view.findViewById(R.id.CBShareAndroidClipboard);
-        cbShareClipboard.setChecked(preferences.getBoolean("share_android_clipboard", false));
+final CheckBox cbShareClipboard = view.findViewById(R.id.CBShareAndroidClipboard);
+cbShareClipboard.setChecked(preferences.getBoolean("share_android_clipboard", false));
 
-        final EditText etDownloadableContentsURL = view.findViewById(R.id.ETDownloadableContentsURL);
-        etDownloadableContentsURL.setText(preferences.getString("downloadable_contents_url", "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json"));
+view.findViewById(R.id.BTReInstallImagefs).setOnClickListener(v -> {
+    ContentDialog.confirm(context, R.string.do_you_want_to_reinstall_imagefs, () -> ImageFsInstaller.installFromAssets((MainActivity) getActivity()));
+});
 
-        view.findViewById(R.id.BTReInstallImagefs).setOnClickListener(v -> {
-            ContentDialog.confirm(context, R.string.do_you_want_to_reinstall_imagefs, () -> ImageFsInstaller.installFromAssets((MainActivity) getActivity()));
-        });
+// Add backup button
+Button btnBackupData = view.findViewById(R.id.BTBackupData);
+btnBackupData.setOnClickListener(v -> {
+    showBackupConfirmationDialog();
+});
 
-        // Add backup button
-        Button btnBackupData = view.findViewById(R.id.BTBackupData);
-        btnBackupData.setOnClickListener(v -> {
-            showBackupConfirmationDialog();
-        });
+// Add restore button
+Button btnRestoreData = view.findViewById(R.id.BTRestoreData);
+btnRestoreData.setOnClickListener(v -> {
+    selectBackupFileForRestore();
+});
 
-        // Add restore button
-        Button btnRestoreData = view.findViewById(R.id.BTRestoreData);
-        btnRestoreData.setOnClickListener(v -> {
-            selectBackupFileForRestore();
-        });
+int finalSelectedIndex = selectedIndex;
+view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
+    SharedPreferences.Editor editor = preferences.edit();
 
-        int finalSelectedIndex = selectedIndex;
-        view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
-            SharedPreferences.Editor editor = preferences.edit();
+    // Save Dark Mode setting
+    editor.putBoolean("dark_mode", cbDarkMode.isChecked());
+    editor.putBoolean("use_dri3", cbUseDRI3.isChecked());
+    editor.putBoolean("use_xr", cbUseXR.isChecked());
+    editor.putFloat("cursor_speed", sbCursorSpeed.getProgress() / 100.0f);
+    editor.putBoolean("enable_wine_debug", cbEnableWineDebug.isChecked());
+    editor.putBoolean("enable_box86_64_logs", cbEnableBox86_64Logs.isChecked());
+    editor.putInt("trigger_type", triggerRbIds.indexOf(rgTriggerType.getCheckedRadioButtonId()));
+    editor.putBoolean("cursor_lock", cbCursorLock.isChecked()); // Save cursor lock state
+    editor.putBoolean("xinput_toggle", cbXinputToggle.isChecked()); // Save xinput toggle state
+    editor.putBoolean("enable_file_provider", cbEnableFileProvider.isChecked());
+    editor.putBoolean("open_with_android_browser", cbOpenInBrowser.isChecked());
+    editor.putBoolean("share_android_clipboard", cbShareClipboard.isChecked());
 
-            // Save Dark Mode setting
-            editor.putBoolean("dark_mode", cbDarkMode.isChecked());
-            editor.putBoolean("use_dri3", cbUseDRI3.isChecked());
-            editor.putBoolean("use_xr", cbUseXR.isChecked());
-            editor.putFloat("cursor_speed", sbCursorSpeed.getProgress() / 100.0f);
-            editor.putBoolean("enable_wine_debug", cbEnableWineDebug.isChecked());
-            editor.putBoolean("enable_box86_64_logs", cbEnableBox86_64Logs.isChecked());
-            editor.putInt("trigger_type", triggerRbIds.indexOf(rgTriggerType.getCheckedRadioButtonId()));
-            editor.putBoolean("cursor_lock", cbCursorLock.isChecked()); // Save cursor lock state
-            editor.putBoolean("xinput_toggle", cbXinputToggle.isChecked()); // Save xinput toggle state
-            editor.putBoolean("enable_file_provider", cbEnableFileProvider.isChecked());
-            editor.putBoolean("open_with_android_browser", cbOpenInBrowser.isChecked());
-            editor.putBoolean("share_android_clipboard", cbShareClipboard.isChecked());
-
-            editor.putString("downloadable_contents_url", etDownloadableContentsURL.getText().toString());
-
-            // Save gyro settings
-            editor.putBoolean("gyro_enabled", cbGyroEnabled.isChecked());
+    // Save gyro settings
+    editor.putBoolean("gyro_enabled", cbGyroEnabled.isChecked());
 //            editor.putBoolean("process_gyro_with_left_trigger", cbProcessGyroWithLeftTrigger.isChecked());
 
             int selectedKeycode = keycodes[sbGyroTriggerButton.getSelectedItemPosition()];

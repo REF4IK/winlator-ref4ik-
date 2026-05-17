@@ -24,6 +24,16 @@
             android:layout_height="wrap_content"
             android:layout_weight="1" />
 
+        <ImageButton
+            android:id="@+id/BTContentsSettings"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/icon_settings"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Settings"
+            android:scaleType="centerInside"
+            android:padding="8dp" />
+
     </LinearLayout>
 
 
