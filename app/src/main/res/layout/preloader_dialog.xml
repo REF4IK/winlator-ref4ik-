@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/PreloaderRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/preloader_gradient_background"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Game cover art background (shown when available) -->
+    <ImageView
+        android:id="@+id/CoverArtBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- Dark scrim over cover art so text remains legible -->
+    <View
+        android:id="@+id/CoverArtScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#B3000000"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingLeft="32dp"
+        android:paddingRight="32dp">
+
+        <TextView
+            android:id="@+id/TitleTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textColor="#FFFFFFFF"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.02"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/SubtitleTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="#99FFFFFF"
+            android:textSize="13sp"
+            android:letterSpacing="0.06"
+            android:fontFamily="monospace" />
+
+        <ProgressBar
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="240dp"
+            android:layout_height="3dp"
+            android:layout_marginTop="32dp"
+            android:indeterminate="true"
+            android:indeterminateTint="#FF26C6BE" />
+
+        <TextView
+            android:id="@+id/TextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textSize="16sp"
+            android:textColor="#CCFFFFFF"
+            android:gravity="center" />
+    </LinearLayout>
+</FrameLayout>

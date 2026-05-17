@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/version" />
+
+        <Spinner
+            android:id="@+id/SVersion"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_version_entries" />
+
+        <Button
+            android:id="@+id/BTDownloadDXVK"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:drawableLeft="@android:drawable/stat_sys_download"
+            android:drawablePadding="8dp"
+            android:text="@string/download_dxvk" />
+
+        <LinearLayout
+            android:id="@+id/LLAsync"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_weight="1"
+                android:text="@string/enabled_async" />
+
+            <ToggleButton
+                android:id="@+id/SWAsync"
+                android:layout_width="64dp"
+                android:layout_height="32dp"
+                android:background="@drawable/toggle_button_selector"
+                android:textOff=""
+                android:textOn="" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLAsyncCache"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_weight="1"
+                android:text="@string/enabled_async_cache" />
+
+            <ToggleButton
+                android:id="@+id/SWAsyncCache"
+                android:layout_width="64dp"
+                android:layout_height="32dp"
+                android:background="@drawable/toggle_button_selector"
+                android:textOff=""
+                android:textOn="" />
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/frame_rate" />
+
+        <Spinner
+            android:id="@+id/SFramerate"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_framerate_entries" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/max_device_memory" />
+
+        <Spinner
+            android:id="@+id/SMaxDeviceMemory"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_max_device_memory_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_tear_free" />
+
+            <ImageView
+                android:id="@+id/BTHelpTearFree"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/STearFree"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_boolean_option_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_max_frame_latency" />
+
+            <ImageView
+                android:id="@+id/BTHelpMaxFrameLatency"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SMaxFrameLatency"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_max_frame_latency_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_tiler_mode" />
+
+            <ImageView
+                android:id="@+id/BTHelpTilerMode"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/STilerMode"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_boolean_option_entries" />
+
+        <LinearLayout
+            android:id="@+id/LLDeferSurfaceCreation"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_weight="1"
+                android:text="@string/dxvk_defer_surface_creation" />
+
+            <ImageView
+                android:id="@+id/BTHelpDeferSurfaceCreation"
+                style="@style/HelpButton" />
+
+            <ToggleButton
+                android:id="@+id/SWDeferSurfaceCreation"
+                android:layout_width="64dp"
+                android:layout_height="32dp"
+                android:background="@drawable/toggle_button_selector"
+                android:textOff=""
+                android:textOn="" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLDisableMsaa"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_weight="1"
+                android:text="@string/dxvk_disable_msaa" />
+
+            <ImageView
+                android:id="@+id/BTHelpDisableMsaa"
+                style="@style/HelpButton" />
+
+            <ToggleButton
+                android:id="@+id/SWDisableMsaa"
+                android:layout_width="64dp"
+                android:layout_height="32dp"
+                android:background="@drawable/toggle_button_selector"
+                android:textOff=""
+                android:textOn="" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_max_tess_factor" />
+
+            <ImageView
+                android:id="@+id/BTHelpMaxTessFactor"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SMaxTessFactor"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_max_tess_factor_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_sync_interval" />
+
+            <ImageView
+                android:id="@+id/BTHelpSyncInterval"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SSyncInterval"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_sync_interval_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_max_feature_level" />
+
+            <ImageView
+                android:id="@+id/BTHelpMaxFeatureLevel"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SMaxFeatureLevel"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_max_feature_level_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_force_refresh_rate" />
+
+            <ImageView
+                android:id="@+id/BTHelpForceRefreshRate"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SForceRefreshRate"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_force_refresh_rate_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_shader_model" />
+
+            <ImageView
+                android:id="@+id/BTHelpShaderModel"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SShaderModel"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_shader_model_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_float_emulation" />
+
+            <ImageView
+                android:id="@+id/BTHelpFloatEmulation"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SFloatEmulation"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_float_emulation_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_sampler_anisotropy" />
+
+            <ImageView
+                android:id="@+id/BTHelpSamplerAnisotropy"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SSamplerAnisotropy"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_sampler_anisotropy_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_enable_memory_defrag" />
+
+            <ImageView
+                android:id="@+id/BTHelpEnableMemoryDefrag"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SEnableMemoryDefrag"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_boolean_option_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_lower_sin_cos" />
+
+            <ImageView
+                android:id="@+id/BTHelpLowerSinCos"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SLowerSinCos"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_boolean_option_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_clamp_negative_lod_bias" />
+
+            <ImageView
+                android:id="@+id/BTHelpClampNegativeLodBias"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SClampNegativeLodBias"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_boolean_option_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_sampler_lod_bias" />
+
+            <ImageView
+                android:id="@+id/BTHelpSamplerLodBias"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SSamplerLodBias"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_sampler_lod_bias_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_num_compiler_threads" />
+
+            <ImageView
+                android:id="@+id/BTHelpNumCompilerThreads"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SNumCompilerThreads"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_num_compiler_threads_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_enable_graphics_pipeline_library" />
+
+            <ImageView
+                android:id="@+id/BTHelpEnableGraphicsPipelineLibrary"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SEnableGraphicsPipelineLibrary"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_boolean_option_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxvk_relaxed_barriers" />
+
+            <ImageView
+                android:id="@+id/BTHelpRelaxedBarriers"
+                style="@style/HelpButton" />
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/SRelaxedBarriers"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:entries="@array/dxvk_boolean_option_entries" />
+    </LinearLayout>
+</ScrollView>

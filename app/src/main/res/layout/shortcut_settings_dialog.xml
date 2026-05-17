@@ -1,0 +1,1056 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <LinearLayout
+        android:id="@+id/LLContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/name"
+            android:textSize="16sp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <EditText
+                android:id="@+id/ETName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapSentences" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/screen_size"
+                    android:textSize="16sp" />
+
+                <Spinner
+                    style="@style/ComboBox"
+                    android:layout_width="match_parent"
+                    android:id="@+id/SScreenSize"
+                    android:entries="@array/screen_size_entries"
+                    android:spinnerMode="dialog" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/LLCustomScreenSize"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/width"
+                        android:textSize="14sp" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="78dp"
+                        android:layout_height="wrap_content">
+
+                        <EditText
+                            android:id="@+id/ETScreenWidth"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="number" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="18dp"
+                    android:layout_gravity="bottom"
+                    android:layout_marginLeft="2dp"
+                    android:layout_marginRight="2dp"
+                    android:layout_marginBottom="4dp"
+                    android:text="x" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/height"
+                        android:textSize="14sp" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="78dp"
+                        android:layout_height="wrap_content">
+
+                        <EditText
+                            android:id="@+id/ETScreenHeight"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="number" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/graphics_driver"
+            android:textSize="16sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <Spinner
+                style="@style/ComboBox"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:id="@+id/SGraphicsDriver"
+                android:entries="@array/graphics_driver_entries" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/BTGraphicsDriverConfig"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="54dp"
+                android:layout_height="54dp"
+                android:layout_marginStart="4dp"
+                android:gravity="center"
+                app:icon="@drawable/icon_settings_shortcut"
+                app:iconGravity="top"
+                app:iconPadding="0dp"
+                app:iconSize="40dp"
+                app:iconTint="?attr/colorOnSurface"
+                android:visibility="visible"
+                android:contentDescription="@string/settings" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+
+            <TextView
+                android:id="@+id/TVWrapperVersionLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Current Version:"
+                android:textStyle="bold"
+                android:paddingRight="8dp" />
+
+            <TextView
+                android:id="@+id/TVGraphicsDriverVersion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="default_version"
+                android:textColor="@android:color/holo_blue_dark" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dxwrapper"
+                android:paddingTop="8dp" />
+
+            <ImageView
+                android:id="@+id/BTHelpDXWrapper"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginLeft="4dp"
+                android:src="@drawable/icon_help"
+                app:tint="#e0e0e0" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <Spinner
+                style="@style/ComboBox"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:id="@+id/SDXWrapper"
+                android:entries="@array/dxwrapper_entries"
+                android:spinnerMode="dialog" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/BTDXWrapperConfig"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="54dp"
+                android:layout_height="54dp"
+                android:layout_marginStart="4dp"
+                android:gravity="center"
+                app:icon="@drawable/icon_settings_shortcut"
+                app:iconGravity="top"
+                app:iconPadding="0dp"
+                app:iconSize="40dp"
+                app:iconTint="?attr/colorOnSurface"
+                android:visibility="visible"
+                android:contentDescription="@string/settings" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/ddraw_wrapper"
+            android:textSize="16sp" >
+        </TextView>
+
+        <Spinner
+            android:id="@+id/SDDrawrapper"
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:layout_weight="1"
+            android:entries="@array/ddrawrapper_entries">
+        </Spinner>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/audio_driver"
+            android:textSize="16sp" />
+
+        <Spinner
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:id="@+id/SAudioDriver"
+            android:entries="@array/audio_driver_entries" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:id="@+id/LLEmulator">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="64bit Emulator"
+                android:textSize="16sp" />
+            <Spinner
+                style="@style/ComboBox"
+                android:layout_width="match_parent"
+                android:id="@+id/SEmulator64"
+                android:entries="@array/emulator_entries"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dll_emulator"
+                android:textSize="16sp" />
+            <Spinner
+                style="@style/ComboBox"
+                android:layout_width="match_parent"
+                android:id="@+id/SEmulator"
+                android:entries="@array/emulator_entries"/>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/midi_sound_font"
+            android:textSize="16sp" />
+
+        <Spinner
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:id="@+id/SMIDISoundFont" />
+
+        <!-- Checkbox for enabling/disabling secondary executable options -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/name"
+            android:textSize="16sp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/ETName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapSentences" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/secondary_exec"
+            android:textSize="16sp" />
+
+        <CheckBox
+            android:id="@+id/CBUseSecondaryExec"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/use_secondary_executable"
+            android:textSize="16sp" />
+
+
+        <!-- Secondary Executable Options -->
+        <LinearLayout
+            android:id="@+id/LLSecondaryExecOptions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/secondary_exe_path_subtext"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingTop="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/secondary_executable"
+                    android:textSize="16sp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <EditText
+                        android:id="@+id/ETSecondaryExec"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/enter_secondary_exec_path" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingTop="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/exec_delay"
+                    android:textSize="16sp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <EditText
+                        android:id="@+id/ETExecDelay"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:hint="@string/enter_delay_seconds" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/TabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/tab_layout_background"
+            app:tabGravity="center"
+            app:tabMode="auto">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/win_components" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/environment_variables" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/advanced" />
+        </com.google.android.material.tabs.TabLayout>
+
+        <LinearLayout
+            android:id="@+id/LLTabWinComponents"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout
+                    style="@style/FieldSet"
+                    android:id="@+id/LLWinComponentsDirectX" />
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:background="#ffffff"
+                    android:text="@string/directx" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout
+                    style="@style/FieldSet"
+                    android:id="@+id/LLWinComponentsGeneral" />
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:background="#ffffff"
+                    android:text="@string/general" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLTabEnvVars"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.winlator.cmod.widget.EnvVarsView
+                android:id="@+id/EnvVarsView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"/>
+
+            <View style="@style/HorizontalLine" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/BTAddEnvVar"
+                android:layout_width="160dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:text="@string/add" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLTabAdvanced"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/box86box64Frame"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout style="@style/FieldSet">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/box64_version" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <Spinner
+                            style="@style/ComboBox"
+                            android:id="@+id/SBox64Version"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:entries="@array/box64_version_entries"
+                            android:spinnerMode="dialog" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTDownloadBox64Version"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginStart="8dp"
+                            android:contentDescription="@string/download"
+                            app:icon="@drawable/icon_popup_menu_download"
+                            app:iconPadding="0dp"
+                            app:iconTint="?attr/colorOnSurface" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/box64_preset" />
+
+                    <Spinner
+                        style="@style/ComboBox"
+                        android:id="@+id/SBox64Preset"
+                        android:layout_width="match_parent" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTAddBox64Preset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_add"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTEditBox64Preset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_edit"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTDuplicateBox64Preset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_duplicate"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTRemoveBox64Preset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginRight="0dp"
+                            app:icon="@drawable/icon_remove"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTExportBox64Preset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_export"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTImportBox64Preset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_open"
+                            app:iconTint="?attr/colorOnSurface" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/box86_64_rc_files" />
+
+                    <Spinner
+                        style="@style/ComboBox"
+                        android:id="@+id/SRCFile"
+                        android:layout_width="match_parent" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:background="#ffffff"
+                    android:text="@string/box86_box64" />
+            </FrameLayout>
+            
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/fexcoreFrame"
+                android:layout_marginTop="8dp">
+                
+                <LinearLayout style="@style/FieldSet">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fexcore_version" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <Spinner
+                            style="@style/ComboBox"
+                            android:id="@+id/SFEXCoreVersion"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTDownloadFEXCoreVersion"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginStart="8dp"
+                            android:contentDescription="@string/download"
+                            app:icon="@drawable/icon_popup_menu_download"
+                            app:iconPadding="0dp"
+                            app:iconTint="?attr/colorOnSurface" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fexcore_preset" />
+
+                    <Spinner
+                        style="@style/ComboBox"
+                        android:id="@+id/SFEXCorePreset"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:spinnerMode="dialog" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTAddFEXCorePreset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_add"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTEditFEXCorePreset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_edit"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTDuplicateFEXCorePreset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_duplicate"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTRemoveFEXCorePreset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginRight="0dp"
+                            app:icon="@drawable/icon_remove"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTExportFEXCorePreset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_export"
+                            app:iconTint="?attr/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTImportFEXCorePreset"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_open"
+                            app:iconTint="?attr/colorOnSurface" />
+                    </LinearLayout>
+                </LinearLayout>
+                    
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:background="#ffffff"
+                    android:text="@string/fexcore_config" />
+                    
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout style="@style/FieldSet">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/startup_selection" />
+
+                    <Spinner
+                        style="@style/ComboBox"
+                        android:layout_width="match_parent"
+                        android:id="@+id/SStartupSelection"
+                        android:entries="@array/startup_selection_entries" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/TVSystem"
+                    style="@style/FieldSetLabel"
+                    android:text="@string/system" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout style="@style/FieldSet">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/profile"
+                        android:textSize="16sp" />
+
+                    <Spinner
+                        style="@style/ComboBox"
+                        android:id="@+id/SControlsProfile"
+                        android:layout_width="match_parent"
+                        android:spinnerMode="dialog" />
+
+                    <CheckBox
+                        android:id="@+id/CBDisabledXInput"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/disable_xinput_for_shortcut"
+                        android:textSize="16sp" />
+
+                    <CheckBox
+                        android:id="@+id/CBRelativeMouseMovement"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/relative_mouse_movement"
+                        android:textSize="16sp" />
+
+                    <CheckBox
+                        android:id="@+id/CBTouchscreenMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/simulate_touch_screen"
+                        android:textSize="16sp" />
+
+                </LinearLayout>
+
+
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:background="#ffffff"
+                    android:text="@string/input_controls" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <LinearLayout
+                        android:id="@+id/LLDinputMapperType"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/directinput_mapper_type"
+                            android:textSize="16sp" />
+
+                        <Spinner
+                            style="@style/ComboBox"
+                            android:id="@+id/SDInputType"
+                            android:layout_width="match_parent"
+                            android:entries="@array/dinput_mapper_type_entries" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
+
+                        <CheckBox
+                            android:id="@+id/CBEnableXInput"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="@string/enable_xinput_for_wine_game"
+                            android:textSize="16sp" />
+
+                        <ImageView
+                            android:id="@+id/BTXInputHelp"
+                            style="@style/HelpButton"
+                            android:layout_gravity="center" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
+
+                        <CheckBox
+                            android:id="@+id/CBEnableDInput"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/enable_dinput_for_wine_game"
+                            android:textSize="16sp" />
+
+                        <ImageView
+                            android:id="@+id/BTDInputHelp"
+                            style="@style/HelpButton"
+                            android:layout_gravity="center" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/TVLegacyInputMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="7.1.2 Legacy Input Mode Enabled in Settings"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:background="#ffffff"
+                    android:text="@string/game_controller" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout style="@style/FieldSet">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/exec_arguments"
+                        android:textSize="16sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1">
+
+                            <EditText
+                                android:id="@+id/ETExecArgs"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/BTExtraArgsMenu"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:icon="@drawable/icon_menu"
+                            android:contentDescription="@string/options" />
+                    </LinearLayout>
+
+                    <CheckBox
+                        android:id="@+id/CBFullscreenStretched"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fullscreen_stretched"
+                        android:textSize="16sp" />
+
+                    <CheckBox
+                        android:id="@+id/CBForceFullscreen"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/force_fullscreen"
+                        android:layout_marginTop="4dp"
+                        android:textSize="16sp" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#ffffff"
+                    android:text="@string/system" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" >
+
+                <LinearLayout style="@style/FieldSet" >
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/vkbasalt_sharpness_effects"
+                        android:textSize="16sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" >
+
+                        <Spinner
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/SSharpnessEffect"
+                            style="@style/ComboBox"
+                            android:entries="@array/vkbasalt_sharpness_entries"
+                            android:spinnerMode="dialog" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal" >
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/vkbasalt_sharpness_level"
+                                android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:id="@+id/TVSharpnessLevel" />
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:min="0"
+                            android:id="@+id/SBSharpnessLevel"
+                            android:max="100" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal" >
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/vkbasalt_sharpness_denoise"
+                                android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="end"
+                                android:gravity="end"
+                                android:id="@+id/TVSharpnessDenoise" />
+
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:min="0"
+                            android:id="@+id/SBSharpnessDenoise"
+                            android:max="100" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#ffffff"
+                    android:text="@string/vkbasalt" />
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/processor_affinity"
+                android:layout_marginTop="8dp" />
+
+            <com.winlator.cmod.widget.CPUListView
+                android:id="@+id/CPUListView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/processor_affinity_32_bit_apps"
+                android:layout_marginTop="8dp" />
+
+            <com.winlator.cmod.widget.CPUListView
+                android:id="@+id/CPUListViewWoW64"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:layout_marginTop="4dp" />
+
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

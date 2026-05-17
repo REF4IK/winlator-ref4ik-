@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/audio_settings_title"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:paddingBottom="16dp" />
+
+    <CheckBox
+        android:id="@+id/check_audio_enabled"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/audio_enabled"
+        android:paddingVertical="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/audio_buffer_size_title"
+        android:textSize="16sp"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp" />
+
+    <Spinner
+        android:id="@+id/spinner_audio_buffer_size"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:entries="@array/audio_buffer_sizes"
+        android:paddingVertical="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/audio_sample_rate_title"
+        android:textSize="16sp"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp" />
+
+    <Spinner
+        android:id="@+id/spinner_audio_sample_rate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:entries="@array/audio_sample_rates"
+        android:paddingVertical="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/audio_channels_title"
+        android:textSize="16sp"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp" />
+
+    <Spinner
+        android:id="@+id/spinner_audio_channels"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:entries="@array/audio_channels_options"
+        android:paddingVertical="8dp" />
+
+    <CheckBox
+        android:id="@+id/check_audio_latency_mode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/audio_low_latency_mode"
+        android:paddingVertical="8dp" />
+
+    <CheckBox
+        android:id="@+id/check_audio_dsp_enabled"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/audio_dsp_enabled"
+        android:paddingVertical="8dp" />
+
+</LinearLayout>

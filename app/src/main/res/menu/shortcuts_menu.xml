@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    
+    <item
+        android:id="@+id/toggle_view_mode"
+        android:icon="@drawable/ic_view_list"
+        android:title="Toggle View"
+        app:showAsAction="always" />
+    
+    <item
+        android:id="@+id/sort_by"
+        android:icon="@drawable/ic_sort"
+        app:showAsAction="always|withText">
+        <menu>
+            <item
+                android:id="@+id/search_shortcut"
+                android:icon="@drawable/ic_search"
+                android:title="Search" />
+            <item
+                android:id="@+id/sort_by_name"
+                android:title="By Name" />
+            <item
+                android:id="@+id/sort_by_con_id"
+                android:title="By Container Id" />
+            <item
+                android:id="@+id/sort_by_path"
+                android:title="By Path" />
+            <item
+                android:id="@+id/sort_by_playtime"
+                android:title="By Playtime" />
+            <item
+                android:id="@+id/sort_by_play_count"
+                android:title="By Play Count" />
+            <item
+                android:id="@+id/sort_by_play_date"
+                android:title="By Last Play Date" />
+            <item
+                android:id="@+id/sort_by_newest"
+                android:title="By Newest" />
+            <item
+                android:id="@+id/sort_by_oldest"
+                android:title="By Oldest" />
+        </menu>
+    </item>
+</menu>

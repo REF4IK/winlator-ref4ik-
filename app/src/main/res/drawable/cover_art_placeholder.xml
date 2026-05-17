@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="160dp"
+    android:viewportWidth="120"
+    android:viewportHeight="160">
+    
+    <!-- Background -->
+    <path
+        android:fillColor="@color/md_theme_light_surfaceVariant"
+        android:pathData="M0,0h120v160h-120z" />
+    
+    <!-- Game Controller Icon -->
+    <path
+        android:fillColor="@color/md_theme_light_onSurfaceVariant"
+        android:pathData="M40,60 L80,60 A20,20 0 0,1 100,80 L100,100 A20,20 0 0,1 80,120 L40,120 A20,20 0 0,1 20,100 L20,80 A20,20 0 0,1 40,60 Z" />
+    
+    <!-- Left D-pad -->
+    <path
+        android:fillColor="@color/md_theme_light_surface"
+        android:pathData="M32,85 L38,85 L38,79 L44,79 L44,85 L50,85 L50,91 L44,91 L44,97 L38,97 L38,91 L32,91 Z" />
+    
+    <!-- Right Buttons -->
+    <circle
+        android:fillColor="@color/md_theme_light_surface"
+        cx="75"
+        cy="82"
+        r="4" />
+    <circle
+        android:fillColor="@color/md_theme_light_surface"
+        cx="85"
+        cy="88"
+        r="4" />
+    <circle
+        android:fillColor="@color/md_theme_light_surface"
+        cx="75"
+        cy="94"
+        r="4" />
+    <circle
+        android:fillColor="@color/md_theme_light_surface"
+        cx="65"
+        cy="88"
+        r="4" />
+</vector>

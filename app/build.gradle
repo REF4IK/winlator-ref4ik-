@@ -1,0 +1,206 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+layout.buildDirectory.set(file("$projectDir/build-win"))
+
+android {
+    namespace 'com.winlator.cmod'
+    // Keep compileSdk from your current config. If you want to match Termux-X11, you could set to 34.
+    compileSdk 34
+    buildToolsVersion '34.0.0'
+
+    defaultConfig {
+        applicationId "com.winlator.cmod"
+        minSdkVersion 26
+        // We’re preserving Winlator’s request to keep targetSdkVersion at 28
+        targetSdkVersion 28
+
+        versionCode 20
+        versionName "7.1.4x-cmod"
+
+        // External native build from Winlator
+        externalNativeBuild {
+            cmake {
+                cppFlags ''
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
+
+        // You originally only did arm64-v8a. If you want multi-ABI splits, see below.
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+
+    // Java versions: Winlator uses Java 17, Termux-X11 used 1.9
+    // Using 17 is typically fine (covers 1.9 features).
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    // Keep Winlator’s buildTypes
+    buildTypes {
+        debug {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+        // If you have a release build type, add it here
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug-modern.jks')
+            keyAlias 'androiddebugkey'
+            storePassword 'android'
+            keyPassword 'android'
+            enableV1Signing true
+            enableV2Signing true
+        }
+    }
+
+    ndkVersion '27.0.12077973'  // use installed NDK with valid source.properties
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+        }
+    }
+
+    // If you want to be sure modern JNI packaging is used:
+    packaging {
+        resources {
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    // Отключаем fatal lint errors для release сборки
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+// Task для перемещения ВСЕХ поврежденных ab_* анимаций и связанных XML
+tasks.register('moveCorruptedPngs') {
+    doLast {
+        def drawableDir = new File(project.projectDir, 'src/main/res/drawable')
+        def backupDir = new File(project.buildDir, 'corrupted-pngs-backup')
+        backupDir.mkdirs()
+        
+        // Перемещаем ВСЕ файлы начинающиеся с ab_ (все анимационные спрайты повреждены)
+        drawableDir.listFiles().each { file ->
+            if (file.name.startsWith('ab_') && (file.name.endsWith('.png') || file.name.endsWith('.corrupted'))) {
+                def targetFile = new File(backupDir, file.name.replace('.corrupted', ''))
+                if (file.renameTo(targetFile)) {
+                    println "Moved: ${file.name} -> build/corrupted-pngs-backup/"
+                }
+            }
+        }
+        
+        // Также перемещаем XML файлы анимаций, которые ссылаются на ab_* PNG
+        def animationXmls = ['animated_background.xml', 'animated_gear.xml', 'animated_quilt.xml']
+        animationXmls.each { xmlName ->
+            def xmlFile = new File(drawableDir, xmlName)
+            if (xmlFile.exists()) {
+                def targetFile = new File(backupDir, xmlName)
+                if (xmlFile.renameTo(targetFile)) {
+                    println "Moved: ${xmlName} -> build/corrupted-pngs-backup/"
+                }
+            }
+        }
+    }
+}
+
+// Автоматически перемещаем файлы перед сборкой ресурсов
+afterEvaluate {
+    tasks.named('mergeReleaseResources').configure {
+        dependsOn 'moveCorruptedPngs'
+    }
+    tasks.named('mergeDebugResources').configure {
+        dependsOn 'moveCorruptedPngs'
+    }
+}
+
+dependencies {
+    // Winlator’s dependencies
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
+    implementation 'org.tukaani:xz:1.7'
+    implementation 'org.apache.commons:commons-compress:1.20'
+    implementation 'androidx.activity:activity-ktx:1.9.2'
+    implementation 'androidx.fragment:fragment-ktx:1.8.4'
+    implementation files('libs/MidiSynth/MidiSynth.jar')
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    implementation 'com.squareup.okhttp3:okhttp-dnsoverhttps:4.9.3'
+    implementation 'com.google.code.gson:gson:2.8.8'
+    implementation 'org.conscrypt:conscrypt-android:2.5.2'
+    implementation 'org.bouncycastle:bcprov-jdk15on:1.68'
+    implementation 'org.openjsse:openjsse:1.1.7'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'com.github.bumptech.glide:glide:4.11.0'
+    implementation 'com.kohlschutter.junixsocket:junixsocket-common:2.6.0'
+    implementation 'com.kohlschutter.junixsocket:junixsocket-native-common:2.6.0'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.11.0'
+    
+    // Modern UI components
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    
+    // Navigation Components for modern navigation
+    implementation 'androidx.navigation:navigation-fragment:2.8.2'
+    implementation 'androidx.navigation:navigation-ui:2.8.2'
+
+    implementation libs.room.runtime
+    implementation libs.room.ktx
+    kapt libs.room.compiler
+
+    implementation platform("androidx.compose:compose-bom:${libs.versions.composeBom.get()}")
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'io.coil-kt:coil-compose:2.7.0'
+    implementation libs.activity.compose
+    implementation libs.lifecycle.viewmodel.ktx
+    implementation libs.lifecycle.viewmodel.compose
+
+    implementation libs.kotlinx.coroutines.android
+    implementation libs.kotlinx.coroutines.jdk8
+    implementation libs.kotlinx.serialization.json
+    implementation libs.security.crypto
+    implementation libs.timber
+    implementation libs.zxing.core
+    implementation libs.protobuf.java
+    implementation libs.javasteam
+    implementation libs.javasteam.depotdownloader
+}
+
+// Добавляем пустую задачу для исправления ошибки Android Studio
+tasks.register('prepareKotlinBuildScriptModel') {
+    // Пустая задача - просто чтобы IDE не выдавала ошибку
+}

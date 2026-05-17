@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FF1E1E1E"
+    android:padding="16dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="16dp">
+        
+        <ImageButton
+            android:id="@+id/BTBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:tint="#FFFFFFFF" />
+        
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Gamepad Test"
+            android:textSize="24sp"
+            android:textColor="#FFFFFFFF"
+            android:textStyle="bold"
+            android:gravity="center" />
+            
+        <View
+            android:layout_width="48dp"
+            android:layout_height="48dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Device Info -->
+            <TextView
+                android:id="@+id/TVDeviceInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No gamepad detected"
+                android:textSize="16sp"
+                android:textColor="#FFAAAAAA"
+                android:padding="12dp"
+                android:background="#FF2A2A2A"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Left Stick -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Left Stick"
+                android:textSize="18sp"
+                android:textColor="#FFFFFFFF"
+                android:textStyle="bold"
+                android:paddingBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingBottom="8dp">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="X:"
+                            android:textSize="16sp"
+                            android:textColor="#FFCCCCCC" />
+
+                        <TextView
+                            android:id="@+id/TVLeftStickX"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="0.00"
+                            android:textSize="16sp"
+                            android:textColor="#FF4CAF50" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="Y:"
+                            android:textSize="16sp"
+                            android:textColor="#FFCCCCCC" />
+
+                        <TextView
+                            android:id="@+id/TVLeftStickY"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="0.00"
+                            android:textSize="16sp"
+                            android:textColor="#FF4CAF50" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <com.winlator.cmod.widget.JoystickView
+                    android:id="@+id/LeftStickView"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:layout_marginStart="16dp" />
+            </LinearLayout>
+
+            <!-- Right Stick -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Right Stick"
+                android:textSize="18sp"
+                android:textColor="#FFFFFFFF"
+                android:textStyle="bold"
+                android:paddingBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingBottom="8dp">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="X:"
+                            android:textSize="16sp"
+                            android:textColor="#FFCCCCCC" />
+
+                        <TextView
+                            android:id="@+id/TVRightStickX"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="0.00"
+                            android:textSize="16sp"
+                            android:textColor="#FF2196F3" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="Y:"
+                            android:textSize="16sp"
+                            android:textColor="#FFCCCCCC" />
+
+                        <TextView
+                            android:id="@+id/TVRightStickY"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="0.00"
+                            android:textSize="16sp"
+                            android:textColor="#FF2196F3" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <com.winlator.cmod.widget.JoystickView
+                    android:id="@+id/RightStickView"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:layout_marginStart="16dp" />
+            </LinearLayout>
+
+            <!-- Triggers -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Triggers"
+                android:textSize="18sp"
+                android:textColor="#FFFFFFFF"
+                android:textStyle="bold"
+                android:paddingBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingBottom="8dp">
+
+                <TextView
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:text="LT:"
+                    android:textSize="16sp"
+                    android:textColor="#FFCCCCCC" />
+
+                <TextView
+                    android:id="@+id/TVLeftTrigger"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="0.00"
+                    android:textSize="16sp"
+                    android:textColor="#FFFF9800" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingBottom="16dp">
+
+                <TextView
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:text="RT:"
+                    android:textSize="16sp"
+                    android:textColor="#FFCCCCCC" />
+
+                <TextView
+                    android:id="@+id/TVRightTrigger"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="0.00"
+                    android:textSize="16sp"
+                    android:textColor="#FFFF9800" />
+            </LinearLayout>
+
+            <!-- Buttons -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Buttons"
+                android:textSize="18sp"
+                android:textColor="#FFFFFFFF"
+                android:textStyle="bold"
+                android:paddingBottom="8dp" />
+
+            <TextView
+                android:id="@+id/TVButtonsPressed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="None"
+                android:textSize="16sp"
+                android:textColor="#FFCCCCCC"
+                android:padding="12dp"
+                android:background="#FF2A2A2A"
+                android:minHeight="80dp" />
+
+            <!-- Vibration Test -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Vibration Test"
+                android:textSize="18sp"
+                android:textColor="#FFFFFFFF"
+                android:textStyle="bold"
+                android:paddingTop="16dp"
+                android:paddingBottom="8dp" />
+
+            <Button
+                android:id="@+id/BTTestVibration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Hold to Test Vibration"
+                android:textSize="16sp"
+                android:backgroundTint="#FF673AB7"
+                android:textColor="#FFFFFFFF" />
+
+            <TextView
+                android:id="@+id/TVVibrationStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Vibration: OFF"
+                android:textSize="14sp"
+                android:textColor="#FFAAAAAA"
+                android:paddingTop="8dp"
+                android:gravity="center" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

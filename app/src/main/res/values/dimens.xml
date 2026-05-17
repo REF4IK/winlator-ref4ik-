@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="activity_horizontal_margin">4dip</dimen>
+    <dimen name="shortcut_settings_toolbar_height">56dp</dimen>
+    <dimen name="shortcut_settings_bottom_bar_padding_v">8dp</dimen>
+    <dimen name="shortcut_settings_button_height">40dp</dimen>
+</resources>

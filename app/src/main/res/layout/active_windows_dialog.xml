@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface">
+
+    <ScrollView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:scrollbars="vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:id="@+id/window_list_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/no_windows_text"
+        android:layout_width="430dp"
+        android:layout_height="200dp"
+        android:text="@string/no_active_windows"
+        android:visibility="gone"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:textColor="?android:attr/textColorSecondary" />
+
+</FrameLayout>

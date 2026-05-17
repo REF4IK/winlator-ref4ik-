@@ -1,0 +1,20 @@
+{
+    "file_format_version": "1.0.0",
+    "layer": {
+        "name": "VK_LAYER_FPS_LIMITER",
+        "type": "GLOBAL",
+        "library_path": "./libfpslimiter.so",
+        "api_version": "1.0.0",
+        "implementation_version": "1",
+        "description": "FPS Limiter Layer for Vulkan",
+        "functions": {
+            "vkGetInstanceProcAddr": "vkGetInstanceProcAddr",
+            "vkGetDeviceProcAddr": "vkGetDeviceProcAddr"
+        },
+        "instance_extensions": [],
+        "device_extensions": [],
+        "enable_environment": {
+            "FPS_LIMIT": "1"
+        }
+    }
+}
