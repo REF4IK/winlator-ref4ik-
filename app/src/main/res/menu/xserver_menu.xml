@@ -1,90 +1,46 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <group android:checkableBehavior="none">
-
-        <!-- Controls submenu -->
-        <item
-            android:id="@+id/main_menu_group_controls"
+        <item android:id="@+id/main_menu_keyboard"
+            android:icon="@drawable/icon_keyboard"
+            android:title="@string/keyboard" />
+        <item android:id="@+id/main_menu_input_controls"
             android:icon="@drawable/icon_input_controls"
-            android:title="@string/menu_group_controls">
-            <menu>
-                <item
-                    android:id="@+id/main_menu_keyboard"
-                    android:icon="@drawable/icon_keyboard"
-                    android:title="@string/keyboard" />
-                <item
-                    android:id="@+id/main_menu_input_controls"
-                    android:icon="@drawable/icon_input_controls"
-                    android:title="@string/input_controls" />
-            </menu>
-        </item>
-
-        <!-- Display submenu -->
-        <item
-            android:id="@+id/main_menu_group_display"
+            android:title="@string/input_controls" />
+        <item android:id="@+id/main_menu_toggle_fullscreen"
             android:icon="@drawable/icon_fullscreen"
-            android:title="@string/menu_group_display">
-            <menu>
-                <item
-                    android:id="@+id/main_menu_toggle_fullscreen"
-                    android:icon="@drawable/icon_fullscreen"
-                    android:title="@string/toggle_fullscreen" />
-                <item
-                    android:id="@+id/main_menu_pip_mode"
-                    android:icon="@drawable/ic_picture_in_picture_alt"
-                    android:title="@string/pip_mode" />
-                <item
-                    android:id="@+id/main_menu_frame_generation"
-                    android:icon="@drawable/icon_screen_effect"
-                    android:title="@string/lsfg_title" />
-                <item
-                    android:id="@+id/main_menu_screen_effects"
-                    android:icon="@drawable/icon_screen_effect"
-                    android:title="@string/screen_effect" />
-            </menu>
-        </item>
-
-        <!-- System submenu -->
-        <item
-            android:id="@+id/main_menu_group_system"
+            android:title="@string/toggle_fullscreen" />
+        <item android:id="@+id/main_menu_pip_mode"
+            android:icon="@drawable/ic_picture_in_picture_alt"
+            android:title="@string/pip_mode" />
+        <item android:id="@+id/main_menu_frame_generation"
+            android:icon="@drawable/icon_screen_effect"
+            android:title="@string/lsfg_title" />
+        <item android:id="@+id/main_menu_screen_effects"
+            android:icon="@drawable/icon_screen_effect"
+            android:title="@string/screen_effect" />
+        <item android:id="@+id/main_menu_task_manager"
             android:icon="@drawable/icon_task_manager"
-            android:title="@string/system">
-            <menu>
-                <item
-                    android:id="@+id/main_menu_task_manager"
-                    android:icon="@drawable/icon_task_manager"
-                    android:title="@string/task_manager" />
-                <item
-                    android:id="@+id/main_menu_fps_counter"
-                    android:icon="@drawable/icon_debug"
-                    android:title="@string/fps_counter" />
-                <item
-                    android:id="@+id/main_menu_active_windows"
-                    android:icon="@drawable/icon_window_list"
-                    android:title="@string/active_windows" />
-                <item
-                    android:id="@+id/main_menu_pause"
-                    android:icon="@drawable/icon_pause"
-                    android:title="Pause/Resume" />
-                <item
-                    android:id="@+id/main_menu_winetricks"
-                    android:icon="@drawable/icon_wine"
-                    android:title="Winetricks" />
-                <item
-                    android:id="@+id/main_menu_terminal"
-                    android:icon="@drawable/icon_env_var"
-                    android:title="Debug Terminal" />
-                <item
-                    android:id="@+id/main_menu_logs"
-                    android:icon="@drawable/icon_debug"
-                    android:title="@string/logs" />
-            </menu>
-        </item>
-
-        <!-- Standalone -->
-        <item
-            android:id="@+id/main_menu_exit"
+            android:title="@string/task_manager" />
+        <item android:id="@+id/main_menu_fps_counter"
+            android:icon="@drawable/icon_debug"
+            android:title="@string/fps_counter" />
+        <item android:id="@+id/main_menu_active_windows"
+            android:icon="@drawable/icon_window_list"
+            android:title="@string/active_windows" />
+        <item android:id="@+id/main_menu_pause"
+            android:icon="@drawable/icon_pause"
+            android:title="Pause/Resume" />
+        <item android:id="@+id/main_menu_winetricks"
+            android:icon="@drawable/icon_wine"
+            android:title="Winetricks" />
+        <item android:id="@+id/main_menu_terminal"
+            android:icon="@drawable/icon_env_var"
+            android:title="Debug Terminal" />
+        <item android:id="@+id/main_menu_logs"
+            android:icon="@drawable/icon_debug"
+            android:title="@string/logs" />
+        <item android:id="@+id/main_menu_exit"
             android:icon="@drawable/icon_exit"
             android:title="@string/exit" />
-
     </group>
 </menu>

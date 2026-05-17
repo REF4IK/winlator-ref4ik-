@@ -1358,6 +1358,16 @@
     <string name="fps_counter_show_cpu_load">Show CPU Load</string>
     <string name="fps_counter_show_gpu_temp">Show GPU Temperature</string>
 
+    <!-- FPS Counter short labels for 2-column grid -->
+    <string name="fps_short_ft_graph">Graph</string>
+    <string name="fps_short_gpu_load">GPU Load</string>
+    <string name="fps_short_gpu_temp">GPU Temp</string>
+    <string name="fps_short_renderer">Renderer</string>
+    <string name="fps_short_cpu_load">CPU Load</string>
+    <string name="fps_short_cpu_temp">CPU Temp</string>
+    <string name="fps_short_batt_temp">Batt Temp</string>
+    <string name="fps_short_power">Power</string>
+
     <!-- Shortcut Settings Activity -->
     <string name="shortcut_settings">Shortcut settings</string>
 
