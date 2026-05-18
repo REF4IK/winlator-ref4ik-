@@ -38,7 +38,7 @@ public abstract class LsfgVkManager {
     private static final String MANIFEST_FILENAME = "VkLayer_LS_frame_generation.json";
     private static final String VERSION_FILENAME = ".lsfg_vk_runtime_version";
     private static final String PROCESS_EXE_IDENTIFIER = "winlator-lsfg";
-    private static final String RUNTIME_VERSION = "v1.4.0-android-arm64-v8a-ahb-no-props";
+    private static final String RUNTIME_VERSION = "v1.0.2-android-arm64-v8a-built";
     private static final String ASSET_DIR = "lsfg_vk/android_arm64_v8a";
     private static final String ASSET_LIB = ASSET_DIR + "/" + LIB_FILENAME;
     private static final String ASSET_MANIFEST = ASSET_DIR + "/" + MANIFEST_FILENAME;
@@ -209,6 +209,7 @@ public abstract class LsfgVkManager {
                 FileUtils.chmod(manifestFile, 0644);
                 FileUtils.chmod(versionFile, 0644);
                 success = libFile.isFile() && manifestFile.isFile();
+                Log.i(TAG, "Runtime installed: version=" + RUNTIME_VERSION);
             }
             catch (Throwable t) {
                 Log.e(TAG, "Failed to install LSFG runtime", t);
@@ -248,6 +249,9 @@ public abstract class LsfgVkManager {
             }
         }
         else if (isEnabled(container)) {
+            Log.w(TAG, "LSFG enabled but no Lossless.dll found (steam=" + (steamDll != null)
+                    + " global=" + (globalDll != null && globalDll.isFile())
+                    + " bundled=" + isBundledDllAvailable(context) + ")");
             success = false;
         }
 
@@ -285,24 +289,49 @@ public abstract class LsfgVkManager {
         envVars.remove("LSFG_PROCESS");
 
         String dllPath = containerDllPath(container);
-        boolean armed = isEnabled(container) && dllPath != null;
-        if (!armed) {
-            disableLayerInContainer(container);
+        boolean enabled = isEnabled(container);
+        boolean armed = enabled && dllPath != null;
+
+        File layerDir = new File(container.getRootDir(), LAYER_RELATIVE_DIR);
+        File manifestFile = new File(layerDir, MANIFEST_FILENAME);
+
+        // If the layer files are missing, we can't enable LSFG at all.
+        // Only set DISABLE_LSFG=1 in this case — no point loading the layer.
+        if (!manifestFile.isFile()) {
+            Log.e(TAG, "LSFG manifest missing at " + manifestFile.getAbsolutePath());
             envVars.put("DISABLE_LSFG", "1");
             return false;
         }
 
-        File layerDir = new File(container.getRootDir(), LAYER_RELATIVE_DIR);
-        File manifestFile = new File(layerDir, MANIFEST_FILENAME);
-        if (!manifestFile.isFile()) return false;
-
-        envVars.put("LSFG_CONFIG", configFile(container).getAbsolutePath());
-        envVars.put("LSFG_PROCESS", PROCESS_EXE_IDENTIFIER);
-
+        // Always add VK_LAYER_PATH so the implicit layer is discoverable.
+        // The layer will be loaded by Vulkan but will be a no-op (multiplier=1)
+        // until the user enables LSFG via quick menu.
+        // When enabled, the layer reads conf.toml dynamically and activates.
         String currentLayerPath = envVars.get("VK_LAYER_PATH");
         String layerPath = layerDir.getAbsolutePath();
         envVars.put("VK_LAYER_PATH", currentLayerPath.isEmpty() ? layerPath : currentLayerPath + ":" + layerPath);
-        Log.i(TAG, "LSFG armed with multiplier=" + multiplier(container));
+
+        // Always set LSFG_CONFIG and LSFG_PROCESS so the layer can find its config.
+        // The layer checks for DISABLE_LSFG env var itself via the manifest's
+        // disable_environment, but we only set that when DLL is missing.
+        envVars.put("LSFG_CONFIG", configFile(container).getAbsolutePath());
+        envVars.put("LSFG_PROCESS", PROCESS_EXE_IDENTIFIER);
+
+        if (!armed) {
+            // DLL not found or LSFG not enabled yet.
+            // Do NOT set DISABLE_LSFG — the layer will load as no-op,
+            // and can be activated later via quick menu (conf.toml update).
+            // Only disable if DLL is definitively unavailable.
+            if (dllPath == null && !isDllAvailable()) {
+                envVars.put("DISABLE_LSFG", "1");
+                Log.w(TAG, "LSFG disabled: no Lossless.dll available");
+                return false;
+            }
+            Log.i(TAG, "LSFG layer loaded as no-op (can be activated via quick menu)");
+            return false;
+        }
+
+        Log.i(TAG, "LSFG armed: multiplier=" + multiplier(container));
         return true;
     }
 
