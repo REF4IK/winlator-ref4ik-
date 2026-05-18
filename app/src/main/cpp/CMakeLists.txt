@@ -8,6 +8,10 @@ add_subdirectory(OpenXR-SDK)
 add_subdirectory(patchelf)
 add_subdirectory(fpslimiter)
 
+# lsfg-vk-android: build LSFG Vulkan layer from source
+set(LSFGVK_ANDROID_WINE ON CACHE BOOL "Build for Wine-on-Android" FORCE)
+add_subdirectory(lsfg-vk-android)
+
 # Add Winlator shared library
 add_library(winlator SHARED
         xr/engine.c
