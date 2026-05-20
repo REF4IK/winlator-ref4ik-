@@ -1422,6 +1422,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                     frameRating.update();
 
+                } else if (profiling) {
+
+                    com.winlator.cmod.widget.ProfilingSession.getInstance().collectSample(com.winlator.cmod.XServerDisplayActivity.this);
+
                 }
 
             }
@@ -6442,42 +6446,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-    /**
-
-     * Ensures a FrameRating instance exists so ProfilingSession can receive
-
-     * frame and sensor samples regardless of the FPS overlay being enabled.
-
-     * Safe to call from any thread.
-
-     */
-
     public void enableProfilingHook() {
-
-        runOnUiThread(() -> {
-
-            boolean firstTime = (frameRating == null);
-
-            ensureFrameRatingView();
-
-            if (frameRating == null) return;
-
-            syncFrameRatingWithExistingWindows();
-
-            // Only force-hide if we just created the view AND overlay is disabled.
-
-            // Preserve whatever visibility state it currently has otherwise so we
-
-            // don't make a previously-visible FPS overlay vanish.
-
-            if (firstTime && !fpsCounterConfig.isEnabled()) {
-
-                frameRating.setVisibility(View.GONE);
-
-            }
-
-        });
-
     }
 
 
