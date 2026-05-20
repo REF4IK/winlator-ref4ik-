@@ -35,6 +35,10 @@ public class SensorReader {
         if (dynamicTemperature != null) {
             return dynamicTemperature;
         }
+        String hwmonTemp = getHwmonCpuTemperature();
+        if (hwmonTemp != null) {
+            return hwmonTemp;
+        }
         return "N/A";
     }
 
@@ -45,7 +49,11 @@ public class SensorReader {
                 return temperature;
             }
         }
-        return getDynamicGpuTemperature();
+        String dynamic = getDynamicGpuTemperature();
+        if (!"N/A".equals(dynamic)) return dynamic;
+        String hwmonTemp = getHwmonGpuTemperature();
+        if (hwmonTemp != null) return hwmonTemp;
+        return "N/A";
     }
 
     public String getGpuLoad() {
@@ -253,6 +261,90 @@ public class SensorReader {
             }
         }
         return null;
+    }
+
+    public int getMediaTekGpuFreq() {
+        String raw = readFile(SystemSensorPaths.MEDIATEK_GPU_FREQ_DUMP);
+        if (raw == null || raw.isEmpty()) return -1;
+        Pattern p = Pattern.compile("(?:g_freq_new_init_keep|g_cur_gpu_freq)\\s+=\\s+(\\d+)");
+        for (String line : raw.split("\n")) {
+            Matcher m = p.matcher(line);
+            if (m.find()) {
+                try { return Integer.parseInt(m.group(1)); } catch (NumberFormatException e) { break; }
+            }
+        }
+        return -1;
+    }
+
+    public String getCpuPresent() {
+        return readFile(SystemSensorPaths.CPU_PRESENT_PATH);
+    }
+
+    public String getCpuCoreCtlState() {
+        return readFile(SystemSensorPaths.CPU_CORE_CTL_GLOBAL_STATE);
+    }
+
+    private String getHwmonCpuTemperature() {
+        File hwmonDir = new File(SystemSensorPaths.HWMON_DIR);
+        File[] entries = hwmonDir.listFiles();
+        if (entries == null) return null;
+        for (File entry : entries) {
+            if (!entry.getName().startsWith("hwmon")) continue;
+            String name = readFirstLine(new File(entry, "name").getAbsolutePath());
+            if (name != null) {
+                String nameLower = name.toLowerCase(Locale.ENGLISH);
+                if (nameLower.contains("cpu") || nameLower.contains("core") || nameLower.contains("temp") || nameLower.contains("soc")) {
+                    String temp = parseHwmonTemp(entry);
+                    if (temp != null) return temp;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getHwmonGpuTemperature() {
+        File hwmonDir = new File(SystemSensorPaths.HWMON_DIR);
+        File[] entries = hwmonDir.listFiles();
+        if (entries == null) return null;
+        for (File entry : entries) {
+            if (!entry.getName().startsWith("hwmon")) continue;
+            String name = readFirstLine(new File(entry, "name").getAbsolutePath());
+            if (name != null) {
+                String nameLower = name.toLowerCase(Locale.ENGLISH);
+                if (nameLower.contains("gpu") || nameLower.contains("mali") || nameLower.contains("kgsl") || nameLower.contains("g3d")) {
+                    String temp = parseHwmonTemp(entry);
+                    if (temp != null) return temp;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String parseHwmonTemp(File hwmonEntry) {
+        String temp = parseTemperature(readFirstLine(new File(hwmonEntry, "temp1_input").getAbsolutePath()));
+        if (temp != null) return temp;
+        File deviceDir = new File(hwmonEntry, "device");
+        if (deviceDir.exists()) {
+            temp = parseTemperature(readFirstLine(new File(deviceDir, "temp1_input").getAbsolutePath()));
+            if (temp != null) return temp;
+        }
+        return null;
+    }
+
+    private String readFile(String path) {
+        File file = new File(path);
+        if (!file.exists()) return null;
+        try (RandomAccessFile reader = new RandomAccessFile(file, "r")) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (sb.length() > 0) sb.append("\n");
+                sb.append(line);
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static int cpuThermalZonePriority(String type) {
