@@ -51,7 +51,8 @@ public final class SystemSensorPaths {
         "/sys/class/misc/mali0/device/utilisation",
         "/sys/class/misc/mali0/device/utilization",
         "/sys/class/misc/mali0/device/gpu_utilization",
-        "/sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/gpubusy"
+        "/sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/gpubusy",
+        "/sys/kernel/gpu/gpu_busy"
     };
 
     public static final String[] GPU_LOAD_FILE_NAMES = {
@@ -93,6 +94,7 @@ public final class SystemSensorPaths {
         "/sys/class/kgsl/kgsl-3d0/gpuclk",
         "/sys/class/kgsl/kgsl-3d0/gpu_clock",
         "/sys/kernel/gpu/gpu_clock",
+        "/sys/kernel/gpu/clock",
         "/sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/gpuclk",
         "/d/clk/gpu/clk_rate"
     };
@@ -123,6 +125,18 @@ public final class SystemSensorPaths {
         "/sys/class/power_supply/battery/power_now",
         "/sys/class/power_supply/bms/power_now"
     };
+
+    public static final String HWMON_DIR = "/sys/class/hwmon";
+
+    public static final String CPU_PRESENT_PATH = "/sys/devices/system/cpu/present";
+
+    public static final String CPU_CORE_CTL_GLOBAL_STATE = "/sys/devices/system/cpu/cpu0/core_ctl/global_state";
+
+    public static final String MEDIATEK_GPU_FREQ_DUMP = "/proc/gpufreq/gpufreq_var_dump";
+
+    public static final String MEDIATEK_PMIC_DIR = "/sys/devices/platform/mt-pmic";
+
+    public static final String REGULATOR_DIR = "/sys/class/regulator";
 
     public static String cpuCurFreqPath(int cpuIndex) {
         return String.format(CPU_CUR_FREQ_TEMPLATE, cpuIndex);
