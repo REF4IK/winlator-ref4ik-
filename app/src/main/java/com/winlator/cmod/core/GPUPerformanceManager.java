@@ -21,27 +21,14 @@ import java.util.List;
 public class GPUPerformanceManager {
     private static final String TAG = "GPUPerformanceManager";
     
-    // Пути к системным файлам управления GPU (требуют root)
-    private static final String GPU_GOVERNOR_PATH = "/sys/class/kgsl/kgsl-3d0/devfreq/governor";
-    private static final String GPU_MAX_FREQ_PATH = "/sys/class/kgsl/kgsl-3d0/devfreq/max_freq";
-    private static final String GPU_MIN_FREQ_PATH = "/sys/class/kgsl/kgsl-3d0/devfreq/min_freq";
-    private static final String GPU_CUR_FREQ_PATH = "/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq";
-    private static final String GPU_AVAILABLE_FREQS_PATH = "/sys/class/kgsl/kgsl-3d0/devfreq/available_frequencies";
-    private static final String GPU_AVAILABLE_GOVERNORS_PATH = "/sys/class/kgsl/kgsl-3d0/devfreq/available_governors";
-    
-    // Альтернативные пути для чтения без root
-    private static final String[] GPU_CUR_FREQ_ALTERNATIVES = {
-        "/sys/class/kgsl/kgsl-3d0/gpuclk",
-        "/sys/class/kgsl/kgsl-3d0/gpu_clock",
-        "/sys/kernel/gpu/gpu_clock",
-        "/sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/gpuclk",
-        "/d/clk/gpu/clk_rate"
-    };
-    
-    private static final String[] GPU_MAX_FREQ_ALTERNATIVES = {
-        "/sys/class/kgsl/kgsl-3d0/max_gpuclk",
-        "/sys/class/kgsl/kgsl-3d0/gpu_available_frequencies"
-    };
+    private static final String GPU_GOVERNOR_PATH = SystemSensorPaths.GPU_GOVERNOR_PATH;
+    private static final String GPU_MAX_FREQ_PATH = SystemSensorPaths.GPU_MAX_FREQ_PATH;
+    private static final String GPU_MIN_FREQ_PATH = SystemSensorPaths.GPU_MIN_FREQ_PATH;
+    private static final String GPU_CUR_FREQ_PATH = SystemSensorPaths.GPU_CUR_FREQ_PATH;
+    private static final String GPU_AVAILABLE_FREQS_PATH = SystemSensorPaths.GPU_AVAILABLE_FREQS_PATH;
+    private static final String GPU_AVAILABLE_GOVERNORS_PATH = SystemSensorPaths.GPU_AVAILABLE_GOVERNORS_PATH;
+    private static final String[] GPU_CUR_FREQ_ALTERNATIVES = SystemSensorPaths.GPU_CUR_FREQ_ALTERNATIVES;
+    private static final String[] GPU_MAX_FREQ_ALTERNATIVES = SystemSensorPaths.GPU_MAX_FREQ_ALTERNATIVES;
     
     private Context context;
     private String originalGovernor = null;

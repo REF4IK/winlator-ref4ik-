@@ -22,100 +22,20 @@ import com.google.android.material.card.MaterialCardView;
 import com.winlator.cmod.R;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.core.GPUInformation;
+import com.winlator.cmod.core.SensorReader;
 import com.winlator.cmod.core.StringUtils;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class FrameRating extends FrameLayout implements Runnable {
     private static final String TAG = "FrameRating";
-    private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d+)");
-    private static final String[] GPU_LOAD_FILES = {
-        "/sys/class/kgsl/kgsl-3d0/gpubusy",
-        "/sys/class/kgsl/kgsl-3d0/devfreq/gpu_load",
-        "/sys/class/kgsl/kgsl-3d0/busy_percentage",
-        "/sys/class/kgsl/kgsl-3d0/load",
-        "/sys/class/devfreq/gpu/load",
-        "/sys/class/devfreq/gpu/gpu_load",
-        "/sys/class/devfreq/gpufreq/load",
-        "/sys/class/devfreq/mali/load",
-        "/sys/class/misc/mali0/device/utilisation",
-        "/sys/class/misc/mali0/device/utilization",
-        "/sys/class/misc/mali0/device/gpu_utilization",
-        "/sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/gpubusy"
-    };
-    private static final String[] GPU_LOAD_FILE_NAMES = {
-        "gpubusy", "gpu_busy", "gpu_load", "load", "busy_percentage",
-        "utilisation", "utilization", "gpu_utilization"
-    };
-    private static final String[] GPU_TEMP_FILES = {
-        "/sys/class/kgsl/kgsl-3d0/temp",
-        "/sys/class/kgsl/kgsl-3d0/gpu_temp",
-        "/sys/class/kgsl/kgsl-3d0/device/temp",
-        "/sys/class/devfreq/gpu/temp",
-        "/sys/class/devfreq/gpu/temperature",
-        "/sys/class/devfreq/gpufreq/temp",
-        "/sys/class/misc/mali0/device/temp",
-        "/sys/class/misc/mali0/device/temperature",
-        "/sys/class/thermal/thermal_zone10/temp",
-        "/sys/devices/virtual/thermal/thermal_zone10/temp"
-    };
-    private static final String[] BATTERY_CURRENT_FILES = {
-        "/sys/class/power_supply/battery/current_now",
-        "/sys/class/power_supply/bms/current_now",
-        "/sys/class/power_supply/main/current_now",
-        "/sys/class/power_supply/usb/current_now",
-        "/sys/class/power_supply/battery/current_avg",
-        "/sys/class/power_supply/bms/current_avg"
-    };
-    private static final String[] BATTERY_VOLTAGE_FILES = {
-        "/sys/class/power_supply/battery/voltage_now",
-        "/sys/class/power_supply/bms/voltage_now",
-        "/sys/class/power_supply/main/voltage_now",
-        "/sys/class/power_supply/battery/voltage_avg",
-        "/sys/class/power_supply/bms/voltage_avg"
-    };
-    private static final String[] BATTERY_POWER_FILES = {
-        "/sys/class/power_supply/battery/power_now",
-        "/sys/class/power_supply/bms/power_now"
-    };
-    private static final String[] CPU_SENSOR_FILES = {
-        "/sys/devices/system/cpu/cpu0/cpufreq/cpu_temp",
-        "/sys/devices/system/cpu/cpu0/cpufreq/FakeShmoo_cpu_temp",
-        "/sys/devices/platform/tegra-i2c.3/i2c-4/4-004c/temperature",
-        "/sys/devices/platform/omap/omap_temp_sensor.0/temperature",
-        "/sys/devices/platform/tegra_tmon/temp1_input",
-        "/sys/devices/platform/s5p-tmu/temperature",
-        "/sys/devices/platform/s5p-tmu/curr_temp",
-        "/sys/devices/virtual/thermal/thermal_zone10/temp",
-        "/sys/devices/virtual/thermal/thermal_zone1/temp",
-        "/sys/devices/virtual/thermal/thermal_zone0/temp",
-        "/sys/class/thermal/thermal_zone0/temp",
-        "/sys/class/thermal/thermal_zone1/temp",
-        "/sys/class/thermal/thermal_zone3/temp",
-        "/sys/class/thermal/thermal_zone4/temp",
-        "/sys/class/hwmon/hwmon0/device/temp1_input",
-        "/sys/class/hwmon/hwmonX/temp1_input",
-        "/sys/class/i2c-adapter/i2c-4/4-004c/temperature",
-        "/sys/kernel/debug/tegra_thermal/temp_tj",
-        "/sys/htc/cpu_temp",
-        "/sys/devices/platform/tegra-i2c.3/i2c-4/4-004c/ext_temperature",
-        "/sys/devices/platform/tegra-tsensor/tsensor_temperature",
-        "/sys/devices/virtual/sec/sec-lp-thermistor/temperature"
-    };
 
     private final Context context;
     private final FpsCounterConfig config;
     private final ActivityManager activityManager;
     private final BatteryManager batteryManager;
     private final String totalRAM;
+    private final SensorReader sensorReader = new SensorReader();
     private long lastFrameTimestampNs;
 
     private long lastTime;
@@ -123,10 +43,6 @@ public class FrameRating extends FrameLayout implements Runnable {
     private float lastFPS;
     private String renderer;
     private String gpuName;
-    private long lastCpuTotal = -1L;
-    private long lastCpuIdle = -1L;
-    private long lastMaliGpuInfoMs = -1L;
-    private long lastMaliGpuInfoWallMs = 0L;
     private float batteryTemperature = -1.0f;
     private float batteryVoltage = -1.0f;
     private float batteryCurrent = -1.0f;
@@ -290,305 +206,19 @@ public class FrameRating extends FrameLayout implements Runnable {
     }
 
     private String getCPUTemperature() {
-        for (String path : CPU_SENSOR_FILES) {
-            String temperature = parseTemperature(readFirstLine(path));
-            if (temperature != null) {
-                return temperature;
-            }
-        }
-        String dynamicTemperature = getDynamicCpuTemperature();
-        if (dynamicTemperature != null) {
-            return dynamicTemperature;
-        }
-        return "N/A";
-    }
-
-    private static int cpuThermalZonePriority(String type) {
-        if (type.contains("cpu-silicon")) return 0;
-        if (type.contains("cpu-0"))       return 1;
-        if (type.contains("cpu") && !type.contains("gpu")) return 2;
-        if (type.contains("cputop"))      return 3;
-        if (type.contains("tsens") || type.contains("soc") || type.contains("ap")) return 4;
-        return -1;
-    }
-
-    private static int gpuThermalZonePriority(String type) {
-        if (type.contains("gpu-silicon")) return 0;
-        if (type.contains("gpu"))         return 1;
-        if (type.contains("kgsl"))        return 2;
-        if (type.contains("mali") || type.contains("g3d")) return 3;
-        return -1;
-    }
-
-    @SuppressWarnings("unchecked")
-    private String getDynamicCpuTemperature() {
-        File thermalDir = new File("/sys/class/thermal");
-        File[] entries = thermalDir.listFiles();
-        if (entries == null) return null;
-        List<String>[] buckets = new List[5];
-        for (int i = 0; i < buckets.length; i++) buckets[i] = new ArrayList<>();
-        for (File entry : entries) {
-            if (!entry.getName().startsWith("thermal_zone")) continue;
-            String type = readFirstLine(new File(entry, "type").getAbsolutePath());
-            if (type == null) continue;
-            int priority = cpuThermalZonePriority(type.toLowerCase(Locale.ENGLISH));
-            if (priority >= 0 && priority < buckets.length) {
-                buckets[priority].add(new File(entry, "temp").getAbsolutePath());
-            }
-        }
-        for (List<String> bucket : buckets) {
-            for (String path : bucket) {
-                String temp = parseTemperature(readFirstLine(path));
-                if (temp != null) return temp;
-            }
-        }
-        return null;
-    }
-
-    private String parseTemperature(String rawValue) {
-        if (rawValue == null || rawValue.trim().isEmpty()) {
-            return null;
-        }
-        try {
-            int temperature = Integer.parseInt(rawValue.trim());
-            if (temperature > 100 && temperature <= 1000) {
-                return String.format(Locale.ENGLISH, "%.1fC", temperature / 10.0f);
-            }
-            if (temperature > 1000 && temperature <= 10000) {
-                return String.format(Locale.ENGLISH, "%.1fC", temperature / 100.0f);
-            }
-            if (temperature > 10000) {
-                return String.format(Locale.ENGLISH, "%.1fC", (temperature + 500) / 1000.0f);
-            }
-            if (temperature > 0 && temperature <= 100) {
-                return String.format(Locale.ENGLISH, "%dC", temperature);
-            }
-        } catch (NumberFormatException e) {
-            Log.d(TAG, "Failed to parse temperature: " + rawValue);
-        }
-        return null;
-    }
-
-    private String getGpuLoad() {
-        for (String path : GPU_LOAD_FILES) {
-            String parsed = parseGpuLoad(readFirstLine(path));
-            if (parsed != null) return parsed;
-        }
-        String maliDelta = getMaliDeltaGpuLoad();
-        if (maliDelta != null) return maliDelta;
-        String dynamicLoad = getDynamicGpuLoad();
-        if (dynamicLoad != null) return dynamicLoad;
-        return "N/A";
-    }
-
-    private String getMaliDeltaGpuLoad() {
-        String raw = readNthLine("/sys/class/misc/mali0/device/gpuinfo", 1);
-        if (raw == null) return null;
-        String[] parts = raw.trim().split("\\s+");
-        if (parts.length == 0) return null;
-        long gpuMs;
-        try { gpuMs = Long.parseLong(parts[parts.length - 1]); } catch (NumberFormatException e) { return null; }
-        long now = SystemClock.elapsedRealtime();
-        long prevMs = lastMaliGpuInfoMs;
-        long prevWall = lastMaliGpuInfoWallMs;
-        lastMaliGpuInfoMs = gpuMs;
-        lastMaliGpuInfoWallMs = now;
-        if (prevMs < 0 || prevWall <= 0) return null;
-        long wallDelta = now - prevWall;
-        if (wallDelta <= 0) return null;
-        long gpuDelta = Math.max(0L, gpuMs - prevMs);
-        int pct = (int) Math.min(100L, (gpuDelta * 100L) / wallDelta);
-        return String.format(Locale.ENGLISH, "%d%%", pct);
-    }
-
-    private String readNthLine(String path, int lineIndex) {
-        try {
-            BufferedReader br = new BufferedReader(new FileReader(path));
-            String line = null;
-            for (int i = 0; i <= lineIndex; i++) {
-                line = br.readLine();
-                if (line == null) break;
-            }
-            br.close();
-            return line;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private String getDynamicGpuLoad() {
-        File devfreqDir = new File("/sys/class/devfreq");
-        File[] entries = devfreqDir.listFiles();
-        if (entries == null) {
-            return null;
-        }
-        for (File entry : entries) {
-            String name = entry.getName().toLowerCase(Locale.ENGLISH);
-            if (!name.contains("gpu") && !name.contains("kgsl") && !name.contains("mali") && !name.contains("g3d")) {
-                continue;
-            }
-            for (String fileName : GPU_LOAD_FILE_NAMES) {
-                String parsed = parseGpuLoad(readFirstLine(new File(entry, fileName).getAbsolutePath()));
-                if (parsed != null) {
-                    return parsed;
-                }
-            }
-        }
-        return null;
+        return sensorReader.getCpuTemperature();
     }
 
     private String getGpuTemperature() {
-        for (String path : GPU_TEMP_FILES) {
-            String temperature = parseTemperature(readFirstLine(path));
-            if (temperature != null) {
-                return temperature;
-            }
-        }
-        return getDynamicGpuTemperature();
+        return sensorReader.getGpuTemperature();
     }
 
-@SuppressWarnings("unchecked")
-    private String getDynamicGpuTemperature() {
-        File thermalDir = new File("/sys/class/thermal");
-        File[] entries = thermalDir.listFiles();
-        if (entries != null) {
-            List<String>[] buckets = new List[4];
-            for (int i = 0; i < buckets.length; i++) buckets[i] = new ArrayList<>();
-            for (File entry : entries) {
-                if (!entry.getName().startsWith("thermal_zone")) continue;
-                String type = readFirstLine(new File(entry, "type").getAbsolutePath());
-                if (type == null) continue;
-                int priority = gpuThermalZonePriority(type.toLowerCase(Locale.ENGLISH));
-                if (priority >= 0 && priority < buckets.length) {
-                    buckets[priority].add(new File(entry, "temp").getAbsolutePath());
-                }
-            }
-            for (List<String> bucket : buckets) {
-                for (String path : bucket) {
-                    String temp = parseTemperature(readFirstLine(path));
-                    if (temp != null) return temp;
-                }
-            }
-        }
-
-        File devfreqDir = new File("/sys/class/devfreq");
-        File[] devfreqEntries = devfreqDir.listFiles();
-        if (devfreqEntries == null) return "N/A";
-        for (File entry : devfreqEntries) {
-            String name = entry.getName().toLowerCase(Locale.ENGLISH);
-            if (!name.contains("gpu") && !name.contains("kgsl") && !name.contains("mali") && !name.contains("g3d")) continue;
-            String temperature = parseTemperature(readFirstLine(new File(entry, "temp").getAbsolutePath()));
-            if (temperature == null) {
-                temperature = parseTemperature(readFirstLine(new File(entry, "temperature").getAbsolutePath()));
-            }
-            if (temperature != null) return temperature;
-        }
-        return "N/A";
+    private String getGpuLoad() {
+        return sensorReader.getGpuLoad();
     }
 
     private String getCpuLoad() {
-        CpuTimes cpuTimes = readCpuTimes();
-        if (cpuTimes == null) {
-            return "N/A";
-        }
-
-        if (lastCpuTotal < 0L || lastCpuIdle < 0L) {
-            lastCpuTotal = cpuTimes.total;
-            lastCpuIdle = cpuTimes.idle;
-            return "0%";
-        }
-
-        long totalDelta = cpuTimes.total - lastCpuTotal;
-        long idleDelta = cpuTimes.idle - lastCpuIdle;
-        lastCpuTotal = cpuTimes.total;
-        lastCpuIdle = cpuTimes.idle;
-
-        if (totalDelta <= 0L || idleDelta < 0L) {
-            return "0%";
-        }
-        float usage = ((totalDelta - idleDelta) * 100f) / totalDelta;
-        usage = Math.max(0f, Math.min(100f, usage));
-        return String.format(Locale.ENGLISH, "%.0f%%", usage);
-    }
-
-    private CpuTimes readCpuTimes() {
-        File file = new File("/proc/stat");
-        if (!file.exists()) {
-            return null;
-        }
-        CpuTimes summedCores = null;
-        try (RandomAccessFile reader = new RandomAccessFile(file, "r")) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.startsWith("cpu ")) {
-                    return parseCpuTimes(line);
-                }
-                if (line.startsWith("cpu") && line.length() > 3 && Character.isDigit(line.charAt(3))) {
-                    CpuTimes coreTimes = parseCpuTimes(line);
-                    if (coreTimes != null) {
-                        summedCores = summedCores == null
-                                ? coreTimes
-                                : new CpuTimes(summedCores.total + coreTimes.total, summedCores.idle + coreTimes.idle);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            Log.d(TAG, "Failed to read CPU load from /proc/stat: " + e.getMessage());
-        }
-        return summedCores;
-    }
-
-    private CpuTimes parseCpuTimes(String raw) {
-        String[] parts = raw.trim().split("\\s+");
-        if (parts.length < 5) {
-            return null;
-        }
-        try {
-            long user = Long.parseLong(parts[1]);
-            long nice = Long.parseLong(parts[2]);
-            long system = Long.parseLong(parts[3]);
-            long idle = Long.parseLong(parts[4]);
-            long iowait = parts.length > 5 ? Long.parseLong(parts[5]) : 0L;
-            long irq = parts.length > 6 ? Long.parseLong(parts[6]) : 0L;
-            long softirq = parts.length > 7 ? Long.parseLong(parts[7]) : 0L;
-            long steal = parts.length > 8 ? Long.parseLong(parts[8]) : 0L;
-
-            long idleAll = idle + iowait;
-            long total = user + nice + system + idle + iowait + irq + softirq + steal;
-            return new CpuTimes(total, idleAll);
-        } catch (NumberFormatException e) {
-            Log.d(TAG, "Failed to parse CPU load: " + raw);
-            return null;
-        }
-    }
-
-    private String parseGpuLoad(String rawValue) {
-        if (rawValue == null || rawValue.trim().isEmpty()) {
-            return null;
-        }
-        Matcher matcher = NUMBER_PATTERN.matcher(rawValue);
-        long[] numbers = new long[4];
-        int count = 0;
-        while (matcher.find() && count < numbers.length) {
-            numbers[count++] = Long.parseLong(matcher.group(1));
-        }
-
-        if (count == 0) {
-            return null;
-        }
-
-        if (count >= 2 && numbers[1] > 0 && numbers[0] <= numbers[1]) {
-            float usage = (numbers[0] * 100f) / numbers[1];
-            usage = Math.max(0f, Math.min(100f, usage));
-            return String.format(Locale.ENGLISH, "%.0f%%", usage);
-        }
-
-        long value = numbers[0];
-        if (value >= 0 && value <= 100) {
-            return String.format(Locale.ENGLISH, "%d%%", value);
-        }
-
-        return null;
+        return sensorReader.getCpuLoad();
     }
 
     public void updateOrientation() {
@@ -922,37 +552,7 @@ public class FrameRating extends FrameLayout implements Runnable {
     }
 
     private void collectProfilingSensorSample() {
-        Float cpuTempC = parseTempCelsius(getCPUTemperature());
-        Float gpuTempC = parseTempCelsius(getGpuTemperature());
-        Float batTempC = batteryTemperature != -1.0f ? batteryTemperature : null;
-        Float cpuLoadPct = parsePercent(getCpuLoad());
-        Float gpuLoadPct = parsePercent(getGpuLoad());
-        Long ramUsed = null;
-        if (activityManager != null) {
-            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-            activityManager.getMemoryInfo(mi);
-            ramUsed = mi.totalMem - mi.availMem;
-        }
-        ProfilingSession.getInstance().addSensorSample(cpuTempC, gpuTempC, batTempC, cpuLoadPct, gpuLoadPct, ramUsed);
-    }
-
-    private static Float parseTempCelsius(String formatted) {
-        if (formatted == null || formatted.isEmpty() || "N/A".equals(formatted)) return null;
-        try {
-            String num = formatted.replace("C", "").replace("\u00B0", "").trim();
-            return Float.parseFloat(num);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private static Float parsePercent(String formatted) {
-        if (formatted == null || formatted.isEmpty() || "N/A".equals(formatted)) return null;
-        try {
-            return Float.parseFloat(formatted.replace("%", "").trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        ProfilingSession.getInstance().collectSample(context);
     }
 
     private void refreshBatteryCurrent() {
@@ -960,91 +560,11 @@ public class FrameRating extends FrameLayout implements Runnable {
             batteryCurrent = -1.0f;
             return;
         }
-        int currentMicroAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
-        batteryCurrent = currentMicroAmps == Integer.MIN_VALUE ? -1.0f : Math.abs(currentMicroAmps) / 1000000.0f;
+        batteryCurrent = sensorReader.readCurrentAmpsFromSysfs(batteryManager);
     }
 
     private float getBatteryPowerWatts() {
-        float directPower = readPowerWattsFromSysfs();
-        if (directPower != -1.0f) {
-            return directPower;
-        }
-
-        float voltage = batteryVoltage != -1.0f ? batteryVoltage : readVoltageVoltsFromSysfs();
-        float current = batteryCurrent != -1.0f ? batteryCurrent : readCurrentAmpsFromSysfs();
-        if (voltage != -1.0f && current != -1.0f) {
-            return voltage * current;
-        }
-        return -1.0f;
-    }
-
-    private float readPowerWattsFromSysfs() {
-        for (String path : BATTERY_POWER_FILES) {
-            Long value = readLong(path);
-            if (value != null && value != 0L) {
-                long absValue = Math.abs(value);
-                return absValue > 1000 ? absValue / 1000000.0f : absValue;
-            }
-        }
-        return -1.0f;
-    }
-
-    private float readCurrentAmpsFromSysfs() {
-        for (String path : BATTERY_CURRENT_FILES) {
-            Long value = readLong(path);
-            if (value != null && value != 0L) {
-                long absValue = Math.abs(value);
-                return absValue > 1000 ? absValue / 1000000.0f : absValue / 1000.0f;
-            }
-        }
-        return -1.0f;
-    }
-
-    private float readVoltageVoltsFromSysfs() {
-        for (String path : BATTERY_VOLTAGE_FILES) {
-            Long value = readLong(path);
-            if (value != null && value != 0L) {
-                long absValue = Math.abs(value);
-                return absValue > 10000 ? absValue / 1000000.0f : absValue / 1000.0f;
-            }
-        }
-        return -1.0f;
-    }
-
-    private Long readLong(String path) {
-        String raw = readFirstLine(path);
-        if (raw == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(raw.trim());
-        } catch (NumberFormatException e) {
-            Log.d(TAG, "Failed to parse long from " + path + ": " + raw);
-            return null;
-        }
-    }
-
-    private String readFirstLine(String path) {
-        File file = new File(path);
-        if (!file.exists()) {
-            return null;
-        }
-        try (RandomAccessFile reader = new RandomAccessFile(file, "r")) {
-            return reader.readLine();
-        } catch (Exception e) {
-            Log.d(TAG, "Failed to read " + path + ": " + e.getMessage());
-            return null;
-        }
-    }
-
-    private static class CpuTimes {
-        final long total;
-        final long idle;
-
-        CpuTimes(long total, long idle) {
-            this.total = total;
-            this.idle = idle;
-        }
+        return sensorReader.getBatteryPowerWatts(batteryManager, batteryVoltage, batteryCurrent);
     }
 
     @Override

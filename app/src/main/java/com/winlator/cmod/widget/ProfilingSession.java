@@ -1,19 +1,17 @@
 package com.winlator.cmod.widget;
 
+import android.app.ActivityManager;
 import android.content.Context;
 import android.os.SystemClock;
 
 import com.winlator.cmod.R;
+import com.winlator.cmod.core.SensorReader;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Singleton, accumulating performance statistics for a selected Windows process.
- * Started from TaskManagerDialog; receives samples from FrameRating.
- */
 public class ProfilingSession {
     private static final ProfilingSession INSTANCE = new ProfilingSession();
 
@@ -40,6 +38,8 @@ public class ProfilingSession {
     private int sensorSamples;
     private long sumRamUsedBytes;
     private int ramSamples;
+
+    private final SensorReader sensorReader = new SensorReader();
 
     private ProfilingSession() {}
 
@@ -87,6 +87,28 @@ public class ProfilingSession {
             ramSamples++;
         }
         if (any) sensorSamples++;
+    }
+
+    public void collectSample(Context context) {
+        if (!active) return;
+        Float cpuTempC = SensorReader.parseTempCelsius(sensorReader.getCpuTemperature());
+        Float gpuTempC = SensorReader.parseTempCelsius(sensorReader.getGpuTemperature());
+        Float cpuLoadPct = SensorReader.parsePercent(sensorReader.getCpuLoad());
+        Float gpuLoadPct = SensorReader.parsePercent(sensorReader.getGpuLoad());
+        Long ramUsed = null;
+        if (context != null) {
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            if (am != null) {
+                ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+                am.getMemoryInfo(mi);
+                ramUsed = mi.totalMem - mi.availMem;
+            }
+        }
+        addSensorSample(cpuTempC, gpuTempC, null, cpuLoadPct, gpuLoadPct, ramUsed);
+    }
+
+    public SensorReader getSensorReader() {
+        return sensorReader;
     }
 
     private void reset() {

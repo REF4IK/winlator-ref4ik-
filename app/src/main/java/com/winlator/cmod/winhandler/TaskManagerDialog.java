@@ -36,7 +36,6 @@ import com.winlator.cmod.xserver.XLock;
 import com.winlator.cmod.xserver.XServer;
 
 import java.io.File;
-import java.io.RandomAccessFile;
 import java.util.Locale;
 
 public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfoListener {
@@ -57,33 +56,7 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
     private float batteryTemperature = -1.0f;
     private final BroadcastReceiver batteryReceiver;
 
-    private static final String[] SENSOR_FILES = {
-        "/sys/devices/system/cpu/cpu0/cpufreq/cpu_temp",
-        "/sys/devices/system/cpu/cpu0/cpufreq/FakeShmoo_cpu_temp",
-        "/sys/devices/platform/tegra-i2c.3/i2c-4/4-004c/temperature",
-        "/sys/devices/platform/omap/omap_temp_sensor.0/temperature",
-        "/sys/devices/platform/tegra_tmon/temp1_input",
-        "/sys/devices/platform/s5p-tmu/temperature",
-        "/sys/devices/platform/s5p-tmu/curr_temp",
-        "/sys/devices/virtual/thermal/thermal_zone10/temp",
-        "/sys/devices/virtual/thermal/thermal_zone1/temp",
-        "/sys/devices/virtual/thermal/thermal_zone0/temp",
-        "/sys/class/thermal/thermal_zone0/temp",
-        "/sys/class/thermal/thermal_zone1/temp",
-        "/sys/class/thermal/thermal_zone3/temp",
-        "/sys/class/thermal/thermal_zone4/temp",
-        "/sys/class/hwmon/hwmon0/device/temp1_input",
-        "/sys/class/hwmon/hwmonX/temp1_input",
-        "/sys/class/i2c-adapter/i2c-4/4-004c/temperature",
-        "/sys/kernel/debug/tegra_thermal/temp_tj",
-        "/sys/htc/cpu_temp",
-        "/sys/devices/platform/tegra-i2c.3/i2c-4/4-004c/ext_temperature",
-        "/sys/devices/platform/tegra-tsensor/tsensor_temperature",
-        "/sys/devices/virtual/sec/sec-lp-thermistor/temperature"
-    };
-
     {
-        // Блок инициализации экземпляра для batteryReceiver
         batteryReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -374,29 +347,10 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         tvCPUTitle.setText("CPU ("+cpuUsagePercent+"%)");
     }
 
+    private final com.winlator.cmod.core.SensorReader sensorReader = new com.winlator.cmod.core.SensorReader();
+
     private String getCPUTemperature() {
-        for (String path : SENSOR_FILES) {
-            File file = new File(path);
-            if (file.exists()) {
-                try (RandomAccessFile reader = new RandomAccessFile(file, "r")) {
-                    String value = reader.readLine();
-                    if (value != null) {
-                        int temperature = Integer.parseInt(value);
-                        if (temperature > 100 && temperature <= 1000) {
-                            return String.format(Locale.ENGLISH, "%.1f C", temperature / 10.0f);
-                        } else if (temperature > 1000 && temperature <= 10000) {
-                            return String.format(Locale.ENGLISH, "%.1f C", temperature / 100.0f);
-                        } else if (temperature > 10000) {
-                            return String.format(Locale.ENGLISH, "%.1f C", temperature / 1000.0f);
-                        }
-                    }
-                } catch (Exception e) {
-                    // Логирование ошибки опущено для упрощения
-                    // android.util.Log.e("TaskManagerDialog", "Ошибка при чтении температуры из " + path + ": " + e.getMessage());
-                }
-            }
-        }
-        return "N/A";
+        return sensorReader.getCpuTemperature();
     }
 
     private void updateMemoryInfoView() {
