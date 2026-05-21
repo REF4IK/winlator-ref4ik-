@@ -3,8 +3,10 @@ package com.winlator.cmod;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.Log;
 import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -31,10 +33,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
+import com.winlator.cmod.core.FileUtils;
+import com.winlator.cmod.win32.PEParser;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.util.ArrayList;
@@ -460,6 +465,8 @@ public class FileManagerActivity extends AppCompatActivity {
         List<String> options = new ArrayList<>();
         options.add(getString(R.string.fm_ctx_open));
         if (entry.type == EntryType.FILE) options.add(getString(R.string.fm_ctx_share));
+        if (entry.type == EntryType.FILE && entry.title.toLowerCase(Locale.ENGLISH).endsWith(".exe"))
+            options.add(getString(R.string.fm_ctx_create_shortcut));
         if (entry.type != EntryType.DRIVE) {
             options.add(getString(R.string.fm_ctx_copy));
             options.add(getString(R.string.fm_ctx_move));
@@ -495,6 +502,9 @@ public class FileManagerActivity extends AppCompatActivity {
         }
         else if (action.equals(getString(R.string.fm_ctx_rename))) {
             renameEntry(entry.file);
+        }
+        else if (action.equals(getString(R.string.fm_ctx_create_shortcut))) {
+            createShortcutFromExe(entry.file);
         }
         else if (action.equals(getString(R.string.fm_ctx_delete))) {
             deleteEntry(entry.file);
@@ -542,6 +552,114 @@ public class FileManagerActivity extends AppCompatActivity {
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
+    }
+
+    private void createShortcutFromExe(File exeFile) {
+        ContainerManager containerManager = new ContainerManager(this);
+        ArrayList<Container> containers = containerManager.getContainers();
+
+        if (containers.isEmpty()) {
+            Toast.makeText(this, "No containers available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String[] containerNames = new String[containers.size()];
+        for (int i = 0; i < containers.size(); i++) {
+            containerNames[i] = containers.get(i).getName();
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.fm_ctx_create_shortcut))
+                .setItems(containerNames, (dialog, which) -> {
+                    Container container = containers.get(which);
+                    createShortcutForContainer(exeFile, container);
+                })
+                .show();
+    }
+
+    private void createShortcutForContainer(File exeFile, Container container) {
+        try {
+            String absolutePath = exeFile.getAbsolutePath();
+            String fileName = exeFile.getName();
+            String fileNameWithoutExt = fileName.substring(0, fileName.length() - 4);
+
+            String driveLetter = null;
+            String relativePath = absolutePath.toLowerCase(Locale.ENGLISH);
+            String externalStoragePath = Environment.getExternalStorageDirectory().getAbsolutePath().toLowerCase(Locale.ENGLISH);
+
+            if (relativePath.contains(externalStoragePath)) {
+                driveLetter = "D:";
+            } else if (relativePath.contains("/imagefs/")) {
+                driveLetter = "Z:";
+            } else if (relativePath.contains("/.wine/drive_c/")) {
+                driveLetter = "C:";
+            }
+
+            if (driveLetter == null) {
+                Toast.makeText(this, "Wrong path! Can't detect drive!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String pathWOutPrefix = absolutePath;
+
+            if (driveLetter.equals("D:")) {
+                pathWOutPrefix = pathWOutPrefix.replaceFirst(Environment.getExternalStorageDirectory().getAbsolutePath() + "/", "");
+                if (pathWOutPrefix.toLowerCase(Locale.ENGLISH).startsWith("download/")) {
+                    pathWOutPrefix = pathWOutPrefix.substring(9);
+                }
+            } else if (driveLetter.equals("Z:")) {
+                int imagefsIndex = pathWOutPrefix.indexOf("/imagefs/");
+                if (imagefsIndex != -1) {
+                    pathWOutPrefix = pathWOutPrefix.substring(imagefsIndex + 9);
+                }
+            } else if (driveLetter.equals("C:")) {
+                int driveCIndex = pathWOutPrefix.indexOf("/.wine/drive_c/");
+                if (driveCIndex != -1) {
+                    pathWOutPrefix = pathWOutPrefix.substring(driveCIndex + 15);
+                }
+            }
+
+            String execPath = pathWOutPrefix;
+            int lastSlash = pathWOutPrefix.lastIndexOf("/");
+            String pathDir = (lastSlash > 0) ? pathWOutPrefix.substring(0, lastSlash) : "";
+
+            int randomNum = (int)(Math.random() * 10000);
+            String iconName = randomNum + "_" + fileNameWithoutExt + ".0";
+
+            try {
+                Bitmap exeIcon = PEParser.extractIcon(exeFile);
+                if (exeIcon != null) {
+                    File iconDir = container.getIconsDir(64);
+                    if (!iconDir.exists()) iconDir.mkdirs();
+                    File iconFile = new File(iconDir, iconName + ".png");
+                    FileUtils.saveBitmapToFile(exeIcon, iconFile);
+                }
+            } catch (Exception e) {
+                Log.e("FileManager", "Error extracting icon", e);
+            }
+
+            String shortcutDesktop =
+                "[Desktop Entry]\n" +
+                "Name=" + fileNameWithoutExt + "\n" +
+                "Exec=env WINEPREFIX=\"/data/user/0/" + MainActivity.PACKAGE_NAME + "/files/imagefs/home/xuser/.wine/dosdevices/z:/home/xuser/.wine\" wine " + driveLetter + "/" + execPath + "\n" +
+                "Type=Application\n" +
+                "StartupNotify=true\n" +
+                "Path=/data/user/0/" + MainActivity.PACKAGE_NAME + "/files/imagefs/home/xuser/.wine/dosdevices/" + driveLetter.toLowerCase(Locale.ENGLISH) + "/" + pathDir + "\n" +
+                "Icon=" + iconName + "\n" +
+                "StartupWMClass=" + fileName.toLowerCase(Locale.ENGLISH);
+
+            File desktopFile = new File(container.getDesktopDir(), fileNameWithoutExt + ".desktop");
+
+            try (FileWriter writer = new FileWriter(desktopFile)) {
+                writer.write(shortcutDesktop);
+            }
+
+            Toast.makeText(this, "Shortcut created for Container: " + container.getName(), Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            Log.e("FileManager", "Error creating shortcut", e);
+            Toast.makeText(this, "Error creating shortcut!", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private boolean deleteRecursively(File target) {
