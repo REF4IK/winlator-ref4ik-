@@ -57,10 +57,10 @@ import com.winlator.cmod.core.DohOkHttp;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.win32.PEParser;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.winlator.cmod.bigpicture.steamgrid.SteamGridDBApi;
-import com.winlator.cmod.bigpicture.steamgrid.SteamGridGridsResponse;
-import com.winlator.cmod.bigpicture.steamgrid.SteamGridGridsResponseDeserializer;
-import com.winlator.cmod.bigpicture.steamgrid.SteamGridSearchResponse;
+import com.winlator.cmod.steamgrid.SteamGridDBApi;
+import com.winlator.cmod.steamgrid.SteamGridGridsResponse;
+import com.winlator.cmod.steamgrid.SteamGridGridsResponseDeserializer;
+import com.winlator.cmod.steamgrid.SteamGridSearchResponse;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 

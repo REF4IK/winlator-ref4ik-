@@ -1,4 +1,4 @@
-package com.winlator.cmod.bigpicture.steamgrid;
+package com.winlator.cmod.steamgrid;
 
 import com.google.gson.annotations.SerializedName;
 
