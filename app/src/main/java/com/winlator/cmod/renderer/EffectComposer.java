@@ -1,13 +1,9 @@
 package com.winlator.cmod.renderer;
 
 import android.opengl.GLES20;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
-import android.view.Choreographer;
 
 import com.winlator.cmod.renderer.effects.Effect;
-import com.winlator.cmod.renderer.effects.FrameGenerationEffect;
 import com.winlator.cmod.renderer.effects.RenderScaleEffect;
 import com.winlator.cmod.renderer.effects.ToonEffect;
 import com.winlator.cmod.renderer.material.ShaderMaterial;
@@ -29,45 +25,6 @@ public class EffectComposer {
     private int sceneBufferHeight;
     private final GLRenderer renderer;
 
-    private FrameGenerationEffect frameGenerationEffect;
-
-    // Vsync-aligned scheduling via Choreographer (more precise than Handler.postDelayed).
-    // Each scheduled callback fires at the next vsync slot after the requested delay.
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private boolean scheduledCallbackPending = false;
-    private final Choreographer.FrameCallback frameCallback = new Choreographer.FrameCallback() {
-        @Override
-        public void doFrame(long frameTimeNanos) {
-            scheduledCallbackPending = false;
-            if (renderer != null && renderer.xServerView != null) {
-                renderer.xServerView.requestRender();
-            }
-        }
-    };
-
-    private void scheduleRender(long delayMs) {
-        // Choreographer must be accessed from a Looper thread; route through main handler.
-        mainHandler.post(() -> {
-            if (scheduledCallbackPending) {
-                Choreographer.getInstance().removeFrameCallback(frameCallback);
-            }
-            scheduledCallbackPending = true;
-            if (delayMs <= 0) {
-                Choreographer.getInstance().postFrameCallback(frameCallback);
-            } else {
-                Choreographer.getInstance().postFrameCallbackDelayed(frameCallback, delayMs);
-            }
-        });
-    }
-
-    private void cancelScheduledRender() {
-        mainHandler.post(() -> {
-            if (scheduledCallbackPending) {
-                Choreographer.getInstance().removeFrameCallback(frameCallback);
-                scheduledCallbackPending = false;
-            }
-        });
-    }
 
     public static final boolean logEnabled = false;
 
@@ -101,10 +58,6 @@ public class EffectComposer {
     public synchronized void addEffect(Effect effect) {
         if (!effects.contains(effect)) {
             effects.add(effect);
-            if (effect instanceof FrameGenerationEffect) {
-                frameGenerationEffect = (FrameGenerationEffect) effect;
-                Log.d(TAG, "FrameGenerationEffect added");
-            }
         }
         renderer.xServerView.requestRender();
     }
@@ -134,25 +87,10 @@ public class EffectComposer {
 
     // Removes a specific effect from the composer
     public synchronized void removeEffect(Effect effect) {
-        if (effects.remove(effect)) {
-            if (effect == frameGenerationEffect) {
-                frameGenerationEffect = null;
-            }
-        }
+        effects.remove(effect);
         renderer.xServerView.requestRender();
     }
 
-    private int determineFrameSequence() {
-        if (frameGenerationEffect != null && frameGenerationEffect.isEnabled()) {
-            int frameType = frameGenerationEffect.getFrameToDisplay();
-            if (frameType == 1 && !frameGenerationEffect.isReadyForGeneration()) {
-                logString("Generation not ready yet, showing real frame instead");
-                return 0;
-            }
-            return frameType;
-        }
-        return 0;
-    }
 
     // Renders all the effects in the composer
     public synchronized void render(boolean forceFullscreen) {
@@ -168,8 +106,6 @@ public class EffectComposer {
 
         try {
             initBuffers();
-
-            int currentSequence = determineFrameSequence();
 
             // Detect render-scale: if the first effect implements RenderScaleEffect,
             // render the scene into a smaller sceneBuffer and let that effect upscale it.
@@ -244,43 +180,16 @@ public class EffectComposer {
                 // First effect with RenderScaleEffect: source = sceneBuffer (scene-size).
                 boolean firstUsesSceneBuffer = (i == 0) && useSceneBuffer;
 
-                if (effect == frameGenerationEffect && frameGenerationEffect != null) {
-                    // FrameGenerationEffect only
-                    GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFramebuffer);
-                    GLES20.glViewport(0, 0, renderer.surfaceWidth, renderer.surfaceHeight);
-                    renderer.setViewportNeedsUpdate(true);
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFramebuffer);
+                GLES20.glViewport(0, 0, renderer.surfaceWidth, renderer.surfaceHeight);
+                renderer.setViewportNeedsUpdate(true);
 
-                    // Do not clear buffer (generation uses its own textures)
-                    frameGenerationEffect.prepareFrame(renderer.surfaceWidth, renderer.surfaceHeight, currentSequence);
-
-                    renderEffect(effect);
-
-                    if (!renderToScreen) {
-                        swapBuffers();
-                    }
-                } else {
-                    // Other effects
-                    GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFramebuffer);
-                    GLES20.glViewport(0, 0, renderer.surfaceWidth, renderer.surfaceHeight);
-                    renderer.setViewportNeedsUpdate(true);
-
-                    GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-                    int sourceTexId = firstUsesSceneBuffer ? sceneBuffer.getTextureId() : readBuffer.getTextureId();
-                    renderEffect(effect, sourceTexId);
-                    swapBuffers();
-                }
+                GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+                int sourceTexId = firstUsesSceneBuffer ? sceneBuffer.getTextureId() : readBuffer.getTextureId();
+                renderEffect(effect, sourceTexId);
+                swapBuffers();
             }
 
-            if (frameGenerationEffect != null && frameGenerationEffect.isEnabled()) {
-                long delayMs = frameGenerationEffect.getScheduledRenderDelayMs();
-                if (delayMs >= 0) {
-                    scheduleRender(delayMs);
-                } else {
-                    cancelScheduledRender();
-                }
-            } else {
-                cancelScheduledRender();
-            }
         } finally {
             isRendering = false;
         }
@@ -314,16 +223,12 @@ public class EffectComposer {
         }
 
         material.use();
-        if (effect instanceof FrameGenerationEffect) {
-            ((FrameGenerationEffect) effect).setupShaderUniforms();
-        } else {
-            // Set uniform values
-            material.setUniformVec2("resolution", renderer.surfaceWidth, renderer.surfaceHeight);
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, sourceTextureId);
-            material.setUniformInt("screenTexture", 0);
-            effect.onUse(material, renderer);
-        }
+        // Set uniform values
+        material.setUniformVec2("resolution", renderer.surfaceWidth, renderer.surfaceHeight);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, sourceTextureId);
+        material.setUniformInt("screenTexture", 0);
+        effect.onUse(material, renderer);
 
         // Bind the quad vertices to the shader program
         renderer.getQuadVertices().bind(material.programId);
@@ -359,93 +264,5 @@ public class EffectComposer {
         renderer.xServerView.requestRender();
     }
 
-    public synchronized void configureFrameGeneration(int targetFPS, int mode) {
-        if (frameGenerationEffect != null) {
-            frameGenerationEffect.setTargetFPS(targetFPS);
-            frameGenerationEffect.setGenerationMode(mode);
-        }
-        renderer.xServerView.requestRender();
-    }
-
-    public void setDisplayRefreshRate(int refreshRate) {
-        if (frameGenerationEffect != null) {
-            frameGenerationEffect.setDisplayRefreshRate(refreshRate);
-        }
-    }
-
-    public synchronized void setFrameGenerationPreset(int preset) {
-        if (frameGenerationEffect == null) return;
-        if (preset == FrameGenerationEffect.PRESET_DISABLED) {
-            if (frameGenerationEffect.isEnabled()) frameGenerationEffect.toggleGeneration();
-            return;
-        }
-        int mode;
-        float flow;
-        switch (preset) {
-            case FrameGenerationEffect.PRESET_FAST:     mode = FrameGenerationEffect.MODE_FAST;     flow = 0.2f; break;
-            case FrameGenerationEffect.PRESET_SMOOTH:   mode = FrameGenerationEffect.MODE_FAST;     flow = 0.4f; break;
-            case FrameGenerationEffect.PRESET_BALANCED: mode = FrameGenerationEffect.MODE_BALANCED; flow = 0.6f; break;
-            case FrameGenerationEffect.PRESET_ENHANCED: mode = FrameGenerationEffect.MODE_BALANCED; flow = 0.8f; break;
-            case FrameGenerationEffect.PRESET_CLEAR:    mode = FrameGenerationEffect.MODE_QUALITY;  flow = 0.6f; break;
-            case FrameGenerationEffect.PRESET_EXTREME:  mode = FrameGenerationEffect.MODE_QUALITY;  flow = 0.8f; break;
-            default: return;
-        }
-        // Rebuilds shader material if mode changed (replaces frameGenerationEffect with a new instance).
-        setGenerationMode(mode);
-        if (frameGenerationEffect != null) {
-            frameGenerationEffect.setFlowScale(flow);
-            if (!frameGenerationEffect.isEnabled()) frameGenerationEffect.toggleGeneration();
-        }
-        renderer.xServerView.requestRender();
-    }
-
-    public void setGenerationMode(int mode) {
-        if (frameGenerationEffect != null) {
-            if (frameGenerationEffect.isEnabled()) {
-                Log.d(TAG, "FrameGenerationEffect restart");
-                int targetFPS = frameGenerationEffect.getTargetFPS();
-                frameGenerationEffect.toggleGeneration();
-                removeEffect(frameGenerationEffect);
-
-                frameGenerationEffect = new FrameGenerationEffect();
-                addEffect(frameGenerationEffect);
-                frameGenerationEffect.toggleGeneration();
-                frameGenerationEffect.setTargetFPS(targetFPS);
-            }
-            frameGenerationEffect.setGenerationMode(mode);
-        }
-    }
-
-    public void setGenerationMultiplier(int multiplier) {
-        if (frameGenerationEffect != null) {
-            frameGenerationEffect.setGenerationMultiplier(multiplier);
-        }
-    }
-
-    public synchronized FrameGenerationSettings getFrameGenerationSettings() {
-        if (frameGenerationEffect != null) {
-            return new FrameGenerationSettings(
-                    frameGenerationEffect.getTargetFPS(),
-                    frameGenerationEffect.isAutoDetectFPS(),
-                    frameGenerationEffect.getCurrentRealFrameInterval(),
-                    frameGenerationEffect.getCurrentTargetFrameInterval()
-            );
-        }
-        return null;
-    }
-
-    public static class FrameGenerationSettings {
-        public final int targetFPS;
-        public final boolean autoDetect;
-        public final long realInterval;
-        public final long targetInterval;
-
-        public FrameGenerationSettings(int targetFPS, boolean autoDetect, long realInterval, long targetInterval) {
-            this.targetFPS = targetFPS;
-            this.autoDetect = autoDetect;
-            this.realInterval = realInterval;
-            this.targetInterval = targetInterval;
-        }
-    }
 
 }

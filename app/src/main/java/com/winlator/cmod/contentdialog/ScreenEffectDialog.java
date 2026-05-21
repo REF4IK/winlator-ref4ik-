@@ -14,7 +14,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.FrameLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -31,7 +30,6 @@ import com.winlator.cmod.renderer.effects.CRTEffect;
 import com.winlator.cmod.renderer.effects.FSR1EasuEffect;
 import com.winlator.cmod.renderer.effects.FSR1RcasEffect;
 import com.winlator.cmod.renderer.effects.FXAAEffect;
-import com.winlator.cmod.renderer.effects.FrameGenerationEffect;
 import com.winlator.cmod.renderer.effects.NTSCCombinedEffect;
 import com.winlator.cmod.renderer.effects.ToonEffect;
 import com.winlator.cmod.renderer.effects.VignetteEffect;
@@ -42,7 +40,6 @@ import com.winlator.cmod.renderer.effects.GrayscaleEffect;
 import com.winlator.cmod.renderer.effects.SharpenEffect;
 import com.winlator.cmod.renderer.effects.SmoothEffect;
 import com.winlator.cmod.renderer.effects.HDREffect;
-import com.winlator.cmod.widget.FrameGenerationView;
 import com.winlator.cmod.widget.SeekBar;
 
 import java.util.ArrayList;
@@ -213,10 +210,6 @@ public class ScreenEffectDialog extends ContentDialog {
             Log.d(TAG, "Dialog dismissed.");
         });
 
-        findViewById(R.id.ButtonAddGenerationView).setOnClickListener(v -> addFrameGenerationView());
-
-
-
         findViewById(R.id.BTAddProfile).setOnClickListener(v -> promptAddProfile());
         findViewById(R.id.BTRemoveProfile).setOnClickListener(v -> promptDeleteProfile());
 
@@ -230,26 +223,6 @@ public class ScreenEffectDialog extends ContentDialog {
             Log.d(TAG, "Dialog dismissed after callback.");
         });
 
-    }
-
-    private void addFrameGenerationView() {
-        if (activity.frameGenerationView == null) {
-            GLRenderer currentRenderer = activity.getXServerView().getRenderer();
-
-            final FrameLayout container = activity.findViewById(R.id.FLXServerDisplay);
-            activity.frameGenerationView = new FrameGenerationView(activity, currentRenderer);
-            activity.frameGenerationView.setFrameGenerationCallback((value) -> {
-                FrameGenerationEffect frameGenerationEffect =
-                        (FrameGenerationEffect) currentRenderer.getEffectComposer().getEffect(FrameGenerationEffect.class);
-                applyFrameGenerationEffect(currentRenderer, frameGenerationEffect, value);
-            });
-
-            activity.frameGenerationView.setHideButtonCallback(() -> activity.frameGenerationView.setVisibility(View.GONE));
-            container.addView(activity.frameGenerationView);
-        } else {
-            activity.frameGenerationView.setVisibility(View.VISIBLE);
-        }
-        dismiss();
     }
 
     private static void applyFieldSetLabelStyle(TextView textView, boolean isDarkMode) {
@@ -779,38 +752,6 @@ public class ScreenEffectDialog extends ContentDialog {
     public void setOnConfirmCallback(Runnable confirmCallback) {
         Log.d(TAG, "Setting OnConfirm callback.");
         this.onConfirmCallback = confirmCallback;
-    }
-
-    public void applyFrameGenerationEffect(GLRenderer renderer, FrameGenerationEffect frameGenerationEffect, Boolean enableFrameGenerationEffect) {
-        Log.d(TAG, "applyFrameGenerationEffect(): enableFrameGenerationEffect = " + enableFrameGenerationEffect);
-
-        if (renderer == null) {
-            Log.e(TAG, "Renderer is null!");
-            return;
-        }
-
-        if (renderer.getEffectComposer() == null) {
-            Log.e(TAG, "EffectComposer is null!");
-            return;
-        }
-
-        if (enableFrameGenerationEffect) {
-            if (frameGenerationEffect == null) {
-                Log.d(TAG, "FrameGenerationEffect is null, creating and adding new instance.");
-                frameGenerationEffect = new FrameGenerationEffect();
-                renderer.getEffectComposer().addEffect(frameGenerationEffect);
-                frameGenerationEffect.toggleGeneration();
-                frameGenerationEffect.setDisplayRefreshRate(getRefreshRate());
-            } else {
-                Log.d(TAG, "FrameGenerationEffect is already added.");
-            }
-        } else if (frameGenerationEffect != null) {
-            Log.d(TAG, "FrameGenerationEffect is disabled. Removing FrameGenerationEffect.");
-            frameGenerationEffect.toggleGeneration();
-            renderer.getEffectComposer().removeEffect(frameGenerationEffect);
-        } else {
-            Log.d(TAG, "FrameGenerationEffect failed to disable.");
-        }
     }
 
     public int getRefreshRate() {
