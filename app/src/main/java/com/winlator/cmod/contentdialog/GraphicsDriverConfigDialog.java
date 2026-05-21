@@ -19,8 +19,6 @@ import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.GPUInformation;
-import com.winlator.cmod.core.HDRDisplayManager;
-import com.winlator.cmod.core.HDRConfiguration;
 import com.winlator.cmod.core.StringUtils;
 
 import java.io.File;
@@ -43,14 +41,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private CheckBox cbAdrenotoolsTurnip;
     private CheckBox cbEnableBlit;
     
-    // HDR Controls (hidden)
-    // private CheckBox cbEnableHDR;
-    // private Spinner sHDRMode;
-    // private Spinner sHDRColorSpace;
-    // private Spinner sHDRToneMapping;
-    // private CheckBox cbEnable10Bit;
-    // private CheckBox cbEnableWideColorGamut;
-    // private HDRDisplayManager hdrDisplayManager;
     private static String selectedVersion;
     private static String blacklistedExtensions = "";
     private static String selectedDeviceMemory;
@@ -60,14 +50,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private static String selectedResourceType;
     private static String enableBlit;
     
-    // HDR configuration static variables (hidden)
-    // private static boolean enableHDR = false;
-    // private static String hdrMode = "0"; // Disabled by default
-    // private static String hdrColorSpace = "0"; // sRGB by default
-    // private static String hdrToneMapping = "0"; // Disabled by default
-    // private static boolean enable10Bit = false;
-    // private static boolean enableWideColorGamut = false;
-
     protected class ExtensionAdapter extends ArrayAdapter<String> {
         ArrayList<String> extensions;
 
@@ -178,7 +160,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     public static String writeGraphicsDriverConfig() {
         String normalizedFrameSync = normalizeFrameSynchronization(frameSynchronization);
         String effectivePresentMode = resolveConfiguredPresentMode(normalizedFrameSync, selectedPresentMode);
-        String graphicsDriverConfig = "version=" + selectedVersion + ";" + "blacklistedExtensions=" + blacklistedExtensions + ";" + "maxDeviceMemory=" + StringUtils.parseNumber(selectedDeviceMemory) + ";" + "adrenotoolsTurnip=" + isAdrenotoolsTurnip + ";" + "frameSync=" + normalizedFrameSync + ";" + "presentMode=" + effectivePresentMode + ";" + "resourceType=" + selectedResourceType + ";" + "blit=" + enableBlit + ";" + "enableHDR=0;hdrMode=0;hdrColorSpace=0;hdrToneMapping=0;enable10Bit=0;enableWideColorGamut=0";
+        String graphicsDriverConfig = "version=" + selectedVersion + ";" + "blacklistedExtensions=" + blacklistedExtensions + ";" + "maxDeviceMemory=" + StringUtils.parseNumber(selectedDeviceMemory) + ";" + "adrenotoolsTurnip=" + isAdrenotoolsTurnip + ";" + "frameSync=" + normalizedFrameSync + ";" + "presentMode=" + effectivePresentMode + ";" + "resourceType=" + selectedResourceType + ";" + "blit=" + enableBlit;
         Log.i(TAG, "Written config " + graphicsDriverConfig);
         return graphicsDriverConfig;
     }
@@ -202,17 +184,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         sResourceType = findViewById(R.id.SGraphicsDriverResourceType);
         cbAdrenotoolsTurnip = findViewById(R.id.CBAdrenotoolsTurnip);
         cbEnableBlit = findViewById(R.id.CBEnableBlit);
-        
-        // Initialize HDR controls (hidden)
-        // cbEnableHDR = findViewById(R.id.CBEnableHDR);
-        // sHDRMode = findViewById(R.id.SHDRMode);
-        // sHDRColorSpace = findViewById(R.id.SHDRColorSpace);
-        // sHDRToneMapping = findViewById(R.id.SHDRToneMapping);
-        // cbEnable10Bit = findViewById(R.id.CBEnable10Bit);
-        // cbEnableWideColorGamut = findViewById(R.id.CBEnableWideColorGamut);
-        
-        // Initialize HDR display manager
-        // hdrDisplayManager = new HDRDisplayManager(anchor.getContext());
 
         HashMap<String, String> config = parseGraphicsDriverConfig(graphicsDriverConfig);
 
@@ -230,14 +201,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         selectedResourceType = resourceType != null && !resourceType.isEmpty() ? resourceType : "auto";
         selectedDeviceMemory = maxDeviceMemory != null && !maxDeviceMemory.isEmpty() ? maxDeviceMemory : "0";
         isAdrenotoolsTurnip = "0".equals(adrenotoolsTurnip) ? "0" : "1";
-        
-        // Parse HDR configuration (hidden)
-        // String enableHDRStr = config.get("enableHDR");
-        // String hdrModeStr = config.get("hdrMode");
-        // String hdrColorSpaceStr = config.get("hdrColorSpace");
-        // String hdrToneMappingStr = config.get("hdrToneMapping");
-        // String enable10BitStr = config.get("enable10Bit");
-        // String enableWideColorGamutStr = config.get("enableWideColorGamut");
 
         // Update the selectedVersion whenever the user selects a different version
         sVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -313,9 +276,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         cbEnableBlit.setOnCheckedChangeListener((buttonView, isChecked) -> {
             enableBlit = isChecked ? "1" : "0";
         });
-        
-        // Setup HDR controls (hidden)
-        // setupHDRControls(enableHDRStr, hdrModeStr, hdrColorSpaceStr, hdrToneMappingStr, enable10BitStr, enableWideColorGamutStr);
 
         // Ensure ContentsManager syncContents is called
         ContentsManager contentsManager = new ContentsManager(anchor.getContext());
@@ -323,9 +283,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         
         // Populate the spinner with available versions from ContentsManager and pre-select the initial version
         populateGraphicsDriverVersions(anchor.getContext(), contentsManager, initialVersion, blExtensions, maxDeviceMemory, frameSync, presentMode, resourceType, graphicsDriver);
-        
-        // Check HDR support and update UI accordingly (hidden)
-        // updateHDRAvailability();
 
         // Обработчик кнопки скачивания драйверов
         Button btnDownloadGraphicsDriver = findViewById(R.id.BTDownloadGraphicsDriver);
@@ -378,7 +335,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         availableExtensions = new ArrayList<>(Arrays.asList(GPUInformation.enumerateExtensions()));
 
         // Remove essential and wrapper disabled extensions
-        String[] essentialExtensions = {"VK_EXT_hdr_metadata", "VK_GOOGLE_display_timing", "VK_KHR_shader_float_controls", "VK_KHR_shader_presentable_image", "VK_EXT_image_compression_control_swapchain"};
+        String[] essentialExtensions = {"VK_GOOGLE_display_timing", "VK_KHR_shader_float_controls", "VK_KHR_shader_presentable_image", "VK_EXT_image_compression_control_swapchain"};
         for (String extension : essentialExtensions) {
             availableExtensions.remove(extension);
         }
@@ -428,126 +385,4 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         AppUtils.setSpinnerSelectionFromValue(spinner, DefaultVersion.WRAPPER);
     }
     
-    /*
-     * Setup HDR controls with initial values and listeners (HIDDEN)
-     */
-    /*
-    private void setupHDRControls(String enableHDRStr, String hdrModeStr, String hdrColorSpaceStr, 
-                                 String hdrToneMappingStr, String enable10BitStr, String enableWideColorGamutStr) {
-        // Parse initial values with defaults
-        enableHDR = "1".equals(enableHDRStr);
-        hdrMode = hdrModeStr != null ? hdrModeStr : "0";
-        hdrColorSpace = hdrColorSpaceStr != null ? hdrColorSpaceStr : "0";
-        hdrToneMapping = hdrToneMappingStr != null ? hdrToneMappingStr : "0";
-        enable10Bit = "1".equals(enable10BitStr);
-        enableWideColorGamut = "1".equals(enableWideColorGamutStr);
-        
-        // Set initial checkbox states
-        cbEnableHDR.setChecked(enableHDR);
-        cbEnable10Bit.setChecked(enable10Bit);
-        cbEnableWideColorGamut.setChecked(enableWideColorGamut);
-        
-        // Set initial spinner selections
-        AppUtils.setSpinnerSelectionFromNumber(sHDRMode, hdrMode);
-        AppUtils.setSpinnerSelectionFromNumber(sHDRColorSpace, hdrColorSpace);
-        AppUtils.setSpinnerSelectionFromNumber(sHDRToneMapping, hdrToneMapping);
-        
-        // Setup listeners
-        cbEnableHDR.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            enableHDR = isChecked;
-            updateHDRControlsState();
-        });
-        
-        sHDRMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                hdrMode = String.valueOf(position);
-            }
-            
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-        
-        sHDRColorSpace.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                hdrColorSpace = String.valueOf(position);
-            }
-            
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-        
-        sHDRToneMapping.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                hdrToneMapping = String.valueOf(position);
-            }
-            
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-        
-        cbEnable10Bit.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            enable10Bit = isChecked;
-        });
-        
-        cbEnableWideColorGamut.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            enableWideColorGamut = isChecked;
-        });
-        
-        // Initial state update
-        updateHDRControlsState();
-    }
-    */
-    
-    /*
-     * Update HDR availability based on display capabilities (HIDDEN)
-     */
-    /*
-    private void updateHDRAvailability() {
-        if (hdrDisplayManager != null) {
-            boolean hdrSupported = hdrDisplayManager.isHDR10Supported();
-            boolean wideColorSupported = hdrDisplayManager.isWideColorGamutSupported();
-            
-            // Log HDR support status
-            Log.d(TAG, "HDR Support: " + hdrSupported);
-            Log.d(TAG, "Wide Color Gamut Support: " + wideColorSupported);
-            Log.d(TAG, hdrDisplayManager.getHDRSupportSummary());
-            
-            if (!hdrSupported) {
-                // Disable HDR controls if not supported
-                cbEnableHDR.setEnabled(false);
-                cbEnableHDR.setText(getContext().getString(R.string.hdr_not_supported));
-            } else {
-                cbEnableHDR.setEnabled(true);
-                cbEnableHDR.setText(getContext().getString(R.string.enable_hdr10));
-            }
-            
-            if (!wideColorSupported) {
-                cbEnableWideColorGamut.setEnabled(false);
-            }
-        }
-    }
-    */
-    
-    /*
-     * Update HDR controls enabled state based on main HDR checkbox (HIDDEN)
-     */
-    /*
-    private void updateHDRControlsState() {
-        boolean enabled = enableHDR && cbEnableHDR.isEnabled();
-        
-        sHDRMode.setEnabled(enabled);
-        sHDRColorSpace.setEnabled(enabled);
-        sHDRToneMapping.setEnabled(enabled);
-        cbEnable10Bit.setEnabled(enabled);
-        
-        // Wide color gamut depends on both HDR enabled and display support
-        boolean wideColorEnabled = enabled && hdrDisplayManager != null && 
-                                  hdrDisplayManager.isWideColorGamutSupported();
-        cbEnableWideColorGamut.setEnabled(wideColorEnabled);
-    }
-    */
-
 }

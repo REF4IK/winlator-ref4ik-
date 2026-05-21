@@ -249,7 +249,6 @@
     <string name="enable_file_provider">启用文件提供程序</string>
     <string name="enable_fxaa">启用 FXAA</string>
     <string name="enable_grayscale_effect">启用灰度效果</string>
-    <string name="enable_hdr10">启用 HDR10</string>
     <string name="enable_legacy_input_mode">启用 7.1.2 传统输入模式</string>
     <string name="enable_ntsc_effect">启用 NTSC 效果</string>
     <string name="enable_pixelate_effect">启用像素化效果</string>
@@ -439,15 +438,6 @@
     <string name="group_description_weabchan">自动构建的 Freedreno/Turnip 驱动</string>
     <string name="group_edit">编辑组</string>
     <string name="group_name">组名称</string>
-    <string name="hdr_auto_detect">自动检测 HDR 功能</string>
-    <string name="hdr_color_space">色彩空间</string>
-    <string name="hdr_configuration">HDR10 配置</string>
-    <string name="hdr_display_capabilities">显示器 HDR 功能</string>
-    <string name="hdr_max_luminance">最大亮度（尼特）</string>
-    <string name="hdr_mode">HDR 模式</string>
-    <string name="hdr_not_supported">此显示器不支持 HDR10</string>
-    <string name="hdr_supported">支持 HDR10</string>
-    <string name="hdr_tone_mapping">色调映射</string>
     <string name="height">高度</string>
     <string name="help_button_text">   帮助   </string>
     <string name="help_dinput">如果您的游戏使用 &lt;i>&lt;b>DInput API&lt;/b>&lt;/i> 支持游戏控制器，请启用此选项。&lt;br/>&lt;br/> 此选项将影响 &lt;i>&lt;b>虚拟&lt;/b>&lt;/i>（由输入控制提供）和 &lt;i>&lt;b>物理&lt;/b>&lt;/i> 游戏控制器。</string>
@@ -1002,3 +992,4 @@
     <string name="fps_short_batt_temp">电池温度</string>
     <string name="fps_short_power">功耗</string>
 </resources>
+

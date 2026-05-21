@@ -255,7 +255,6 @@
     <string name="enable_file_provider">Включить файловый провайдер</string>
     <string name="enable_fxaa">Включить FXAA</string>
     <string name="enable_grayscale_effect">Включить эффект оттенков серого</string>
-    <string name="enable_hdr10">Включить HDR10</string>
     <string name="enable_legacy_input_mode">Включить устаревший режим ввода 7.1.2</string>
     <string name="enable_ntsc_effect">Включить эффект NTSC</string>
     <string name="enable_pixelate_effect">Включить эффект пикселизации</string>
@@ -443,15 +442,6 @@
     <string name="group_description_weabchan">Автоматически собранные драйверы Freedreno/Turnip</string>
     <string name="group_edit">Редактировать группу</string>
     <string name="group_name">Имя группы</string>
-    <string name="hdr_auto_detect">Автоопределение возможностей HDR</string>
-    <string name="hdr_color_space">Цветовое пространство</string>
-    <string name="hdr_configuration">Конфигурация HDR10</string>
-    <string name="hdr_display_capabilities">Возможности дисплея HDR</string>
-    <string name="hdr_max_luminance">Максимальная яркость (нит)</string>
-    <string name="hdr_mode">Режим HDR</string>
-    <string name="hdr_not_supported">HDR10 не поддерживается на этом дисплее</string>
-    <string name="hdr_supported">HDR10 поддерживается</string>
-    <string name="hdr_tone_mapping">Тональное отображение</string>
     <string name="height">Высота</string>
     <string name="help_button_text">   ПОМОЩЬ   </string>
     <string name="help_dinput">Если ваша игра использует &lt;i>&lt;b>API DInput&lt;/b>&lt;/i> для поддержки игрового контроллера, включите эту опцию.&lt;br/>&lt;br/> Эта опция повлияет как на &lt;i>&lt;b>виртуальные&lt;/b>&lt;/i> (предоставляемые управлением ввода), так и на &lt;i>&lt;b>физические&lt;/b>&lt;/i> игровые контроллеры.</string>
@@ -1373,3 +1363,4 @@
     <string name="fps_short_batt_temp">Темп. бат.</string>
     <string name="fps_short_power">Питание</string>
 </resources>
+

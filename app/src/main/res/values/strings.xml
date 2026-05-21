@@ -258,7 +258,6 @@
     <string name="enable_file_provider">Enable File Provider</string>
     <string name="enable_fxaa">Enable FXAA</string>
     <string name="enable_grayscale_effect">Enable Grayscale Effect</string>
-    <string name="enable_hdr10">Enable HDR10</string>
     <string name="enable_legacy_input_mode">Enable 7.1.2 Legacy Input Mode</string>
     <string name="enable_ntsc_effect">Enable NTSC Effect</string>
     <string name="enable_pixelate_effect">Enable Pixelate Effect</string>
@@ -460,15 +459,6 @@
     <string name="group_description_weabchan">Automatically built Freedreno/Turnip drivers</string>
     <string name="group_edit">Group Edit</string>
     <string name="group_name">Group Name</string>
-    <string name="hdr_auto_detect">Auto-detect HDR capabilities</string>
-    <string name="hdr_color_space">Color Space</string>
-    <string name="hdr_configuration">HDR10 Configuration</string>
-    <string name="hdr_display_capabilities">Display HDR Capabilities</string>
-    <string name="hdr_max_luminance">Max Luminance (nits)</string>
-    <string name="hdr_mode">HDR Mode</string>
-    <string name="hdr_not_supported">HDR10 not supported on this display</string>
-    <string name="hdr_supported">HDR10 supported</string>
-    <string name="hdr_tone_mapping">Tone Mapping</string>
     <string name="height">Height</string>
     <string name="help_button_text">В В В HELPВ В В </string>
     <string name="help_dinput">If your game utilizes the &lt;i>&lt;b>DInput API&lt;/b>&lt;/i> for game controller support, please enable this option.&lt;br/>&lt;br/> This option will affect both &lt;i>&lt;b>virtual&lt;/b>&lt;/i> (provided by Input Controls) and &lt;i>&lt;b>physical&lt;/b>&lt;/i> game controllers.</string>
@@ -1389,3 +1379,4 @@
         <item quantity="other">%d files</item>
     </plurals>
 </resources>
+

@@ -481,25 +481,6 @@
         <item>CAS</item>
         <item>DLS</item>
     </string-array>
-    <string-array name="hdr_mode_entries">
-        <item>Off</item>
-        <item>HDR10</item>
-        <item>HDR10+</item>
-        <item>Dolby Vision</item>
-    </string-array>
-    <string-array name="hdr_color_space_entries">
-        <item>sRGB</item>
-        <item>BT.709</item>
-        <item>BT.2020</item>
-        <item>DCI-P3</item>
-    </string-array>
-    <string-array name="hdr_tone_mapping_entries">
-        <item>None</item>
-        <item>Reinhard</item>
-        <item>ACES</item>
-        <item>Hable</item>
-    </string-array>
-    
     <!-- Audio Settings Arrays -->
     <string-array name="audio_buffer_sizes">
         <item>128</item>
