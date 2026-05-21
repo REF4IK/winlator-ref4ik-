@@ -631,9 +631,6 @@ public class ContainerDetailFragment extends Fragment {
         final CheckBox cbWoW64Mode = view.findViewById(R.id.CBWoW64Mode);
         cbWoW64Mode.setChecked(!isEditMode() || container.isWoW64Mode());
 
-        final CheckBox cbRelativeMouseMovement = view.findViewById(R.id.CBRelativeMouseMovement);
-        cbRelativeMouseMovement.setChecked(isEditMode() && container.isRelativeMouseMovement());
-
         final Spinner sStartupSelection = view.findViewById(R.id.SStartupSelection);
         byte previousStartupSelection = isEditMode() ? container.getStartupSelection() : -1;
         sStartupSelection.setSelection(previousStartupSelection != -1 ? previousStartupSelection : Container.STARTUP_SELECTION_ESSENTIAL);
@@ -815,7 +812,6 @@ public class ContainerDetailFragment extends Fragment {
                 String cpuList = cpuListView.getCheckedCPUListAsString();
                 String cpuListWoW64 = cpuListViewWoW64.getCheckedCPUListAsString();
                 boolean wow64Mode = cbWoW64Mode.isChecked();
-                boolean isRelativeMouseMovement = cbRelativeMouseMovement.isChecked();
                 byte startupSelection = (byte) sStartupSelection.getSelectedItemPosition();
                 String box64Version = sBox64Version.getSelectedItem().toString();
                 String box64Preset = Box86_64PresetManager.getSpinnerSelectedId(sBox64Preset);
@@ -874,7 +870,6 @@ public class ContainerDetailFragment extends Fragment {
                     container.setFullscreenStretched(fullscreenStretched);
                     container.setInputType(finalInputType);
                     container.setWoW64Mode(wow64Mode);
-                    container.setRelativeMouseMovement(isRelativeMouseMovement);
                     container.setStartupSelection(startupSelection);
                     container.setBox64Version(box64Version);
                     container.setBox64Preset(box64Preset);
@@ -908,7 +903,6 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("wincomponents", wincomponents);
                     data.put("drives", drives);
 
-                    data.put("relativeMouseMovement", isRelativeMouseMovement);
                     data.put("fullscreenStretched", fullscreenStretched);
                     data.put("inputType", finalInputType);
                     data.put("wow64Mode", wow64Mode);
@@ -1111,7 +1105,6 @@ public class ContainerDetailFragment extends Fragment {
             content.append("StartupWMClass=").append(component.getFileName().toLowerCase()).append("\n");
             content.append("\n[Extra Data]\n");
             content.append("inputType=6\n");
-            content.append("relativeMouseMovement=0\n");
             content.append("simTouchScreen=0\n");
             content.append("execArgs=/passive /norestart\n");
             content.append("fexConfig=\n");
@@ -1662,7 +1655,6 @@ public class ContainerDetailFragment extends Fragment {
         data.put("drives", getDrives(rootView));
         data.put("fullscreenStretched", ((CheckBox) rootView.findViewById(R.id.CBFullscreenStretched)).isChecked());
         data.put("wow64Mode", ((CheckBox) rootView.findViewById(R.id.CBWoW64Mode)).isChecked());
-        data.put("relativeMouseMovement", ((CheckBox) rootView.findViewById(R.id.CBRelativeMouseMovement)).isChecked());
         data.put("startupSelection", sStartupSelection.getSelectedItemPosition());
         data.put("box64Version", safeSpinnerValue(sBox64Version, DefaultVersion.BOX64));
         data.put("box64Preset", Box86_64PresetManager.getSpinnerSelectedId(sBox64Preset));
@@ -1806,7 +1798,6 @@ public class ContainerDetailFragment extends Fragment {
         lines.add("Mouse warp: " + settings.optString("mouseWarpOverride", "-"));
         lines.add("Fullscreen stretched: " + booleanLabel(settings.optBoolean("fullscreenStretched", false)));
         lines.add("WoW64 mode: " + booleanLabel(settings.optBoolean("wow64Mode", true)));
-        lines.add("Relative mouse: " + booleanLabel(settings.optBoolean("relativeMouseMovement", false)));
         lines.add("Input flags: " + settings.optInt("inputType", 0));
         lines.add("RC file id: " + settings.optInt("rcfileId", 0));
         lines.add("XR primary controller: " + settings.optInt("primaryController", 1));
@@ -1887,7 +1878,6 @@ public class ContainerDetailFragment extends Fragment {
         View vAudioDriverConfig = rootView.findViewById(R.id.BTAudioDriverConfig);
         CheckBox cbFullscreenStretched = rootView.findViewById(R.id.CBFullscreenStretched);
         CheckBox cbWoW64Mode = rootView.findViewById(R.id.CBWoW64Mode);
-        CheckBox cbRelativeMouseMovement = rootView.findViewById(R.id.CBRelativeMouseMovement);
         CheckBox cbEnableXInput = rootView.findViewById(R.id.CBEnableXInput);
         CheckBox cbEnableDInput = rootView.findViewById(R.id.CBEnableDInput);
         CheckBox cbSdl2Toggle = rootView.findViewById(R.id.CBSdl2Toggle);
@@ -1915,7 +1905,6 @@ public class ContainerDetailFragment extends Fragment {
         if (settings.has("drives")) createDrivesTab(rootView, settings.optString("drives", Container.DEFAULT_DRIVES));
         cbFullscreenStretched.setChecked(settings.optBoolean("fullscreenStretched", false));
         cbWoW64Mode.setChecked(settings.optBoolean("wow64Mode", true));
-        cbRelativeMouseMovement.setChecked(settings.optBoolean("relativeMouseMovement", false));
         sStartupSelection.setSelection(settings.optInt("startupSelection", Container.STARTUP_SELECTION_ESSENTIAL));
         if (settings.has("box64Version")) {
             String normalizedBox64Version = normalizeImportedContentSelection(getBoxContentTypeFromSettings(settings), settings.optString("box64Version", DefaultVersion.BOX64));

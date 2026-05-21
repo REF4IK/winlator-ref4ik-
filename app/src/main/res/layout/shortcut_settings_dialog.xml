@@ -769,13 +769,6 @@
                         android:textSize="16sp" />
 
                     <CheckBox
-                        android:id="@+id/CBRelativeMouseMovement"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/relative_mouse_movement"
-                        android:textSize="16sp" />
-
-                    <CheckBox
                         android:id="@+id/CBTouchscreenMode"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
