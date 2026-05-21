@@ -214,7 +214,6 @@ import com.winlator.cmod.steam.SteamLibraryActivity;
 
 import com.winlator.cmod.steam.service.SteamService;
 
-import com.winlator.cmod.widget.FrameGenerationView;
 
 import com.winlator.cmod.widget.FrameRating;
 
@@ -502,7 +501,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     private WinetricksFloatingView winetricksFloatingView;
 
-    public FrameGenerationView frameGenerationView;
 
     private QuickAccessPanel quickAccessPanel;
 

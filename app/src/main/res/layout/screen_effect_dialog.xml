@@ -73,14 +73,6 @@
                 <com.winlator.cmod.widget.SeekBar
                     android:id="@+id/SBFsrSharpness" android:layout_width="fill_parent" android:layout_height="60dp" app:maxValue="100" app:minValue="0" />
 
-                <Button
-                    android:id="@+id/ButtonAddGenerationView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="start"
-                    android:text="@string/frame_generation"
-                    android:visibility="gone" />
-
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
