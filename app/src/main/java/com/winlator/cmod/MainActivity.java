@@ -403,11 +403,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             case R.id.main_menu_saves:
                 show(new SavesFragment(), false);  // Forward animation
                 break;
-            case R.id.main_menu_gamepad_test:
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-                Intent gamepadIntent = new Intent(this, GamePadTestActivity.class);
-                startActivity(gamepadIntent);
-                break;
             case R.id.main_menu_settings:
                 show(new SettingsFragment(), false);  // Forward animation
                 break;
