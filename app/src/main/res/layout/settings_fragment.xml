@@ -116,33 +116,6 @@
                     android:text="Theme" />
             </FrameLayout>
 
-            <!-- Updates -->
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-                <LinearLayout style="@style/FieldSet">
-                    <com.google.android.material.checkbox.MaterialCheckBox
-                        android:id="@+id/CBReceiveBetaUpdates"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/receive_beta_updates"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/BTCheckForUpdates"
-                        style="@style/Widget.Material3.Button"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/check_for_updates" />
-                </LinearLayout>
-                <TextView
-                    android:id="@+id/TVUpdates"
-                    style="@style/FieldSetLabel"
-                    android:text="@string/update_available" />
-            </FrameLayout>
-
             <!-- Shortcuts -->
             <FrameLayout
                 android:layout_width="match_parent"

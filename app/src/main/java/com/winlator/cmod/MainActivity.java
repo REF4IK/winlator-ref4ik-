@@ -188,9 +188,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
                 showAllFilesAccessDialog();
             }
-            
-            // Check for updates on startup
-            checkForUpdatesOnStartup();
         }
     }
 
@@ -599,35 +596,5 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("ru");
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
         }
-    }
-
-    private void checkForUpdatesOnStartup() {
-        if (!sharedPreferences.getBoolean("receive_beta_updates", false)) {
-            Log.d("MainActivity", "Startup update check skipped because update notifications are disabled");
-            return;
-        }
-
-        com.winlator.cmod.update.UpdateManager updateManager = new com.winlator.cmod.update.UpdateManager(this);
-        
-        updateManager.checkForUpdates(new com.winlator.cmod.update.UpdateManager.UpdateCheckCallback() {
-            @Override
-            public void onUpdateAvailable(com.winlator.cmod.update.GitHubRelease release) {
-                runOnUiThread(() -> {
-                    com.winlator.cmod.contentdialog.UpdateDialog updateDialog = 
-                        new com.winlator.cmod.contentdialog.UpdateDialog(MainActivity.this, release);
-                    updateDialog.show();
-                });
-            }
-            
-            @Override
-            public void onNoUpdateAvailable() {
-                // Silently do nothing on startup if no update
-            }
-            
-            @Override
-            public void onError(String error) {
-                // Silently fail on startup - don't bother user
-            }
-        });
     }
 }
