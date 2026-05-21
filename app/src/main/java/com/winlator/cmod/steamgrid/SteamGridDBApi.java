@@ -1,4 +1,4 @@
-package com.winlator.cmod.bigpicture.steamgrid;
+package com.winlator.cmod.steamgrid;
 
 import retrofit2.Call;
 import retrofit2.http.GET;
@@ -14,17 +14,12 @@ public interface SteamGridDBApi {
             @Path("term") String searchTerm
     );
 
-    // Updated method to fetch grids by game ID with filters
     @GET("grids/game/{gameId}")
     Call<SteamGridGridsResponse> getGridsByGameId(
             @Header("Authorization") String authToken,
             @Path("gameId") int gameId,
-            @Query("styles") String styles,           // Example: "alternate"
-            @Query("dimensions") String dimensions,   // Example: "600x900"
-            @Query("types") String types              // Example: "static"
+            @Query("styles") String styles,
+            @Query("dimensions") String dimensions,
+            @Query("types") String types
     );
-
-
-
-
 }

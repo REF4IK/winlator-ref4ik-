@@ -129,15 +129,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // Get shared preferences
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
-        // Check if Big Picture Mode is enabled
-        boolean isBigPictureModeEnabled = sharedPreferences.getBoolean("enable_big_picture_mode", false);
-
-        if (isBigPictureModeEnabled) {
-            // If enabled, launch the BigPictureActivity and finish MainActivity
-            Intent intent = new Intent(MainActivity.this, BigPictureActivity.class);
-            startActivity(intent);
-        }
-
         // Load the user's preferred theme
         isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
 

@@ -124,10 +124,6 @@ public class ContainersFragment extends Fragment {
                 showImportInfoDialog();
                 return true;
 
-            case R.id.action_big_picture_mode:
-                toggleBigPictureMode();
-                return true;
-
             case R.id.action_terminal:  // New case for TerminalActivity
                 openTerminal();
                 return true;
@@ -256,14 +252,6 @@ public class ContainersFragment extends Fragment {
         return true;
     }
 
-
-
-    private void toggleBigPictureMode() {
-        // Start BigPictureActivity without passing shortcut data explicitly
-        Intent intent = new Intent(getContext(), BigPictureActivity.class);
-        startActivity(intent);
-        getActivity().overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
-    }
 
     private class ContainersAdapter extends RecyclerView.Adapter<ContainersAdapter.ViewHolder> {
         private final List<Container> data;

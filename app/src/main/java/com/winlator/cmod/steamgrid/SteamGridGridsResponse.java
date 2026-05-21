@@ -1,4 +1,4 @@
-package com.winlator.cmod.bigpicture.steamgrid;
+package com.winlator.cmod.steamgrid;
 
 import com.google.gson.annotations.SerializedName;
 
@@ -19,7 +19,7 @@ public class SteamGridGridsResponse {
     public int limit;
 
     @SerializedName("data")
-    public List<Grid> data;  // The data field is a list of Grid objects
+    public List<Grid> data;
 
     public class Grid {
         @SerializedName("id")
