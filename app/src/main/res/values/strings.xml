@@ -361,6 +361,7 @@
     <string name="fm_ctx_open">Open</string>
     <string name="fm_ctx_rename">Rename</string>
     <string name="fm_ctx_share">Share</string>
+    <string name="fm_ctx_create_shortcut">Create shortcut</string>
     <string name="fm_delete_fail">Delete Error</string>
     <string name="fm_delete_success">Deleted</string>
     <string name="fm_delete_title">Delete?</string>

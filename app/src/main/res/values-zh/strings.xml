@@ -344,6 +344,7 @@
     <string name="fm_ctx_open">打开</string>
     <string name="fm_ctx_rename">重命名</string>
     <string name="fm_ctx_share">分享</string>
+    <string name="fm_ctx_create_shortcut">创建快捷方式</string>
     <string name="fm_delete_fail">删除错误</string>
     <string name="fm_delete_success">已删除</string>
     <string name="fm_delete_title">删除？</string>

@@ -346,6 +346,7 @@
     <string name="fm_ctx_open">Открыть</string>
     <string name="fm_ctx_rename">Переименовать</string>
     <string name="fm_ctx_share">Поделиться</string>
+    <string name="fm_ctx_create_shortcut">Создать ярлык</string>
     <string name="fm_delete_fail">Ошибка удаления</string>
     <string name="fm_delete_success">Удалено</string>
     <string name="fm_delete_title">Удалить?</string>
