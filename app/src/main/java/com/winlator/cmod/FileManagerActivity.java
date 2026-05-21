@@ -809,6 +809,9 @@ public class FileManagerActivity extends AppCompatActivity {
                 case FILE:
                 default:
                     holder.icon.setImageResource(android.R.drawable.ic_menu_save);
+                    if (entry.type == EntryType.FILE && entry.title.toLowerCase(Locale.ENGLISH).endsWith(".exe")) {
+                        loadExeIcon(entry, holder);
+                    }
                     break;
             }
 
@@ -819,6 +822,23 @@ public class FileManagerActivity extends AppCompatActivity {
             });
             holder.moreButton.setOnClickListener(v -> showEntryActions(entry));
             holder.moreButton.setVisibility(entry.type == EntryType.DRIVE ? View.INVISIBLE : View.VISIBLE);
+        }
+
+        private void loadExeIcon(FileEntry entry, ViewHolder holder) {
+            new Thread(() -> {
+                try {
+                    Bitmap icon = PEParser.extractIcon(entry.file);
+                    if (icon != null) {
+                        runOnUiThread(() -> {
+                            if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
+                                holder.icon.setImageBitmap(icon);
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.e("FileManager", "Error extracting exe icon", e);
+                }
+            }).start();
         }
 
         @Override
