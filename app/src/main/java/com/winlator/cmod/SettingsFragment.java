@@ -291,19 +291,6 @@ public class SettingsFragment extends Fragment {
             }
         });
 
-        // Initialize Update System
-        CheckBox cbReceiveBetaUpdates = view.findViewById(R.id.CBReceiveBetaUpdates);
-        cbReceiveBetaUpdates.setChecked(preferences.getBoolean("receive_beta_updates", false));
-        
-        cbReceiveBetaUpdates.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("receive_beta_updates", isChecked);
-            editor.apply();
-        });
-        
-        Button btCheckForUpdates = view.findViewById(R.id.BTCheckForUpdates);
-        btCheckForUpdates.setOnClickListener(v -> checkForUpdates());
-
         // Initialize the cursor lock checkbox
         cbCursorLock = view.findViewById(R.id.CBCursorLock);
         cbCursorLock.setChecked(preferences.getBoolean("cursor_lock", true));
@@ -1334,49 +1321,6 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
             androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("zh");
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
         }
-    }
-
-    private void checkForUpdates() {
-        if (getContext() == null) return;
-        
-        PreloaderDialog progressDialog = new PreloaderDialog(getActivity());
-        progressDialog.show(R.string.checking_for_updates);
-        
-        com.winlator.cmod.update.UpdateManager updateManager = new com.winlator.cmod.update.UpdateManager(getContext());
-        
-        updateManager.checkForUpdates(new com.winlator.cmod.update.UpdateManager.UpdateCheckCallback() {
-            @Override
-            public void onUpdateAvailable(com.winlator.cmod.update.GitHubRelease release) {
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        progressDialog.close();
-                        com.winlator.cmod.contentdialog.UpdateDialog updateDialog = 
-                            new com.winlator.cmod.contentdialog.UpdateDialog(getActivity(), release);
-                        updateDialog.show();
-                    });
-                }
-            }
-            
-            @Override
-            public void onNoUpdateAvailable() {
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        progressDialog.close();
-                        ContentDialog.alert(getContext(), getString(R.string.you_have_latest_version), null);
-                    });
-                }
-            }
-            
-            @Override
-            public void onError(String error) {
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        progressDialog.close();
-                        ContentDialog.alert(getContext(), getString(R.string.update_check_failed) + ": " + error, null);
-                    });
-                }
-            }
-        });
     }
 
 }

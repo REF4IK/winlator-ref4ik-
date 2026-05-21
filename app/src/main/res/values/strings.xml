@@ -1125,22 +1125,15 @@
     <string name="repository_deleted">Repository "%1$s" deleted</string>
     
     <!-- Update System strings -->
-    <string name="receive_beta_updates">Receive Beta Updates</string>
-    <string name="check_for_updates">Check for Updates</string>
-    <string name="update_available">Update Available</string>
     <string name="new_version_available">New version %s is available</string>
     <string name="download_and_install">Download and Install</string>
     <string name="skip_version">Skip This Version</string>
     <string name="later">Later</string>
-    <string name="downloading_update">Downloading update...</string>
     <string name="no_updates_available">No updates available</string>
-    <string name="update_check_failed">Failed to check for updates</string>
     <string name="release_notes">Release Notes:</string>
     <string name="no_release_notes">No release notes available</string>
     <string name="file_size">File size: %s</string>
     <string name="no_apk_found">No APK file found in this release</string>
-    <string name="checking_for_updates">Checking for updates...</string>
-    <string name="you_have_latest_version">You have the latest version</string>
     <string name="container_profile">Container Profile</string>
     <string name="container_profile_actions">Profile Actions</string>
     <string name="export_container_profile">Export Profile</string>
@@ -1379,4 +1372,5 @@
         <item quantity="other">%d files</item>
     </plurals>
 </resources>
+
 

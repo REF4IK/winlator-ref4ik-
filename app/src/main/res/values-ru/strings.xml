@@ -1006,22 +1006,15 @@
     <string name="repository_deleted">Репозиторий "%1$s" удален</string>
     
     <!-- Update System strings (Russian) -->
-    <string name="receive_beta_updates">Получать Beta обновления</string>
-    <string name="check_for_updates">Проверить обновления</string>
-    <string name="update_available">Доступно обновление</string>
     <string name="new_version_available">Доступна новая версия %s</string>
     <string name="download_and_install">Скачать и установить</string>
     <string name="skip_version">Пропустить эту версию</string>
     <string name="later">Позже</string>
-    <string name="downloading_update">Загрузка обновления...</string>
     <string name="no_updates_available">Обновлений нет</string>
-    <string name="update_check_failed">Не удалось проверить обновления</string>
     <string name="release_notes">Описание релиза:</string>
     <string name="no_release_notes">Описание релиза отсутствует</string>
     <string name="file_size">Размер файла: %s</string>
     <string name="no_apk_found">APK файл не найден в этом релизе</string>
-    <string name="checking_for_updates">Проверка обновлений...</string>
-    <string name="you_have_latest_version">У вас установлена последняя версия</string>
     <string name="loading_component_versions">&#x0417;&#x0430;&#x0433;&#x0440;&#x0443;&#x0437;&#x043A;&#x0430; &#x0434;&#x043E;&#x0441;&#x0442;&#x0443;&#x043F;&#x043D;&#x044B;&#x0445; &#x0432;&#x0435;&#x0440;&#x0441;&#x0438;&#x0439;...</string>
     <string name="all_component_versions_installed">&#x0412;&#x0441;&#x0435; &#x0432;&#x0435;&#x0440;&#x0441;&#x0438;&#x0438; %1$s &#x0443;&#x0436;&#x0435; &#x0443;&#x0441;&#x0442;&#x0430;&#x043D;&#x043E;&#x0432;&#x043B;&#x0435;&#x043D;&#x044B;</string>
     <string name="download_component_title">&#x0421;&#x043A;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; %1$s (%2$d &#x0434;&#x043E;&#x0441;&#x0442;&#x0443;&#x043F;&#x043D;&#x043E;)</string>
@@ -1363,4 +1356,5 @@
     <string name="fps_short_batt_temp">Темп. бат.</string>
     <string name="fps_short_power">Питание</string>
 </resources>
+
 
