@@ -1196,7 +1196,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             lc_all = container.getLC_ALL();
 
-            isRelativeMouseMovement = container.isRelativeMouseMovement();
+            isRelativeMouseMovement = preferences.getBoolean("relative_mouse_movement", false);
 
 
 
@@ -1234,7 +1234,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 String xinputDisabledString = shortcut.getExtra("disableXinput", "false");
 
-                isRelativeMouseMovement = shortcut.getExtra("relativeMouseMovement", container.isRelativeMouseMovement() ? "1" : "0").equals("1") ? true : false;
+                isRelativeMouseMovement = shortcut.getExtra("relativeMouseMovement", preferences.getBoolean("relative_mouse_movement", false) ? "1" : "0").equals("1");
 
                 xinputDisabledFromShortcut = parseBoolean(xinputDisabledString);
 
@@ -4808,6 +4808,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
+        final CheckBox cbRelativeMouseMovement = dialog.findViewById(R.id.CBRelativeMouseMovement);
+
+        cbRelativeMouseMovement.setChecked(preferences.getBoolean("relative_mouse_movement", false));
+
+
+
         final com.google.android.material.slider.Slider sliderGyroscopeSensitivity = dialog.findViewById(R.id.SGyroscopeSensitivity);
 
         sliderGyroscopeSensitivity.setValue(preferences.getFloat("gyro_sensitivity", 1.0f));
@@ -4901,6 +4907,18 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             boolean isQuickAccessEnabled = cbEnableQuickAccess.isChecked();
 
             editor.putBoolean("quick_access_panel_enabled", isQuickAccessEnabled);
+
+
+
+            boolean isRelativeMouseMovementEnabled = cbRelativeMouseMovement.isChecked();
+
+            editor.putBoolean("relative_mouse_movement", isRelativeMouseMovementEnabled);
+
+            isRelativeMouseMovement = isRelativeMouseMovementEnabled;
+
+            xServer.setRelativeMouseMovement(isRelativeMouseMovement);
+
+
 
             editor.apply();
 
