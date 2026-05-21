@@ -10,7 +10,6 @@
         <item android:icon="@drawable/icon_open" android:id="@+id/main_menu_contents" android:title="@string/contents"/>
         <item android:icon="@drawable/icon_open" android:id="@+id/main_menu_steam" android:title="@string/steam" />
         <item android:icon="@drawable/icon_open" android:id="@+id/main_menu_adrenotools_gpu_drivers" android:title="@string/adrenotools_gpu_drivers"/>
-        <item android:icon="@drawable/icon_gamepad" android:id="@+id/main_menu_gamepad_test" android:title="@string/gamepad_test" />
         <item android:icon="@drawable/icon_settings" android:id="@+id/main_menu_settings" android:title="@string/settings" />
         <item android:icon="@drawable/icon_about" android:id="@+id/main_menu_about" android:title="@string/about" />
         <item android:icon="@drawable/icon_open" android:id="@+id/main_menu_file_manager" android:title="@string/file_manager" />

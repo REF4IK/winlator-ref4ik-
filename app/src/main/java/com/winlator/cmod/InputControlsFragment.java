@@ -37,6 +37,7 @@ import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
 
+import com.winlator.cmod.GamePadTestActivity;
 import com.winlator.cmod.R;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.Callback;
@@ -261,6 +262,11 @@ public class InputControlsFragment extends Fragment {
             } else {
                 AppUtils.showToast(context, R.string.no_profile_selected);
             }
+        });
+
+        view.findViewById(R.id.BTGamepadTest).setOnClickListener((v) -> {
+            Intent gamepadIntent = new Intent(context, GamePadTestActivity.class);
+            startActivity(gamepadIntent);
         });
 
         // Set up trigger type RadioGroup (only if it exists in the layout)
