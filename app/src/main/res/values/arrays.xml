@@ -106,6 +106,20 @@
         <item>ahb</item>
         <item>opaque</item>
     </string-array>
+    <string-array name="bcn_emulation_entries">
+        <item>none</item>
+        <item>partial</item>
+        <item>full</item>
+        <item>auto</item>
+    </string-array>
+    <string-array name="bcn_emulation_type_entries">
+        <item>software</item>
+        <item>compute</item>
+    </string-array>
+    <string-array name="bcn_emulation_cache_entries">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
     <string-array name="video_memory_size_entries">
         <item>32 MB</item>
         <item>64 MB</item>

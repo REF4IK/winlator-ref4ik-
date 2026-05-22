@@ -88,6 +88,32 @@ Java_com_winlator_cmod_core_GPUInformation_getVersion(JNIEnv *env, jclass obj) {
     return (env->NewStringUTF(driverVersion));
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_winlator_cmod_core_GPUInformation_getVendorID(JNIEnv *env, jclass obj) {
+    VkPhysicalDeviceProperties props = {};
+    uint32_t vendorID;
+    VkInstance instance;
+
+    instance = create_instance();
+    if (!instance) return 0;
+
+    PFN_vkGetPhysicalDeviceProperties getPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)gip(instance, "vkGetPhysicalDeviceProperties");
+    PFN_vkDestroyInstance destroyInstance = (PFN_vkDestroyInstance)gip(instance, "vkDestroyInstance");
+
+    auto devices = get_physical_devices(instance);
+    if (devices.empty()) {
+        destroyInstance(instance, NULL);
+        return 0;
+    }
+
+    getPhysicalDeviceProperties(devices[0], &props);
+    vendorID = props.vendorID;
+
+    destroyInstance(instance, NULL);
+
+    return (jint)vendorID;
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_winlator_cmod_core_GPUInformation_getRenderer(JNIEnv *env, jclass obj) {
     VkPhysicalDeviceProperties props = {};

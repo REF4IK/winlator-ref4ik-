@@ -5418,7 +5418,32 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             envVars.put("WRAPPER_RESOURCE_TYPE", resourceType);
 
-        
+        String bcnEmulation = graphicsDriverConfig.get("bcnEmulation");
+        String bcnEmulationType = graphicsDriverConfig.get("bcnEmulationType");
+
+        if (bcnEmulation != null) {
+            switch (bcnEmulation) {
+                case "auto" -> {
+                    if (bcnEmulationType != null && bcnEmulationType.equals("compute") && GPUInformation.getVendorID() != 0x5143) {
+                        envVars.put("ENABLE_BCN_COMPUTE", "1");
+                        envVars.put("BCN_COMPUTE_AUTO", "1");
+                    }
+                    envVars.put("WRAPPER_EMULATE_BCN", "3");
+                }
+                case "full" -> {
+                    if (bcnEmulationType != null && bcnEmulationType.equals("compute") && GPUInformation.getVendorID() != 0x5143) {
+                        envVars.put("ENABLE_BCN_COMPUTE", "1");
+                        envVars.put("BCN_COMPUTE_AUTO", "0");
+                    }
+                    envVars.put("WRAPPER_EMULATE_BCN", "2");
+                }
+                case "none" -> envVars.put("WRAPPER_EMULATE_BCN", "0");
+                default -> envVars.put("WRAPPER_EMULATE_BCN", "1");
+            }
+
+            String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
+            envVars.put("WRAPPER_USE_BCN_CACHE", bcnEmulationCache != null ? bcnEmulationCache : "0");
+        }
 
         String blit = graphicsDriverConfig.get("blit");
 
