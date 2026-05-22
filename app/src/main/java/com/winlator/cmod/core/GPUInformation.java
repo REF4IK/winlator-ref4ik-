@@ -17,6 +17,7 @@ public abstract class GPUInformation {
     }
 
     public native static String getVersion();
+    public native static int getVendorID();
     public native static String getRenderer();
     public native static long getMemorySize();
     public native static String[] enumerateExtensions();

@@ -452,6 +452,9 @@
     <string name="graphics_driver_max_device_memory">Max Device Memory</string>
     <string name="graphics_driver_present_modes">Present Modes</string>
     <string name="graphics_driver_resource_type">Memory Resource Type</string>
+    <string name="graphics_driver_bcn_emulation">BCn Emulation</string>
+    <string name="graphics_driver_bcn_emulation_type">BCn Emulation Type</string>
+    <string name="graphics_driver_bcn_emulation_cache">BCn Emulation Cache</string>
     <string name="graphics_driver_version">Graphics Driver Version</string>
     <string name="group">Group</string>
     <string name="group_description_gamehub">Specialized drivers for new Adreno 8xx series GPUs</string>

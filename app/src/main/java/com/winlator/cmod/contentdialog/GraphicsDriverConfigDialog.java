@@ -38,6 +38,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private Spinner sFrameSynchronization;
     private Spinner sPresentMode;
     private Spinner sResourceType;
+    private Spinner sBCnEmulation;
+    private Spinner sBCnEmulationType;
+    private Spinner sBCnEmulationCache;
     private CheckBox cbAdrenotoolsTurnip;
     private CheckBox cbEnableBlit;
     
@@ -48,6 +51,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private static String frameSynchronization;
     private static String selectedPresentMode;
     private static String selectedResourceType;
+    private static String selectedBCnEmulation;
+    private static String selectedBCnEmulationType;
+    private static String isBCnCacheEnabled;
     private static String enableBlit;
     
     protected class ExtensionAdapter extends ArrayAdapter<String> {
@@ -160,7 +166,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     public static String writeGraphicsDriverConfig() {
         String normalizedFrameSync = normalizeFrameSynchronization(frameSynchronization);
         String effectivePresentMode = resolveConfiguredPresentMode(normalizedFrameSync, selectedPresentMode);
-        String graphicsDriverConfig = "version=" + selectedVersion + ";" + "blacklistedExtensions=" + blacklistedExtensions + ";" + "maxDeviceMemory=" + StringUtils.parseNumber(selectedDeviceMemory) + ";" + "adrenotoolsTurnip=" + isAdrenotoolsTurnip + ";" + "frameSync=" + normalizedFrameSync + ";" + "presentMode=" + effectivePresentMode + ";" + "resourceType=" + selectedResourceType + ";" + "blit=" + enableBlit;
+        String graphicsDriverConfig = "version=" + selectedVersion + ";" + "blacklistedExtensions=" + blacklistedExtensions + ";" + "maxDeviceMemory=" + StringUtils.parseNumber(selectedDeviceMemory) + ";" + "adrenotoolsTurnip=" + isAdrenotoolsTurnip + ";" + "frameSync=" + normalizedFrameSync + ";" + "presentMode=" + effectivePresentMode + ";" + "resourceType=" + selectedResourceType + ";" + "bcnEmulation=" + selectedBCnEmulation + ";" + "bcnEmulationType=" + selectedBCnEmulationType + ";" + "bcnEmulationCache=" + isBCnCacheEnabled + ";" + "blit=" + enableBlit;
         Log.i(TAG, "Written config " + graphicsDriverConfig);
         return graphicsDriverConfig;
     }
@@ -182,6 +188,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         sMaxDeviceMemory = findViewById(R.id.SGraphicsDriverMaxDeviceMemory);
         sPresentMode = findViewById(R.id.SGraphicsDriverPresentMode);
         sResourceType = findViewById(R.id.SGraphicsDriverResourceType);
+        sBCnEmulation = findViewById(R.id.SGraphicsDriverBCnEmulation);
+        sBCnEmulationType = findViewById(R.id.SGraphicsDriverBCnEmulationType);
+        sBCnEmulationCache = findViewById(R.id.SGraphicsDriverBCnEmulationCache);
         cbAdrenotoolsTurnip = findViewById(R.id.CBAdrenotoolsTurnip);
         cbEnableBlit = findViewById(R.id.CBEnableBlit);
 
@@ -194,11 +203,17 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         String frameSync = normalizeFrameSynchronization(config.get("frameSync"));
         String presentMode = resolveConfiguredPresentMode(frameSync, config.get("presentMode"));
         String resourceType = config.get("resourceType");
+        String bcnEmulation = config.get("bcnEmulation");
+        String bcnEmulationType = config.get("bcnEmulationType");
+        String bcnEmulationCache = config.get("bcnEmulationCache");
         String blit = config.get("blit");
 
         frameSynchronization = frameSync;
         selectedPresentMode = presentMode;
         selectedResourceType = resourceType != null && !resourceType.isEmpty() ? resourceType : "auto";
+        selectedBCnEmulation = bcnEmulation != null && !bcnEmulation.isEmpty() ? bcnEmulation : "auto";
+        selectedBCnEmulationType = bcnEmulationType != null && !bcnEmulationType.isEmpty() ? bcnEmulationType : "compute";
+        isBCnCacheEnabled = bcnEmulationCache != null && !bcnEmulationCache.isEmpty() ? bcnEmulationCache : "0";
         selectedDeviceMemory = maxDeviceMemory != null && !maxDeviceMemory.isEmpty() ? maxDeviceMemory : "0";
         isAdrenotoolsTurnip = "0".equals(adrenotoolsTurnip) ? "0" : "1";
 
@@ -265,6 +280,42 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             }
         });
 
+        sBCnEmulation.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                selectedBCnEmulation = sBCnEmulation.getSelectedItem().toString();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+
+        sBCnEmulationType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                selectedBCnEmulationType = sBCnEmulationType.getSelectedItem().toString();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+
+        sBCnEmulationCache.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                isBCnCacheEnabled = sBCnEmulationCache.getSelectedItem().toString();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+
         cbAdrenotoolsTurnip.setOnCheckedChangeListener(null);
         cbAdrenotoolsTurnip.setChecked(adrenotoolsTurnip.equals("1") ? true : false);
         cbAdrenotoolsTurnip.setOnCheckedChangeListener((buttonView, isChecked) ->  {
@@ -282,7 +333,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         contentsManager.syncContents();
         
         // Populate the spinner with available versions from ContentsManager and pre-select the initial version
-        populateGraphicsDriverVersions(anchor.getContext(), contentsManager, initialVersion, blExtensions, maxDeviceMemory, frameSync, presentMode, resourceType, graphicsDriver);
+        populateGraphicsDriverVersions(anchor.getContext(), contentsManager, initialVersion, blExtensions, maxDeviceMemory, frameSync, presentMode, resourceType, bcnEmulation, bcnEmulationType, bcnEmulationCache, graphicsDriver);
 
         // Обработчик кнопки скачивания драйверов
         Button btnDownloadGraphicsDriver = findViewById(R.id.BTDownloadGraphicsDriver);
@@ -296,6 +347,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                     populateGraphicsDriverVersions(getContext(), contentsManager,
                         installedDriverId, blacklistedExtensions, selectedDeviceMemory,
                         frameSynchronization, selectedPresentMode, selectedResourceType,
+                        selectedBCnEmulation, selectedBCnEmulationType, isBCnCacheEnabled,
                         graphicsDriver);
                 }
             );
@@ -319,7 +371,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         });
     }
 
-    private void populateGraphicsDriverVersions(Context context, ContentsManager contentsManager, @Nullable String initialVersion, @Nullable String blExtensions, String maxDeviceMemory, String frameSync, String presentMode, String resourceType, String graphicsDriver) {
+    private void populateGraphicsDriverVersions(Context context, ContentsManager contentsManager, @Nullable String initialVersion, @Nullable String blExtensions, String maxDeviceMemory, String frameSync, String presentMode, String resourceType, String bcnEmulation, String bcnEmulationType, String bcnEmulationCache, String graphicsDriver) {
         List<String> wrapperVersions = new ArrayList<>();
         ArrayList<String> availableExtensions;
 
@@ -366,6 +418,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         AppUtils.setSpinnerSelectionFromValue(sFrameSynchronization, normalizeFrameSynchronization(frameSync));
         AppUtils.setSpinnerSelectionFromValue(sPresentMode, resolveConfiguredPresentMode(frameSync, presentMode));
         AppUtils.setSpinnerSelectionFromValue(sResourceType, resourceType != null ? resourceType : "auto");
+        AppUtils.setSpinnerSelectionFromValue(sBCnEmulation, bcnEmulation != null ? bcnEmulation : "auto");
+        AppUtils.setSpinnerSelectionFromValue(sBCnEmulationType, bcnEmulationType != null ? bcnEmulationType : "compute");
+        AppUtils.setSpinnerSelectionFromValue(sBCnEmulationCache, bcnEmulationCache != null ? bcnEmulationCache : "0");
 
         // We can log the spinner values now
         Log.d(TAG, "Spinner selected position: " + sVersion.getSelectedItemPosition());

@@ -284,6 +284,8 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
         envVars.put("GST_PLUGIN_PATH", rootDir.getPath() + "/usr/lib/gstreamer-1.0");
         envVars.put("FONTCONFIG_PATH", rootDir.getPath() + "/usr/etc/fonts");
         envVars.put("VK_LAYER_PATH", rootDir.getPath() + "/usr/share/vulkan/implicit_layer.d" + ":" + rootDir.getPath() + "/usr/share/vulkan/explicit_layer.d");
+        envVars.put("WRAPPER_LAYER_PATH", rootDir.getPath() + "/usr/lib");
+        envVars.put("WRAPPER_CACHE_PATH", rootDir.getPath() + "/usr/var/cache");
         envVars.put("WINE_NO_DUPLICATE_EXPLORER", "1");
         envVars.put("PREFIX", rootDir.getPath() + "/usr");
         envVars.put("DISPLAY", ":0");
