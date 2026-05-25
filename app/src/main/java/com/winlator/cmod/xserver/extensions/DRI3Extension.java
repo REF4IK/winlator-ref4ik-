@@ -145,10 +145,14 @@ public class DRI3Extension implements Extension {
             Log.d("Dri3", "Creating pixmap from AHardwareBuffer");
             pixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fd);
         }
+        else if (modifiers == 1256) {
+            Log.d("Dri3", "Creating pixmap from AHardwareBuffer (modifier 1256)");
+            pixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fd);
+        }
         else if (modifiers == 1274) {
             Log.d("Dri3", "Creating pixmap from dmabuf filedescriptor"); 
             pixmapFromFd(client, pixmapId, width, height, stride, offset, depth, fd, size);
-        }    
+        }
     }
     
     private void pixmapFromHardwareBuffer(XClient client, int pixmapId, short width, short height, byte depth, int fd) throws IOException, XRequestError {
@@ -156,6 +160,7 @@ public class DRI3Extension implements Extension {
             GPUImage gpuImage = new GPUImage(fd);
             Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, gpuImage.getStride(), height, depth);
             drawable.setTexture(gpuImage);
+            drawable.setDirectScanout(true);
             client.xServer.pixmapManager.createPixmap(drawable);
         }
         finally {

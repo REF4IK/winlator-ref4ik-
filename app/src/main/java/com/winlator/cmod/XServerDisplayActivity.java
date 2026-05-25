@@ -198,17 +198,7 @@ import com.winlator.cmod.midi.MidiHandler;
 
 import com.winlator.cmod.midi.MidiManager;
 
-import com.winlator.cmod.renderer.GLRenderer;
-
-import com.winlator.cmod.renderer.effects.CRTEffect;
-
-import com.winlator.cmod.renderer.effects.ColorEffect;
-
-import com.winlator.cmod.renderer.effects.FXAAEffect;
-
-import com.winlator.cmod.renderer.effects.NTSCCombinedEffect;
-
-import com.winlator.cmod.renderer.effects.ToonEffect;
+import com.winlator.cmod.renderer.VulkanRenderer;
 
 import com.winlator.cmod.steam.SteamLibraryActivity;
 
@@ -2026,6 +2016,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     private void exit() {
 
+        if (xServerView != null) {
+            xServerView.getRenderer().forceCleanup();
+            xServerView.setVisibility(View.GONE);
+        }
+
         if (midiHandler != null) midiHandler.stop();
 
         // Unregister sensor listener to avoid memory leaks
@@ -2324,7 +2319,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
-        final GLRenderer renderer = xServerView.getRenderer();
+        final VulkanRenderer renderer = xServerView.getRenderer();
 
         switch (item.getItemId()) {
 
@@ -2412,41 +2407,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 screenEffectDialog.setOnConfirmCallback(() -> {
 
-                    Log.d("ScreenEffectDialog", "Confirm callback triggered. About to apply effects.");
-
-                    GLRenderer currentRenderer = xServerView.getRenderer();
-
-                    ColorEffect colorEffect = (ColorEffect) currentRenderer.getEffectComposer().getEffect(ColorEffect.class);
-
-                    FXAAEffect fxaaEffect = (FXAAEffect) currentRenderer.getEffectComposer().getEffect(FXAAEffect.class);
-
-                    CRTEffect crtEffect = (CRTEffect) currentRenderer.getEffectComposer().getEffect(CRTEffect.class);
-
-                    ToonEffect toonEffect = (ToonEffect) currentRenderer.getEffectComposer().getEffect(ToonEffect.class);
-
-                    NTSCCombinedEffect ntscEffect = (NTSCCombinedEffect) currentRenderer.getEffectComposer().getEffect(NTSCCombinedEffect.class);
-
-
-
-                    // Check if effects are null before applying
-
-                    Log.d("ScreenEffectDialog", "ColorEffect: " + (colorEffect != null));
-
-                    Log.d("ScreenEffectDialog", "FXAAEffect: " + (fxaaEffect != null));
-
-                    Log.d("ScreenEffectDialog", "CRTEffect: " + (crtEffect != null));
-
-                    Log.d("ScreenEffectDialog", "ToonEffect: " + (toonEffect != null));
-
-                    Log.d("ScreenEffectDialog", "NTSCCombinedEffect: " + (ntscEffect != null));
-
-
-
-                    Log.d("ScreenEffectDialog", "Calling applyEffects()");
-
-                    screenEffectDialog.applyEffects(colorEffect, currentRenderer, fxaaEffect, crtEffect, toonEffect, ntscEffect);
-
-                    Log.d("ScreenEffectDialog", "applyEffects() called.");
+                    Log.d("ScreenEffectDialog", "Confirm callback triggered. Screen effects not available with VulkanRenderer.");
 
                 });
 
@@ -4446,7 +4407,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         xServerView = new XServerView(this, xServer);
 
-        final GLRenderer renderer = xServerView.getRenderer();
+        final VulkanRenderer renderer = xServerView.getRenderer();
 
         renderer.setCursorVisible(false);
 
@@ -4454,7 +4415,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         if (shortcut != null) {
 
-            if (shortcut.getExtra("forceFullscreen", "0").equals("1")) renderer.setForceFullscreenWMClass(shortcut.wmClass);
+            if (shortcut.getExtra("forceFullscreen", "0").equals("1")) renderer.toggleFullscreen();
 
             renderer.setUnviewableWMClasses("explorer.exe");
 
@@ -4521,6 +4482,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             frameRating = new FrameRating(this, container);
 
             frameRating.setVisibility(View.GONE);  // Изначально скрыт
+
+            if (xServerView != null) xServerView.getRenderer().setFrameRating(frameRating);
 
             FrameLayout.LayoutParams fpsLp = new FrameLayout.LayoutParams(
 
@@ -6441,6 +6404,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 frameRatingWindowId = window.id;
 
+                if (xServerView != null) xServerView.getRenderer().setFpsWindowId(window.id);
+
                 Log.d("XServerDisplayActivity", "Showing hud for Window " + window.getName());
 
                 updateFpsCounterVisibility();
@@ -6473,6 +6438,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             frameRatingWindowId = -1;
 
+            if (xServerView != null) xServerView.getRenderer().setFpsWindowId(-1);
+
             Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
 
             // Не принудительно скрываем - оставляем управление за updateFpsCounterVisibility
@@ -6501,6 +6468,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         frameRating = new FrameRating(this, container);
 
         frameRating.setVisibility(View.GONE);
+
+        if (xServerView != null) xServerView.getRenderer().setFrameRating(frameRating);
 
         FrameLayout.LayoutParams fpsLp = new FrameLayout.LayoutParams(
 

@@ -1,10 +1,10 @@
 package com.winlator.cmod.xenvironment.components;
 
+import android.opengl.EGL14;
 import android.util.Log;
 
 import androidx.annotation.Keep;
 
-import com.winlator.cmod.renderer.GLRenderer;
 import com.winlator.cmod.renderer.Texture;
 import com.winlator.cmod.xconnector.Client;
 import com.winlator.cmod.xconnector.ConnectionHandler;
@@ -22,6 +22,9 @@ public class VirGLRendererComponent extends EnvironmentComponent implements Conn
     private final UnixSocketConfig socketConfig;
     private XConnectorEpoll connector;
     private long sharedEGLContextPtr;
+    private android.opengl.EGLDisplay eglDisplay;
+    private android.opengl.EGLContext eglContext;
+    private android.opengl.EGLSurface eglSurface;
 
     static {
         System.loadLibrary("virglrenderer");
@@ -55,23 +58,72 @@ public class VirGLRendererComponent extends EnvironmentComponent implements Conn
     @Keep
     private long getSharedEGLContext() {
         if (sharedEGLContextPtr != 0) return sharedEGLContextPtr;
-        final Thread thread = Thread.currentThread();
-        try {
-            GLRenderer renderer = xServer.getRenderer();
-            renderer.xServerView.queueEvent(() -> {
-                sharedEGLContextPtr = getCurrentEGLContextPtr();
-
-                synchronized(thread) {
-                    thread.notify();
+        // VulkanRenderer doesn't use EGL, so create a standalone EGL context
+        // on a dedicated thread (similar to how GLRenderer.queueEvent worked).
+        // VirGL native code needs a valid EGL context as shared context.
+        final Thread callerThread = Thread.currentThread();
+        final Object lock = new Object();
+        Thread eglThread = new Thread(() -> {
+            try {
+                eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
+                if (eglDisplay == EGL14.EGL_NO_DISPLAY) {
+                    Log.e("VirGL", "No EGL display");
+                    synchronized (lock) { lock.notify(); }
+                    return;
                 }
-            });
-            synchronized (thread) {
-                thread.wait();
+                int[] version = new int[2];
+                if (!EGL14.eglInitialize(eglDisplay, version, 0, version, 1)) {
+                    Log.e("VirGL", "EGL init failed");
+                    synchronized (lock) { lock.notify(); }
+                    return;
+                }
+
+                int[] configAttribs = {
+                    EGL14.EGL_RENDERABLE_TYPE, 0x40,
+                    EGL14.EGL_RED_SIZE, 8, EGL14.EGL_GREEN_SIZE, 8,
+                    EGL14.EGL_BLUE_SIZE, 8, EGL14.EGL_ALPHA_SIZE, 8,
+                    EGL14.EGL_NONE
+                };
+                android.opengl.EGLConfig[] configs = new android.opengl.EGLConfig[1];
+                int[] numConfigs = new int[1];
+                if (!EGL14.eglChooseConfig(eglDisplay, configAttribs, 0, configs, 0, 1, numConfigs, 0) || numConfigs[0] == 0) {
+                    Log.e("VirGL", "EGL choose config failed");
+                    synchronized (lock) { lock.notify(); }
+                    return;
+                }
+
+                int[] contextAttribs = { EGL14.EGL_CONTEXT_CLIENT_VERSION, 3, EGL14.EGL_NONE };
+                eglContext = EGL14.eglCreateContext(eglDisplay, configs[0], EGL14.EGL_NO_CONTEXT, contextAttribs, 0);
+                if (eglContext == EGL14.EGL_NO_CONTEXT) {
+                    Log.e("VirGL", "EGL create context failed");
+                    synchronized (lock) { lock.notify(); }
+                    return;
+                }
+
+                int[] pbufferAttribs = { EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE };
+                eglSurface = EGL14.eglCreatePbufferSurface(eglDisplay, configs[0], pbufferAttribs, 0);
+                if (!EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
+                    Log.e("VirGL", "eglMakeCurrent failed");
+                    synchronized (lock) { lock.notify(); }
+                    return;
+                }
+
+                sharedEGLContextPtr = getCurrentEGLContextPtr();
+                Log.d("VirGL", "Shared EGL context ptr = " + sharedEGLContextPtr);
+            } catch (Exception e) {
+                Log.e("VirGL", "getSharedEGLContext failed: " + e.getMessage());
+            } finally {
+                synchronized (lock) { lock.notify(); }
             }
+        }, "EGL-Init-Thread");
+
+        eglThread.start();
+        try {
+            synchronized (lock) { lock.wait(5000); }
+        } catch (InterruptedException e) {
+            Log.e("VirGL", "Interrupted while waiting for EGL init");
         }
-        catch (Exception e) {
-            return 0;
-        }
+
         return sharedEGLContextPtr;
     }
 
