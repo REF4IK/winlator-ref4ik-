@@ -6,6 +6,7 @@ import android.util.SparseArray;
 
 import com.winlator.cmod.renderer.GPUImage;
 import com.winlator.cmod.renderer.Texture;
+import com.winlator.cmod.renderer.VulkanRenderer;
 import com.winlator.cmod.xconnector.XInputStream;
 import com.winlator.cmod.xconnector.XOutputStream;
 import com.winlator.cmod.xconnector.XStreamLock;
@@ -80,6 +81,14 @@ public class PresentExtension implements Extension {
         }
     }
 
+    private void scheduleIdleNotify(Window window, Pixmap pixmap, int serial, int idleFence, int targetFps, VulkanRenderer renderer) {
+        if (idleFence != 0) syncExtension.setTriggered(idleFence);
+        long delayMs = targetFps > 0 ? 1000 / targetFps : 16;
+        renderer.xServerView.postDelayed(() -> {
+            sendIdleNotify(window, pixmap, serial, idleFence);
+        }, delayMs);
+    }
+
     private void sendCompleteNotify(Window window, int serial, Kind kind, Mode mode, long ust, long msc) {
         synchronized (events) {
             for (int i = 0; i < events.size(); i++) {
@@ -116,22 +125,40 @@ public class PresentExtension implements Extension {
         int idleFence = inputStream.readInt();
         inputStream.skip(client.getRemainingRequestLength());
 
-        final Window window = client.xServer.windowManager.getWindow(windowId);
+        Window window = client.xServer.windowManager.getWindow(windowId);
         if (window == null) throw new BadWindow(windowId);
 
-        final Pixmap pixmap = client.xServer.pixmapManager.getPixmap(pixmapId);
+        Pixmap pixmap = client.xServer.pixmapManager.getPixmap(pixmapId);
         if (pixmap == null) throw new BadPixmap(pixmapId);
 
         Drawable content = window.getContent();
         if (content.visual.depth != pixmap.drawable.visual.depth) throw new BadMatch();
 
+        VulkanRenderer renderer = client.xServer.getRenderer();
+        int targetFps = renderer != null ? renderer.getFpsLimit() : 0;
+
         long ust = System.nanoTime() / 1000;
-        long msc = ust / FAKE_INTERVAL;
+        long msc = ust / (targetFps > 0 ? (1_000_000L / targetFps) : (1_000_000L / 60));
 
         synchronized (content.renderLock) {
-            content.copyArea((short)0, (short)0, xOff, yOff, pixmap.drawable.width, pixmap.drawable.height, pixmap.drawable);
-            sendIdleNotify(window, pixmap, serial, idleFence);
-            sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
+            boolean isNative = renderer != null && renderer.isNativeMode();
+
+            if (isNative && pixmap.drawable.isDirectScanout()) {
+                content.setTexture(pixmap.drawable.getTexture());
+                content.setDirectScanout(true);
+                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.FLIP, ust, msc);
+                if (window.attributes.isMapped() && renderer != null)
+                    renderer.onUpdateWindowContent(window);
+                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, renderer);
+            } else if (renderer != null && window.attributes.isMapped()) {
+                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
+                renderer.onUpdateWindowContentDirect(window, pixmap.drawable, xOff, yOff);
+                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, renderer);
+            } else {
+                content.copyArea((short)0, (short)0, xOff, yOff, pixmap.drawable.width, pixmap.drawable.height, pixmap.drawable);
+                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
+                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, renderer);
+            }
         }
     }
 

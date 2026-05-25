@@ -24,22 +24,7 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.XServerDisplayActivity;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.KeyValueSet;
-import com.winlator.cmod.renderer.GLRenderer;
-import com.winlator.cmod.renderer.effects.ColorEffect;
-import com.winlator.cmod.renderer.effects.CRTEffect;
-import com.winlator.cmod.renderer.effects.FSR1EasuEffect;
-import com.winlator.cmod.renderer.effects.FSR1RcasEffect;
-import com.winlator.cmod.renderer.effects.FXAAEffect;
-import com.winlator.cmod.renderer.effects.NTSCCombinedEffect;
-import com.winlator.cmod.renderer.effects.ToonEffect;
-import com.winlator.cmod.renderer.effects.VignetteEffect;
-import com.winlator.cmod.renderer.effects.SepiaEffect;
-import com.winlator.cmod.renderer.effects.BlurEffect;
-import com.winlator.cmod.renderer.effects.PixelateEffect;
-import com.winlator.cmod.renderer.effects.GrayscaleEffect;
-import com.winlator.cmod.renderer.effects.SharpenEffect;
-import com.winlator.cmod.renderer.effects.SmoothEffect;
-import com.winlator.cmod.renderer.effects.HDREffect;
+import com.winlator.cmod.renderer.VulkanRenderer;
 import com.winlator.cmod.widget.SeekBar;
 
 import java.util.ArrayList;
@@ -121,62 +106,16 @@ public class ScreenEffectDialog extends ContentDialog {
         applyDialogThemeOverrides();
 
 
-        GLRenderer renderer = activity.getXServerView().getRenderer();
+        VulkanRenderer renderer = activity.getXServerView().getRenderer();
         if (renderer == null) {
             Log.e(TAG, "Renderer is null in ScreenEffectDialog initialization!");
             return;
         }
 
-        ColorEffect colorEffect = (ColorEffect) renderer.getEffectComposer().getEffect(ColorEffect.class);
-        FXAAEffect fxaaEffect = (FXAAEffect) renderer.getEffectComposer().getEffect(FXAAEffect.class);
-        CRTEffect crtEffect = (CRTEffect) renderer.getEffectComposer().getEffect(CRTEffect.class);
-        ToonEffect toonEffect = (ToonEffect) renderer.getEffectComposer().getEffect(ToonEffect.class);
-        NTSCCombinedEffect ntscEffect = (NTSCCombinedEffect) renderer.getEffectComposer().getEffect(NTSCCombinedEffect.class);
-        VignetteEffect vignetteEffect = (VignetteEffect) renderer.getEffectComposer().getEffect(VignetteEffect.class);
-        SepiaEffect sepiaEffect = (SepiaEffect) renderer.getEffectComposer().getEffect(SepiaEffect.class);
-        BlurEffect blurEffect = (BlurEffect) renderer.getEffectComposer().getEffect(BlurEffect.class);
-        PixelateEffect pixelateEffect = (PixelateEffect) renderer.getEffectComposer().getEffect(PixelateEffect.class);
-        GrayscaleEffect grayscaleEffect = (GrayscaleEffect) renderer.getEffectComposer().getEffect(GrayscaleEffect.class);
-        SharpenEffect sharpenEffect = (SharpenEffect) renderer.getEffectComposer().getEffect(SharpenEffect.class);
-        SmoothEffect smoothEffect = (SmoothEffect) renderer.getEffectComposer().getEffect(SmoothEffect.class);
-        HDREffect hdrEffect = (HDREffect) renderer.getEffectComposer().getEffect(HDREffect.class);
-        FSR1EasuEffect fsrEasuEffect = (FSR1EasuEffect) renderer.getEffectComposer().getEffect(FSR1EasuEffect.class);
-        FSR1RcasEffect fsrRcasEffect = (FSR1RcasEffect) renderer.getEffectComposer().getEffect(FSR1RcasEffect.class);
-
         Log.d(TAG, "ScreenEffectDialog initialized");
 
-        if (colorEffect != null) {
-            Log.d(TAG, "ColorEffect found");
-            sbBrightness.setValue(colorEffect.getBrightness() * 100);
-            sbContrast.setValue(colorEffect.getContrast() * 100);
-            sbGamma.setValue(colorEffect.getGamma());
-        } else {
-            Log.d(TAG, "ColorEffect not found, resetting settings");
-            resetSettings();
-        }
-
-        cbEnableFXAA.setChecked(fxaaEffect != null);
-        cbEnableCRTShader.setChecked(crtEffect != null);
-        cbEnableToonShader.setChecked(toonEffect != null);
-        cbEnableNTSCEffect.setChecked(ntscEffect != null);
-        cbEnableVignetteEffect.setChecked(vignetteEffect != null);
-        cbEnableSepiaEffect.setChecked(sepiaEffect != null);
-        cbEnableBlurEffect.setChecked(blurEffect != null);
-        cbEnablePixelateEffect.setChecked(pixelateEffect != null);
-        cbEnableGrayscaleEffect.setChecked(grayscaleEffect != null);
-        cbEnableSharpenEffect.setChecked(sharpenEffect != null);
-        cbEnableSmoothEffect.setChecked(smoothEffect != null);
-        cbEnableHDREffect.setChecked(hdrEffect != null);
-        cbEnableFSREffect.setChecked(fsrEasuEffect != null || fsrRcasEffect != null);
-        if (fsrRcasEffect != null) {
-            sbFsrSharpness.setValue(stopsToSliderValue(fsrRcasEffect.getSharpnessStops()));
-        } else {
-            sbFsrSharpness.setValue(75f);
-        }
-        if (fsrEasuEffect != null) {
-            sFsrQuality.setSelection(fsrEasuEffect.getQuality().ordinal());
-            cbFsrAspectFit.setChecked(fsrEasuEffect.isPreserveAspect());
-        }
+        // Load saved effect settings from SharedPreferences
+        loadEffectSettingsFromPrefs();
 
         loadProfileSpinner(sProfile, activity.getScreenEffectProfile());
 
@@ -201,13 +140,11 @@ public class ScreenEffectDialog extends ContentDialog {
             saveProfile(sProfile);
             Log.d(TAG, "Profile saved.");
 
-            // Directly calling applyEffects to ensure it's triggered
-            Log.d(TAG, "Calling applyEffects() directly.");
-            applyEffects(colorEffect, renderer, fxaaEffect, crtEffect, toonEffect, ntscEffect, vignetteEffect, sepiaEffect, blurEffect, pixelateEffect, grayscaleEffect, sharpenEffect, smoothEffect, hdrEffect);
+            Log.d(TAG, "Calling applyVulkanEffects() directly.");
+            applyVulkanEffects(renderer);
 
             Log.d(TAG, "Effects applied. Dismissing dialog.");
-            dismiss(); // Close the dialog
-            Log.d(TAG, "Dialog dismissed.");
+            dismiss();
         });
 
         findViewById(R.id.BTAddProfile).setOnClickListener(v -> promptAddProfile());
@@ -215,12 +152,9 @@ public class ScreenEffectDialog extends ContentDialog {
 
         setOnConfirmCallback(() -> {
             Log.d(TAG, "OnConfirm callback triggered. Applying effects.");
-            applyEffects(colorEffect, renderer, fxaaEffect, crtEffect, toonEffect, ntscEffect, vignetteEffect, sepiaEffect, blurEffect, pixelateEffect, grayscaleEffect, sharpenEffect, smoothEffect, hdrEffect);
+            applyVulkanEffects(renderer);
             Log.d(TAG, "Effects applied from callback.");
-
-            // Optionally dismiss after applying effects in callback
             dismiss();
-            Log.d(TAG, "Dialog dismissed after callback.");
         });
 
     }
@@ -482,258 +416,200 @@ public class ScreenEffectDialog extends ContentDialog {
         }
     }
 
-    public void applyEffects(ColorEffect colorEffect, GLRenderer renderer, FXAAEffect fxaaEffect, CRTEffect crtEffect, ToonEffect toonEffect, NTSCCombinedEffect ntscEffect,
-                             VignetteEffect vignetteEffect, SepiaEffect sepiaEffect, BlurEffect blurEffect, PixelateEffect pixelateEffect, GrayscaleEffect grayscaleEffect, SharpenEffect sharpenEffect, SmoothEffect smoothEffect, HDREffect hdrEffect) {
-        Log.d(TAG, "applyEffects() called");
+    private void loadEffectSettingsFromPrefs() {
+        // Load effect settings from SharedPreferences (saved by profile or defaults)
+        float brightness = preferences.getFloat("effect_brightness", 0f);
+        float contrast = preferences.getFloat("effect_contrast", 0f);
+        float gamma = preferences.getFloat("effect_gamma", 1.0f);
+        sbBrightness.setValue(brightness);
+        sbContrast.setValue(contrast);
+        sbGamma.setValue(gamma);
+
+        cbEnableFXAA.setChecked(preferences.getBoolean("effect_fxaa", false));
+        cbEnableCRTShader.setChecked(preferences.getBoolean("effect_crt", false));
+        cbEnableToonShader.setChecked(preferences.getBoolean("effect_toon", false));
+        cbEnableNTSCEffect.setChecked(preferences.getBoolean("effect_ntsc", false));
+        cbEnableVignetteEffect.setChecked(preferences.getBoolean("effect_vignette", false));
+        cbEnableSepiaEffect.setChecked(preferences.getBoolean("effect_sepia", false));
+        cbEnableBlurEffect.setChecked(preferences.getBoolean("effect_blur", false));
+        cbEnablePixelateEffect.setChecked(preferences.getBoolean("effect_pixelate", false));
+        cbEnableGrayscaleEffect.setChecked(preferences.getBoolean("effect_grayscale", false));
+        cbEnableSharpenEffect.setChecked(preferences.getBoolean("effect_sharpen", false));
+        cbEnableSmoothEffect.setChecked(preferences.getBoolean("effect_smooth", false));
+        cbEnableHDREffect.setChecked(preferences.getBoolean("effect_hdr", false));
+        cbEnableFSREffect.setChecked(preferences.getBoolean("effect_fsr", false));
+        sbFsrSharpness.setValue(preferences.getFloat("effect_fsr_sharpness", 75f));
+        sFsrQuality.setSelection(Math.max(0, Math.min(3, (int)preferences.getFloat("effect_fsr_quality", 1f))));
+        cbFsrAspectFit.setChecked(preferences.getBoolean("effect_fsr_aspect_fit", false));
+    }
+
+    private void saveEffectSettingsToPrefs() {
+        preferences.edit()
+            .putFloat("effect_brightness", sbBrightness.getValue())
+            .putFloat("effect_contrast", sbContrast.getValue())
+            .putFloat("effect_gamma", sbGamma.getValue())
+            .putBoolean("effect_fxaa", cbEnableFXAA.isChecked())
+            .putBoolean("effect_crt", cbEnableCRTShader.isChecked())
+            .putBoolean("effect_toon", cbEnableToonShader.isChecked())
+            .putBoolean("effect_ntsc", cbEnableNTSCEffect.isChecked())
+            .putBoolean("effect_vignette", cbEnableVignetteEffect.isChecked())
+            .putBoolean("effect_sepia", cbEnableSepiaEffect.isChecked())
+            .putBoolean("effect_blur", cbEnableBlurEffect.isChecked())
+            .putBoolean("effect_pixelate", cbEnablePixelateEffect.isChecked())
+            .putBoolean("effect_grayscale", cbEnableGrayscaleEffect.isChecked())
+            .putBoolean("effect_sharpen", cbEnableSharpenEffect.isChecked())
+            .putBoolean("effect_smooth", cbEnableSmoothEffect.isChecked())
+            .putBoolean("effect_hdr", cbEnableHDREffect.isChecked())
+            .putBoolean("effect_fsr", cbEnableFSREffect.isChecked())
+            .putFloat("effect_fsr_sharpness", sbFsrSharpness.getValue())
+            .putFloat("effect_fsr_quality", (float) sFsrQuality.getSelectedItemPosition())
+            .putBoolean("effect_fsr_aspect_fit", cbFsrAspectFit.isChecked())
+            .apply();
+    }
+
+    public void applyVulkanEffects(VulkanRenderer renderer) {
+        Log.d(TAG, "applyVulkanEffects() called");
 
         float brightness = sbBrightness.getValue();
         float contrast = sbContrast.getValue();
         float gamma = sbGamma.getValue();
         boolean enableFXAA = cbEnableFXAA.isChecked();
-        boolean enableCRTShader = cbEnableCRTShader.isChecked();
-        boolean enableToonShader = cbEnableToonShader.isChecked();
-        boolean enableNTSCEffect = cbEnableNTSCEffect.isChecked();
-        boolean enableVignetteEffect = cbEnableVignetteEffect.isChecked();
-        boolean enableSepiaEffect = cbEnableSepiaEffect.isChecked();
-        boolean enableBlurEffect = cbEnableBlurEffect.isChecked();
-        boolean enablePixelateEffect = cbEnablePixelateEffect.isChecked();
-        boolean enableGrayscaleEffect = cbEnableGrayscaleEffect.isChecked();
-        boolean enableSharpenEffect = cbEnableSharpenEffect.isChecked();
-        boolean enableSmoothEffect = cbEnableSmoothEffect.isChecked();
-        boolean enableHDREffect = cbEnableHDREffect.isChecked();
+        boolean enableCRT = cbEnableCRTShader.isChecked();
+        boolean enableToon = cbEnableToonShader.isChecked();
+        boolean enableNTSC = cbEnableNTSCEffect.isChecked();
+        boolean enableVignette = cbEnableVignetteEffect.isChecked();
+        boolean enableSepia = cbEnableSepiaEffect.isChecked();
+        boolean enableBlur = cbEnableBlurEffect.isChecked();
+        boolean enablePixelate = cbEnablePixelateEffect.isChecked();
+        boolean enableGrayscale = cbEnableGrayscaleEffect.isChecked();
+        boolean enableSharpen = cbEnableSharpenEffect.isChecked();
+        boolean enableSmooth = cbEnableSmoothEffect.isChecked();
+        boolean enableHDR = cbEnableHDREffect.isChecked();
+        boolean enableFSR = cbEnableFSREffect.isChecked();
 
-        Log.d(TAG, "Settings - Brightness: " + brightness + ", Contrast: " + contrast + ", Gamma: " + gamma);
-        Log.d(TAG, "FXAA Enabled: " + enableFXAA + ", CRT Shader Enabled: " + enableCRTShader + ", HDR Enabled: " + enableHDREffect);
+        // Save current settings
+        saveEffectSettingsToPrefs();
 
-        // Check ColorEffect state
-        if (colorEffect == null) {
-            Log.d(TAG, "ColorEffect is null, creating new instance.");
-            colorEffect = new ColorEffect();
+        // Build effect list for VulkanRenderer
+        ArrayList<Integer> types = new ArrayList<>();
+        ArrayList<float[]> paramsList = new ArrayList<>();
+
+        // ColorEffect: brightness, contrast, gamma (only if non-default)
+        if (brightness != 0 || contrast != 0 || gamma != 1.0f) {
+            types.add(VulkanRenderer.EFFECT_COLOR);
+            paramsList.add(new float[]{brightness / 100f, contrast / 100f, gamma, 0, 0, 0, 0, 0});
         }
 
-        // Check if renderer and effect composer are non-null
-        if (renderer == null) {
-            Log.e(TAG, "Renderer is null!");
-            return;
+        if (enableHDR) {
+            types.add(VulkanRenderer.EFFECT_HDR);
+            paramsList.add(new float[]{0.4f, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        if (renderer.getEffectComposer() == null) {
-            Log.e(TAG, "EffectComposer is null!");
-            return;
-        }
-
-        // Apply or remove ColorEffect
-        if (brightness == 0 && contrast == 0 && gamma == 1.0f) {
-            Log.d(TAG, "No adjustments are applied. Removing ColorEffect if it exists.");
-            renderer.getEffectComposer().removeEffect(colorEffect);
-        } else {
-            Log.d(TAG, "Applying ColorEffect adjustments.");
-            colorEffect.setBrightness(brightness / 100f);
-            colorEffect.setContrast(contrast / 100f);
-            colorEffect.setGamma(gamma);
-            renderer.getEffectComposer().addEffect(colorEffect);
-            Log.d(TAG, "ColorEffect added/updated.");
-        }
-        
-        // Apply or remove HDREffect (независимый эффект с контрастом 40)
-        if (enableHDREffect) {
-            if (hdrEffect == null) {
-                Log.d(TAG, "HDREffect is null, creating and adding new instance with contrast 0.4f (40).");
-                hdrEffect = new HDREffect();
-                hdrEffect.setContrast(0.4f); // Контраст 40 для HDR эффекта
-                renderer.getEffectComposer().addEffect(hdrEffect);
-            } else {
-                Log.d(TAG, "HDREffect is already added.");
-            }
-        } else if (hdrEffect != null) {
-            Log.d(TAG, "HDR Effect is disabled. Removing HDREffect.");
-            renderer.getEffectComposer().removeEffect(hdrEffect);
-        }
-
-        // Apply or remove FXAAEffect
         if (enableFXAA) {
-            if (fxaaEffect == null) {
-                Log.d(TAG, "FXAAEffect is null, creating and adding new instance.");
-                fxaaEffect = new FXAAEffect();
-                renderer.getEffectComposer().addEffect(fxaaEffect);
-            } else {
-                Log.d(TAG, "FXAAEffect is already added.");
-            }
-        } else if (fxaaEffect != null) {
-            Log.d(TAG, "FXAA is disabled. Removing FXAAEffect.");
-            renderer.getEffectComposer().removeEffect(fxaaEffect);
+            types.add(VulkanRenderer.EFFECT_FXAA);
+            paramsList.add(new float[]{0, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove CRTEffect
-        if (enableCRTShader) {
-            if (crtEffect == null) {
-                Log.d(TAG, "CRTEffect is null, creating and adding new instance.");
-                crtEffect = new CRTEffect();
-                renderer.getEffectComposer().addEffect(crtEffect);
-            } else {
-                Log.d(TAG, "CRTEffect is already added.");
-            }
-        } else if (crtEffect != null) {
-            Log.d(TAG, "CRT Shader is disabled. Removing CRTEffect.");
-            renderer.getEffectComposer().removeEffect(crtEffect);
+        if (enableCRT) {
+            types.add(VulkanRenderer.EFFECT_CRT);
+            paramsList.add(new float[]{0, 0, 0, 0, 0, 0, 0, 0});
         }
 
-
-        // Apply or remove ToonEffect
-        if (enableToonShader) {
-            if (toonEffect == null) {
-                Log.d(TAG, "ToonEffect is null, creating and adding new instance.");
-                toonEffect = new ToonEffect();
-                renderer.getEffectComposer().addEffect(toonEffect);
-            } else {
-                Log.d(TAG, "ToonEffect is already added.");
-            }
-        } else if (toonEffect != null) {
-            Log.d(TAG, "Toon Shader is disabled. Removing ToonEffect.");
-            renderer.getEffectComposer().removeEffect(toonEffect);
+        if (enableToon) {
+            types.add(VulkanRenderer.EFFECT_TOON);
+            paramsList.add(new float[]{0, 0, 0, 0, 0, 0, 0, 0});
         }
 
-
-        // Apply or remove NTSCCombinedEffect
-        if (enableNTSCEffect) {
-            if (ntscEffect == null) {
-                Log.d(TAG, "NTSCCombinedEffect is null, creating and adding new instance.");
-                ntscEffect = new NTSCCombinedEffect();
-                renderer.getEffectComposer().addEffect(ntscEffect);
-            } else {
-                Log.d(TAG, "NTSCCombinedEffect is already added.");
-            }
-        } else if (ntscEffect != null) {
-            Log.d(TAG, "NTSC Effect is disabled. Removing NTSCCombinedEffect.");
-            renderer.getEffectComposer().removeEffect(ntscEffect);
+        if (enableNTSC) {
+            types.add(VulkanRenderer.EFFECT_NTSC);
+            // params: frameCount, textureSizeX, textureSizeY
+            int screenW = renderer.getSurfaceWidth();
+            int screenH = renderer.getSurfaceHeight();
+            paramsList.add(new float[]{0, (float)screenW, (float)screenH, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove VignetteEffect
-        if (enableVignetteEffect) {
-            if (vignetteEffect == null) {
-                Log.d(TAG, "VignetteEffect is null, creating and adding new instance.");
-                vignetteEffect = new VignetteEffect();
-                renderer.getEffectComposer().addEffect(vignetteEffect);
-            } else {
-                Log.d(TAG, "VignetteEffect is already added.");
-            }
-        } else if (vignetteEffect != null) {
-            Log.d(TAG, "Vignette Effect is disabled. Removing VignetteEffect.");
-            renderer.getEffectComposer().removeEffect(vignetteEffect);
+        if (enableVignette) {
+            types.add(VulkanRenderer.EFFECT_VIGNETTE);
+            paramsList.add(new float[]{0.5f, 0.5f, 0, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove SepiaEffect
-        if (enableSepiaEffect) {
-            if (sepiaEffect == null) {
-                Log.d(TAG, "SepiaEffect is null, creating and adding new instance.");
-                sepiaEffect = new SepiaEffect();
-                renderer.getEffectComposer().addEffect(sepiaEffect);
-            } else {
-                Log.d(TAG, "SepiaEffect is already added.");
-            }
-        } else if (sepiaEffect != null) {
-            Log.d(TAG, "Sepia Effect is disabled. Removing SepiaEffect.");
-            renderer.getEffectComposer().removeEffect(sepiaEffect);
+        if (enableSepia) {
+            types.add(VulkanRenderer.EFFECT_SEPIA);
+            paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove BlurEffect
-        if (enableBlurEffect) {
-            if (blurEffect == null) {
-                Log.d(TAG, "BlurEffect is null, creating and adding new instance.");
-                blurEffect = new BlurEffect();
-                renderer.getEffectComposer().addEffect(blurEffect);
-            } else {
-                Log.d(TAG, "BlurEffect is already added.");
-            }
-        } else if (blurEffect != null) {
-            Log.d(TAG, "Blur Effect is disabled. Removing BlurEffect.");
-            renderer.getEffectComposer().removeEffect(blurEffect);
+        if (enableBlur) {
+            types.add(VulkanRenderer.EFFECT_BLUR);
+            paramsList.add(new float[]{2.0f, 5.0f, 0, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove PixelateEffect
-        if (enablePixelateEffect) {
-            if (pixelateEffect == null) {
-                Log.d(TAG, "PixelateEffect is null, creating and adding new instance.");
-                pixelateEffect = new PixelateEffect();
-                renderer.getEffectComposer().addEffect(pixelateEffect);
-            } else {
-                Log.d(TAG, "PixelateEffect is already added.");
-            }
-        } else if (pixelateEffect != null) {
-            Log.d(TAG, "Pixelate Effect is disabled. Removing PixelateEffect.");
-            renderer.getEffectComposer().removeEffect(pixelateEffect);
+        if (enablePixelate) {
+            types.add(VulkanRenderer.EFFECT_PIXELATE);
+            paramsList.add(new float[]{4.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove GrayscaleEffect
-        if (enableGrayscaleEffect) {
-            if (grayscaleEffect == null) {
-                Log.d(TAG, "GrayscaleEffect is null, creating and adding new instance.");
-                grayscaleEffect = new GrayscaleEffect();
-                renderer.getEffectComposer().addEffect(grayscaleEffect);
-            } else {
-                Log.d(TAG, "GrayscaleEffect is already added.");
-            }
-        } else if (grayscaleEffect != null) {
-            Log.d(TAG, "Grayscale Effect is disabled. Removing GrayscaleEffect.");
-            renderer.getEffectComposer().removeEffect(grayscaleEffect);
+        if (enableGrayscale) {
+            types.add(VulkanRenderer.EFFECT_GRAYSCALE);
+            paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove SharpenEffect
-        if (enableSharpenEffect) {
-            if (sharpenEffect == null) {
-                Log.d(TAG, "SharpenEffect is null, creating and adding new instance.");
-                sharpenEffect = new SharpenEffect();
-                renderer.getEffectComposer().addEffect(sharpenEffect);
-            } else {
-                Log.d(TAG, "SharpenEffect is already added.");
-            }
-        } else if (sharpenEffect != null) {
-            Log.d(TAG, "Sharpen Effect is disabled. Removing SharpenEffect.");
-            renderer.getEffectComposer().removeEffect(sharpenEffect);
+        if (enableSharpen) {
+            types.add(VulkanRenderer.EFFECT_SHARPEN);
+            paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove FSR (EASU + RCAS)
-        boolean enableFSREffect = cbEnableFSREffect.isChecked();
-        FSR1EasuEffect existingEasu = (FSR1EasuEffect) renderer.getEffectComposer().getEffect(FSR1EasuEffect.class);
-        FSR1RcasEffect existingRcas = (FSR1RcasEffect) renderer.getEffectComposer().getEffect(FSR1RcasEffect.class);
-        if (enableFSREffect) {
-            if (existingEasu == null) {
-                existingEasu = new FSR1EasuEffect();
-                renderer.getEffectComposer().addEffect(existingEasu);
-            }
-            if (existingRcas == null) {
-                existingRcas = new FSR1RcasEffect();
-                renderer.getEffectComposer().addEffect(existingRcas);
-            }
+        if (enableSmooth) {
+            types.add(VulkanRenderer.EFFECT_SMOOTH);
+            paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
+        }
+
+        if (enableFSR) {
+            // FSR EASU + RCAS
+            int screenW = renderer.getSurfaceWidth();
+            int screenH = renderer.getSurfaceHeight();
+            // Quality modes: ultra=77%, quality=67%, balanced=59%, performance=50%
+            float[] qualityScales = {0.77f, 0.67f, 0.59f, 0.50f};
             int qIdx = Math.max(0, Math.min(3, sFsrQuality.getSelectedItemPosition()));
-            existingEasu.setQuality(FSR1EasuEffect.Quality.values()[qIdx]);
-            existingEasu.setPreserveAspect(cbFsrAspectFit.isChecked());
-            existingRcas.setSharpnessStops(sliderValueToStops(sbFsrSharpness.getValue()));
-        } else {
-            if (existingEasu != null) renderer.getEffectComposer().removeEffect(existingEasu);
-            if (existingRcas != null) renderer.getEffectComposer().removeEffect(existingRcas);
+            float scale = qualityScales[qIdx];
+            float inputW = screenW * scale;
+            float inputH = screenH * scale;
+            float preserveAspect = cbFsrAspectFit.isChecked() ? 1.0f : 0.0f;
+
+            types.add(VulkanRenderer.EFFECT_FSR1_EASU);
+            paramsList.add(new float[]{inputW, inputH, (float)screenW, (float)screenH, preserveAspect, 0, 0, 0});
+
+            types.add(VulkanRenderer.EFFECT_FSR1_RCAS);
+            float sharpnessStops = sliderValueToStops(sbFsrSharpness.getValue());
+            paramsList.add(new float[]{sharpnessStops, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        // Apply or remove SmoothEffect
-        if (enableSmoothEffect) {
-            if (smoothEffect == null) {
-                Log.d(TAG, "SmoothEffect is null, creating and adding new instance.");
-                smoothEffect = new SmoothEffect();
-                renderer.getEffectComposer().addEffect(smoothEffect);
-            } else {
-                Log.d(TAG, "SmoothEffect is already added.");
+        if (types.isEmpty()) {
+            renderer.clearEffects();
+            Log.d(TAG, "No effects enabled, cleared all effects.");
+        } else {
+            int[] typeArr = new int[types.size()];
+            float[][] paramsArr = new float[types.size()][];
+            for (int i = 0; i < types.size(); i++) {
+                typeArr[i] = types.get(i);
+                paramsArr[i] = paramsList.get(i);
             }
-        } else if (smoothEffect != null) {
-            Log.d(TAG, "Smooth Effect is disabled. Removing SmoothEffect.");
-            renderer.getEffectComposer().removeEffect(smoothEffect);
+            renderer.setEffects(typeArr, paramsArr);
+            Log.d(TAG, "Applied " + types.size() + " effects to VulkanRenderer.");
         }
 
         saveProfile(sProfile);
         Log.d(TAG, "Profile saved after applying effects.");
     }
 
-    // Backwards-compatible overload used by older call sites
-    public void applyEffects(ColorEffect colorEffect, GLRenderer renderer, FXAAEffect fxaaEffect, CRTEffect crtEffect, ToonEffect toonEffect, NTSCCombinedEffect ntscEffect) {
+    // Backwards-compatible overload - no longer used but kept for compatibility
+    public void applyEffects(Object colorEffect, Object renderer, Object fxaaEffect, Object crtEffect, Object toonEffect, Object ntscEffect,
+                             Object vignetteEffect, Object sepiaEffect, Object blurEffect, Object pixelateEffect, Object grayscaleEffect, Object sharpenEffect, Object smoothEffect, Object hdrEffect) {
+        if (renderer instanceof VulkanRenderer) {
+            applyVulkanEffects((VulkanRenderer) renderer);
+        }
+    }
+
+    public void applyEffects(Object colorEffect, Object renderer, Object fxaaEffect, Object crtEffect, Object toonEffect, Object ntscEffect) {
         applyEffects(colorEffect, renderer, fxaaEffect, crtEffect, toonEffect, ntscEffect,
                 null, null, null, null, null, null, null, null);
     }

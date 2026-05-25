@@ -14,7 +14,7 @@ import com.winlator.cmod.XServerDisplayActivity;
 import com.winlator.cmod.R;
 import com.winlator.cmod.core.UnitUtils;
 import com.winlator.cmod.core.ImageUtils;
-import com.winlator.cmod.renderer.GLRenderer;
+import com.winlator.cmod.renderer.VulkanRenderer;
 import com.winlator.cmod.xserver.Drawable;
 import com.winlator.cmod.xserver.Window;
 import com.winlator.cmod.xserver.XServer;
@@ -93,7 +93,7 @@ public class ActiveWindowsDialog extends ContentDialog {
         LinearLayout llWindowList = findViewById(R.id.window_list_layout);
         llWindowList.removeAllViews();
 
-        GLRenderer renderer = xServer.getRenderer();
+        VulkanRenderer renderer = xServer.getRenderer();
         LayoutInflater inflater = LayoutInflater.from(getContext());
         int previewWidth = (int) UnitUtils.dpToPx(240.0f);
         int previewHeight = (int) UnitUtils.dpToPx(160.0f);
@@ -157,20 +157,26 @@ public class ActiveWindowsDialog extends ContentDialog {
                     ivWindow.setLayoutParams(params);
                     ivWindow.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
-                    // Делаем скриншот окна
-                    renderer.takeWindowScreenshot(content, new GLRenderer.ScreenshotCallback() {
-                        @Override
-                        public void onScreenshotTaken(final Bitmap bitmap) {
-                            if (bitmap != null) {
-                                ivWindow.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        ivWindow.setImageBitmap(bitmap);
-                                    }
-                                });
+                    // Делаем скриншот окна из данных Drawable
+                    try (XLock dlock = xServer.lock(Lockable.DRAWABLE_MANAGER)) {
+                        synchronized (content.renderLock) {
+                            java.nio.ByteBuffer buf = content.getData();
+                            if (buf != null) {
+                                int[] pixels = new int[content.width * content.height];
+                                buf.rewind();
+                                for (int j = 0; j < pixels.length; j++) {
+                                    int r = buf.get() & 0xFF;
+                                    int g = buf.get() & 0xFF;
+                                    int b = buf.get() & 0xFF;
+                                    int a = buf.get() & 0xFF;
+                                    pixels[j] = (a << 24) | (r << 16) | (g << 8) | b;
+                                }
+                                buf.rewind();
+                                final Bitmap bitmap = Bitmap.createBitmap(pixels, content.width, content.height, Bitmap.Config.ARGB_8888);
+                                ivWindow.post(() -> ivWindow.setImageBitmap(bitmap));
                             }
                         }
-                    });
+                    }
                 }
             } else {
                 // Окно свернуто - показываем заглушку

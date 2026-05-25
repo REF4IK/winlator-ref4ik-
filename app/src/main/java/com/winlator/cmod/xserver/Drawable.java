@@ -19,6 +19,7 @@ public class Drawable extends XResource {
     private Runnable onDrawListener;
     private Callback<Drawable> onDestroyListener;
     public final Object renderLock = new Object();
+    private boolean directScanout = false;
 
     // Dirty region tracking for partial texture upload
     private short dirtyX;
@@ -53,7 +54,10 @@ public class Drawable extends XResource {
     }
 
     public void setTexture(Texture texture) {
-        if (texture instanceof GPUImage) data = ((GPUImage)texture).getVirtualData();
+        if (texture instanceof GPUImage) {
+            ByteBuffer vd = ((GPUImage)texture).getVirtualData();
+            if (vd != null) data = vd;
+        }
         this.texture = texture;
     }
 
@@ -66,6 +70,18 @@ public class Drawable extends XResource {
             throw new IllegalArgumentException("Attempting to set Drawable.data to null!");
         }
         this.data = data;
+    }
+
+    public void setDirectScanout(boolean value) {
+        this.directScanout = value;
+    }
+
+    public boolean isDirectScanout() {
+        return directScanout;
+    }
+
+    public ByteBuffer getBuffer() {
+        return data;
     }
 
     private short getStride() {
