@@ -988,7 +988,7 @@ void VulkanRendererContext::renderFrame() {
     cursorMoved.store(false,std::memory_order_relaxed);
 
     if (surfaceDetached.load(std::memory_order_acquire)) return;
-    if (scanoutActive.load()) {
+    if (scanoutActive.load() && !scanoutDisabled.load()) {
         applyScanoutBuffer();
 
         if (!scanoutBlackFrameDone.load()) {
