@@ -51,7 +51,7 @@ public class GPUPerformanceDialog extends ContentDialog {
         // Настройка спиннера режимов производительности
         String[] modeNames = new String[GPUPerformanceManager.PerformanceMode.values().length];
         for (int i = 0; i < GPUPerformanceManager.PerformanceMode.values().length; i++) {
-            modeNames[i] = GPUPerformanceManager.PerformanceMode.values()[i].getDisplayName();
+            modeNames[i] = getContext().getString(GPUPerformanceManager.PerformanceMode.values()[i].getDisplayNameResId());
         }
         
         ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), 
@@ -76,16 +76,16 @@ public class GPUPerformanceDialog extends ContentDialog {
         // Проверяем доступность функций
         if (!gpuManager.isGPUControlAvailable()) {
             if (gpuManager.isNonRootOptimizationAvailable()) {
-                Toast.makeText(getContext(), "Управление GPU через root недоступно. Используются бескорневые оптимизации.", 
+                Toast.makeText(getContext(), getContext().getString(R.string.gpu_control_root_unavailable), 
                     Toast.LENGTH_LONG).show();
             } else {
-                Toast.makeText(getContext(), "Управление GPU недоступно. Требуются root права или новая версия Android.", 
+                Toast.makeText(getContext(), getContext().getString(R.string.gpu_control_unavailable), 
                     Toast.LENGTH_LONG).show();
                 btApply.setEnabled(false);
                 btRestore.setEnabled(false);
             }
         } else if (!gpuManager.isAdrenoGPU()) {
-            Toast.makeText(getContext(), "Обнаружен не-Adreno GPU. Функция может не работать корректно.", 
+            Toast.makeText(getContext(), getContext().getString(R.string.gpu_non_adreno_warning), 
                 Toast.LENGTH_LONG).show();
         }
     }
@@ -94,21 +94,21 @@ public class GPUPerformanceDialog extends ContentDialog {
         GPUPerformanceManager.GPUStatus status = gpuManager.getGPUStatus();
         
         String gpuRenderer = com.winlator.cmod.core.GPUInformation.getRenderer();
-        tvGPUInfo.setText(String.format("GPU: %s\nРегулятор: %s", 
-            gpuRenderer, status.governor != null ? status.governor : "Неизвестно"));
+        tvGPUInfo.setText(String.format(getContext().getString(R.string.gpu_info_format), 
+            gpuRenderer, status.governor != null ? status.governor : getContext().getString(R.string.gpu_governor_unknown)));
         
         if (status.currentFreq > 0) {
-            tvCurrentFreq.setText(String.format("Текущая частота: %s (%d%%)", 
+            tvCurrentFreq.setText(String.format(getContext().getString(R.string.gpu_current_freq_format), 
                 status.getFrequencyMHz(), status.getUsagePercent()));
         } else {
-            tvCurrentFreq.setText("Текущая частота: Недоступно");
+            tvCurrentFreq.setText(getContext().getString(R.string.gpu_current_freq_unavailable));
         }
         
         if (status.maxFreq > 0) {
-            tvMaxFreq.setText(String.format("Максимальная частота: %s", 
+            tvMaxFreq.setText(String.format(getContext().getString(R.string.gpu_max_freq_format), 
                 status.getMaxFrequencyMHz()));
         } else {
-            tvMaxFreq.setText("Максимальная частота: Недоступно");
+            tvMaxFreq.setText(getContext().getString(R.string.gpu_max_freq_unavailable));
         }
     }
     
@@ -125,14 +125,14 @@ public class GPUPerformanceDialog extends ContentDialog {
             prefs.edit().putString(PREF_GPU_PERFORMANCE_MODE, mode.getValue()).apply();
             
             Toast.makeText(getContext(), 
-                "Режим производительности применен: " + mode.getDisplayName(), 
+                String.format(getContext().getString(R.string.gpu_performance_applied), getContext().getString(mode.getDisplayNameResId())), 
                 Toast.LENGTH_SHORT).show();
             
             // Обновляем информацию
             updateGPUInfo();
         } else {
             Toast.makeText(getContext(), 
-                "Не удалось применить режим производительности. Проверьте права доступа.", 
+                getContext().getString(R.string.gpu_performance_apply_failed), 
                 Toast.LENGTH_LONG).show();
         }
     }
@@ -149,14 +149,14 @@ public class GPUPerformanceDialog extends ContentDialog {
             sPerformanceMode.setSelection(0);
             
             Toast.makeText(getContext(), 
-                "Оригинальные настройки GPU восстановлены", 
+                getContext().getString(R.string.gpu_settings_restored), 
                 Toast.LENGTH_SHORT).show();
             
             // Обновляем информацию
             updateGPUInfo();
         } else {
             Toast.makeText(getContext(), 
-                "Не удалось восстановить настройки GPU", 
+                getContext().getString(R.string.gpu_settings_restore_failed), 
                 Toast.LENGTH_LONG).show();
         }
     }
