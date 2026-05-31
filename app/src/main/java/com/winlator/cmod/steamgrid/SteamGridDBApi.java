@@ -22,4 +22,16 @@ public interface SteamGridDBApi {
             @Query("dimensions") String dimensions,
             @Query("types") String types
     );
+
+    @GET("grids/game/{gameId}")
+    Call<SteamGridGridsResponse> getAnimatedGridsByGameId(
+            @Header("Authorization") String authToken,
+            @Path("gameId") int gameId,
+            @Query("styles") String styles,
+            @Query("dimensions") String dimensions,
+            @Query("types") String types,
+            @Query("mimes") String mimes,
+            @Query("nsfw") String nsfw,
+            @Query("humor") String humor
+    );
 }

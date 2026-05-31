@@ -21,7 +21,7 @@ public class SteamGridGridsResponse {
     @SerializedName("data")
     public List<Grid> data;
 
-    public class Grid {
+public class Grid {
         @SerializedName("id")
         public int id;
 
@@ -39,6 +39,15 @@ public class SteamGridGridsResponse {
 
         @SerializedName("tags")
         public List<String> tags;
+
+        @SerializedName("mime")
+        public String mime;
+
+        @SerializedName("nsfw")
+        public boolean nsfw;
+
+        @SerializedName("epilepsy")
+        public boolean epilepsy;
 
         @SerializedName("author")
         public Author author;

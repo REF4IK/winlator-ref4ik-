@@ -37,10 +37,10 @@
 
             <ImageView
                 android:id="@+id/ImageView"
-                android:layout_width="52dp"
-                android:layout_height="52dp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:layout_gravity="center"
-                android:scaleType="centerInside" />
+                android:scaleType="centerCrop" />
 
         </FrameLayout>
 
