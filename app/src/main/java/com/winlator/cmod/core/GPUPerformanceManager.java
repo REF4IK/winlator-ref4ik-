@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.PowerManager;
 import android.os.Process;
 import android.util.Log;
+import com.winlator.cmod.R;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -38,24 +39,23 @@ public class GPUPerformanceManager {
     private boolean sustainedPerformanceActive = false;
     
     public enum PerformanceMode {
-        DEFAULT("default", "Стандартный режим"),
-        PERFORMANCE("performance", "Максимальная производительность"),
-        FORCE_MAX("force_max", "Принудительная максимальная частота"),
-        // Новые режимы без root
-        SUSTAINED_PERFORMANCE("sustained", "Sustained Performance (без root)"),
-        THERMAL_HINT("thermal_hint", "Thermal Hint API (без root)"),
-        GAME_MODE("game_mode", "Game Mode API (без root)");
+        DEFAULT("default", R.string.gpu_performance_mode_default),
+        PERFORMANCE("performance", R.string.gpu_performance_mode_performance),
+        FORCE_MAX("force_max", R.string.gpu_performance_mode_force_max),
+        SUSTAINED_PERFORMANCE("sustained", R.string.gpu_performance_sustained_performance),
+        THERMAL_HINT("thermal_hint", R.string.gpu_performance_thermal_hint),
+        GAME_MODE("game_mode", R.string.gpu_performance_game_mode);
         
         private final String value;
-        private final String displayName;
+        private final int displayNameResId;
         
-        PerformanceMode(String value, String displayName) {
+        PerformanceMode(String value, int displayNameResId) {
             this.value = value;
-            this.displayName = displayName;
+            this.displayNameResId = displayNameResId;
         }
         
         public String getValue() { return value; }
-        public String getDisplayName() { return displayName; }
+        public int getDisplayNameResId() { return displayNameResId; }
     }
     
     public GPUPerformanceManager(Context context) {
