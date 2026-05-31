@@ -156,6 +156,7 @@
     <string name="compatibility">兼容</string>
     <string name="intermediate">快速</string>
     <string name="performance">性能</string>
+    <string name="extreme">极致</string>
     <string name="preset">预设</string>
     <string name="you_cannot_remove_this_preset">您不能删除这个预设</string>
     <string name="columns">列</string>

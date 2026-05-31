@@ -42,10 +42,34 @@ public abstract class Box86_64PresetManager {
             envVars.put(ucPrefix+"_DYNAREC_FORWARD", "128");
             envVars.put(ucPrefix+"_DYNAREC_CALLRET", "0");
             envVars.put(ucPrefix+"_DYNAREC_WAIT", "0");
+            envVars.put(ucPrefix+"_DYNAREC_DIV0", "1");
+            envVars.put(ucPrefix+"_DYNAREC_IGNOREINT3", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MULTIBLOCK", "0");
+            envVars.put(ucPrefix+"_DYNAREC_SMCCHECKS", "full");
+            envVars.put(ucPrefix+"_DYNAREC_SMALLTSCSCALE", "0");
+            envVars.put(ucPrefix+"_DYNAREC_TSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_VECTORTSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_MEMCPYSETTSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_HALFBARRIERTSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_X87REDUCEDPRECISION", "0");
+            envVars.put(ucPrefix+"_DYNAREC_VOLATILEMETADATA", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MONOHACKS", "1");
             if (ucPrefix.equals("BOX64")) {
                 envVars.put("BOX64_AVX", "0");
                 envVars.put("BOX64_UNITYPLAYER", "1");
                 envVars.put("BOX64_MMAP32", "0");
+                envVars.put("BOX64_CPUTYPE", "0");
+                envVars.put("BOX64_HIDEHYPERVISORBIT", "0");
+                envVars.put("BOX64_RDTSC1GHZ", "0");
+                envVars.put("BOX64_DYNAREC_NOARCH", "0");
+                envVars.put("BOX64_DYNAREC_SEP", "1");
+                envVars.put("BOX64_AES", "1");
+                envVars.put("BOX64_PCLMULQDQ", "1");
+                envVars.put("BOX64_SHAEXT", "1");
+                envVars.put("BOX64_SSE42", "1");
+                envVars.put("BOX64_SSE_FLUSHTO0", "0");
+                envVars.put("BOX64_X87_NO80BITS", "0");
+                envVars.put("BOX64_UNITY", "0");
             }
         }
         else if (id.equals(Box86_64Preset.COMPATIBILITY)) {
@@ -58,10 +82,34 @@ public abstract class Box86_64PresetManager {
             envVars.put(ucPrefix+"_DYNAREC_FORWARD", "128");
             envVars.put(ucPrefix+"_DYNAREC_CALLRET", "0");
             envVars.put(ucPrefix+"_DYNAREC_WAIT", "1");
+            envVars.put(ucPrefix+"_DYNAREC_DIV0", "1");
+            envVars.put(ucPrefix+"_DYNAREC_IGNOREINT3", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MULTIBLOCK", "1");
+            envVars.put(ucPrefix+"_DYNAREC_SMCCHECKS", "mtrack");
+            envVars.put(ucPrefix+"_DYNAREC_SMALLTSCSCALE", "0");
+            envVars.put(ucPrefix+"_DYNAREC_TSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_VECTORTSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_MEMCPYSETTSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_HALFBARRIERTSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_X87REDUCEDPRECISION", "0");
+            envVars.put(ucPrefix+"_DYNAREC_VOLATILEMETADATA", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MONOHACKS", "1");
             if (ucPrefix.equals("BOX64")) {
                 envVars.put("BOX64_AVX", "0");
                 envVars.put("BOX64_UNITYPLAYER", "1");
                 envVars.put("BOX64_MMAP32", "0");
+                envVars.put("BOX64_CPUTYPE", "0");
+                envVars.put("BOX64_HIDEHYPERVISORBIT", "0");
+                envVars.put("BOX64_RDTSC1GHZ", "0");
+                envVars.put("BOX64_DYNAREC_NOARCH", "0");
+                envVars.put("BOX64_DYNAREC_SEP", "1");
+                envVars.put("BOX64_AES", "1");
+                envVars.put("BOX64_PCLMULQDQ", "1");
+                envVars.put("BOX64_SHAEXT", "1");
+                envVars.put("BOX64_SSE42", "1");
+                envVars.put("BOX64_SSE_FLUSHTO0", "0");
+                envVars.put("BOX64_X87_NO80BITS", "0");
+                envVars.put("BOX64_UNITY", "0");
             }
         }
         else if (id.equals(Box86_64Preset.INTERMEDIATE)) {
@@ -74,10 +122,34 @@ public abstract class Box86_64PresetManager {
             envVars.put(ucPrefix+"_DYNAREC_FORWARD", "128");
             envVars.put(ucPrefix+"_DYNAREC_CALLRET", "1");
             envVars.put(ucPrefix+"_DYNAREC_WAIT", "1");
+            envVars.put(ucPrefix+"_DYNAREC_DIV0", "0");
+            envVars.put(ucPrefix+"_DYNAREC_IGNOREINT3", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MULTIBLOCK", "1");
+            envVars.put(ucPrefix+"_DYNAREC_SMCCHECKS", "mtrack");
+            envVars.put(ucPrefix+"_DYNAREC_SMALLTSCSCALE", "0");
+            envVars.put(ucPrefix+"_DYNAREC_TSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_VECTORTSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MEMCPYSETTSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_HALFBARRIERTSOENABLED", "1");
+            envVars.put(ucPrefix+"_DYNAREC_X87REDUCEDPRECISION", "1");
+            envVars.put(ucPrefix+"_DYNAREC_VOLATILEMETADATA", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MONOHACKS", "0");
             if (ucPrefix.equals("BOX64")) {
                 envVars.put("BOX64_AVX", "0");
                 envVars.put("BOX64_UNITYPLAYER", "0");
                 envVars.put("BOX64_MMAP32", "1");
+                envVars.put("BOX64_CPUTYPE", "0");
+                envVars.put("BOX64_HIDEHYPERVISORBIT", "0");
+                envVars.put("BOX64_RDTSC1GHZ", "0");
+                envVars.put("BOX64_DYNAREC_NOARCH", "0");
+                envVars.put("BOX64_DYNAREC_SEP", "1");
+                envVars.put("BOX64_AES", "1");
+                envVars.put("BOX64_PCLMULQDQ", "1");
+                envVars.put("BOX64_SHAEXT", "1");
+                envVars.put("BOX64_SSE42", "1");
+                envVars.put("BOX64_SSE_FLUSHTO0", "0");
+                envVars.put("BOX64_X87_NO80BITS", "0");
+                envVars.put("BOX64_UNITY", "0");
             }
         }
         else if (id.equals(Box86_64Preset.PERFORMANCE)) {
@@ -90,11 +162,74 @@ public abstract class Box86_64PresetManager {
             envVars.put(ucPrefix+"_DYNAREC_FORWARD", "512");
             envVars.put(ucPrefix+"_DYNAREC_CALLRET", "1");
             envVars.put(ucPrefix+"_DYNAREC_WAIT", "1");
+            envVars.put(ucPrefix+"_DYNAREC_DIV0", "0");
+            envVars.put(ucPrefix+"_DYNAREC_IGNOREINT3", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MULTIBLOCK", "1");
+            envVars.put(ucPrefix+"_DYNAREC_SMCCHECKS", "mtrack");
+            envVars.put(ucPrefix+"_DYNAREC_SMALLTSCSCALE", "1");
+            envVars.put(ucPrefix+"_DYNAREC_TSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_VECTORTSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MEMCPYSETTSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_HALFBARRIERTSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_X87REDUCEDPRECISION", "1");
+            envVars.put(ucPrefix+"_DYNAREC_VOLATILEMETADATA", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MONOHACKS", "0");
             if (ucPrefix.equals("BOX64")) {
-                envVars.put("BOX64_AVX", "0");
+                envVars.put("BOX64_AVX", "1");
                 envVars.put("BOX64_UNITYPLAYER", "0");
                 envVars.put("BOX64_MMAP32", "1");
-
+                envVars.put("BOX64_CPUTYPE", "0");
+                envVars.put("BOX64_HIDEHYPERVISORBIT", "0");
+                envVars.put("BOX64_RDTSC1GHZ", "1");
+                envVars.put("BOX64_DYNAREC_NOARCH", "0");
+                envVars.put("BOX64_DYNAREC_SEP", "1");
+                envVars.put("BOX64_AES", "1");
+                envVars.put("BOX64_PCLMULQDQ", "1");
+                envVars.put("BOX64_SHAEXT", "1");
+                envVars.put("BOX64_SSE42", "1");
+                envVars.put("BOX64_SSE_FLUSHTO0", "0");
+                envVars.put("BOX64_X87_NO80BITS", "0");
+                envVars.put("BOX64_UNITY", "0");
+            }
+        }
+        else if (id.equals(Box86_64Preset.EXTREME)) {
+            envVars.put(ucPrefix+"_DYNAREC_SAFEFLAGS", "0");
+            envVars.put(ucPrefix+"_DYNAREC_FASTNAN", "1");
+            envVars.put(ucPrefix+"_DYNAREC_FASTROUND", "1");
+            envVars.put(ucPrefix+"_DYNAREC_X87DOUBLE", "0");
+            envVars.put(ucPrefix+"_DYNAREC_BIGBLOCK", "3");
+            envVars.put(ucPrefix+"_DYNAREC_STRONGMEM", "0");
+            envVars.put(ucPrefix+"_DYNAREC_FORWARD", "1024");
+            envVars.put(ucPrefix+"_DYNAREC_CALLRET", "1");
+            envVars.put(ucPrefix+"_DYNAREC_WAIT", "0");
+            envVars.put(ucPrefix+"_DYNAREC_DIV0", "0");
+            envVars.put(ucPrefix+"_DYNAREC_IGNOREINT3", "1");
+            envVars.put(ucPrefix+"_DYNAREC_MULTIBLOCK", "1");
+            envVars.put(ucPrefix+"_DYNAREC_SMCCHECKS", "none");
+            envVars.put(ucPrefix+"_DYNAREC_SMALLTSCSCALE", "1");
+            envVars.put(ucPrefix+"_DYNAREC_TSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_VECTORTSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_MEMCPYSETTSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_HALFBARRIERTSOENABLED", "0");
+            envVars.put(ucPrefix+"_DYNAREC_X87REDUCEDPRECISION", "1");
+            envVars.put(ucPrefix+"_DYNAREC_VOLATILEMETADATA", "1");
+            envVars.put(ucPrefix+"_DYNAREC_MONOHACKS", "0");
+            if (ucPrefix.equals("BOX64")) {
+                envVars.put("BOX64_AVX", "2");
+                envVars.put("BOX64_UNITYPLAYER", "0");
+                envVars.put("BOX64_MMAP32", "1");
+                envVars.put("BOX64_CPUTYPE", "0");
+                envVars.put("BOX64_HIDEHYPERVISORBIT", "1");
+                envVars.put("BOX64_RDTSC1GHZ", "1");
+                envVars.put("BOX64_DYNAREC_NOARCH", "2");
+                envVars.put("BOX64_DYNAREC_SEP", "1");
+                envVars.put("BOX64_AES", "1");
+                envVars.put("BOX64_PCLMULQDQ", "1");
+                envVars.put("BOX64_SHAEXT", "1");
+                envVars.put("BOX64_SSE42", "1");
+                envVars.put("BOX64_SSE_FLUSHTO0", "0");
+                envVars.put("BOX64_X87_NO80BITS", "0");
+                envVars.put("BOX64_UNITY", "0");
             }
         }
         else if (id.startsWith(Box86_64Preset.CUSTOM)) {
@@ -115,6 +250,7 @@ public abstract class Box86_64PresetManager {
         presets.add(new Box86_64Preset(Box86_64Preset.COMPATIBILITY, context.getString(R.string.compatibility)));
         presets.add(new Box86_64Preset(Box86_64Preset.INTERMEDIATE, context.getString(R.string.intermediate)));
         presets.add(new Box86_64Preset(Box86_64Preset.PERFORMANCE, context.getString(R.string.performance)));
+        presets.add(new Box86_64Preset(Box86_64Preset.EXTREME, context.getString(R.string.extreme)));
         for (String[] preset : customPresetsIterator(prefix, context)) presets.add(new Box86_64Preset(preset[0], preset[1]));
         return presets;
     }
