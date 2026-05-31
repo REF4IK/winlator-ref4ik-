@@ -650,6 +650,7 @@
     <string name="path_password_eye_mask_visible">M2,4.27 L2,4.27 L4.54,1.73 L4.54,1.73 L4.54,1 L23,1 L23,23 L1,23 L1,4.27 Z</string>
     <string name="path_password_strike_through">M3.27,4.27 L19.74,20.74</string>
     <string name="performance">性能</string>
+    <string name="extreme">極致</string>
     <string name="pid">PID</string>
     <string name="pip_mode">画中画模式</string>
     <string name="pls_make_sure_content_trustworthy">内容包含可执行文件。不安全的可执行文件可能会危及您的数据或设备安全。在安装之前，请确保您要安装的附加内容是可信的。</string>

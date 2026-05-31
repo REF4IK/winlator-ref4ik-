@@ -36,32 +36,105 @@ public class FEXCorePresetManager {
             envVars.put("FEX_VECTORTSOENABLED", "1");
             envVars.put("FEX_MEMCPYSETTSOENABLED", "1");
             envVars.put("FEX_HALFBARRIERTSOENABLED", "1");
+            envVars.put("FEX_STRICTINPROCESSSPLITLOCKS", "1");
+            envVars.put("FEX_KERNELUNALIGNEDATOMICBACKPATCHING", "1");
             envVars.put("FEX_X87REDUCEDPRECISION", "0");
             envVars.put("FEX_MULTIBLOCK", "0");
+            envVars.put("FEX_SMCCHECKS", "full");
+            envVars.put("FEX_SMC_CHECKS", "full");
+            envVars.put("FEX_SMALLTSCSCALE", "0");
+            envVars.put("FEX_HIDEHYBRID", "0");
+            envVars.put("FEX_HIDEHYPERVISORBIT", "0");
+            envVars.put("FEX_VOLATILEMETADATA", "0");
+            envVars.put("FEX_MONOHACKS", "1");
+            envVars.put("FEX_DISABLEL2CACHE", "0");
+            envVars.put("FEX_DYNAMICL1CACHE", "0");
+            envVars.put("FEX_SILENTLOG", "0");
+            envVars.put("FEX_PROFILESTATS", "0");
         }
         else if (id.equals(FEXCorePreset.COMPATIBILITY)) {
             envVars.put("FEX_TSOENABLED", "1");
             envVars.put("FEX_VECTORTSOENABLED", "1");
             envVars.put("FEX_MEMCPYSETTSOENABLED", "1");
             envVars.put("FEX_HALFBARRIERTSOENABLED", "1");
+            envVars.put("FEX_STRICTINPROCESSSPLITLOCKS", "0");
+            envVars.put("FEX_KERNELUNALIGNEDATOMICBACKPATCHING", "1");
             envVars.put("FEX_X87REDUCEDPRECISION", "0");
             envVars.put("FEX_MULTIBLOCK", "1");
+            envVars.put("FEX_SMCCHECKS", "full");
+            envVars.put("FEX_SMC_CHECKS", "full");
+            envVars.put("FEX_SMALLTSCSCALE", "0");
+            envVars.put("FEX_HIDEHYBRID", "0");
+            envVars.put("FEX_HIDEHYPERVISORBIT", "0");
+            envVars.put("FEX_VOLATILEMETADATA", "0");
+            envVars.put("FEX_MONOHACKS", "1");
+            envVars.put("FEX_DISABLEL2CACHE", "0");
+            envVars.put("FEX_DYNAMICL1CACHE", "0");
+            envVars.put("FEX_SILENTLOG", "0");
+            envVars.put("FEX_PROFILESTATS", "0");
         }
         else if (id.equals(FEXCorePreset.INTERMEDIATE)) {
             envVars.put("FEX_TSOENABLED", "1");
             envVars.put("FEX_VECTORTSOENABLED", "0");
             envVars.put("FEX_MEMCPYSETTSOENABLED", "0");
             envVars.put("FEX_HALFBARRIERTSOENABLED", "1");
+            envVars.put("FEX_STRICTINPROCESSSPLITLOCKS", "0");
+            envVars.put("FEX_KERNELUNALIGNEDATOMICBACKPATCHING", "1");
             envVars.put("FEX_X87REDUCEDPRECISION", "1");
             envVars.put("FEX_MULTIBLOCK", "1");
+            envVars.put("FEX_SMCCHECKS", "mtrack");
+            envVars.put("FEX_SMC_CHECKS", "mtrack");
+            envVars.put("FEX_SMALLTSCSCALE", "1");
+            envVars.put("FEX_HIDEHYBRID", "0");
+            envVars.put("FEX_HIDEHYPERVISORBIT", "0");
+            envVars.put("FEX_VOLATILEMETADATA", "1");
+            envVars.put("FEX_MONOHACKS", "0");
+            envVars.put("FEX_DISABLEL2CACHE", "0");
+            envVars.put("FEX_DYNAMICL1CACHE", "0");
+            envVars.put("FEX_SILENTLOG", "0");
+            envVars.put("FEX_PROFILESTATS", "0");
         }
         else if (id.equals(FEXCorePreset.PERFORMANCE)) {
             envVars.put("FEX_TSOENABLED", "0");
             envVars.put("FEX_VECTORTSOENABLED", "0");
             envVars.put("FEX_MEMCPYSETTSOENABLED", "0");
             envVars.put("FEX_HALFBARRIERTSOENABLED", "0");
+            envVars.put("FEX_STRICTINPROCESSSPLITLOCKS", "0");
+            envVars.put("FEX_KERNELUNALIGNEDATOMICBACKPATCHING", "1");
             envVars.put("FEX_X87REDUCEDPRECISION", "1");
             envVars.put("FEX_MULTIBLOCK", "1");
+            envVars.put("FEX_SMCCHECKS", "mtrack");
+            envVars.put("FEX_SMC_CHECKS", "mtrack");
+            envVars.put("FEX_SMALLTSCSCALE", "1");
+            envVars.put("FEX_HIDEHYBRID", "1");
+            envVars.put("FEX_HIDEHYPERVISORBIT", "0");
+            envVars.put("FEX_VOLATILEMETADATA", "1");
+            envVars.put("FEX_MONOHACKS", "0");
+            envVars.put("FEX_DISABLEL2CACHE", "0");
+            envVars.put("FEX_DYNAMICL1CACHE", "0");
+            envVars.put("FEX_SILENTLOG", "0");
+            envVars.put("FEX_PROFILESTATS", "0");
+        }
+        else if (id.equals(FEXCorePreset.EXTREME)) {
+            envVars.put("FEX_TSOENABLED", "0");
+            envVars.put("FEX_VECTORTSOENABLED", "0");
+            envVars.put("FEX_MEMCPYSETTSOENABLED", "0");
+            envVars.put("FEX_HALFBARRIERTSOENABLED", "0");
+            envVars.put("FEX_STRICTINPROCESSSPLITLOCKS", "0");
+            envVars.put("FEX_KERNELUNALIGNEDATOMICBACKPATCHING", "0");
+            envVars.put("FEX_X87REDUCEDPRECISION", "1");
+            envVars.put("FEX_MULTIBLOCK", "1");
+            envVars.put("FEX_SMCCHECKS", "none");
+            envVars.put("FEX_SMC_CHECKS", "none");
+            envVars.put("FEX_SMALLTSCSCALE", "1");
+            envVars.put("FEX_HIDEHYBRID", "1");
+            envVars.put("FEX_HIDEHYPERVISORBIT", "1");
+            envVars.put("FEX_VOLATILEMETADATA", "1");
+            envVars.put("FEX_MONOHACKS", "0");
+            envVars.put("FEX_DISABLEL2CACHE", "1");
+            envVars.put("FEX_DYNAMICL1CACHE", "1");
+            envVars.put("FEX_SILENTLOG", "0");
+            envVars.put("FEX_PROFILESTATS", "0");
         }
         else if (id != null && id.startsWith(FEXCorePreset.CUSTOM)) {
             for (String[] preset : customPresetsIterator(context)) {
@@ -81,6 +154,7 @@ public class FEXCorePresetManager {
         presets.add(new FEXCorePreset(FEXCorePreset.COMPATIBILITY, context.getString(com.winlator.cmod.R.string.compatibility)));
         presets.add(new FEXCorePreset(FEXCorePreset.INTERMEDIATE, context.getString(com.winlator.cmod.R.string.intermediate)));
         presets.add(new FEXCorePreset(FEXCorePreset.PERFORMANCE, context.getString(com.winlator.cmod.R.string.performance)));
+        presets.add(new FEXCorePreset(FEXCorePreset.EXTREME, context.getString(com.winlator.cmod.R.string.extreme)));
         for (String[] preset : customPresetsIterator(context)) {
             if (preset.length >= 2) presets.add(new FEXCorePreset(preset[0], preset[1]));
         }
