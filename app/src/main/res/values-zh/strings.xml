@@ -552,6 +552,7 @@
     <string name="mcp_tools">MCP 工具</string>
     <string name="memory">内存</string>
     <string name="midi_sound_font">MIDI 音色库</string>
+    <string name="dpi_font_size">DPI（字型大小）</string>
     <string name="mixed">混合</string>
     <string name="mouse_warp_override">鼠标移动覆盖</string>
     <string name="msg_warning_install_wine">警告：建议仅出于测试目的安装新版本的 Wine。</string>
