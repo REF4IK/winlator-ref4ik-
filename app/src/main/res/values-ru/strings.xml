@@ -614,6 +614,7 @@
     <string name="mcp_tools">Инструменты MCP</string>
     <string name="memory">Память</string>
     <string name="midi_sound_font">Звуковой шрифт MIDI</string>
+    <string name="dpi_font_size">DPI (Размер шрифта)</string>
     <string name="mixed">Смешанный</string>
     <string name="mouse_warp_override">Переопределение движения мыши</string>
     <string name="msg_warning_install_wine">Предупреждение: Установка новой версии Wine рекомендуется только для тестирования.</string>

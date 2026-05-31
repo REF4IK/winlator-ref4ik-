@@ -486,6 +486,22 @@
                                 android:layout_height="wrap_content"
                                 android:visibility="gone" />
                         </LinearLayout>
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/dpi_font_size"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <com.winlator.cmod.widget.SeekBar
+                            android:id="@+id/SBLogPixels"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:sbMinValue="96"
+                            app:sbMaxValue="240"
+                            app:sbStep="24"
+                            app:suffix=" dpi" />
                     </LinearLayout>
 
                     <com.google.android.material.textview.MaterialTextView

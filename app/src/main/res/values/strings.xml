@@ -620,6 +620,7 @@
     <string name="mcp_tools">MCP Tools</string>
     <string name="memory">Memory</string>
     <string name="midi_sound_font">MIDI SoundFont</string>
+    <string name="dpi_font_size">DPI (Font Size)</string>
     <string name="mixed">Mixed</string>
     <string name="mouse_warp_override">Mouse Warp Override</string>
     <string name="msg_warning_install_wine">Warning: Installing a new version of Wine is recommended for testing purposes only.</string>

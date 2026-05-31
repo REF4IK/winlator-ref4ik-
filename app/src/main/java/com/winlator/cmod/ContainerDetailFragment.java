@@ -1214,6 +1214,9 @@ public class ContainerDetailFragment extends Fragment {
 
             registryEditor.setStringValue("Software\\Wine\\Direct3D", "shader_backend", "glsl");
             registryEditor.setStringValue("Software\\Wine\\Direct3D", "UseGLSL", "enabled");
+
+            com.winlator.cmod.widget.SeekBar sbLogPixels = view.findViewById(R.id.SBLogPixels);
+            registryEditor.setDwordValue("Control Panel\\Desktop", "LogPixels", (int)sbLogPixels.getValue());
         }
     }
 
@@ -1277,6 +1280,9 @@ public class ContainerDetailFragment extends Fragment {
             Spinner sMouseWarpOverride = view.findViewById(R.id.SMouseWarpOverride);
             sMouseWarpOverride.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, mouseWarpOverrideList));
             AppUtils.setSpinnerSelectionFromValue(sMouseWarpOverride, registryEditor.getStringValue("Software\\Wine\\DirectInput", "MouseWarpOverride", "disable"));
+
+            com.winlator.cmod.widget.SeekBar sbLogPixels = view.findViewById(R.id.SBLogPixels);
+            sbLogPixels.setValue(registryEditor.getDwordValue("Control Panel\\Desktop", "LogPixels", 96));
         }
     }
 

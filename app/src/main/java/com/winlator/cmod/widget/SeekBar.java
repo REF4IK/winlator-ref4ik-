@@ -147,6 +147,14 @@ public class SeekBar extends AppCompatImageView {
     }
 
     @Override
+    protected synchronized void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int margin = (int)UnitUtils.dpToPx(4);
+        int width = (int)UnitUtils.dpToPx(220);
+        int height = (int)(thumbSize + margin + textSize * 1.5f);
+        setMeasuredDimension(resolveSizeAndState(width + margin, widthMeasureSpec, 0), resolveSizeAndState(height, heightMeasureSpec, 0));
+    }
+
+    @Override
     protected synchronized void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         Log.d("SeekBar", "onDraw called with value: " + getValue());
