@@ -67,6 +67,10 @@ static inline bool arectEq(const ARect& a, const ARect& b) {
 
 void VulkanRendererContext::initScanout() {
     if (scanoutActive.load()) return;
+    if (scanoutDisabled.load()) {
+        SCANOUT_LOG("initScanout: disabled by scanoutDisabled flag");
+        return;
+    }
     if (!window || !loadScanoutApi()) {
         SCANOUT_LOG("initScanout: loadApi failed");
         return;
@@ -101,9 +105,15 @@ void VulkanRendererContext::initScanout() {
 
 void VulkanRendererContext::initScanoutFromWindows(ANativeWindow* gameWin, ANativeWindow* cursorWin) {
     if (scanoutActive.load()) destroyScanout();
+    if (scanoutDisabled.load()) {
+        SCANOUT_LOG("initScanoutFromWindows: disabled by scanoutDisabled flag");
+        ANativeWindow_release(gameWin); ANativeWindow_release(cursorWin);
+        return;
+    }
     if (!loadScanoutApi()) {
         ANativeWindow_release(gameWin); ANativeWindow_release(cursorWin);
-        initScanout(); return;
+        if (!scanoutDisabled.load()) initScanout();
+        return;
     }
 
     scanoutGameSC   = SC_CREATE(gameWin,   "winlator_game_buf");
@@ -114,7 +124,8 @@ void VulkanRendererContext::initScanoutFromWindows(ANativeWindow* gameWin, ANati
         SCANOUT_LOG("initScanoutFromWindows: SC creation failed, fallback");
         if (scanoutGameSC)   { SC_RELEASE(scanoutGameSC);   scanoutGameSC=nullptr; }
         if (scanoutCursorSC) { SC_RELEASE(scanoutCursorSC); scanoutCursorSC=nullptr; }
-        initScanout(); return;
+        if (!scanoutDisabled.load()) initScanout();
+        return;
     }
 
     void* setupTx = ST_CREATE();
@@ -163,7 +174,7 @@ void VulkanRendererContext::destroyScanout() {
 }
 
 void VulkanRendererContext::scanoutSetBuffer(AHardwareBuffer* ahb, int x, int y, int w, int h, int fenceFd) {
-    if (!scanoutActive.load() || !scanoutGameSC || !ahb || !scanoutGameTx) {
+    if (!scanoutActive.load() || scanoutDisabled.load() || !scanoutGameSC || !ahb || !scanoutGameTx) {
         RLOG("scanoutSetBuffer: SKIPPED active=%d sc=%p ahb=%p tx=%p",
             (int)scanoutActive.load(), scanoutGameSC, (void*)ahb, scanoutGameTx);
         return;
@@ -202,6 +213,7 @@ void VulkanRendererContext::scanoutSetBuffer(AHardwareBuffer* ahb, int x, int y,
 }
 
 void VulkanRendererContext::applyScanoutBuffer() {
+    if (scanoutDisabled.load()) return;
 
     bool hasImage=false, hasPos=false;
     short cx=0, cy=0, chx=0, chy=0;

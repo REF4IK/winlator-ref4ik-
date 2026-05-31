@@ -157,6 +157,17 @@ Java_com_winlator_cmod_renderer_VulkanRenderer_nativeDestroyScanout(JNIEnv*, job
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_renderer_VulkanRenderer_nativeSetScanoutDisabled(JNIEnv*, jobject, jlong handle, jboolean disabled) {
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) {
+        r->scanoutDisabled.store(disabled == JNI_TRUE);
+        if (disabled && r->scanoutActive.load()) {
+            r->destroyScanout();
+        }
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_winlator_cmod_renderer_VulkanRenderer_nativeScanoutSetBuffer(
     JNIEnv*, jobject, jlong handle, jlong ahbPtr, jint x, jint y, jint w, jint h, jint fenceFd)
 {

@@ -48,6 +48,9 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     private Drawable rootCursorDrawable;
     private Cursor lastCursor = null;
     private boolean xRenderingPausedForScanout = false;
+    private int[] pendingEffectTypes = null;
+    private float[][] pendingEffectParams = null;
+    private boolean scanoutBlockedForEffects = false;
 
     private volatile ArrayList<RenderableWindow> renderableWindows = new ArrayList<>();
     private android.view.SurfaceControl scanoutGameSC;
@@ -92,6 +95,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     private native void nativeDetachSurface(long handle);
     private native boolean nativeReattachSurface(long handle, android.view.Surface surface);
     private native void nativeDestroyScanout(long handle);
+    private native void nativeSetScanoutDisabled(long handle, boolean disabled);
     private native void nativeScanoutSetBuffer(long handle, long ahbPtr, int x, int y, int w, int h, int fenceFd);
     private native void nativeScanoutSetCursorImage(long handle, java.nio.ByteBuffer pixels, short w, short h, short stride);
     private native void nativeScanoutSetCursorPos(long handle, short x, short y, short hotX, short hotY);
@@ -143,6 +147,23 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                     nativeSetSwapRB(nativeHandle, pendingSwapRB);
                     updateTransform();
                     nativeSetCursorVisible(nativeHandle, cursorVisible);
+
+                    // Apply any pending effects that were set before renderer was initialized
+                    if (pendingEffectTypes != null) {
+                        nativeSetScanoutDisabled(nativeHandle, true);
+                        int pCount = pendingEffectTypes.length;
+                        float[] pFlat = new float[pCount * 8];
+                        for (int pi = 0; pi < pCount; pi++) {
+                            if (pendingEffectParams[pi] != null) {
+                                int plen = Math.min(pendingEffectParams[pi].length, 8);
+                                System.arraycopy(pendingEffectParams[pi], 0, pFlat, pi * 8, plen);
+                            }
+                        }
+                        nativeSetEffects(nativeHandle, pendingEffectTypes, pFlat, pCount);
+                        pendingEffectTypes = null;
+                        pendingEffectParams = null;
+                    }
+
                     if (nativeMode) {
                         xServerView.post(() -> {
                             releaseScanoutSurfaces();
@@ -409,7 +430,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
         if (effVis && cd != null && cd.getBuffer() != null) {
             synchronized (cd.renderLock) {
                 nativeUpdateCursorImage(nativeHandle, cd.getBuffer(), cd.width, cd.height, hotX, hotY);
-                if (nativeMode) {
+                if (nativeMode && !scanoutBlockedForEffects) {
                     java.nio.ByteBuffer buf = cd.getBuffer();
                     short stride = (short)(buf.capacity() / (cd.height * 4));
                     nativeScanoutSetCursorImage(nativeHandle, buf, cd.width, cd.height, stride);
@@ -430,7 +451,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                     GPUImage g = (GPUImage) pixmap.getTexture();
                     long ahbPtr = g.getHardwareBufferPtr();
                     if (ahbPtr != 0) {
-                        if (nativeMode && pixmap.isDirectScanout() && nativeIsScanoutActive(nativeHandle)) {
+                        if (nativeMode && pixmap.isDirectScanout() && nativeIsScanoutActive(nativeHandle) && !scanoutBlockedForEffects) {
                             int fence = g.unlock();
                             nativeScanoutSetBuffer(nativeHandle, ahbPtr,
                                 rx, ry, pixmap.width, pixmap.height, fence);
@@ -475,7 +496,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                     GPUImage g = (GPUImage) drawable.getTexture();
                     long ahbPtr = g.getHardwareBufferPtr();
                     if (ahbPtr != 0) {
-                        boolean scanoutNow = nativeMode && nativeIsScanoutActive(nativeHandle);
+                        boolean scanoutNow = nativeMode && nativeIsScanoutActive(nativeHandle) && !scanoutBlockedForEffects;
                         if (nativeMode && drawable.isDirectScanout() && scanoutNow) {
                             boolean wasDelivered = nativeIsGameFrameDelivered(nativeHandle);
 
@@ -581,6 +602,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
 
     public void setNativeMode(boolean mode) {
         if (this.nativeMode == mode) return;
+        if (mode && scanoutBlockedForEffects) return;
         this.nativeMode = mode;
         xRenderingPausedForScanout = false;
         if (mode) {
@@ -643,6 +665,26 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     }
 
     public boolean isNativeMode() { return nativeMode; }
+
+    public void disableScanoutForEffects() {
+        scanoutBlockedForEffects = true;
+        synchronized (lock) {
+            if (nativeHandle != 0) {
+                nativeSetScanoutDisabled(nativeHandle, true);
+                if (nativeIsScanoutActive(nativeHandle)) {
+                    nativeDestroyScanout(nativeHandle);
+                }
+            }
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            try {
+                android.view.SurfaceControl.Transaction txn = new android.view.SurfaceControl.Transaction();
+                if (scanoutGameSC != null) txn.setVisibility(scanoutGameSC, false);
+                if (scanoutCursorSC != null) txn.setVisibility(scanoutCursorSC, false);
+                txn.apply();
+            } catch (Exception ignored) {}
+        }
+    }
 
     public void setDriverInfo(String driverPath, String libraryName, String nativeLibDir) {
         this.driverPath = driverPath;
@@ -745,8 +787,18 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
 
     public void setEffects(int[] types, float[][] paramsArr) {
         synchronized (lock) {
-            if (nativeHandle == 0 || types == null || types.length == 0) {
-                if (nativeHandle != 0) nativeClearEffects(nativeHandle);
+            if (nativeHandle == 0) {
+                // Renderer not initialized yet - store as pending
+                pendingEffectTypes = types;
+                pendingEffectParams = paramsArr;
+                return;
+            }
+            pendingEffectTypes = null;
+            pendingEffectParams = null;
+            if (types == null || types.length == 0) {
+                scanoutBlockedForEffects = false;
+                if (nativeHandle != 0) nativeSetScanoutDisabled(nativeHandle, false);
+                nativeClearEffects(nativeHandle);
                 return;
             }
             int count = types.length;
@@ -762,7 +814,13 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     }
 
     public void clearEffects() {
-        synchronized (lock) { if (nativeHandle != 0) nativeClearEffects(nativeHandle); }
+        synchronized (lock) {
+            scanoutBlockedForEffects = false;
+            if (nativeHandle != 0) {
+                nativeSetScanoutDisabled(nativeHandle, false);
+                nativeClearEffects(nativeHandle);
+            }
+        }
     }
 
     public boolean hasEffects() {

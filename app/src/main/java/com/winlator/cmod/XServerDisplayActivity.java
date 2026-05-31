@@ -2355,6 +2355,18 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 touchpadView.toggleFullscreen();
 
+                // Toggle sharpen effect alongside fullscreen
+                if (renderer.isFullscreen()) {
+                    preferences.edit().putBoolean("effect_sharpen", true).apply();
+                    renderer.setEffects(
+                        new int[]{VulkanRenderer.EFFECT_SHARPEN},
+                        new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
+                    );
+                } else {
+                    preferences.edit().putBoolean("effect_sharpen", false).apply();
+                    renderer.clearEffects();
+                }
+
                 break;
 
             case R.id.main_menu_pause:
@@ -4554,6 +4566,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             renderer.toggleFullscreen();
 
             touchpadView.toggleFullscreen();
+
+            // Auto-enable sharpen effect when stretch mode is active
+            preferences.edit().putBoolean("effect_sharpen", true).apply();
+            renderer.setEffects(
+                new int[]{VulkanRenderer.EFFECT_SHARPEN},
+                new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
+            );
 
         }
 
