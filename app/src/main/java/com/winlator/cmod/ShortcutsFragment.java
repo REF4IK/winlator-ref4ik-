@@ -15,6 +15,9 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageDecoder;
+import android.graphics.drawable.AnimatedImageDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Build;
@@ -57,6 +60,7 @@ import com.winlator.cmod.core.DohOkHttp;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.win32.PEParser;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.bumptech.glide.Glide;
 import com.winlator.cmod.steamgrid.SteamGridDBApi;
 import com.winlator.cmod.steamgrid.SteamGridGridsResponse;
 import com.winlator.cmod.steamgrid.SteamGridGridsResponseDeserializer;
@@ -390,7 +394,9 @@ public class ShortcutsFragment extends Fragment {
                 }
                 holder.imageView.setLayoutParams(lp);
             } else {
-                if (item.icon != null) holder.imageView.setImageBitmap(item.icon);
+                Bitmap displayIcon = item.getDisplayIcon();
+                if (displayIcon != null) holder.imageView.setImageBitmap(displayIcon);
+                else holder.imageView.setImageResource(R.drawable.icon_shortcut);
             }
 
             holder.title.setText(item.name);
@@ -430,25 +436,51 @@ public class ShortcutsFragment extends Fragment {
 
     private void bindGridCoverArt(@NonNull ShortcutsAdapter.ViewHolder holder, @NonNull Shortcut shortcut) {
         final boolean landscape = false;
-        Bitmap coverArt = null;
+
         if (shortcut.getCustomCoverArtPath() != null && !shortcut.getCustomCoverArtPath().isEmpty()) {
-            coverArt = BitmapFactory.decodeFile(shortcut.getCustomCoverArtPath());
-        }
-
-        if (coverArt == null) {
-            coverArt = loadCachedCoverArt(shortcut.name, landscape);
-        }
-
-        if (coverArt != null) {
-            holder.imageView.setImageBitmap(coverArt);
-        } else {
-            if (shortcut.icon != null) {
-                holder.imageView.setImageBitmap(shortcut.icon);
-            } else {
-                holder.imageView.setImageResource(R.drawable.cover_art_placeholder);
+            File customFile = new File(shortcut.getCustomCoverArtPath());
+            if (customFile.exists()) {
+                String ext = urlToExtension(customFile.getName());
+                if (isAnimatedFile(customFile, ext)) {
+                    loadAnimatedCover(holder.imageView, customFile);
+                    return;
+                }
+                Bitmap coverArt = BitmapFactory.decodeFile(customFile.getAbsolutePath());
+                if (coverArt != null) {
+                    holder.imageView.setImageBitmap(coverArt);
+                    return;
+                }
             }
-            fetchSteamCoverArt(holder, shortcut, landscape);
         }
+
+        File cachedFile = getCachedCoverFile(shortcut.name, landscape);
+        if (cachedFile != null) {
+            if (isCachedCoverAnimated(shortcut.name, landscape)) {
+                loadAnimatedCover(holder.imageView, cachedFile);
+                return;
+            }
+            Bitmap coverArt = BitmapFactory.decodeFile(cachedFile.getAbsolutePath());
+            if (coverArt != null) {
+                holder.imageView.setImageBitmap(coverArt);
+                fetchSteamGridCoverArt(holder, shortcut, landscape);
+                return;
+            }
+        }
+
+        if (shortcut.icon != null) {
+            holder.imageView.setImageBitmap(shortcut.icon);
+        } else {
+            holder.imageView.setImageResource(R.drawable.cover_art_placeholder);
+        }
+        fetchSteamGridCoverArt(holder, shortcut, landscape);
+    }
+
+    private static boolean isAnimatedFile(File file, String ext) {
+        if (file == null || !file.exists()) return false;
+        if (".gif".equalsIgnoreCase(ext)) return true;
+        if (".apng".equalsIgnoreCase(ext)) return true;
+        if (".webp".equalsIgnoreCase(ext)) return true;
+        return false;
     }
 
     private void fetchSteamCoverArt(@NonNull ShortcutsAdapter.ViewHolder holder, @NonNull Shortcut shortcut, boolean landscape) {
@@ -538,7 +570,8 @@ public class ShortcutsFragment extends Fragment {
                 .build();
 
         SteamGridDBApi api = retrofit.create(SteamGridDBApi.class);
-        Call<SteamGridSearchResponse> call = api.searchGame("Bearer " + STEAMGRID_API_KEY, shortcut.name);
+        String searchName = normalizeSteamGridSearchName(shortcut.name);
+        Call<SteamGridSearchResponse> call = api.searchGame("Bearer " + STEAMGRID_API_KEY, searchName);
 
         call.enqueue(new retrofit2.Callback<SteamGridSearchResponse>() {
             @Override
@@ -569,6 +602,16 @@ public class ShortcutsFragment extends Fragment {
         });
     }
 
+    private static String normalizeSteamGridSearchName(@NonNull String name) {
+        String normalized = name.trim();
+        String lower = normalized.toLowerCase(Locale.US).replaceAll("[^a-z0-9]+", " ").trim();
+        if (lower.equals("gta 4") || lower.equals("gta iv")) return "Grand Theft Auto IV";
+        if (lower.equals("gta 5") || lower.equals("gta v")) return "Grand Theft Auto V";
+        if (lower.equals("gta sa")) return "Grand Theft Auto San Andreas";
+        if (lower.equals("gta vc")) return "Grand Theft Auto Vice City";
+        return normalized;
+    }
+
     private void fetchGridsForGame(@NonNull ShortcutsAdapter.ViewHolder holder, int gameId, @NonNull Shortcut shortcut, boolean landscape) {
         Gson gson = new GsonBuilder()
                 .registerTypeAdapter(SteamGridGridsResponse.class, new SteamGridGridsResponseDeserializer())
@@ -583,11 +626,82 @@ public class ShortcutsFragment extends Fragment {
 
         SteamGridDBApi api = retrofit.create(SteamGridDBApi.class);
 
-        // Landscape: wide capsule (920x430 / 460x215); Portrait: 600x900 library capsule
         final String dimensions = landscape ? "920x430,460x215" : "600x900";
+        final String auth = "Bearer " + STEAMGRID_API_KEY;
 
+        Call<SteamGridGridsResponse> animatedCall = api.getAnimatedGridsByGameId(
+                auth, gameId, "alternate,blurred,white_logo,material,no_logo", dimensions, "animated", "image/webp", "false", "false");
+
+        animatedCall.enqueue(new retrofit2.Callback<SteamGridGridsResponse>() {
+            @Override
+            public void onResponse(Call<SteamGridGridsResponse> call, Response<SteamGridGridsResponse> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null
+                        && response.body().data != null && !response.body().data.isEmpty()) {
+                    SteamGridGridsResponse.Grid best = null;
+                    SteamGridGridsResponse.Grid apngFallback = null;
+                    for (SteamGridGridsResponse.Grid g : response.body().data) {
+                        String mime = g.mime != null ? g.mime.toLowerCase(Locale.US) : "";
+                        String ext = g.url != null ? urlToExtension(g.url) : "";
+                        if (mime.contains("webp") || ".webp".equals(ext) || mime.contains("gif") || ".gif".equals(ext)) {
+                            best = g;
+                            break;
+                        }
+                        if (apngFallback == null && (mime.contains("png") || ".png".equals(ext))) apngFallback = g;
+                    }
+                    if (best == null) best = apngFallback;
+                    if (best != null && best.url != null && !best.url.isEmpty()) {
+                        Log.i("CoverArt", "Animated cover found name=" + shortcut.name + " mime=" + best.mime + " url=" + best.url);
+                        downloadCoverArt(holder, best.url, shortcut, landscape, true, best.mime);
+                        return;
+                    }
+                }
+                Log.i("CoverArt", "No WebP animated cover for name=" + shortcut.name + ", trying any animated cover");
+                fetchAnyAnimatedGridsFallback(holder, gameId, shortcut, landscape, api, dimensions, auth);
+            }
+
+            @Override
+            public void onFailure(Call<SteamGridGridsResponse> call, Throwable t) {
+                if (!isAdded()) return;
+                fetchAnyAnimatedGridsFallback(holder, gameId, shortcut, landscape, api, dimensions, auth);
+            }
+        });
+    }
+
+    private void fetchAnyAnimatedGridsFallback(@NonNull ShortcutsAdapter.ViewHolder holder, int gameId,
+                                               @NonNull Shortcut shortcut, boolean landscape,
+                                               SteamGridDBApi api, String dimensions, String auth) {
+        Call<SteamGridGridsResponse> anyAnimatedCall = api.getAnimatedGridsByGameId(
+                auth, gameId, "alternate,blurred,white_logo,material,no_logo", dimensions, "animated", null, "false", "false");
+
+        anyAnimatedCall.enqueue(new retrofit2.Callback<SteamGridGridsResponse>() {
+            @Override
+            public void onResponse(Call<SteamGridGridsResponse> call, Response<SteamGridGridsResponse> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null
+                        && response.body().data != null && !response.body().data.isEmpty()) {
+                    SteamGridGridsResponse.Grid grid = response.body().data.get(0);
+                    if (grid.url != null && !grid.url.isEmpty()) {
+                        downloadCoverArt(holder, grid.url, shortcut, landscape, true, grid.mime);
+                        return;
+                    }
+                }
+                fetchStaticGridsFallback(holder, gameId, shortcut, landscape, api, dimensions, auth);
+            }
+
+            @Override
+            public void onFailure(Call<SteamGridGridsResponse> call, Throwable t) {
+                if (!isAdded()) return;
+                fetchStaticGridsFallback(holder, gameId, shortcut, landscape, api, dimensions, auth);
+            }
+        });
+    }
+
+    private void fetchStaticGridsFallback(@NonNull ShortcutsAdapter.ViewHolder holder, int gameId,
+                                           @NonNull Shortcut shortcut, boolean landscape,
+                                           SteamGridDBApi api, String dimensions, String auth) {
         Call<SteamGridGridsResponse> gridsCall = api.getGridsByGameId(
-                "Bearer " + STEAMGRID_API_KEY,
+                auth,
                 gameId,
                 "alternate",
                 dimensions,
@@ -829,10 +943,18 @@ public class ShortcutsFragment extends Fragment {
     }
 
     private void downloadCoverArt(@NonNull ShortcutsAdapter.ViewHolder holder, @NonNull String url, @NonNull Shortcut shortcut, boolean landscape) {
+        downloadCoverArt(holder, url, shortcut, landscape, false, null);
+    }
+
+    private void downloadCoverArt(@NonNull ShortcutsAdapter.ViewHolder holder, @NonNull String url, @NonNull Shortcut shortcut, boolean landscape, boolean isAnimated) {
+        downloadCoverArt(holder, url, shortcut, landscape, isAnimated, null);
+    }
+
+    private void downloadCoverArt(@NonNull ShortcutsAdapter.ViewHolder holder, @NonNull String url, @NonNull Shortcut shortcut, boolean landscape, boolean isAnimated, String mime) {
         final String expectedKey = shortcut.name;
         COVER_ART_EXECUTOR.execute(() -> {
             try {
-                Log.d("CoverArt", "Downloading cover name=" + shortcut.name + " url=" + url + " landscape=" + landscape);
+                Log.d("CoverArt", "Downloading cover name=" + shortcut.name + " url=" + url + " landscape=" + landscape + " animated=" + isAnimated);
                 final boolean isSteamGridCdn = url.contains("steamgriddb.com");
                 Request request = new Request.Builder()
                         .url(url)
@@ -869,22 +991,45 @@ public class ShortcutsFragment extends Fragment {
                         }
                         return;
                     }
-                    Bitmap coverArt = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                    if (coverArt == null) {
-                        if (isSteamGridCdn) {
-                            markSteamGridFailed(shortcut.name);
-                            fetchSteamHeaderFallback(holder, shortcut, landscape);
+
+                    String ext = urlToExtension(url);
+                    if (mime != null && mime.contains("webp")) ext = ".webp";
+                    boolean storeAsFile = isAnimated || isAnimatedBytes(bytes, ext);
+
+                    if (storeAsFile) {
+                        File cacheDir = new File(requireContext().getFilesDir(), "coverArtCache");
+                        if (!cacheDir.exists()) cacheDir.mkdirs();
+                        String animExt = detectAnimExtension(bytes, url, mime);
+                        String animFileName = landscape ? (shortcut.name + "_l" + animExt) : (shortcut.name + animExt);
+                        File animFile = new File(cacheDir, animFileName);
+                        try (FileOutputStream fos = new FileOutputStream(animFile)) {
+                            fos.write(bytes);
+                            fos.flush();
                         }
-                        return;
+
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() -> {
+                            if (!expectedKey.equals(holder.boundKey)) return;
+                            loadAnimatedCover(holder.imageView, animFile);
+                        });
+                    } else {
+                        Bitmap coverArt = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                        if (coverArt == null) {
+                            if (isSteamGridCdn) {
+                                markSteamGridFailed(shortcut.name);
+                                fetchSteamHeaderFallback(holder, shortcut, landscape);
+                            }
+                            return;
+                        }
+
+                        cacheCoverArt(coverArt, shortcut.name, landscape);
+
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() -> {
+                            if (!expectedKey.equals(holder.boundKey)) return;
+                            holder.imageView.setImageBitmap(coverArt);
+                        });
                     }
-
-                    cacheCoverArt(coverArt, shortcut.name, landscape);
-
-                    if (!isAdded()) return;
-                    requireActivity().runOnUiThread(() -> {
-                        if (!expectedKey.equals(holder.boundKey)) return;
-                        holder.imageView.setImageBitmap(coverArt);
-                    });
                 }
             } catch (Exception e) {
                 Log.w("CoverArt", "Download failed name=" + shortcut.name + " url=" + url, e);
@@ -897,8 +1042,110 @@ public class ShortcutsFragment extends Fragment {
     }
 
     private static String coverCacheFileName(@NonNull String shortcutName, boolean landscape) {
-        // Portrait keeps legacy filename for backward compat with existing caches.
         return landscape ? (shortcutName + "_l.png") : (shortcutName + ".png");
+    }
+
+    private static final String[] ANIMATED_EXTENSIONS = {".gif", ".webp", ".apng"};
+
+    private File getCachedCoverFile(@NonNull String shortcutName, boolean landscape) {
+        File cacheDir = new File(requireContext().getFilesDir(), "coverArtCache");
+        for (String ext : ANIMATED_EXTENSIONS) {
+            String name = landscape ? (shortcutName + "_l" + ext) : (shortcutName + ext);
+            File f = new File(cacheDir, name);
+            if (f.exists()) return f;
+        }
+        File staticFile = new File(cacheDir, coverCacheFileName(shortcutName, landscape));
+        if (staticFile.exists()) return staticFile;
+        return null;
+    }
+
+    private boolean isCachedCoverAnimated(@NonNull String shortcutName, boolean landscape) {
+        File cacheDir = new File(requireContext().getFilesDir(), "coverArtCache");
+        for (String ext : ANIMATED_EXTENSIONS) {
+            String name = landscape ? (shortcutName + "_l" + ext) : (shortcutName + ext);
+            if (new File(cacheDir, name).exists()) return true;
+        }
+        return false;
+    }
+
+    private void loadCoverWithGlide(@NonNull ImageView imageView, @NonNull File file) {
+        Glide.with(this)
+                .load(file)
+                .centerCrop()
+                .into(imageView);
+    }
+
+    private void loadAnimatedCover(@NonNull ImageView imageView, @NonNull File file) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                ImageDecoder.Source source = ImageDecoder.createSource(file);
+                Drawable drawable = ImageDecoder.decodeDrawable(source, (decoder, info, src) -> decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE));
+                imageView.setImageDrawable(drawable);
+                if (drawable instanceof AnimatedImageDrawable) {
+                    ((AnimatedImageDrawable)drawable).start();
+                    Log.i("CoverArt", "Animated drawable started file=" + file.getName());
+                    return;
+                }
+                Log.w("CoverArt", "Decoded animated cover is static drawable file=" + file.getName());
+            } catch (Exception e) {
+                Log.w("CoverArt", "ImageDecoder failed for animated cover file=" + file.getName(), e);
+            }
+        }
+        loadCoverWithGlide(imageView, file);
+    }
+
+    private static boolean isAnimatedBytes(byte[] bytes, String ext) {
+        if (".gif".equalsIgnoreCase(ext)) return true;
+        if (".png".equalsIgnoreCase(ext)) {
+            if (bytes.length > 8) {
+                int offset = 8;
+                while (offset + 4 + 4 <= bytes.length) {
+                    int chunkLen = ((bytes[offset] & 0xFF) << 24) | ((bytes[offset + 1] & 0xFF) << 16)
+                            | ((bytes[offset + 2] & 0xFF) << 8) | (bytes[offset + 3] & 0xFF);
+                    String chunkType = new String(bytes, offset + 4, 4, StandardCharsets.US_ASCII);
+                    if ("acTL".equals(chunkType)) return true;
+                    if ("IDAT".equals(chunkType)) break;
+                    offset += 4 + 4 + chunkLen + 4;
+                }
+            }
+        }
+        if (".webp".equalsIgnoreCase(ext)) {
+            if (bytes.length >= 12) {
+                int riffSize = ((bytes[7] & 0xFF) << 24) | ((bytes[6] & 0xFF) << 16)
+                        | ((bytes[5] & 0xFF) << 8) | (bytes[4] & 0xFF);
+                int offset = 12;
+                while (offset + 8 <= bytes.length) {
+                    String chunk = new String(bytes, offset, 4);
+                    int chunkSize = ((bytes[offset + 7] & 0xFF) << 24) | ((bytes[offset + 6] & 0xFF) << 16)
+                            | ((bytes[offset + 5] & 0xFF) << 8) | (bytes[offset + 4] & 0xFF);
+                    if ("ANIM".equals(chunk)) return true;
+                    offset += 8 + chunkSize + (chunkSize & 1);
+                    if (offset > riffSize + 8) break;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static String urlToExtension(String url) {
+        String path = url.split("[?#]", 2)[0];
+        int dot = path.lastIndexOf('.');
+        if (dot >= 0 && dot < path.length() - 1) {
+            String ext = path.substring(dot).toLowerCase();
+            if (ext.equals(".gif") || ext.equals(".webp") || ext.equals(".png") || ext.equals(".jpg") || ext.equals(".jpeg"))
+                return ext;
+        }
+        return ".png";
+    }
+
+    private static String detectAnimExtension(byte[] bytes, String url, String mime) {
+        if (mime != null && mime.contains("webp")) return ".webp";
+        String urlExt = urlToExtension(url);
+        if (".gif".equals(urlExt)) return ".gif";
+        if (".webp".equals(urlExt) && isAnimatedBytes(bytes, urlExt)) return ".webp";
+        if (".png".equals(urlExt) && isAnimatedBytes(bytes, urlExt)) return ".png";
+        if (isAnimatedBytes(bytes, urlExt)) return ".gif";
+        return ".png";
     }
 
     private void cacheCoverArt(@NonNull Bitmap coverArt, @NonNull String shortcutName, boolean landscape) {
@@ -1184,7 +1431,13 @@ public class ShortcutsFragment extends Fragment {
         ShortcutManager shortcutManager = getSystemService(requireContext(), ShortcutManager.class);
         if (shortcutManager != null && shortcutManager.isRequestPinShortcutSupported())
             shortcutManager.requestPinShortcut(buildScreenShortCut(shortcut.name, shortcut.name, shortcut.container.id,
-                    shortcut.file.getPath(), Icon.createWithBitmap(shortcut.icon), shortcut.getExtra("uuid")), null);
+                    shortcut.file.getPath(), createShortcutIcon(requireContext(), shortcut), shortcut.getExtra("uuid")), null);
+    }
+
+    public static Icon createShortcutIcon(Context context, Shortcut shortcut) {
+        Bitmap displayIcon = shortcut.getDisplayIcon();
+        if (displayIcon == null) displayIcon = BitmapFactory.decodeResource(context.getResources(), R.drawable.icon_shortcut);
+        return Icon.createWithBitmap(displayIcon);
     }
 
     public static void disableShortcutOnScreen(Context context, Shortcut shortcut) {
@@ -1196,12 +1449,31 @@ public class ShortcutsFragment extends Fragment {
     }
 
     public void updateShortcutOnScreen(String shortLabel, String longLabel, int containerId, String shortcutPath, Icon icon, String uuid) {
-        ShortcutManager shortcutManager = getSystemService(requireContext(), ShortcutManager.class);
+        updateShortcutOnScreen(requireContext(), shortLabel, longLabel, containerId, shortcutPath, icon, uuid);
+    }
+
+    public static void updateShortcutOnScreen(Context context, Shortcut shortcut) {
+        updateShortcutOnScreen(context, shortcut.name, shortcut.name, shortcut.container.id, shortcut.file.getPath(),
+                createShortcutIcon(context, shortcut), shortcut.getExtra("uuid"));
+    }
+
+    private static void updateShortcutOnScreen(Context context, String shortLabel, String longLabel, int containerId, String shortcutPath, Icon icon, String uuid) {
         try {
+            ShortcutManager shortcutManager = getSystemService(context, ShortcutManager.class);
+            if (shortcutManager == null || uuid == null || uuid.isEmpty()) return;
             for (ShortcutInfo shortcutInfo : shortcutManager.getPinnedShortcuts()) {
                 if (shortcutInfo.getId().equals(uuid)) {
-                    shortcutManager.updateShortcuts(Collections.singletonList(
-                            buildScreenShortCut(shortLabel, longLabel, containerId, shortcutPath, icon, uuid)));
+                    Intent intent = new Intent(context, XServerDisplayActivity.class);
+                    intent.setAction(Intent.ACTION_VIEW);
+                    intent.putExtra("container_id", containerId);
+                    intent.putExtra("shortcut_path", shortcutPath);
+                    ShortcutInfo updatedShortcut = new ShortcutInfo.Builder(context, uuid)
+                            .setShortLabel(shortLabel)
+                            .setLongLabel(longLabel)
+                            .setIcon(icon)
+                            .setIntent(intent)
+                            .build();
+                    shortcutManager.updateShortcuts(Collections.singletonList(updatedShortcut));
                     break;
                 }
             }

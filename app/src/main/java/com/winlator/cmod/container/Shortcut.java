@@ -32,8 +32,11 @@ import java.nio.file.Files;
         private final JSONObject extraData = new JSONObject();
         private Bitmap coverArt; // Changed to private to use getter method
         private String customCoverArtPath; // Path to custom cover art
+        private Bitmap customIcon;
+        private String customIconPath;
 
         private static final String COVER_ART_DIR = "app_data/cover_arts/"; // Removed leading "/" to keep it relative
+        private static final String ICON_DIR = "app_data/custom_icons/";
 
         public Shortcut(Container container, File file) {
             this.container = container;
@@ -96,9 +99,11 @@ import java.nio.file.Files;
             this.wmClass = wmClass;
 
             this.customCoverArtPath = getExtra("customCoverArtPath");
+            this.customIconPath = getExtra("customIconPath");
 
             // Load cover art if available
             loadCoverArt();
+            loadCustomIcon();
 
             Container.checkObsoleteOrMissingProperties(extraData);
         }
@@ -115,6 +120,15 @@ import java.nio.file.Files;
             File defaultCoverArtFile = new File(new File(container.getRootDir(), COVER_ART_DIR), this.name + ".png");
             if (defaultCoverArtFile.isFile()) {
                 this.coverArt = BitmapFactory.decodeFile(defaultCoverArtFile.getPath());
+            }
+        }
+
+        private void loadCustomIcon() {
+            if (customIconPath != null && !customIconPath.isEmpty()) {
+                File customIconFile = new File(customIconPath);
+                if (customIconFile.isFile()) {
+                    this.customIcon = BitmapFactory.decodeFile(customIconFile.getPath());
+                }
             }
         }
 
@@ -136,6 +150,47 @@ import java.nio.file.Files;
             putExtra("customCoverArtPath", customCoverArtPath); // Save the custom cover art path to extra data
             saveData(); // Save immediately to ensure persistence
             Log.d("Shortcut", "Set and saved custom cover art path: " + customCoverArtPath); // Add a log for debugging
+        }
+
+        public Bitmap getCustomIcon() {
+            return customIcon;
+        }
+
+        public Bitmap getDisplayIcon() {
+            return customIcon != null ? customIcon : icon;
+        }
+
+        public void saveCustomIcon(Bitmap iconBitmap) {
+            try {
+                File iconDir = new File(container.getRootDir(), ICON_DIR);
+                if (!iconDir.exists() && !iconDir.mkdirs()) {
+                    Log.e("Shortcut", "Failed to create custom icon directory: " + iconDir.getAbsolutePath());
+                    return;
+                }
+
+                File iconFile = new File(iconDir, this.name + ".png");
+                if (FileUtils.saveBitmapToFile(iconBitmap, iconFile)) {
+                    this.customIcon = iconBitmap;
+                    this.customIconPath = iconFile.getPath();
+                    putExtra("customIconPath", customIconPath);
+                    saveData();
+                }
+            } catch (Exception e) {
+                Log.e("Shortcut", "Failed to save custom icon", e);
+            }
+        }
+
+        public void removeCustomIcon() {
+            if (customIconPath != null && !customIconPath.isEmpty()) {
+                File customIconFile = new File(customIconPath);
+                if (customIconFile.exists() && !customIconFile.delete()) {
+                    Log.e("Shortcut", "Failed to delete custom icon file: " + customIconPath);
+                }
+            }
+            customIcon = null;
+            customIconPath = null;
+            putExtra("customIconPath", null);
+            saveData();
         }
 
         public String getExtra(String name) {
@@ -284,6 +339,15 @@ import java.nio.file.Files;
                 if (this.iconFile != null && this.iconFile.isFile()) {
                     File newIconFile = new File(newContainer.getIconsDir(64), this.iconFile.getName());
                     FileUtils.copy(this.iconFile, newIconFile);
+                }
+
+                if (this.customIconPath != null && !this.customIconPath.isEmpty()) {
+                    File customIconFile = new File(this.customIconPath);
+                    if (customIconFile.isFile()) {
+                        File newCustomIconDir = new File(newContainer.getRootDir(), ICON_DIR);
+                        if (!newCustomIconDir.exists()) newCustomIconDir.mkdirs();
+                        FileUtils.copy(customIconFile, new File(newCustomIconDir, this.name + ".png"));
+                    }
                 }
 
                 return true;

@@ -5,8 +5,11 @@ package com.winlator.cmod.contentdialog;
 import android.app.AlertDialog;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -106,6 +109,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
     private final ArrayList<View> steamHostSections = new ArrayList<>();
     private String[] steamHostSectionTitles = new String[0];
     private LinearLayout generalSection;
+    public static final int REQUEST_CODE_SELECT_CUSTOM_ICON = 10001;
 
 
     public ShortcutSettingsDialog(ShortcutsFragment fragment, Shortcut shortcut) {
@@ -183,6 +187,29 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
         final EditText etName = findViewById(R.id.ETName);
         etName.setText(shortcut.name);
+
+        final ImageView ivCustomIcon = findViewById(R.id.IVCustomIcon);
+        final Button btSelectCustomIcon = findViewById(R.id.BTSelectCustomIcon);
+        final Button btRemoveCustomIcon = findViewById(R.id.BTRemoveCustomIcon);
+        Bitmap displayIcon = shortcut.getDisplayIcon();
+        if (displayIcon != null) ivCustomIcon.setImageBitmap(displayIcon);
+        else ivCustomIcon.setImageResource(R.drawable.icon_shortcut);
+        btRemoveCustomIcon.setVisibility(shortcut.getCustomIcon() != null ? View.VISIBLE : View.GONE);
+        btSelectCustomIcon.setOnClickListener((v) -> {
+            if (context instanceof Activity) {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("image/*");
+                ((Activity)context).startActivityForResult(intent, REQUEST_CODE_SELECT_CUSTOM_ICON);
+            }
+        });
+        btRemoveCustomIcon.setOnClickListener((v) -> {
+            shortcut.removeCustomIcon();
+            Bitmap fallbackIcon = shortcut.getDisplayIcon();
+            if (fallbackIcon != null) ivCustomIcon.setImageBitmap(fallbackIcon);
+            else ivCustomIcon.setImageResource(R.drawable.icon_shortcut);
+            btRemoveCustomIcon.setVisibility(View.GONE);
+            ShortcutsFragment.updateShortcutOnScreen(context, shortcut);
+        });
 
         final EditText etExecArgs = findViewById(R.id.ETExecArgs);
         etExecArgs.setText(shortcut.getExtra("execArgs"));
@@ -1699,7 +1726,25 @@ public class ShortcutSettingsDialog extends ContentDialog {
         if (fragment != null) {
             fragment.loadShortcutsList();
             fragment.updateShortcutOnScreen(newName, newName, shortcut.container.id, newDesktopFile.getAbsolutePath(),
-                    Icon.createWithBitmap(shortcut.icon), shortcut.getExtra("uuid"));
+                    ShortcutsFragment.createShortcutIcon(context, shortcut), shortcut.getExtra("uuid"));
+        }
+    }
+
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode != REQUEST_CODE_SELECT_CUSTOM_ICON || resultCode != Activity.RESULT_OK || data == null) return;
+        Uri selectedImageUri = data.getData();
+        if (selectedImageUri == null) return;
+        try (InputStream inputStream = context.getContentResolver().openInputStream(selectedImageUri)) {
+            Bitmap customIcon = BitmapFactory.decodeStream(inputStream);
+            if (customIcon == null) return;
+            shortcut.saveCustomIcon(customIcon);
+            ImageView ivCustomIcon = findViewById(R.id.IVCustomIcon);
+            Button btRemoveCustomIcon = findViewById(R.id.BTRemoveCustomIcon);
+            if (ivCustomIcon != null) ivCustomIcon.setImageBitmap(customIcon);
+            if (btRemoveCustomIcon != null) btRemoveCustomIcon.setVisibility(View.VISIBLE);
+            ShortcutsFragment.updateShortcutOnScreen(context, shortcut);
+        } catch (Exception e) {
+            Log.e("ShortcutSettingsDialog", "Failed to load custom icon", e);
         }
     }
 

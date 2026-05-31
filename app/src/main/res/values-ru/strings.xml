@@ -613,6 +613,9 @@
     <string name="mtrl_timepicker_cancel">Отмена</string>
     <string name="mtrl_timepicker_confirm">ОК</string>
     <string name="name">Имя</string>
+    <string name="custom_game_icon">Своя иконка игры</string>
+    <string name="select_icon">Выбрать иконку</string>
+    <string name="remove_icon">Удалить</string>
     <string name="name_required">Имя обязательно</string>
     <string name="nav_app_bar_navigate_up_description">Перейти вверх</string>
     <string name="nav_app_bar_open_drawer_description">Открыть панель навигации</string>
