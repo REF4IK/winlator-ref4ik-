@@ -1431,6 +1431,34 @@
     <string name="fps_short_cpu_temp">Темп. CPU</string>
     <string name="fps_short_batt_temp">Темп. бат.</string>
     <string name="fps_short_power">Питание</string>
+
+    <!-- Game Detail / Steam-style page -->
+    <string name="about_game">Об игре</string>
+    <string name="screenshots">Скриншоты</string>
+    <string name="screenshot">Скриншот</string>
+    <string name="play">Играть</string>
+    <string name="back">Назад</string>
+    <string name="game_cover">Обложка игры</string>
+    <string name="loading_metadata">Загрузка информации об игре…</string>
+    <string name="metadata_unavailable">Информация недоступна</string>
+    <string name="trailer_unavailable">Трейлер недоступен</string>
+
+    <!-- Shortcut popup menu -->
+    <string name="publisher_label">Издатель: %s</string>
+    <string name="menu_settings">Настройки</string>
+    <string name="menu_add_to_home_screen">На рабочий стол</string>
+    <string name="menu_remove">Удалить</string>
+    <string name="menu_export">Экспорт для Frontend</string>
+    <string name="menu_clone">Клонировать в другой контейнер</string>
+    <string name="menu_properties">Свойства</string>
+
+    <!-- Import Game Dialog -->
+    <string name="description_optional">Описание (необязательно)</string>
+    <string name="path_to_launch_file">Путь к файлу запуска</string>
+    <string name="change">Изменить</string>
+    <string name="import_game_confirm">Импортировать</string>
+    <string name="import_game_cancel">Отмена</string>
+    <string name="game_import_change_hint">Вы можете изменить путь, если файл игры находится в другом месте</string>
 </resources>
 
 

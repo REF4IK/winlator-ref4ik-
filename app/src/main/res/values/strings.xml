@@ -1436,6 +1436,16 @@
         <item quantity="one">%d file</item>
         <item quantity="other">%d files</item>
     </plurals>
+
+    <!-- Import Game Dialog -->
+    <string name="description_optional">Description (optional)</string>
+    <string name="path_to_launch_file">Path to launch file</string>
+    <string name="change">Change</string>
+    <string name="import_game_confirm">Import</string>
+    <string name="import_game_cancel">Cancel</string>
+    <string name="screenshot">Screenshot</string>
+    <string name="game_cover">Game cover</string>
+    <string name="game_import_change_hint">You can change the path if the game file is stored in a different location</string>
 </resources>
 
 

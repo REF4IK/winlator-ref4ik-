@@ -126,6 +126,12 @@
             android:exported="false" />
 
         <activity
+            android:name="com.winlator.cmod.GameImportConfirmActivity"
+            android:theme="@style/AppTheme"
+            android:screenOrientation="sensor"
+            android:exported="false" />
+
+        <activity
             android:name="com.winlator.cmod.ShortcutSettingsActivity"
             android:theme="@style/AppTheme"
             android:screenOrientation="sensor"

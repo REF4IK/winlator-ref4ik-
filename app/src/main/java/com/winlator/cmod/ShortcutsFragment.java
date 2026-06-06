@@ -59,7 +59,9 @@ import com.winlator.cmod.core.Callback;
 import com.winlator.cmod.core.DohOkHttp;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.win32.PEParser;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.textfield.TextInputEditText;
 import com.bumptech.glide.Glide;
 import com.winlator.cmod.steamgrid.SteamGridDBApi;
 import com.winlator.cmod.steamgrid.SteamGridGridsResponse;
@@ -107,6 +109,7 @@ public class ShortcutsFragment extends Fragment {
     private static final int REQUEST_CODE_IMPORT_BOX64_PRESET = 7878;
     private static final int REQUEST_CODE_IMPORT_FEXCORE_PRESET = 7879;
     private static final int REQUEST_CODE_IMPORT_GAME = 7880;
+    private static final int REQUEST_CODE_CHANGE_EXE_PATH = 7883;
     private static final int REQUEST_CODE_SHORTCUT_SETTINGS = 7881;
 
     private static final String STEAMGRID_BASE_URL = "https://www.steamgriddb.com/api/v2/";
@@ -1492,6 +1495,31 @@ public class ShortcutsFragment extends Fragment {
             return;
         }
 
+        if (requestCode == REQUEST_CODE_CHANGE_EXE_PATH && resultCode == Activity.RESULT_OK && data != null) {
+            String filePath = data.getStringExtra(GameImportConfirmActivity.EXTRA_FILE_PATH);
+            String finalName = data.getStringExtra(GameImportConfirmActivity.EXTRA_RESULT_NAME);
+            int containerId = data.getIntExtra(GameImportConfirmActivity.EXTRA_CONTAINER_ID, -1);
+            if (filePath != null && finalName != null && containerId >= 0) {
+                ContainerManager cm = new ContainerManager(getContext());
+                Container targetContainer = cm.getContainerById(containerId);
+                if (targetContainer != null) {
+                    File exeFile = new File(filePath);
+                    Bitmap exeIcon = null;
+                    try {
+                        exeIcon = PEParser.extractIcon(exeFile);
+                    } catch (Exception ignored) {}
+                    String driveLetter = detectDriveLetter(exeFile.getAbsolutePath());
+                    if (driveLetter != null) {
+                        String exePath = buildExePath(exeFile.getAbsolutePath(), driveLetter);
+                        createShortcutFromImport(exeFile, targetContainer, driveLetter, exePath, finalName, exeIcon);
+                    } else {
+                        Toast.makeText(getContext(), "Wrong path! Can't detect drive!", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+            return;
+        }
+
         if (requestCode == REQUEST_CODE_SHORTCUT_SETTINGS) {
             // Settings may have renamed/edited the shortcut -- refresh the list either way.
             loadShortcutsList();
@@ -1600,112 +1628,146 @@ public class ShortcutsFragment extends Fragment {
     }
 
     private void onFileSelectedForShortcut(File file, Container container) {
+        // Open the full-screen confirmation activity (styled like the picker)
+        Intent intent = new Intent(getContext(), GameImportConfirmActivity.class);
+        intent.putExtra(GameImportConfirmActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+        intent.putExtra(GameImportConfirmActivity.EXTRA_CONTAINER_ID, container.id);
+        startActivityForResult(intent, REQUEST_CODE_CHANGE_EXE_PATH);
+    }
+
+    private void showImportDialog(File file, Container container, Bitmap exeIcon) {
+        Context context = getContext();
+        if (context == null) return;
+
+        String absolutePath = file.getAbsolutePath();
+        String fileName = file.getName();
+        String fileNameWithoutExt = fileName.substring(0, fileName.length() - 4);
+
+        // Determine drive letter
+        String driveLetter = detectDriveLetter(absolutePath);
+        if (driveLetter == null) {
+            Toast.makeText(context, "Wrong path! Can't detect drive!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String exePath = buildExePath(absolutePath, driveLetter);
+
+        // Build the dialog
+        ContentDialog dialog = new ContentDialog(context, R.layout.import_game_dialog);
+        dialog.setTitle(context.getString(R.string.game_import_title));
+
+        ImageView iconView = (ImageView) dialog.findViewById(R.id.IVImportIcon);
+        if (exeIcon != null) {
+            iconView.setImageBitmap(exeIcon);
+        } else {
+            iconView.setImageResource(R.drawable.icon_shortcut);
+        }
+
+        TextInputEditText nameEdit = (TextInputEditText) dialog.findViewById(R.id.ETImportName);
+        nameEdit.setText(fileNameWithoutExt);
+
+        TextInputEditText descEdit = (TextInputEditText) dialog.findViewById(R.id.ETImportDescription);
+
+        TextView pathView = (TextView) dialog.findViewById(R.id.TVImportExePath);
+        pathView.setText(exePath);
+
+        MaterialButton changePathBtn = (MaterialButton) dialog.findViewById(R.id.BTChangeExePath);
+        // The "Change" button re-opens the GameImportPickerActivity (custom file browser)
+        changePathBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            shortcutContainer = container;
+            File currentDir = file.getParentFile();
+            Intent intent = new Intent(getContext(), GameImportPickerActivity.class);
+            intent.putExtra(GameImportPickerActivity.EXTRA_INITIAL_DIR, currentDir.getAbsolutePath());
+            startActivityForResult(intent, REQUEST_CODE_CHANGE_EXE_PATH);
+        });
+
+        dialog.onConfirmCallback = () -> {
+            String finalName = nameEdit.getText().toString().trim();
+            if (finalName.isEmpty()) finalName = fileNameWithoutExt;
+            createShortcutFromImport(file, container, driveLetter, exePath, finalName, exeIcon);
+        };
+
+        dialog.show();
+    }
+
+    private String detectDriveLetter(String absolutePath) {
+        String relativePath = absolutePath.toLowerCase();
+        String externalStoragePath = Environment.getExternalStorageDirectory().getAbsolutePath().toLowerCase();
+
+        if (relativePath.contains(externalStoragePath)) {
+            return "D:";
+        } else if (relativePath.contains("/imagefs/")) {
+            return "Z:";
+        } else if (relativePath.contains("/.wine/drive_c/")) {
+            return "C:";
+        }
+        return null;
+    }
+
+    private String buildExePath(String absolutePath, String driveLetter) {
+        String pathWOutPrefix = absolutePath;
+
+        if (driveLetter.equals("D:")) {
+            pathWOutPrefix = pathWOutPrefix.replaceFirst(Environment.getExternalStorageDirectory().getAbsolutePath() + "/", "");
+            if (pathWOutPrefix.toLowerCase().startsWith("download/")) {
+                pathWOutPrefix = pathWOutPrefix.substring(9);
+            }
+        } else if (driveLetter.equals("Z:")) {
+            int imagefsIndex = pathWOutPrefix.indexOf("/imagefs/");
+            if (imagefsIndex != -1) {
+                pathWOutPrefix = pathWOutPrefix.substring(imagefsIndex + 9);
+            }
+        } else if (driveLetter.equals("C:")) {
+            int driveCIndex = pathWOutPrefix.indexOf("/.wine/drive_c/");
+            if (driveCIndex != -1) {
+                pathWOutPrefix = pathWOutPrefix.substring(driveCIndex + 15);
+            }
+        }
+        return pathWOutPrefix;
+    }
+
+    private void createShortcutFromImport(File file, Container container, String driveLetter, String exePath, String finalName, Bitmap exeIcon) {
         try {
-            String absolutePath = file.getAbsolutePath();
-            String fileName = file.getName();
-            String fileNameWithoutExt = fileName.substring(0, fileName.length() - 4);
-            
-            // Determine drive letter based on path
-            String driveLetter = null;
-            String relativePath = absolutePath.toLowerCase();
-            String externalStoragePath = Environment.getExternalStorageDirectory().getAbsolutePath().toLowerCase();
-            
-            // Check for external storage (internal storage - D: drive)
-            if (relativePath.contains(externalStoragePath)) {
-                driveLetter = "D:";
-            }
-            // Check for imagefs (Z: drive)
-            else if (relativePath.contains("/imagefs/")) {
-                driveLetter = "Z:";
-            }
-            // Check for container's drive_c (C: drive)
-            else if (relativePath.contains("/.wine/drive_c/")) {
-                driveLetter = "C:";
-            }
-            
-            if (driveLetter == null) {
-                Toast.makeText(getContext(), "Wrong path! Can't detect drive!", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            // Process path - remove prefix based on drive
-            String pathWOutPrefix = absolutePath;
-            
-            if (driveLetter.equals("D:")) {
-                // Remove external storage path
-                pathWOutPrefix = pathWOutPrefix.replaceFirst(Environment.getExternalStorageDirectory().getAbsolutePath() + "/", "");
-                // Remove Download/ or download/
-                if (pathWOutPrefix.toLowerCase().startsWith("download/")) {
-                    pathWOutPrefix = pathWOutPrefix.substring(9); // "download/".length()
-                }
-            }
-            else if (driveLetter.equals("Z:")) {
-                // Remove imagefs prefix
-                int imagefsIndex = pathWOutPrefix.indexOf("/imagefs/");
-                if (imagefsIndex != -1) {
-                    pathWOutPrefix = pathWOutPrefix.substring(imagefsIndex + 9); // "/imagefs/".length()
-                }
-            }
-            else if (driveLetter.equals("C:")) {
-                // Remove .wine/drive_c prefix
-                int driveCIndex = pathWOutPrefix.indexOf("/.wine/drive_c/");
-                if (driveCIndex != -1) {
-                    pathWOutPrefix = pathWOutPrefix.substring(driveCIndex + 15); // "/.wine/drive_c/".length()
-                }
-            }
-            
-            // For Exec line: use Unix path format (forward slashes)
-            String execPath = pathWOutPrefix;
-            
             // For Path line: remove the filename to get directory only
-            int lastSlash = pathWOutPrefix.lastIndexOf("/");
-            String pathDir = (lastSlash > 0) ? pathWOutPrefix.substring(0, lastSlash) : "";
-            
+            int lastSlash = exePath.lastIndexOf("/");
+            String pathDir = (lastSlash > 0) ? exePath.substring(0, lastSlash) : "";
+
             // Generate icon name in Wine format: number_filename.0
             int randomNum = (int)(Math.random() * 10000);
-            String iconName = randomNum + "_" + fileNameWithoutExt + ".0";
-            
-            // Extract icon from .exe file
-            try {
-                Bitmap exeIcon = PEParser.extractIcon(file);
-                if (exeIcon != null) {
-                    // Save icon to container's icons directory (64x64 is standard)
-                    File iconDir = container.getIconsDir(64);
-                    if (!iconDir.exists()) {
-                        iconDir.mkdirs();
-                    }
-                    File iconFile = new File(iconDir, iconName + ".png");
-                    FileUtils.saveBitmapToFile(exeIcon, iconFile);
-                    Log.d("ShortcutsFragment", "Icon extracted and saved: " + iconFile.getAbsolutePath());
-                } else {
-                    Log.d("ShortcutsFragment", "Could not extract icon from .exe file, using default");
-                }
-            } catch (Exception e) {
-                Log.e("ShortcutsFragment", "Error extracting icon", e);
+            String iconName = randomNum + "_" + finalName + ".0";
+
+            // Save icon
+            if (exeIcon != null) {
+                File iconDir = container.getIconsDir(64);
+                if (!iconDir.exists()) iconDir.mkdirs();
+                File iconFile = new File(iconDir, iconName + ".png");
+                FileUtils.saveBitmapToFile(exeIcon, iconFile);
+                Log.d("ShortcutsFragment", "Icon saved: " + iconFile.getAbsolutePath());
             }
-            
+
             String shortcutDesktop =
                 "[Desktop Entry]\n" +
-                "Name=" + fileNameWithoutExt + "\n" +
-                "Exec=env WINEPREFIX=\"/data/user/0/" + MainActivity.PACKAGE_NAME + "/files/imagefs/home/xuser/.wine/dosdevices/z:/home/xuser/.wine\" wine " + driveLetter + "/" + execPath + "\n" +
+                "Name=" + finalName + "\n" +
+                "Exec=env WINEPREFIX=\"/data/user/0/" + MainActivity.PACKAGE_NAME + "/files/imagefs/home/xuser/.wine/dosdevices/z:/home/xuser/.wine\" wine " + driveLetter + "/" + exePath + "\n" +
                 "Type=Application\n" +
                 "StartupNotify=true\n" +
                 "Path=/data/user/0/" + MainActivity.PACKAGE_NAME + "/files/imagefs/home/xuser/.wine/dosdevices/" + driveLetter.toLowerCase() + "/" + pathDir + "\n" +
                 "Icon=" + iconName + "\n" +
-                "StartupWMClass=" + fileName.toLowerCase();
-            
-            File desktopFile = new File(container.getDesktopDir(), fileNameWithoutExt + ".desktop");
-            
+                "StartupWMClass=" + finalName.toLowerCase();
+
+            File desktopFile = new File(container.getDesktopDir(), finalName + ".desktop");
+
             Log.d("ShortcutsFragment", "Desktop file path: " + desktopFile.getAbsolutePath());
             Log.d("ShortcutsFragment", "Desktop file content:\n" + shortcutDesktop);
-            
+
             try (FileWriter writer = new FileWriter(desktopFile)) {
                 writer.write(shortcutDesktop);
             }
-            
+
             loadShortcutsList();
             Toast.makeText(getContext(), "Shortcut created for Container: " + container.getName(), Toast.LENGTH_SHORT).show();
-            
+
         } catch (Exception e) {
             Log.e("ShortcutsFragment", "Error creating shortcut", e);
             Toast.makeText(getContext(), "Error occurred while adding shortcut!", Toast.LENGTH_SHORT).show();
