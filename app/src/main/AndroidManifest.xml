@@ -108,6 +108,18 @@
             android:exported="false" />
 
         <activity
+            android:name="com.winlator.cmod.IconManagerActivity"
+            android:theme="@style/AppTheme"
+            android:screenOrientation="sensor"
+            android:exported="false" />
+
+        <activity
+            android:name="com.winlator.cmod.IconPackDetailActivity"
+            android:theme="@style/AppTheme"
+            android:screenOrientation="sensor"
+            android:exported="false" />
+
+        <activity
             android:name="com.winlator.cmod.ExternalControllerBindingsActivity"
             android:theme="@style/AppTheme"
             android:screenOrientation="sensor"

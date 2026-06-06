@@ -173,6 +173,15 @@
             android:layout_marginTop="8dp"
             android:text="@string/gamepad_test" />
 
+        <Button
+            style="@style/ButtonNeutral"
+            android:id="@+id/BTIconManager"
+            android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:text="@string/icon_manager" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

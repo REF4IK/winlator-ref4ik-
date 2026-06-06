@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
+import com.winlator.cmod.inputcontrols.IconPackManager;
 import android.graphics.Rect;
 import android.graphics.RectF;
 
@@ -82,7 +83,7 @@ public class ControlElement {
     private boolean[] states = new boolean[4];
     private boolean boundingBoxNeedsUpdate = true;
     private String text = "";
-    private short iconId;
+    private int iconId;
     private Range range;
     private byte orientation;
     private PointF currentPosition;
@@ -261,12 +262,12 @@ public class ControlElement {
         this.text = text != null ? text : "";
     }
 
-    public short getIconId() {
+    public int getIconId() {
         return iconId;
     }
 
     public void setIconId(int iconId) {
-        this.iconId = (short)iconId;
+        this.iconId = iconId;
     }
 
     public float getIconScale() {
@@ -803,10 +804,11 @@ public class ControlElement {
 
     private void drawIcon(Canvas canvas, float cx, float cy, float width, float height, int iconId) {
         Paint paint = inputControlsView.getPaint();
-        Bitmap icon = inputControlsView.getIcon((short)iconId);
+        Bitmap icon = inputControlsView.getIcon(iconId);
         
-        // Only apply color filter to built-in icons, not custom icons
-        if (!CustomIconManager.isCustomIcon((short)iconId)) {
+        // Only apply color filter to built-in icons, not custom or pack icons
+        boolean isCustomOrPack = CustomIconManager.isCustomIcon(iconId) || IconPackManager.isPackIcon(iconId);
+        if (!isCustomOrPack) {
             paint.setColorFilter(inputControlsView.getColorFilter());
         }
         
@@ -815,16 +817,9 @@ public class ControlElement {
 
         if (icon != null) {
             Rect srcRect = new Rect(0, 0, icon.getWidth(), icon.getHeight());
-            // Apply custom icon scaling based on the iconScale property
-            if (CustomIconManager.isCustomIcon((short)iconId)) {
-                int scaledHalfSize = (int)(halfSize * this.iconScale);
-                Rect dstRect = new Rect((int)(cx - scaledHalfSize), (int)(cy - scaledHalfSize), (int)(cx + scaledHalfSize), (int)(cy + scaledHalfSize));
-                canvas.drawBitmap(icon, srcRect, dstRect, paint);
-            } else {
-                int scaledHalfSize = (int)(halfSize * this.iconScale);
-                Rect dstRect = new Rect((int)(cx - scaledHalfSize), (int)(cy - scaledHalfSize), (int)(cx + scaledHalfSize), (int)(cy + scaledHalfSize));
-                canvas.drawBitmap(icon, srcRect, dstRect, paint);
-            }
+            int scaledHalfSize = (int)(halfSize * this.iconScale);
+            Rect dstRect = new Rect((int)(cx - scaledHalfSize), (int)(cy - scaledHalfSize), (int)(cx + scaledHalfSize), (int)(cy + scaledHalfSize));
+            canvas.drawBitmap(icon, srcRect, dstRect, paint);
         }
         
         paint.setColorFilter(null);

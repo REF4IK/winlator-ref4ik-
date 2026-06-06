@@ -28,8 +28,9 @@ public class CustomIconManager {
     private static final int QUALITY = 90; // PNG compression quality
     
     // Offset for custom icon IDs to avoid conflicts with built-in icons
-    public static final short CUSTOM_ICON_ID_OFFSET = 100;
-    public static final short MAX_CUSTOM_ICONS = 1000; // Максимум кастомных иконок
+    public static final int CUSTOM_ICON_ID_OFFSET = 100;
+    public static final int PACK_ICON_ID_OFFSET = 1000;
+    public static final int MAX_CUSTOM_ICONS = 1000; // Максимум кастомных иконок
     
     private final Context context;
     private final File customIconsDir;
@@ -47,7 +48,7 @@ public class CustomIconManager {
      * @param imageUri URI of the image to import
      * @return The ID of the imported icon, or -1 if import failed
      */
-    public short importIcon(Uri imageUri) {
+    public int importIcon(Uri imageUri) {
         try {
             // Load and resize the original bitmap
             Bitmap originalBitmap = BitmapFactory.decodeStream(
@@ -64,11 +65,11 @@ public class CustomIconManager {
             originalBitmap.recycle(); // Free memory
             
             // Generate a unique ID for this icon
-            short iconId = getNextAvailableId();
+            int iconId = getNextAvailableId();
             if (iconId == -1) {
                 Log.e(TAG, "No available ID for new custom icon");
                 resizedBitmap.recycle();
-                return (short) -1;
+                return -1;
             }
             
             // Save the bitmap to internal storage
@@ -84,7 +85,7 @@ public class CustomIconManager {
             
         } catch (IOException e) {
             Log.e(TAG, "Failed to import icon", e);
-            return (short) -1;
+            return -1;
         }
     }
     
@@ -93,7 +94,7 @@ public class CustomIconManager {
      * @param iconId The ID of the icon to load
      * @return The loaded bitmap, or null if not found
      */
-    public Bitmap loadIcon(short iconId) {
+    public Bitmap loadIcon(int iconId) {
         if (!isCustomIcon(iconId)) {
             return null;
         }
@@ -116,7 +117,7 @@ public class CustomIconManager {
      * @param iconId The ID of the icon to delete
      * @return true if deletion was successful, false otherwise
      */
-    public boolean deleteIcon(short iconId) {
+    public boolean deleteIcon(int iconId) {
         if (!isCustomIcon(iconId)) {
             return false;
         }
@@ -138,9 +139,9 @@ public class CustomIconManager {
      * Gets a list of all available custom icon IDs
      * @return Array of custom icon IDs
      */
-    public short[] getCustomIconIds() {
+    public int[] getCustomIconIds() {
         if (!customIconsDir.exists()) {
-            return new short[0];
+            return new int[0];
         }
         
         File[] iconFiles = customIconsDir.listFiles((dir, name) -> 
@@ -148,15 +149,15 @@ public class CustomIconManager {
         );
         
         if (iconFiles == null || iconFiles.length == 0) {
-            return new short[0];
+            return new int[0];
         }
         
-        List<Short> iconIds = new ArrayList<>();
+        List<Integer> iconIds = new ArrayList<>();
         for (File iconFile : iconFiles) {
             try {
                 String fileName = iconFile.getName();
                 String idStr = fileName.substring(ICON_PREFIX.length(), fileName.lastIndexOf('.'));
-                short iconId = Short.parseShort(idStr);
+                int iconId = Integer.parseInt(idStr);
                 iconIds.add(iconId);
             } catch (NumberFormatException e) {
                 Log.w(TAG, "Invalid custom icon filename: " + iconFile.getName());
@@ -164,7 +165,7 @@ public class CustomIconManager {
         }
         
         Collections.sort(iconIds);
-        short[] result = new short[iconIds.size()];
+        int[] result = new int[iconIds.size()];
         for (int i = 0; i < iconIds.size(); i++) {
             result[i] = iconIds.get(i);
         }
@@ -177,8 +178,8 @@ public class CustomIconManager {
      * @param iconId The icon ID to check
      * @return true if it's a custom icon ID, false otherwise
      */
-    public static boolean isCustomIcon(short iconId) {
-        return iconId >= CUSTOM_ICON_ID_OFFSET;
+    public static boolean isCustomIcon(int iconId) {
+        return iconId >= CUSTOM_ICON_ID_OFFSET && iconId < PACK_ICON_ID_OFFSET;
     }
     
     /**
@@ -189,6 +190,53 @@ public class CustomIconManager {
         return getCustomIconIds().length;
     }
     
+    /**
+     * Imports an icon from a PNG file (e.g., from an icon pack) into custom icons
+     * @param iconFile The PNG file to import
+     * @return The ID of the imported icon, or -1 if import failed
+     */
+    public int importIconFromFile(File iconFile) {
+        if (!iconFile.exists() || !iconFile.getName().toLowerCase().endsWith(".png")) {
+            Log.e(TAG, "Invalid icon file: " + (iconFile != null ? iconFile.getAbsolutePath() : "null"));
+            return -1;
+        }
+
+        try {
+            // Load and resize the bitmap
+            Bitmap originalBitmap = BitmapFactory.decodeFile(iconFile.getAbsolutePath());
+            if (originalBitmap == null) {
+                Log.e(TAG, "Failed to decode image from file: " + iconFile.getAbsolutePath());
+                return -1;
+            }
+
+            Bitmap resizedBitmap = resizeBitmap(originalBitmap, MAX_ICON_SIZE);
+            originalBitmap.recycle();
+
+            // Generate a unique ID for this icon
+            int iconId = getNextAvailableId();
+            if (iconId == -1) {
+                Log.e(TAG, "No available ID for new custom icon");
+                resizedBitmap.recycle();
+                return -1;
+            }
+
+            // Save the bitmap to internal storage
+            File outFile = new File(customIconsDir, ICON_PREFIX + iconId + ICON_EXTENSION);
+            try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                resizedBitmap.compress(Bitmap.CompressFormat.PNG, QUALITY, fos);
+                fos.flush();
+            }
+
+            resizedBitmap.recycle();
+            Log.i(TAG, "Successfully imported custom icon from file with ID: " + iconId);
+            return iconId;
+
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to import icon from file", e);
+            return -1;
+        }
+    }
+
     /**
      * Resizes a bitmap to fit within maxSize while maintaining aspect ratio
      */
@@ -210,17 +258,17 @@ public class CustomIconManager {
     /**
      * Finds the next available ID for a custom icon
      */
-    private short getNextAvailableId() {
-        short[] existingIds = getCustomIconIds();
+    private int getNextAvailableId() {
+        int[] existingIds = getCustomIconIds();
         Arrays.sort(existingIds);
         
-        short maxId = (short) (CUSTOM_ICON_ID_OFFSET + MAX_CUSTOM_ICONS);
-        for (short id = CUSTOM_ICON_ID_OFFSET; id < maxId; id++) {
+        int maxId = CUSTOM_ICON_ID_OFFSET + MAX_CUSTOM_ICONS;
+        for (int id = CUSTOM_ICON_ID_OFFSET; id < maxId; id++) {
             if (Arrays.binarySearch(existingIds, id) < 0) {
                 return id;
             }
         }
         
-        return (short) -1; // No available ID
+        return -1; // No available ID
     }
 }

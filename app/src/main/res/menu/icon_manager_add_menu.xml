@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/add_icon_image"
+        android:title="@string/add_single_icon"
+        android:icon="@drawable/ic_add" />
+    <item
+        android:id="@+id/add_icon_pack_zip"
+        android:title="@string/add_icon_pack_zip"
+        android:icon="@drawable/icon_add" />
+</menu>

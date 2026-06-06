@@ -37,6 +37,8 @@ import com.winlator.cmod.inputcontrols.Binding;
 import com.winlator.cmod.inputcontrols.ControlElement;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.CustomIconManager;
+import com.winlator.cmod.inputcontrols.IconPackManager;
+import com.winlator.cmod.inputcontrols.IconPickerDialog;
 import com.winlator.cmod.inputcontrols.InputControlsManager;
 import com.winlator.cmod.math.Mathf;
 import com.winlator.cmod.core.AppUtils;
@@ -54,6 +56,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
     private InputControlsView inputControlsView;
     private ControlsProfile profile;
     private CustomIconManager customIconManager;
+    private IconPackManager iconPackManager;
     
     private ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
         new ActivityResultContracts.StartActivityForResult(),
@@ -75,6 +78,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         
         // Initialize custom icon manager
         customIconManager = new CustomIconManager(this);
+        iconPackManager = new IconPackManager(this);
 
         inputControlsView = new InputControlsView(this);
         inputControlsView.setEditMode(true);
@@ -345,14 +349,18 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         final EditText etCustomText = view.findViewById(R.id.ETCustomText);
         etCustomText.setText(element.getText());
         final LinearLayout llIconList = view.findViewById(R.id.LLIconList);
-        loadIcons(llIconList, element.getIconId());
-        
-        // Setup custom icon import button
+
+        // Show currently selected icon (or "+" if none)
+        refreshIconList(llIconList, element);
+
+        // "Select icon" button - opens picker
         view.findViewById(R.id.BTAddCustomIcon).setOnClickListener((v) -> {
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("image/*");
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            imagePickerLauncher.launch(Intent.createChooser(intent, getString(R.string.import_icon_from_gallery)));
+            IconPickerDialog dialog = new IconPickerDialog(this, customIconManager, iconPackManager,
+                    element.getIconId(), (iconId) -> {
+                        element.setIconId(iconId);
+                        refreshIconList(llIconList, element);
+                    });
+            dialog.show();
         });
 
         updateLayout.run();
@@ -360,20 +368,57 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         PopupWindow popupWindow = AppUtils.showPopupWindow(anchorView, view, 340, 0);
         popupWindow.setOnDismissListener(() -> {
             String text = etCustomText.getText().toString().trim();
-            short iconId = 0;
-            for (int i = 0; i < llIconList.getChildCount(); i++) {
-                View child = llIconList.getChildAt(i);
-                if (child.isSelected()) {
-                    iconId = (short)child.getTag();
-                    break;
-                }
-            }
-
+            // iconId was already set live as user picks; just save current value
             element.setText(text);
-            element.setIconId(iconId);
             profile.save();
             inputControlsView.invalidate();
         });
+    }
+
+    private void refreshIconList(LinearLayout llIconList, ControlElement element) {
+        llIconList.removeAllViews();
+        int currentIconId = element.getIconId();
+        int size = (int) UnitUtils.dpToPx(40);
+        int margin = (int) UnitUtils.dpToPx(2);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+        params.setMargins(margin, margin, margin, margin);
+
+        if (currentIconId > 0) {
+            ImageView iv = new ImageView(this);
+            iv.setLayoutParams(params);
+            iv.setBackgroundResource(R.drawable.icon_background);
+            iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iv.setPadding(4, 4, 4, 4);
+            // Load icon from custom icons or pack icons
+            android.graphics.Bitmap bm = null;
+            if (IconPackManager.isPackIcon(currentIconId)) {
+                bm = iconPackManager.loadIconByGlobalId(currentIconId);
+            } else if (CustomIconManager.isCustomIcon(currentIconId)) {
+                bm = customIconManager.loadIcon(currentIconId);
+            }
+            if (bm != null) iv.setImageBitmap(bm);
+            llIconList.addView(iv);
+        } else {
+            // "+ Add icon" button
+            TextView addTv = new TextView(this);
+            addTv.setText("+ " + getString(R.string.add_single_icon));
+            addTv.setTextColor(0xffaaaaaa);
+            addTv.setTextSize(13);
+            addTv.setGravity(android.view.Gravity.CENTER);
+            addTv.setPadding((int) UnitUtils.dpToPx(12), (int) UnitUtils.dpToPx(8),
+                    (int) UnitUtils.dpToPx(12), (int) UnitUtils.dpToPx(8));
+            addTv.setBackgroundColor(0xff2a2a2a);
+            final ControlElement el = element;
+            addTv.setOnClickListener((v) -> {
+                IconPickerDialog dialog = new IconPickerDialog(this, customIconManager, iconPackManager,
+                        el.getIconId(), (iconId) -> {
+                            el.setIconId(iconId);
+                            refreshIconList(llIconList, el);
+                        });
+                dialog.show();
+            });
+            llIconList.addView(addTv);
+        }
     }
 
     private void loadTypeSpinner(final ControlElement element, Spinner spinner, Runnable callback) {
@@ -863,14 +908,14 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         }
     }
 
-    private void loadIcons(final LinearLayout parent, short selectedId) {
+    private void loadIcons(final LinearLayout parent, int selectedId) {
         parent.removeAllViews();
         
         // Load only custom icons (removed built-in icons)
-        short[] customIconIds = customIconManager.getCustomIconIds();
+        int[] customIconIds = customIconManager.getCustomIconIds();
         
         // Use only custom icon IDs
-        short[] allIconIds = customIconIds;
+        int[] allIconIds = customIconIds;
         
         Arrays.sort(allIconIds);
 
@@ -880,7 +925,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
         params.setMargins(margin, 0, margin, 0);
 
-        for (final short id : allIconIds) {
+        for (final int id : allIconIds) {
             ImageView imageView = new ImageView(this);
             imageView.setLayoutParams(params);
             imageView.setPadding(padding, padding, padding, padding);
@@ -916,7 +961,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
     }
     
     private void importCustomIcon(Uri imageUri) {
-        short iconId = customIconManager.importIcon(imageUri);
+        int iconId = customIconManager.importIcon(imageUri);
         if (iconId != -1) {
             AppUtils.showToast(this, R.string.icon_imported_successfully);
             // Refresh icon list if currently showing settings
@@ -937,7 +982,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         AppUtils.showToast(this, "Please reopen element settings to see the new icon");
     }
     
-    private void showDeleteCustomIconDialog(short iconId, LinearLayout iconListParent) {
+    private void showDeleteCustomIconDialog(int iconId, LinearLayout iconListParent) {
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
         builder.setTitle(R.string.delete_custom_icon);
         builder.setMessage(R.string.confirm_delete_custom_icon);
@@ -948,7 +993,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
                 // Remove the icon from the current view
                 for (int i = 0; i < iconListParent.getChildCount(); i++) {
                     ImageView iconView = (ImageView) iconListParent.getChildAt(i);
-                    if ((Short) iconView.getTag() == iconId) {
+                    if ((Integer) iconView.getTag() == iconId) {
                         iconListParent.removeViewAt(i);
                         break;
                     }
@@ -957,7 +1002,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
                 // Check if any element is using this deleted icon and reset it
                 ControlElement selectedElement = inputControlsView.getSelectedElement();
                 if (selectedElement != null && selectedElement.getIconId() == iconId) {
-                    selectedElement.setIconId((short) 0); // Reset to default
+                    selectedElement.setIconId(0); // Reset to default
                     profile.save();
                     inputControlsView.invalidate();
                 }
@@ -975,13 +1020,13 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         builder.show();
     }
     
-    private void checkAndResetDeletedIcons(short deletedIconId) {
+    private void checkAndResetDeletedIcons(int deletedIconId) {
         // Ensure the profile is loaded
         if (profile != null) {
             boolean profileModified = false;
             for (ControlElement element : profile.getElements()) {
                 if (element.getIconId() == deletedIconId) {
-                    element.setIconId((short) 0); // Reset to default
+                    element.setIconId(0); // Reset to default
                     profileModified = true;
                 }
             }
