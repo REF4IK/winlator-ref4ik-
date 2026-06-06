@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -27,6 +28,7 @@ import android.widget.RadioGroup;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+
 import androidx.appcompat.app.AlertDialog;
 
 import androidx.annotation.NonNull;
@@ -267,6 +269,12 @@ public class InputControlsFragment extends Fragment {
         view.findViewById(R.id.BTGamepadTest).setOnClickListener((v) -> {
             Intent gamepadIntent = new Intent(context, GamePadTestActivity.class);
             startActivity(gamepadIntent);
+        });
+
+        // Icon Manager button
+        view.findViewById(R.id.BTIconManager).setOnClickListener((v) -> {
+            Intent intent = new Intent(context, IconManagerActivity.class);
+            startActivity(intent);
         });
 
         // Set up trigger type RadioGroup (only if it exists in the layout)

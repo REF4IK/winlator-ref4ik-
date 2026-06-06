@@ -335,19 +335,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
-                android:text="@string/add_custom_icon" />
+                android:text="@string/select_icon" />
 
-            <HorizontalScrollView
+            <LinearLayout
+                android:id="@+id/LLIconList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp">
-
-                <LinearLayout
-                    android:id="@+id/LLIconList"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-            </HorizontalScrollView>
+                android:orientation="horizontal" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

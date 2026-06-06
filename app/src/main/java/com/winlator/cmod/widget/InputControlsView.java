@@ -33,6 +33,7 @@ import com.winlator.cmod.inputcontrols.Binding;
 import com.winlator.cmod.inputcontrols.ControlElement;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.CustomIconManager;
+import com.winlator.cmod.inputcontrols.IconPackManager;
 import com.winlator.cmod.inputcontrols.ExternalController;
 import com.winlator.cmod.inputcontrols.ExternalControllerBinding;
 import com.winlator.cmod.inputcontrols.GamepadState;
@@ -80,6 +81,7 @@ public class InputControlsView extends View {
     private XServer xServer;
     private final Bitmap[] icons = new Bitmap[17];
     private CustomIconManager customIconManager;
+    private IconPackManager iconPackManager;
     private Timer mouseMoveTimer;
     private final PointF mouseMoveOffset = new PointF();
     private boolean showTouchscreenControls = true;
@@ -116,6 +118,7 @@ public class InputControlsView extends View {
         setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
         customIconManager = new CustomIconManager(context);
+        iconPackManager = new IconPackManager(context);
     }
 
     @SuppressLint("ResourceType")
@@ -132,6 +135,7 @@ public class InputControlsView extends View {
         setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
         customIconManager = new CustomIconManager(context);
+        iconPackManager = new IconPackManager(context);
     }
 
     public InputControlsView(Context context, boolean focusOnStick) {
@@ -152,6 +156,7 @@ public class InputControlsView extends View {
 
         preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
         customIconManager = new CustomIconManager(context);
+        iconPackManager = new IconPackManager(context);
     }
 
 
@@ -903,12 +908,16 @@ public class InputControlsView extends View {
         }
     }
 
-    public Bitmap getIcon(short id) {
-        // Only handle custom icons (removed built-in icon support)
+    public Bitmap getIcon(int id) {
+        // Handle pack icons (ID >= 1000)
+        if (IconPackManager.isPackIcon(id)) {
+            return iconPackManager.loadIconByGlobalId(id);
+        }
+        // Handle custom icons (ID >= 100)
         if (CustomIconManager.isCustomIcon(id)) {
             return customIconManager.loadIcon(id);
         }
-        
+
         // Return null for any non-custom icon requests
         return null;
     }
