@@ -43,6 +43,7 @@ This project has been in constant development since version 1.0, the current app
 - Winlator by [brunodev85](https://github.com/brunodev85/winlator)
 - Winlator Bionic by [Pipetto-crypto](https://github.com/Pipetto-crypto/winlator/tree/dev)
 - Winlator Cmod by [Coffincolors](https://github.com/coffincolors/winlator)
+- WinNative [Organization](https://github.com/WinNative-Emu)
 - GameNative by [Utkarshdalal](https://github.com/utkarshdalal/GameNative)
 - GLIBC Patches by [Termux Pacman](https://github.com/termux-pacman/glibc-packages)
 - Wine ([winehq.org](https://www.winehq.org/))
