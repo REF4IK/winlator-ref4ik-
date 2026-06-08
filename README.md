@@ -4,6 +4,12 @@
 
 # Winlator ref4ik mod
 
+### 🌐 Community
+
+[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/Kp5CsN4cM)
+[![Telegram](https://img.shields.io/badge/Telegram-26A8E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/winlatorruu)
+
+---
 Winlator is an Android application that lets you to run Windows (x86_64) applications with Wine and Box86/Box64.
 
 [![Latest Release Downloads](https://img.shields.io/github/downloads/REF4IK/winlator-ref4ik-/latest/total?label=Latest%20Release%20Downloads&color=brightgreen)](https://github.com/REF4IK/winlator-ref4ik-/releases/latest)
