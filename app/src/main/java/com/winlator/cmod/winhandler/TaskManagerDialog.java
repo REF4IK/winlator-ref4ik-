@@ -13,10 +13,14 @@ import android.os.Looper;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
+import android.widget.GridLayout;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
@@ -115,14 +119,15 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         TextView cpuIcon = findViewById(R.id.TVCPUIcon);
         TextView memoryIcon = findViewById(R.id.TVMemoryIcon);
 
-        if (root != null) root.setBackgroundResource(R.drawable.bordered_panel_dark);
-        if (statsPanel != null) statsPanel.setBackgroundResource(R.drawable.bordered_panel_dark);
+        int dialogColor = ContextCompat.getColor(activity, R.color.content_dialog_background_dark);
+        if (root != null) root.setBackgroundColor(dialogColor);
+        if (statsPanel != null) statsPanel.setBackgroundColor(dialogColor);
 
         int darkCardColor = ContextCompat.getColor(activity, R.color.content_dialog_background_dark);
         int lightTextColor = ContextCompat.getColor(activity, R.color.white);
 
-        if (cpuCard != null) cpuCard.setBackgroundColor(darkCardColor);
-        if (memoryCard != null) memoryCard.setBackgroundColor(darkCardColor);
+        if (cpuCard != null) cpuCard.setBackgroundResource(R.drawable.bordered_panel_surface_dark);
+        if (memoryCard != null) memoryCard.setBackgroundResource(R.drawable.bordered_panel_surface_dark);
         if (emptyText != null) emptyText.setTextColor(lightTextColor);
         if (cpuIcon != null) cpuIcon.setTextColor(lightTextColor);
         if (memoryIcon != null) memoryIcon.setTextColor(lightTextColor);
@@ -256,6 +261,21 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         activity.registerReceiver(batteryReceiver, filter);
 
         super.show();
+        android.view.Window window = getWindow();
+        if (window != null) {
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+        }
+        View contentView = getContentView();
+        if (contentView != null) {
+            contentView.setPadding(dp(12), dp(12), dp(12), dp(12));
+        }
+        FrameLayout frameLayout = findViewById(R.id.FrameLayout);
+        if (frameLayout != null) {
+            frameLayout.setLayoutParams(new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+            ));
+        }
         updateHandler.postDelayed(periodicUpdate, 1000);
     }
 
@@ -321,36 +341,68 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
     }
 
     private void updateCPUInfoView() {
-        LinearLayout llCPUInfo = findViewById(R.id.LLCPUInfo);
+        GridLayout llCPUInfo = findViewById(R.id.LLCPUInfo);
         llCPUInfo.removeAllViews();
         int infoTextColor = isDarkMode
                 ? ContextCompat.getColor(activity, R.color.white)
                 : resolveThemeColor(com.google.android.material.R.attr.colorOnSurface, 0xFFE6E0E9);
+        int accentColor = resolveThemeColor(com.google.android.material.R.attr.colorPrimary, ContextCompat.getColor(activity, R.color.colorPrimary));
         short[] clockSpeeds = CPUStatus.getCurrentClockSpeeds();
         int totalClockSpeed = 0;
         short maxClockSpeed = 0;
 
         for (int i = 0; i < clockSpeeds.length; i++) {
-            TextView textView = new TextView(activity);
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-            textView.setTextColor(infoTextColor);
             short clockSpeed = CPUStatus.getMaxClockSpeed(i);
-            textView.setText(clockSpeeds[i]+"/"+clockSpeed+" MHz");
-            llCPUInfo.addView(textView);
+            LinearLayout coreTile = new LinearLayout(activity);
+            coreTile.setOrientation(LinearLayout.VERTICAL);
+            coreTile.setMinimumHeight(dp(34));
+            coreTile.setPadding(dp(5), dp(2), dp(5), dp(2));
+            coreTile.setBackgroundResource(isDarkMode ? R.drawable.bordered_panel_surface_dark : R.drawable.bordered_panel_surface);
+
+            TextView coreLabel = new TextView(activity);
+            coreLabel.setIncludeFontPadding(false);
+            coreLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9);
+            coreLabel.setTextColor(infoTextColor);
+            coreLabel.setSingleLine(true);
+            coreLabel.setText("Core " + (i + 1));
+            coreTile.addView(coreLabel);
+
+            TextView coreValue = new TextView(activity);
+            coreValue.setIncludeFontPadding(false);
+            coreValue.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            coreValue.setTextColor(accentColor);
+            coreValue.setSingleLine(true);
+            coreValue.setText(String.format(Locale.ENGLISH, "%.1f GHz", clockSpeeds[i] / 1000.0f));
+            coreTile.addView(coreValue);
+
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0;
+            params.height = dp(36);
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            params.setMargins(dp(2), dp(2), dp(2), dp(3));
+            llCPUInfo.addView(coreTile, params);
             totalClockSpeed += clockSpeeds[i];
             maxClockSpeed = (short)Math.max(maxClockSpeed, clockSpeed);
         }
 
-        int avgClockSpeed = totalClockSpeed / clockSpeeds.length;
+        int avgClockSpeed = clockSpeeds.length > 0 ? totalClockSpeed / clockSpeeds.length : 0;
         TextView tvCPUTitle = findViewById(R.id.TVCPUTitle);
-        byte cpuUsagePercent = (byte)(((float)avgClockSpeed / maxClockSpeed) * 100.0f);
-        tvCPUTitle.setText("CPU ("+cpuUsagePercent+"%)");
+        int cpuUsagePercent = maxClockSpeed > 0 ? Math.min(100, Math.round(((float)avgClockSpeed / maxClockSpeed) * 100.0f)) : 0;
+        tvCPUTitle.setText("CPU Usage");
+        TextView tvCPUPercent = findViewById(R.id.TVCPUPercent);
+        if (tvCPUPercent != null) tvCPUPercent.setText(cpuUsagePercent + "%");
+        ProgressBar pbCPUUsage = findViewById(R.id.PBCPUUsage);
+        if (pbCPUUsage != null) pbCPUUsage.setProgress(cpuUsagePercent);
     }
 
     private final com.winlator.cmod.core.SensorReader sensorReader = new com.winlator.cmod.core.SensorReader();
 
     private String getCPUTemperature() {
         return sensorReader.getCpuTemperature();
+    }
+
+    private int dp(int value) {
+        return (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, activity.getResources().getDisplayMetrics());
     }
 
     private void updateMemoryInfoView() {
@@ -369,6 +421,10 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         if (tvMemoryTitle != null) {
             tvMemoryTitle.setText(activity.getString(R.string.memory)+" ("+memUsagePercent+"%)");
         }
+        TextView tvMemoryPercent = findViewById(R.id.TVMemoryPercent);
+        if (tvMemoryPercent != null) tvMemoryPercent.setText(memUsagePercent + "%");
+        ProgressBar pbMemoryUsage = findViewById(R.id.PBMemoryUsage);
+        if (pbMemoryUsage != null) pbMemoryUsage.setProgress(memUsagePercent);
 
         if (llMemoryInfo != null) {
             int infoTextColor = isDarkMode
