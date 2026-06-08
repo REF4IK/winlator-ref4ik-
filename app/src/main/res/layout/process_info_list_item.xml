@@ -23,7 +23,7 @@
 
     <TextView
         android:id="@+id/TVStatus"
-        android:layout_width="60dp"
+        android:layout_width="56dp"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:textSize="11sp"
@@ -31,20 +31,20 @@
 
     <TextView
         android:id="@+id/TVPID"
-        android:layout_width="50dp"
+        android:layout_width="48dp"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:textColor="?attr/colorOnSurface" />
 
     <TextView
         android:id="@+id/TVMemoryUsage"
-        android:layout_width="90dp"
+        android:layout_width="76dp"
         android:layout_height="wrap_content"
         android:gravity="end"
         android:textColor="?attr/colorOnSurface" />
 
     <RelativeLayout
-        android:layout_width="40dp"
+        android:layout_width="34dp"
         android:layout_height="40dp"
         android:gravity="center">
 
