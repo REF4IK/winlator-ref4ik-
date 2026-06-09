@@ -33,6 +33,17 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     private static final Object lock = new Object();
     private boolean wow64Mode = true;
 
+    private static String appendFirstExistingPreload(String ldPreload, File[] candidates) {
+        for (File candidate : candidates) {
+            if (candidate.exists()) {
+                if (!ldPreload.isEmpty()) ldPreload += ":";
+                ldPreload += candidate.getAbsolutePath();
+                return ldPreload;
+            }
+        }
+        return ldPreload;
+    }
+
     protected boolean isProotLaunch() {
         return true;
     }
@@ -188,6 +199,22 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         if ((new File(imageFs.getLibDir(), "libandroid-sysvshm.so")).exists()) 
             envVars.put("LD_PRELOAD", "libandroid-sysvshm.so");
+        
+        String ldPreload = envVars.get("LD_PRELOAD") != null ? envVars.get("LD_PRELOAD") : "";
+        File[] jpegCandidates = new File[] {
+            new File("/system/lib64/libjpeg.so"),
+            new File("/system_ext/lib64/libjpeg.so"),
+        };
+        ldPreload = appendFirstExistingPreload(ldPreload, jpegCandidates);
+
+        File[] cryptoCandidates = new File[] {
+            new File("/system/lib64/libcrypto.so"),
+            new File("/system_ext/lib64/libcrypto.so"),
+            new File(imageFs.getLibDir(), "libcrypto.so.3"),
+        };
+        ldPreload = appendFirstExistingPreload(ldPreload, cryptoCandidates);
+
+        if (!ldPreload.isEmpty()) envVars.put("LD_PRELOAD", ldPreload);
         
         // Настройка MangoHud - вызываем ДО пользовательских переменных
         setupMangoHudConfig(context, envVars);

@@ -14,8 +14,33 @@ static void *vulkan_handle = NULL;
 static PFN_vkGetInstanceProcAddr gip = NULL;
 static bool turbo_mode_active = false;
 
+static void preload_first_existing(const char **candidates) {
+    for (int i = 0; candidates[i]; i++) {
+        if (dlopen(candidates[i], RTLD_GLOBAL | RTLD_NOW))
+            return;
+    }
+}
+
+static void preload_vendor_icd_deps() {
+    const char *jpeg_candidates[] = {
+        "/system/lib64/libjpeg.so",
+        "/system_ext/lib64/libjpeg.so",
+        "libjpeg.so",
+        NULL,
+    };
+    preload_first_existing(jpeg_candidates);
+
+    const char *crypto_candidates[] = {
+        "libcrypto.so",
+        NULL,
+    };
+    preload_first_existing(crypto_candidates);
+}
+
 __attribute__((constructor))
 void start() {
+    preload_vendor_icd_deps();
+
     if (!vulkan_handle) {
         vulkan_handle = dlopen("/system/lib64/libvulkan.so", RTLD_NOW | RTLD_LOCAL);
         gip = (PFN_vkGetInstanceProcAddr)dlsym(vulkan_handle, "vkGetInstanceProcAddr");
