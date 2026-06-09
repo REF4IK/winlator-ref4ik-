@@ -157,6 +157,7 @@
         <item name="android:spinnerMode">dropdown</item>
         <item name="android:background">@drawable/combo_box</item>
         <item name="android:popupBackground">@drawable/content_dialog_background</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <!-- Dark ComboBox Styles -->
