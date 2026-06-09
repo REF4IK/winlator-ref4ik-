@@ -8,6 +8,7 @@ import android.util.TypedValue;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Spinner;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -64,6 +65,10 @@ public class ContentDialog extends Dialog {
             frameLayout.addView(view);
         }
 
+        if (isDarkMode) {
+            contentView.post(() -> fixSpinnersForDarkMode(contentView));
+        }
+
         View confirmButton = contentView.findViewById(R.id.BTConfirm);
         confirmButton.setOnClickListener((v) -> {
             if (onConfirmCallback != null) onConfirmCallback.run();
@@ -94,6 +99,17 @@ public class ContentDialog extends Dialog {
 
     public View getInflatedLayout() {
         return inflatedLayout;
+    }
+
+    private void fixSpinnersForDarkMode(View view) {
+        if (view instanceof Spinner) {
+            ((Spinner) view).setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        } else if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                fixSpinnersForDarkMode(group.getChildAt(i));
+            }
+        }
     }
 
     public View getContentView() {
