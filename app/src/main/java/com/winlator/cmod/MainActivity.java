@@ -157,9 +157,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             actionBar.setHomeAsUpIndicator(R.drawable.icon_action_bar_menu);
         }
 
-        // Determine text color based on dark mode
-        int textColor = isDarkMode ? Color.WHITE : Color.BLACK;
-        setNavigationViewItemTextColor(navigationView, textColor);
+        // Apply proper icon and text tint for NavigationView based on theme
+        if (isDarkMode) {
+            navigationView.setItemIconTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+            navigationView.setItemTextColor(android.content.res.ColorStateList.valueOf(Color.WHITE));
+        } else {
+            navigationView.setItemIconTintList(android.content.res.ColorStateList.valueOf(Color.BLACK));
+            navigationView.setItemTextColor(android.content.res.ColorStateList.valueOf(Color.BLACK));
+        }
         
 
         // Initialize SaveManager and ContainerManager

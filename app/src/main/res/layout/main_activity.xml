@@ -40,7 +40,5 @@
         android:id="@+id/NavigationView"
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/main_menu_header"
-        app:itemIconTint="?attr/colorPrimary"
-        app:itemTextColor="?attr/colorOnSurface"
         app:menu="@menu/main_menu"/>
 </androidx.drawerlayout.widget.DrawerLayout>

@@ -51,8 +51,6 @@
         android:layout_gravity="start"
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/main_menu_header"
-        app:itemIconTint="?attr/colorPrimary"
-        app:itemTextColor="?attr/colorOnSurface"
         app:itemShapeFillColor="?attr/colorPrimaryContainer"
         app:itemShapeInsetStart="12dp"
         app:itemShapeInsetEnd="12dp"
