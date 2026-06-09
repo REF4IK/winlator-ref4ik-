@@ -39,6 +39,7 @@
         <item name="alertDialogTheme">@style/ThemeOverlay.Winlator.MaterialAlertDialog</item>
         <item name="popupMenuStyle">@style/Widget.Winlator.PopupMenu</item>
         <item name="navigationViewStyle">@style/Widget.Winlator.NavigationView</item>
+        <item name="spinnerStyle">@style/Widget.Winlator.Spinner</item>
         <item name="android:forceDarkAllowed">false</item>
     </style>
 
@@ -85,6 +86,7 @@
         <item name="alertDialogTheme">@style/ThemeOverlay.Winlator.MaterialAlertDialog</item>
         <item name="popupMenuStyle">@style/Widget.Winlator.PopupMenu</item>
         <item name="navigationViewStyle">@style/Widget.Winlator.NavigationView</item>
+        <item name="spinnerStyle">@style/Widget.Winlator.Spinner.Dark</item>
         <item name="android:forceDarkAllowed">false</item>
     </style>
 
@@ -106,6 +108,19 @@
     </style>
 
     <style name="Widget.Winlator.PopupMenu" parent="Widget.Material3.PopupMenu" />
+
+    <style name="Widget.Winlator.Spinner" parent="Widget.AppCompat.Spinner">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:popupBackground">@drawable/content_dialog_background</item>
+        <item name="android:popupTheme">@style/ThemeOverlay.AppCompat.Light</item>
+    </style>
+
+    <style name="Widget.Winlator.Spinner.Dark" parent="Widget.Winlator.Spinner">
+        <item name="android:textColor">#ffffff</item>
+        <item name="android:popupBackground">@drawable/content_dialog_background_dark</item>
+        <item name="android:popupTheme">@style/ThemeOverlay.AppCompat.Dark</item>
+        <item name="android:dropDownSelector">@color/md_theme_dark_primaryContainer</item>
+    </style>
 
     <style name="Widget.Winlator.NavigationView" parent="Widget.Material3.NavigationView">
         <item name="itemShapeAppearance">@style/ShapeAppearance.Material3.Corner.Full</item>
@@ -158,6 +173,7 @@
         <item name="android:background">@drawable/combo_box</item>
         <item name="android:popupBackground">@drawable/content_dialog_background</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:popupTheme">@style/ThemeOverlay.AppCompat.Light</item>
     </style>
 
     <!-- Dark ComboBox Styles -->
@@ -165,6 +181,7 @@
         <item name="android:textColor">#ffffff</item>
         <item name="android:background">@drawable/combo_box_dark</item>
         <item name="android:popupBackground">@drawable/content_dialog_background_dark</item>
+        <item name="android:popupTheme">@style/ThemeOverlay.AppCompat.Dark</item>
     </style>
 
     <style name="MultiSelectionComboBox" parent="ComboBox"/>
@@ -216,6 +233,8 @@
         <item name="android:textColorHint">#8FA3BC</item>
         <item name="android:textColor">#F3F7FF</item>
         <item name="colorControlNormal">#DCE6F7</item>
+        <item name="spinnerStyle">@style/Widget.Winlator.Spinner.Dark</item>
+        <item name="android:popupTheme">@style/ThemeOverlay.AppCompat.Dark</item>
     </style>
 
     <!-- EditText Styles -->
