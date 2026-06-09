@@ -180,6 +180,24 @@ void VulkanRendererContext::createInstance() {
         gipa = (PFN_vkGetInstanceProcAddr)dlsym(adrenotoolsHandle, "vkGetInstanceProcAddr");
     }
     if (!gipa) {
+        {
+            const char *jpeg_candidates[] = {
+                "/system/lib64/libjpeg.so",
+                "/system_ext/lib64/libjpeg.so",
+                "libjpeg.so",
+                NULL,
+            };
+            for (int i = 0; jpeg_candidates[i]; i++) {
+                if (dlopen(jpeg_candidates[i], RTLD_GLOBAL | RTLD_NOW)) break;
+            }
+            const char *crypto_candidates[] = {
+                "libcrypto.so",
+                NULL,
+            };
+            for (int i = 0; crypto_candidates[i]; i++) {
+                if (dlopen(crypto_candidates[i], RTLD_GLOBAL | RTLD_NOW)) break;
+            }
+        }
         void* loaderLib = dlopen("libvulkan.so", RTLD_NOW | RTLD_GLOBAL);
         if (loaderLib)
             gipa = (PFN_vkGetInstanceProcAddr)dlsym(loaderLib, "vkGetInstanceProcAddr");
