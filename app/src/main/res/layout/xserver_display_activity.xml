@@ -28,6 +28,9 @@
         app:itemVerticalPadding="2dp"
         app:itemShapeFillColor="@android:color/transparent"
         app:itemShapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium"
+        app:itemIconTint="@color/colorAccent"
+        app:itemTextColor="?attr/colorOnSurface"
+        app:itemTextAppearance="@style/TextAppearance.Material3.LabelLarge"
         app:menu="@menu/xserver_menu"/>
 
     <EditText
