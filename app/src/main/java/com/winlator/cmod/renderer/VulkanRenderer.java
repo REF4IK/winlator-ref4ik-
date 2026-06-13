@@ -176,11 +176,15 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                                     scanoutCursorSC = new android.view.SurfaceControl.Builder()
                                         .setParent(xsc).setName("winlator_cursor").setFormat(1).build();
                                     scanoutCursorSurface = new android.view.Surface(scanoutCursorSC);
+                                    // BUG FIX: если активны эффекты экрана (scanoutBlockedForEffects=true),
+                                    // НЕ делаем SurfaceControl слои видимыми — иначе они накладываются
+                                    // поверх рендера с эффектами и создают "двойной экран".
+                                    boolean scVisible = !scanoutBlockedForEffects;
                                     new android.view.SurfaceControl.Transaction()
                                         .setLayer(scanoutGameSC,   1)
                                         .setLayer(scanoutCursorSC, 2)
-                                        .setVisibility(scanoutGameSC,   true)
-                                        .setVisibility(scanoutCursorSC, true)
+                                        .setVisibility(scanoutGameSC,   scVisible)
+                                        .setVisibility(scanoutCursorSC, scVisible)
                                         .apply();
                                     applyScanoutSwapTransform();
                                     synchronized (lock) {
@@ -820,6 +824,18 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                 nativeSetScanoutDisabled(nativeHandle, false);
                 nativeClearEffects(nativeHandle);
             }
+        }
+        // BUG FIX: когда эффекты очищаются, нужно вернуть видимость SurfaceControl слоёв
+        // если nativeMode активен, иначе scanout не возобновится (экран останется пустым).
+        if (nativeMode && android.os.Build.VERSION.SDK_INT >= 29) {
+            xServerView.post(() -> {
+                try {
+                    android.view.SurfaceControl.Transaction txn = new android.view.SurfaceControl.Transaction();
+                    if (scanoutGameSC != null) txn.setVisibility(scanoutGameSC, true);
+                    if (scanoutCursorSC != null) txn.setVisibility(scanoutCursorSC, true);
+                    txn.apply();
+                } catch (Exception ignored) {}
+            });
         }
     }
 

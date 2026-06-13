@@ -583,13 +583,14 @@ public class ScreenEffectDialog extends ContentDialog {
             paramsList.add(new float[]{sharpnessStops, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        // Disable scanout overlays before applying effects to prevent duplicate windows
-        renderer.disableScanoutForEffects();
-
         if (types.isEmpty()) {
+            // Нет эффектов — просто очищаем, scanout восстановится сам
             renderer.clearEffects();
             Log.d(TAG, "No effects enabled, cleared all effects.");
         } else {
+            // BUG FIX: disableScanoutForEffects() вызываем ТОЛЬКО когда реально
+            // включаем эффекты, иначе при сбросе настроек scanout не восстанавливался.
+            renderer.disableScanoutForEffects();
             int[] typeArr = new int[types.size()];
             float[][] paramsArr = new float[types.size()][];
             for (int i = 0; i < types.size(); i++) {
