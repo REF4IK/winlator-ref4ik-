@@ -2358,6 +2358,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 // Toggle sharpen effect alongside fullscreen
                 if (renderer.isFullscreen()) {
                     preferences.edit().putBoolean("effect_sharpen", true).apply();
+                    renderer.disableScanoutForEffects();
                     renderer.setEffects(
                         new int[]{VulkanRenderer.EFFECT_SHARPEN},
                         new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
@@ -4569,6 +4570,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             // Auto-enable sharpen effect when stretch mode is active
             preferences.edit().putBoolean("effect_sharpen", true).apply();
+            renderer.disableScanoutForEffects();
             renderer.setEffects(
                 new int[]{VulkanRenderer.EFFECT_SHARPEN},
                 new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
