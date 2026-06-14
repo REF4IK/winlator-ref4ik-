@@ -914,6 +914,118 @@ data class ManifestSizes(
             return runBlocking(Dispatchers.IO) { instance?.appDao?.findHiddenDLCApps(appId) }
         }
 
+        /**
+         * Get ALL selectable DLC apps for a given app ID.
+         * Collects from all possible sources:
+         * 1. Depot DLC markers (dlcAppId field in depots)
+         * 2. Database findDownloadableDLCApps (dlc_for_app_id matching + license check)
+         * 3. Database findHiddenDLCApps (dlc_for_app_id matching + license check, no depots)
+         * 4. Grouped base app DLC content depots
+         * 5. Declared dlcAppIds field from PICS
+         * @return deduplicated sorted list of SteamApp DLCs
+         */
+        fun getSelectableDlcAppsOf(appId: Int): List<SteamApp> =
+            runBlocking(Dispatchers.IO) {
+                val service = instance ?: return@runBlocking emptyList()
+                val appInfo = service.appDao.findApp(appId) ?: return@runBlocking emptyList()
+                val preferredLanguage = PrefManager.containerLanguage
+                val has64Bit =
+                    appInfo.depots.values.any {
+                        it.osArch == OSArch.Arch64 &&
+                            (it.osList.contains(OS.windows) || (it.osList.isEmpty() || it.osList.contains(OS.none)))
+                    }
+
+                val mainAppDlcIds =
+                    appInfo.depots.values
+                        .asSequence()
+                        .filter { depot ->
+                            depot.dlcAppId != INVALID_APP_ID &&
+                                filterForDownloadableDepots(depot, has64Bit, preferredLanguage, ownedDlc = null)
+                        }.map { it.dlcAppId }
+
+                val indirectDlcApps = service.appDao.findDownloadableDLCApps(appId).orEmpty()
+                val hiddenDlcApps = service.appDao.findHiddenDLCApps(appId).orEmpty()
+                val dlcAppsById = (indirectDlcApps + hiddenDlcApps).associateBy { it.id }
+                val indirectDlcIds = indirectDlcApps.map { it.id }.asSequence()
+                val hiddenDlcIds = hiddenDlcApps.map { it.id }.asSequence()
+                val groupedBaseDlcIds =
+                    getGroupedBaseAppDlcIds(
+                        appInfo = appInfo,
+                        preferredLanguage = preferredLanguage,
+                        has64Bit = has64Bit,
+                    ).asSequence()
+
+                val declaredDlcIds = appInfo.dlcAppIds.asSequence()
+
+                val selectableDlcIds = (mainAppDlcIds + groupedBaseDlcIds + indirectDlcIds + hiddenDlcIds + declaredDlcIds).distinct().toList()
+
+                if (selectableDlcIds.isEmpty()) return@runBlocking emptyList()
+
+                // Single bulk SELECT instead of N findApp() calls; preserves the DB-first preference
+                // by overlaying the already-loaded dlcAppsById map only for IDs not in the DB.
+                val dlcFromDb = service.appDao.findApps(selectableDlcIds).associateBy { it.id }
+                selectableDlcIds
+                    .mapNotNull { dlcAppId ->
+                        (dlcFromDb[dlcAppId] ?: dlcAppsById[dlcAppId])?.takeIf { it.name.isNotBlank() }
+                    }
+                    .sortedBy { it.name.lowercase() }
+            }
+
+        /** Helper - get DLC IDs from grouped base app content depots (WinNative pattern) */
+        private fun getGroupedBaseAppDlcIds(
+            appInfo: SteamApp,
+            preferredLanguage: String = PrefManager.containerLanguage,
+            has64Bit: Boolean = appInfo.depots.values.any {
+                it.osArch == OSArch.Arch64 &&
+                    (it.osList.contains(OS.windows) || it.osList.isEmpty() || it.osList.contains(OS.none))
+            },
+        ): Set<Int> {
+            return getGroupedBaseAppDlcDepots(appInfo)
+                .filter { groupedDepot ->
+                    filterForDownloadableDepots(groupedDepot.depot, has64Bit, preferredLanguage, ownedDlc = null)
+                }.map { it.dlcAppId }
+                .toSet()
+        }
+
+        private data class GroupedBaseAppDlcDepot(
+            val depotId: Int,
+            val dlcAppId: Int,
+            val depot: DepotInfo,
+        )
+
+        private fun getGroupedBaseAppDlcDepots(appInfo: SteamApp): List<GroupedBaseAppDlcDepot> {
+            val declaredDlcIds =
+                (
+                    appInfo.dlcAppIds.asSequence() +
+                        appInfo.depots.values.asSequence()
+                            .map { it.dlcAppId }
+                            .filter { it != INVALID_APP_ID }
+                    ).toSet()
+            if (declaredDlcIds.isEmpty()) return emptyList()
+
+            val depotIds = mutableListOf<GroupedBaseAppDlcDepot>()
+            var activeDlcAppId: Int? = null
+            for ((depotId, depot) in appInfo.depots) {
+                val isDlcMarkerDepot =
+                    depotId in declaredDlcIds &&
+                        depot.manifests.isEmpty()
+                if (isDlcMarkerDepot) {
+                    activeDlcAppId = depotId
+                    continue
+                }
+
+                val dlcAppId = activeDlcAppId
+                if (dlcAppId != null && depot.dlcAppId == INVALID_APP_ID) {
+                    depotIds += GroupedBaseAppDlcDepot(depotId, dlcAppId, depot)
+                }
+            }
+
+            return depotIds
+        }
+
+        /** Also need findApps in DAO for bulk SELECT */
+        // findApps is added to SteamAppDao below via Query
+
         fun getInstalledApp(appId: Int): AppInfo? {
             return runBlocking(Dispatchers.IO) { instance?.appInfoDao?.getInstalledApp(appId) }
         }
@@ -2608,38 +2720,17 @@ data class ManifestSizes(
                                 }
                                 Timber.i("Retrieved ${licenses.size} licenses from database")
 
-                                // Optimized ratios for 8-core mobile devices
+                                // Memory-safe thread limits for mobile devices
+                                // Each decompress thread allocates ~8MB in ThreadLocal buffers (VZipUtil),
+                                // so we must limit decompress threads to avoid OutOfMemoryError.
+                                // With largeHeap=true we get ~512MB heap, so download threads can be higher.
                                 val cpuCores = Runtime.getRuntime().availableProcessors()
-                                var downloadRatio = 1.0
-                                var decompressRatio = 0.5 // Start with balanced default
+                                // Download threads are cheap on memory — use more for max speed
+                                val maxDownloads = cpuCores.coerceIn(4, 16)
+                                // Decompress threads are expensive (8MB each) — limit to 2 to avoid OOM
+                                val maxDecompress = 2
 
-                                when (maxOf(PrefManager.downloadSpeed.toInt(), 32)) {
-                                    8 -> {
-                                        downloadRatio = 0.6
-                                        decompressRatio = 0.2
-                                    }
-                                    16 -> {
-                                        downloadRatio = 1.2
-                                        decompressRatio = 0.4
-                                    }
-                                    24 -> {
-                                        downloadRatio = 1.5
-                                        decompressRatio = 0.5
-                                    }
-                                    32 -> {
-                                        downloadRatio = 2.4
-                                        decompressRatio = 0.8
-                                    }
-                                    else -> {
-                                        downloadRatio = 2.4
-                                        decompressRatio = 0.8
-                                    }
-                                }
-
-                                val maxDownloads = (cpuCores * downloadRatio).toInt().coerceAtLeast(2)
-                                val maxDecompress = (cpuCores * decompressRatio).toInt().coerceAtLeast(1)
-
-                                Timber.i("Download Config - Cores: $cpuCores, DL Ratio: $downloadRatio, Decomp Ratio: $decompressRatio")
+                                Timber.i("Download Config - Cores: $cpuCores")
                                 Timber.i("Threads - Max Downloads: $maxDownloads, Max Decompress: $maxDecompress")
 
                                 // Create DepotDownloader instance

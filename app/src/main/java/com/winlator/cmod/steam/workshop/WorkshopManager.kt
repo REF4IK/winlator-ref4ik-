@@ -6,6 +6,7 @@ import com.winlator.cmod.steam.service.SteamService
 import com.winlator.cmod.steam.utils.PrefManager
 import `in`.dragonbra.javasteam.enums.EResult
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesPublishedfileSteamclient.CPublishedFile_GetUserFiles_Request
+import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesPublishedfileSteamclient.CPublishedFile_GetDetails_Request
 import `in`.dragonbra.javasteam.rpc.service.PublishedFile
 import `in`.dragonbra.javasteam.steam.handlers.steamunifiedmessages.SteamUnifiedMessages
 import `in`.dragonbra.javasteam.steam.steamclient.SteamClient
@@ -169,11 +170,25 @@ object WorkshopManager {
         itemsToSync.forEachIndexed { index, item ->
             try {
                 ensureActiveStatus(index, itemsToSync.size, item.title, onStatus)
-                if (item.fileUrl.isBlank()) {
-                    unsupportedCount++
-                } else {
+                if (item.fileUrl.isNotBlank()) {
+                    // Download via HTTP (most common)
                     downloadWorkshopItem(item, workshopContentDir)
                     syncedCount++
+                } else if (item.manifestId != 0L) {
+                    // Try depot-based download via SteamService
+                    val depotDownloaded = downloadWorkshopItemDepot(
+                        context = context,
+                        appId = appId,
+                        item = item,
+                        workshopContentDir = workshopContentDir,
+                    )
+                    if (depotDownloaded) {
+                        syncedCount++
+                    } else {
+                        unsupportedCount++
+                    }
+                } else {
+                    unsupportedCount++
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -198,6 +213,84 @@ object WorkshopManager {
         val items: List<WorkshopItem>,
         val totalResults: Int,
     )
+
+    /**
+     * Try to download a workshop item via Steam depot system using its manifestId.
+     * This is a fallback for items without a direct HTTP fileUrl.
+     * Uses SteamService's depot download infrastructure.
+     */
+    private suspend fun downloadWorkshopItemDepot(
+        context: Context,
+        appId: Int,
+        item: WorkshopItem,
+        workshopContentDir: File,
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // First try to resolve the file URL via Steam PublishedFile API
+            val resolvedUrl = resolveFileUrl(appId, item.publishedFileId)
+            if (!resolvedUrl.isNullOrBlank()) {
+                // Download via HTTP with the resolved URL
+                val resolvedItem = item.copy(fileUrl = resolvedUrl)
+                downloadWorkshopItem(resolvedItem, workshopContentDir)
+                return@withContext true
+            }
+
+            // If no URL available, try to use manifestId with Steam CDN
+            // Steam workshop manifestId (hcontent_file) can be used to construct a CDN URL
+            if (item.manifestId != 0L) {
+                val cdnUrl = buildSteamCdnUrl(item.manifestId, appId)
+                val cdnItem = item.copy(fileUrl = cdnUrl)
+                downloadWorkshopItem(cdnItem, workshopContentDir)
+                return@withContext true
+            }
+
+            Timber.tag(TAG).w("No download method available for workshop item ${item.publishedFileId}")
+            false
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Depot download failed for workshop item ${item.publishedFileId}")
+            false
+        }
+    }
+
+    /**
+     * Resolve a workshop item's file download URL via Steam PublishedFile.GetDetails API.
+     */
+    private suspend fun resolveFileUrl(appId: Int, publishedFileId: Long): String? = withContext(Dispatchers.IO) {
+        try {
+            val steamClient = SteamService.instance?.steamClient ?: return@withContext null
+            val unifiedMessages = steamClient.getHandler<SteamUnifiedMessages>() ?: return@withContext null
+            val publishedFile = unifiedMessages.createService(PublishedFile::class.java)
+
+            val request = CPublishedFile_GetDetails_Request.newBuilder()
+                .addPublishedfileids(publishedFileId)
+                .setIncludetags(false)
+                .build()
+
+            val response = withTimeoutOrNull(15_000L) {
+                publishedFile.getDetails(request).toFuture().await()
+            } ?: return@withContext null
+
+            if (response.result != EResult.OK) return@withContext null
+
+            val details = response.body.build().publishedfiledetailsList
+                .firstOrNull { it.publishedfileid == publishedFileId }
+                ?: return@withContext null
+
+            val fileUrl = details.fileUrl ?: ""
+            fileUrl.ifBlank { null }
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Failed to resolve file URL for workshop item $publishedFileId")
+            null
+        }
+    }
+
+    /**
+     * Build a Steam CDN URL for a workshop item using its manifest ID.
+     * This is the URL pattern used by the Steam depot system for individual files.
+     */
+    private fun buildSteamCdnUrl(manifestId: Long, appId: Int): String {
+        return "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/items/$appId/$manifestId"
+    }
 
     private suspend fun fetchSubscribedFilesViaRPC(
         publishedFile: PublishedFile,

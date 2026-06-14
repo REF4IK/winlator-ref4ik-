@@ -61,6 +61,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import coil.compose.AsyncImage
 import com.winlator.cmod.R
 import com.winlator.cmod.steam.data.DepotInfo
@@ -153,105 +159,45 @@ fun SteamContentManagerSheet(
                 if (!PrefManager.steamOfflineMode && SteamService.isConnected && SteamService.isLoggedIn) {
                     SteamService.refreshAppMetadataFromSteam(game.appId, refreshRelatedDlcs = true)
                 }
-                val baseAppInfo = SteamService.getAppInfoOf(game.appId)
-                val depots = SteamService.getDownloadableDepots(game.appId)
-                val indirectDlcAppIds = SteamService.getDownloadableDlcAppsOf(game.appId).orEmpty()
-                    .map { it.id }
-                    .toSet()
-                val optionalDlcIds = depots.values
-                    .filter { it.dlcAppId != SteamService.INVALID_APP_ID && it.optionalDlcId == it.dlcAppId }
-                    .map { it.dlcAppId }
-                    .toSet()
+
+                // Use the comprehensive WinNative-style function
+                val selectableDlcApps = SteamService.getSelectableDlcAppsOf(game.appId)
                 val availableBytes = runCatching {
                     StorageUtils.getAvailableSpace(SteamService.getAppDirPath(game.appId))
                 }.getOrDefault(0L)
 
-                val baseDepots = depots.values.filter { it.dlcAppId == SteamService.INVALID_APP_ID }
-                val baseSizes = calculateDepotSizes(baseDepots, selectedBranch)
                 val dlcEntries = mutableListOf<SteamContentDlcEntry>()
                 val dlcSizes = mutableMapOf<Int, Pair<String, String>>()
-                val seenDlcIds = mutableSetOf<Int>()
 
-                fun appendDlcEntry(
-                    dlcAppId: Int,
-                    name: String,
-                    dlcDepots: Collection<DepotInfo>,
-                    installable: Boolean,
-                ) {
-                    if (!seenDlcIds.add(dlcAppId)) return
+                for (dlcApp in selectableDlcApps) {
+                    val dlcDepots = SteamService.getDownloadableDepots(dlcApp.id)
+                        .values
+                        .map { depot ->
+                            if (depot.dlcAppId == SteamService.INVALID_APP_ID) {
+                                depot.copy(dlcAppId = dlcApp.id)
+                            } else {
+                                depot
+                            }
+                        }
 
-                    val defaultSelected = when {
-                        installedDlcIds.contains(dlcAppId) -> true
-                        installable && dlcAppId !in indirectDlcAppIds && dlcAppId !in optionalDlcIds -> true
-                        else -> false
-                    }
+                    val defaultSelected = installedDlcIds.contains(dlcApp.id)
 
                     dlcEntries += SteamContentDlcEntry(
-                        appId = dlcAppId,
-                        name = name,
-                        installable = installable,
+                        appId = dlcApp.id,
+                        name = dlcApp.name.ifBlank { "DLC ${dlcApp.id}" },
+                        installable = dlcDepots.isNotEmpty(),
                         defaultSelected = defaultSelected,
                     )
-                    dlcSizes[dlcAppId] = if (dlcDepots.isNotEmpty()) {
+                    dlcSizes[dlcApp.id] = if (dlcDepots.isNotEmpty()) {
                         calculateDepotSizes(dlcDepots, selectedBranch)
                     } else {
                         "--" to "--"
                     }
                 }
 
-                depots.values
-                    .filter { it.dlcAppId != SteamService.INVALID_APP_ID }
-                    .groupBy { it.dlcAppId }
-                    .mapValues { it.value.first() }
-                    .map { (dlcAppId, depotInfo) ->
-                        val name = SteamService.getAppInfoOf(dlcAppId)?.name
-                            ?: "DLC $dlcAppId"
-                        Triple(dlcAppId, name, depotInfo)
-                    }
-                    .sortedBy { it.second.lowercase() }
-                    .forEach { item ->
-                        appendDlcEntry(
-                            dlcAppId = item.first,
-                            name = item.second,
-                            dlcDepots = depots.values.filter { it.dlcAppId == item.first },
-                            installable = true,
-                        )
-                }
-
-                val relatedDlcCandidates = buildList {
-                    addAll(SteamService.getDownloadableDlcAppsOf(game.appId).orEmpty())
-                    addAll(SteamService.getHiddenDlcAppsOf(game.appId).orEmpty())
-                    baseAppInfo?.dlcAppIds
-                        .orEmpty()
-                        .filter { candidateId -> candidateId !in seenDlcIds }
-                        .forEach { candidateId ->
-                            add(SteamService.getAppInfoOf(candidateId) ?: com.winlator.cmod.steam.data.SteamApp(id = candidateId))
-                        }
-                }
-
-                relatedDlcCandidates
-                    .distinctBy { it.id }
-                    .sortedBy { it.name.ifBlank { "DLC ${it.id}" }.lowercase() }
-                    .forEach { dlcApp ->
-                        if (dlcApp.id in seenDlcIds) return@forEach
-
-                        val extraDepots = SteamService.getDownloadableDepots(dlcApp.id)
-                            .values
-                            .map { depot ->
-                                if (depot.dlcAppId == SteamService.INVALID_APP_ID) {
-                                    depot.copy(dlcAppId = dlcApp.id)
-                                } else {
-                                    depot
-                                }
-                            }
-
-                        appendDlcEntry(
-                            dlcAppId = dlcApp.id,
-                            name = dlcApp.name.ifBlank { "DLC ${dlcApp.id}" },
-                            dlcDepots = extraDepots,
-                            installable = extraDepots.isNotEmpty(),
-                        )
-                    }
+                // Base game info
+                val baseDepots = SteamService.getMainAppDepots(game.appId)
+                val baseSizes = calculateDepotSizes(baseDepots.values, selectedBranch)
 
                 SteamContentLoadResult(
                     availableBytes = availableBytes,
@@ -557,64 +503,73 @@ private fun SteamFullscreenSheet(
     onDismiss: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {},
-            ),
-        color = Color(0xFF0E131B),
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+        ),
     ) {
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color(0xFF111722), Color(0xFF0C1016)),
-                    ),
-                )
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .background(Color(0xFF0E131B)),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xFF111722), Color(0xFF0C1016)),
+                        ),
+                    )
+                    .windowInsetsPadding(WindowInsets.systemBars)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = subtitle,
-                        color = Color(0xFF8FA4BF),
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = subtitle,
+                            color = Color(0xFF8FA4BF),
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF151D29))
+                            .clickable(onClick = onDismiss),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White)
+                    }
                 }
+                HorizontalDivider(color = Color(0xFF223654))
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF151D29))
-                        .clickable(onClick = onDismiss),
-                    contentAlignment = Alignment.Center,
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
                 ) {
-                    Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White)
+                    content()
                 }
-            }
-            HorizontalDivider(color = Color(0xFF223654))
-            Box(modifier = Modifier.fillMaxSize()) {
-                content()
             }
         }
     }
