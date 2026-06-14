@@ -1,4 +1,4 @@
-﻿package com.winlator.cmod.steam
+package com.winlator.cmod.steam
 
 import android.content.Intent
 import android.net.Uri
@@ -972,7 +972,7 @@ private fun SteamGameOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.58f))
+            .background(Color.Black.copy(alpha = 0.30f))
             .clickable(
                 enabled = !isLaunchingGame && !showContentManager && !showWorkshopManager && !showBranchPicker,
                 onClick = onClose,
@@ -1027,69 +1027,81 @@ private fun SteamGameOverlay(
                 .fillMaxSize()
                 .clickable(enabled = false) {},
             shape = RoundedCornerShape(0.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1016)),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.fillMaxWidth().height(if (compactLayout) 124.dp else 144.dp)) {
-                    AsyncImage(
-                        model = game.heroUrl.ifBlank { game.capsuleUrl },
-                        contentDescription = game.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                    Box(
-                        modifier = Modifier.fillMaxSize().background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.42f), Color(0xFF0F1016)),
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Full-screen hero image
+                AsyncImage(
+                    model = game.heroUrl.ifBlank { game.capsuleUrl },
+                    contentDescription = game.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                // Full-screen gradient overlay (transparent top → dark bottom)
+                Box(
+                    modifier = Modifier.fillMaxSize().background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.05f),
+                                Color.Black.copy(alpha = 0.25f),
+                                Color.Black.copy(alpha = 0.65f),
+                                Color(0xDD0F1016),
                             ),
                         ),
-                    )
-                    Box(modifier = Modifier.align(Alignment.TopEnd).padding(18.dp)) {
-                        RoundActionButton(Icons.Filled.Close, onClose, size = 46)
-                    }
-                    Column(
-                        modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 18.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        if (game.logoUrl.isNotBlank()) {
-                            AsyncImage(
-                                model = game.logoUrl,
-                                contentDescription = game.name,
-                                modifier = Modifier
-                                    .height(42.dp)
-                                    .fillMaxWidth(0.48f),
-                                contentScale = ContentScale.Fit,
-                            )
-                        }
-                        Text(
-                            game.name,
-                            color = Color.White,
-                            style = if (compactLayout) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
+                    ),
+                )
+                // Close button
+                Box(modifier = Modifier.align(Alignment.TopEnd).padding(14.dp)) {
+                    RoundActionButton(Icons.Filled.Close, onClose, size = 40)
+                }
+                // Game info at top-left
+                Column(
+                    modifier = Modifier.align(Alignment.TopStart).padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    if (game.logoUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = game.logoUrl,
+                            contentDescription = game.name,
+                            modifier = Modifier
+                                .height(36.dp)
+                                .fillMaxWidth(0.42f),
+                            contentScale = ContentScale.Fit,
                         )
-                        if (game.subtitle.isNotBlank()) {
-                            Text(
-                                game.subtitle,
-                                color = Color(0xFFD6E2F7),
-                                style = if (compactLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
+                    }
+                    Text(
+                        game.name,
+                        color = Color.White,
+                        style = if (compactLayout) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (game.subtitle.isNotBlank()) {
+                        Text(
+                            game.subtitle,
+                            color = Color(0xFFD6E2F7),
+                            style = if (compactLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
 
-                Row(
+                // Content panel at bottom — compact & transparent
+                Column(
                     modifier = Modifier
+                        .align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = if (compactLayout) 12.dp else 14.dp, vertical = if (compactLayout) 10.dp else 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = if (compactLayout) 6.dp else 8.dp, vertical = if (compactLayout) 4.dp else 6.dp),
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
                         StatusBadge(text = stringResource(R.string.steam_library_tab_steam), solid = true)
                         if (updatePending == true) {
                             StatusBadge(text = stringResource(R.string.steam_library_update_pending_badge))
@@ -1103,74 +1115,40 @@ private fun SteamGameOverlay(
                                 )
                             }
                             DetailInfoCard(
-                                title = stringResource(R.string.steam_library_download_install_compact),
-                                value = stringResource(
-                                    R.string.steam_library_download_install_available,
-                                    formatBinarySize(game.downloadSizeBytes),
-                                    formatBinarySize(game.installSizeBytes),
-                                    formatBinarySize(game.availableBytes),
-                                ),
-                            )
-                            DetailInfoCard(
                                 title = stringResource(R.string.steam_library_install_path),
                                 value = game.installPath,
-                            )
-                            DetailInfoCard(
-                                title = stringResource(R.string.steam_library_release_date),
-                                value = formatReleaseDate(game.releaseDateSeconds),
                             )
                         } else if (showInstalledActions) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_install_path),
-                                    value = game.installPath,
+                                CompactStatCard(
+                                    icon = Icons.Filled.Storage,
+                                    label = stringResource(R.string.steam_library_size),
+                                    value = "${formatBinarySize(game.downloadSizeBytes)} / ${formatBinarySize(game.installSizeBytes)}",
                                     modifier = Modifier.weight(1f),
                                 )
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_size),
-                                    value = formatBinarySize(game.installSizeBytes),
-                                    modifier = Modifier.width(if (compactLayout) 120.dp else 132.dp),
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_playtime),
+                                CompactStatCard(
+                                    icon = Icons.Filled.Refresh,
+                                    label = stringResource(R.string.steam_library_playtime),
                                     value = playtimeText,
                                     modifier = Modifier.weight(1f),
                                 )
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_last_played),
+                                CompactStatCard(
+                                    icon = Icons.Filled.Check,
+                                    label = stringResource(R.string.steam_library_last_played),
                                     value = lastPlayedText,
                                     modifier = Modifier.weight(1f),
                                 )
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_branch),
-                                    value = selectedBranch,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_controller_support),
-                                    value = controllerSupportLabel,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_cloud_status),
+                                CompactStatCard(
+                                    icon = Icons.Filled.CloudUpload,
+                                    label = stringResource(R.string.steam_library_cloud_status),
                                     value = when (cloudDifference) {
                                         true -> stringResource(R.string.steam_library_cloud_changed)
                                         false -> stringResource(R.string.steam_library_cloud_in_sync)
@@ -1178,8 +1156,15 @@ private fun SteamGameOverlay(
                                     },
                                     modifier = Modifier.weight(1f),
                                 )
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_workshop_title),
+                                CompactStatCard(
+                                    icon = Icons.Filled.Settings,
+                                    label = stringResource(R.string.steam_library_controller_support),
+                                    value = controllerSupportLabel,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                CompactStatCard(
+                                    icon = Icons.Filled.Home,
+                                    label = stringResource(R.string.steam_library_workshop_title),
                                     value = if (enabledWorkshopIds.isEmpty()) {
                                         stringResource(R.string.steam_library_workshop_disabled)
                                     } else {
@@ -1191,43 +1176,28 @@ private fun SteamGameOverlay(
                                     modifier = Modifier.weight(1f),
                                 )
                             }
-                            if (steamInputAvailable) {
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_controller_mapping),
-                                    value = stringResource(R.string.steam_library_controller_mapping_available),
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                CompactStatCard(
+                                    icon = Icons.Filled.Storage,
+                                    label = stringResource(R.string.steam_library_size),
+                                    value = "${formatBinarySize(game.downloadSizeBytes)} / ${formatBinarySize(game.installSizeBytes)}",
+                                    modifier = Modifier.weight(1f),
+                                )
+                                CompactStatCard(
+                                    icon = Icons.Filled.FolderOpen,
+                                    label = stringResource(R.string.steam_library_available_space),
+                                    value = formatBinarySize(game.availableBytes),
+                                    modifier = Modifier.weight(1f),
                                 )
                             }
-                            DetailInfoCard(
-                                title = stringResource(R.string.steam_library_release_date),
-                                value = formatReleaseDate(game.releaseDateSeconds),
-                            )
-                            if (game.isDownloading || game.downloadProgress > 0f) {
-                                DownloadProgressCard(game = game, compactLayout = compactLayout)
-                            }
-                        } else {
                             DetailInfoCard(
                                 title = stringResource(R.string.steam_library_install_path),
                                 value = game.installPath,
                             )
-                            DetailInfoCard(
-                                title = stringResource(R.string.steam_library_download_install_compact),
-                                value = stringResource(
-                                    R.string.steam_library_download_install_available,
-                                    formatBinarySize(game.downloadSizeBytes),
-                                    formatBinarySize(game.installSizeBytes),
-                                    formatBinarySize(game.availableBytes),
-                                ),
-                            )
-                            DetailInfoCard(
-                                title = stringResource(R.string.steam_library_release_date),
-                                value = formatReleaseDate(game.releaseDateSeconds),
-                            )
-                            if (!game.currentFileName.isNullOrBlank()) {
-                                DetailInfoCard(
-                                    title = stringResource(R.string.steam_library_current_file),
-                                    value = game.currentFileName,
-                                )
-                            }
                             if (game.isDownloading || game.downloadProgress > 0f) {
                                 DownloadProgressCard(game = game, compactLayout = compactLayout)
                             }
@@ -1235,35 +1205,46 @@ private fun SteamGameOverlay(
                     }
 
                     Column(
-                        modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         if (!isDownloadSession) {
-                            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF171C25))) {
+                            Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0x80171C25))) {
                                 Column(
-                                    modifier = Modifier.fillMaxWidth().padding(if (compactLayout) 10.dp else 12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(if (compactLayout) 6.dp else 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp),
                                 ) {
-                                    ContainerDropdown(
-                                        containers = containers,
-                                        selectedContainerId = selectedContainerId,
-                                        onSelectContainer = onSelectContainer,
+                                    Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    if (showFolderPicker) {
-                                        OutlinedButton(onClick = { onPickInstallFolder(game.appId) }, modifier = Modifier.fillMaxWidth()) {
-                                            Icon(Icons.Filled.FolderOpen, contentDescription = null)
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(stringResource(R.string.steam_library_choose_folder), color = Color.White)
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            ContainerDropdown(
+                                                containers = containers,
+                                                selectedContainerId = selectedContainerId,
+                                                onSelectContainer = onSelectContainer,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
+                                        if (showFolderPicker) {
+                                            OutlinedButton(
+                                                onClick = { onPickInstallFolder(game.appId) },
+                                                modifier = Modifier.weight(1f).height(36.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                            ) {
+                                                Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF43B5FF))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(stringResource(R.string.steam_library_choose_folder), color = Color.White, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
                                         }
                                     }
                                 }
                             }
                         } else {
-                            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF161D29))) {
+                            Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0x80161D29))) {
                                 Column(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp),
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -1304,7 +1285,7 @@ private fun SteamGameOverlay(
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 SteamActionTile(
                                     icon = Icons.Filled.Settings,
@@ -1322,7 +1303,7 @@ private fun SteamGameOverlay(
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 SteamActionTile(
                                     icon = Icons.Filled.Refresh,
@@ -1384,7 +1365,7 @@ private fun SteamGameOverlay(
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 SteamActionTile(
                                     icon = Icons.Filled.Storage,
@@ -1402,7 +1383,7 @@ private fun SteamGameOverlay(
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 SteamActionTile(
                                     icon = Icons.Filled.Tune,
@@ -1496,7 +1477,7 @@ private fun SteamGameOverlay(
                                 text = stringResource(R.string.steam_library_uninstall),
                                 onClick = { onDelete(game.appId) },
                                 modifier = Modifier.fillMaxWidth(),
-                                containerColor = Color(0xFF34161D),
+                                containerColor = Color(0x9934161D),
                                 contentColor = Color(0xFFFF8CA4),
                             )
                         } else {
@@ -1522,7 +1503,7 @@ private fun SteamGameOverlay(
                                     text = stringResource(R.string.steam_library_cancel_download),
                                     onClick = { onCancelDownload(game.appId) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    containerColor = Color(0xFF34161D),
+                                    containerColor = Color(0x9934161D),
                                     contentColor = Color(0xFFFF8CA4),
                                 )
                             } else {
@@ -1635,16 +1616,17 @@ private fun SteamGameOverlay(
         }
     }
 }
+}
 
 @Composable
 private fun DownloadProgressCard(game: SteamGameDetailUi, compactLayout: Boolean) {
     Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF171C25)),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x80171C25)),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(if (compactLayout) 12.dp else 14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1655,13 +1637,13 @@ private fun DownloadProgressCard(game: SteamGameDetailUi, compactLayout: Boolean
                     stringResource(R.string.steam_library_download_panel_title),
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.labelLarge,
                 )
                 StatusBadge(text = game.statusLine)
             }
             LinearProgressIndicator(
                 progress = { game.downloadProgress },
-                modifier = Modifier.fillMaxWidth().height(9.dp).clip(CircleShape),
+                modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = Color(0xFF31394A),
             )
@@ -1808,13 +1790,17 @@ private fun ContainerDropdown(
     val selectedContainer = containers.firstOrNull { it.id == selectedContainerId }
 
     Box(modifier = modifier) {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth().height(44.dp)) {
-            Icon(Icons.Filled.Storage, contentDescription = null, modifier = Modifier.size(18.dp))
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().height(36.dp),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+        ) {
+            Icon(Icons.Filled.Storage, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF43B5FF))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = selectedContainer?.name ?: stringResource(R.string.steam_library_select_container),
                 color = Color.White,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1835,25 +1821,25 @@ private fun ContainerDropdown(
 @Composable
 private fun StatusBadge(text: String, modifier: Modifier = Modifier, solid: Boolean = false) {
     Box(
-        modifier = modifier.clip(RoundedCornerShape(18.dp)).background(
-            if (solid) Color(0xFF0E4E83) else Color(0xCC11151D),
-        ).padding(horizontal = 11.dp, vertical = 6.dp),
+        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(
+            if (solid) Color(0x800E4E83) else Color(0x8011151D),
+        ).padding(horizontal = 7.dp, vertical = 3.dp),
     ) {
         Text(
             text = text,
             color = if (solid) Color(0xFF43B5FF) else Color.White,
             fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
         )
     }
 }
 
 @Composable
 private fun DetailInfoCard(title: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF171C25))) {
-        Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
-            Text(value, color = Color.White, style = MaterialTheme.typography.bodyLarge)
+    Card(modifier = modifier, shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0x80171C25))) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(title.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+            Text(value, color = Color.White, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -1861,8 +1847,51 @@ private fun DetailInfoCard(title: String, value: String, modifier: Modifier = Mo
 @Composable
 private fun DetailMiniLine(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, color = Color.White)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+        Text(value, color = Color.White, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
+private fun CompactStatCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x80171C25)),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFF43B5FF),
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = label.uppercase(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = value,
+                color = Color.White,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -1874,13 +1903,13 @@ private fun GradientButton(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.clip(RoundedCornerShape(16.dp)).background(
+        modifier = modifier.clip(RoundedCornerShape(10.dp)).background(
             Brush.horizontalGradient(listOf(Color(0xFF18C5F3), Color(0xFF7E2DFF))),
-        ).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp),
+        ).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 7.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-            Text(text, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            Text(text, color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1915,24 +1944,24 @@ private fun SteamActionTile(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    containerColor: Color = Color(0xFF171C25),
+    containerColor: Color = Color(0x99171C25),
     contentColor: Color = Color.White,
 ) {
     Card(
         modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(16.dp))
             Text(
                 text = text,
                 color = contentColor,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
