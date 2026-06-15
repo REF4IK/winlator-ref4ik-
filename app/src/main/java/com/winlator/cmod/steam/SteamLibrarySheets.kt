@@ -509,6 +509,7 @@ private fun SteamFullscreenSheet(
             usePlatformDefaultWidth = false,
             dismissOnBackPress = true,
             dismissOnClickOutside = false,
+            decorFitsSystemWindows = false
         ),
     ) {
         BoxWithConstraints(

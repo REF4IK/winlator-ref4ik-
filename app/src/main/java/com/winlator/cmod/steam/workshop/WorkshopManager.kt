@@ -20,6 +20,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import timber.log.Timber
+import org.json.JSONArray
+import org.json.JSONObject
+import android.system.Os
+import android.system.ErrnoException
 
 object WorkshopManager {
     private const val TAG = "SteamWorkshopManager"
@@ -405,16 +409,50 @@ object WorkshopManager {
     }
 
     private fun resolveOutputFileName(item: WorkshopItem): String {
-        val fromMetadata = item.fileName.substringAfterLast('/').substringAfterLast('\\').trim()
-        if (fromMetadata.isNotBlank()) {
-            return fromMetadata
-        }
-
-        val urlName = item.fileUrl.substringAfterLast('/').substringBefore('?').trim()
-        if (urlName.isNotBlank()) {
-            return urlName
-        }
-
         return item.publishedFileId.toString()
+    }
+
+    fun generateWorkshopModsJson(appId: Int, gameInstallPath: String, containerRootPath: String) {
+        val steamSettingsDir = File(gameInstallPath, "steam_settings")
+        if (!steamSettingsDir.exists()) steamSettingsDir.mkdirs()
+
+        val modsDir = File(steamSettingsDir, "mods")
+        if (modsDir.exists()) {
+            modsDir.deleteRecursively()
+        }
+        modsDir.mkdirs()
+
+        val enabledIds = PrefManager.getSteamWorkshopEnabledItemIds(appId)
+        val workshopContentDir = getWorkshopContentDir(containerRootPath, appId)
+        
+        val jsonArray = JSONArray()
+
+        for (id in enabledIds) {
+            val sourceDir = File(workshopContentDir, id.toString())
+            if (sourceDir.exists() && sourceDir.isDirectory) {
+                val targetDir = File(modsDir, id.toString())
+                
+                try {
+                    Os.symlink(sourceDir.absolutePath, targetDir.absolutePath)
+                } catch (e: Exception) {
+                    sourceDir.copyRecursively(targetDir, overwrite = true)
+                }
+
+                val modObj = JSONObject().apply {
+                    put("id", id.toString())
+                    put("title", "Workshop Item $id")
+                }
+                jsonArray.put(modObj)
+            }
+        }
+
+        val modsJsonFile = File(steamSettingsDir, "mods.json")
+        if (jsonArray.length() > 0) {
+            modsJsonFile.writeText(jsonArray.toString(2))
+        } else {
+            if (modsJsonFile.exists()) {
+                modsJsonFile.delete()
+            }
+        }
     }
 }

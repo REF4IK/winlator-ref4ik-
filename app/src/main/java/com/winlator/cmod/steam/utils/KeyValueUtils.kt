@@ -105,8 +105,9 @@ fun KeyValue.generateSteamApp(): SteamApp {
         homepageUrl = this["extended"]["homepage"].value.orEmpty(),
         gameManualUrl = this["common"]["extended"]["gamemanualurl"].value.orEmpty(),
         loadAllBeforeLaunch = this["common"]["extended"]["loadallbeforelaunch"].asBoolean(),
-        // dlcAppIds = (this["common"]["extended"]["listofdlc"].value).Split(",").Select(uint.Parse).ToArray(),
-        dlcAppIds = emptyList(),
+        dlcAppIds = this["extended"]["listofdlc"].value?.split(",")?.mapNotNull { it.trim().toIntOrNull() } 
+            ?: this["common"]["extended"]["listofdlc"].value?.split(",")?.mapNotNull { it.trim().toIntOrNull() } 
+            ?: emptyList(),
         isFreeApp = this["common"]["extended"]["isfreeapp"].asBoolean(),
         dlcForAppId = this["extended"]["dlcforappid"].asInteger(this["common"]["extended"]["dlcforappid"].asInteger()),
         mustOwnAppToPurchase = this["common"]["extended"]["mustownapptopurchase"].asInteger(),
