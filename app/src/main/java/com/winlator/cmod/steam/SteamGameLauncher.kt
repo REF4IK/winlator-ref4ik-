@@ -131,6 +131,17 @@ object SteamGameLauncher {
                     containerManager.activateContainer(container)
                     mountADrive(container, gameInstallPath)
                     container.saveData()
+                    
+                    try {
+                        com.winlator.cmod.steam.workshop.WorkshopManager.generateWorkshopModsJson(
+                            app.id, 
+                            gameInstallPath, 
+                            container.rootDir.absolutePath
+                        )
+                    } catch (e: Exception) {
+                        // Ignore errors in generating workshop mods to not prevent game launch
+                    }
+                    
                     prepareSteamLaunchEnvironment(context, container, app, gameInstallPath, offlineLaunch)
 
                     if (shortcut == null) {

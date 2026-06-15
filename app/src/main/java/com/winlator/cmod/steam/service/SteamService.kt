@@ -147,6 +147,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.lang.NullPointerException
 import com.winlator.cmod.steam.data.AppInfo
@@ -2725,13 +2726,14 @@ data class ManifestSizes(
                                 // so we must limit decompress threads to avoid OutOfMemoryError.
                                 // With largeHeap=true we get ~512MB heap, so download threads can be higher.
                                 val cpuCores = Runtime.getRuntime().availableProcessors()
-                                // Download threads are cheap on memory — use more for max speed
-                                val maxDownloads = cpuCores.coerceIn(4, 16)
-                                // Decompress threads are expensive (8MB each) — limit to 2 to avoid OOM
-                                val maxDecompress = 2
+                                // Maximize download threads for better throughput
+                                val maxDownloads = (cpuCores * 2.4).toInt().coerceAtLeast(4)
+                                // Increase decompress threads to match GameNative's max speed profile
+                                val maxDecompress = (cpuCores * 0.8).toInt().coerceAtLeast(2)
 
                                 Timber.i("Download Config - Cores: $cpuCores")
                                 Timber.i("Threads - Max Downloads: $maxDownloads, Max Decompress: $maxDecompress")
+
 
                                 // Create DepotDownloader instance
                                 Timber.i("Initializing DepotDownloader for appId: $appId (attempt $attempt)")
@@ -2831,7 +2833,7 @@ data class ManifestSizes(
                                         // If it's a CompletableFuture or other type, try to join it
                                         Timber.i("Downloader completion is ${completion.javaClass.simpleName}, waiting...")
                                         if (completion is java.util.concurrent.CompletableFuture<*>) {
-                                            completion.join()
+                                            completion.await() // Suspend instead of block, allowing cancellation
                                         }
                                     } else {
                                         Timber.i("Downloader completion is null, assuming immediate success")
@@ -2841,6 +2843,16 @@ data class ManifestSizes(
                                     Timber.w(e, "DepotDownloader completion await encountered an error")
                                 }
                                 
+                                coroutineContext.ensureActive()
+                                if (!di.isActive() || di.isCancelling) {
+                                    Timber.i(
+                                        "DepotDownloader completion returned but DownloadInfo is no longer active " +
+                                        "(isActive=${di.isActive()}, isCancelling=${di.isCancelling}). " +
+                                        "Skipping completeAppDownload — the user paused or cancelled."
+                                    )
+                                    throw CancellationException(if (di.isCancelling) "Cancelled by user" else "Paused by user")
+                                }
+
                                 Timber.i("DepotDownloader finished for appId: $appId")
 
                                 // If it was extremely fast (e.g. already downloaded), ensure some visibility in UI
@@ -4795,13 +4807,15 @@ data class ManifestSizes(
             }
 
             runCatching {
-                val baseCallback = steamApps.picsGetProductInfo(
-                    apps = listOf(PICSRequest(id = appId)),
-                    packages = emptyList(),
-                ).await()
+                val baseCallback = withTimeoutOrNull(10_000L) {
+                    steamApps.picsGetProductInfo(
+                        apps = listOf(PICSRequest(id = appId)),
+                        packages = emptyList(),
+                    ).await()
+                }
 
-                val remoteBaseApp = baseCallback.results
-                    .firstOrNull()
+                val remoteBaseApp = baseCallback?.results
+                    ?.firstOrNull()
                     ?.apps
                     ?.values
                     ?.firstOrNull()
@@ -4824,22 +4838,25 @@ data class ManifestSizes(
                     relatedDlcIds.addAll(getHiddenDlcAppsOf(appId).orEmpty().map { it.id })
 
                     if (relatedDlcIds.isNotEmpty()) {
-                        val accessTokens = steamApps.picsGetAccessTokens(
-                            appIds = relatedDlcIds.toList(),
-                            packageIds = emptyList(),
-                        ).await()
+                        val accessTokens = withTimeoutOrNull(10_000L) {
+                            steamApps.picsGetAccessTokens(
+                                appIds = relatedDlcIds.toList(),
+                                packageIds = emptyList(),
+                            ).await()
+                        }
 
-                        accessTokens.appTokens
-                            .filterKeys { it in relatedDlcIds }
-                            .map { (dlcAppId, token) -> PICSRequest(id = dlcAppId, accessToken = token) }
+                        relatedDlcIds
+                            .map { dlcAppId -> PICSRequest(id = dlcAppId, accessToken = accessTokens?.appTokens?.get(dlcAppId) ?: 0L) }
                             .chunked(MAX_PICS_BUFFER)
                             .forEach { chunk ->
-                                val dlcCallback = steamApps.picsGetProductInfo(
-                                    apps = chunk,
-                                    packages = emptyList(),
-                                ).await()
+                                val dlcCallback = withTimeoutOrNull(10_000L) {
+                                    steamApps.picsGetProductInfo(
+                                        apps = chunk,
+                                        packages = emptyList(),
+                                    ).await()
+                                }
 
-                                val refreshedDlcs = dlcCallback.results
+                                val refreshedDlcs = dlcCallback?.results.orEmpty()
                                     .flatMap { it.apps.values }
                                     .map { remoteDlc ->
                                         val dlcId = remoteDlc.id
