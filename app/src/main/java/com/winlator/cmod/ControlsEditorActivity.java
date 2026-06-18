@@ -359,6 +359,9 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
                     element.getIconId(), (iconId) -> {
                         element.setIconId(iconId);
                         refreshIconList(llIconList, element);
+                        // Немедленно применяем иконку на кнопку без закрытия настроек
+                        profile.save();
+                        inputControlsView.invalidate();
                     });
             dialog.show();
         });

@@ -554,6 +554,9 @@
     <string name="input_controls">Управление вводом</string>
     <string name="install_content">Установить контент</string>
     <string name="install_wine_components">Установить компоненты Wine</string>
+    <string name="loading_components_from_github">Загрузка компонентов с GitHub...</string>
+    <string name="install_selected">Установить выбранное</string>
+    <string name="components_icon_description">Иконка компонентов</string>
     <string name="install_drivers">Установить драйверы</string>
     <string name="install_drivers_message">Теперь вам будет предложено выбрать драйвер. Это должны быть те же драйверы, что используются в других эмуляторах, таких как Yuzu, Dolphin, Citra и т.д.</string>
     <string name="install_drivers_warning">Предупреждение: из-за ограничений текущих эмуляторов для ПК драйверы Qualcomm могут не работать на чипсетах ниже 8 Gen2 без патчей.</string>
@@ -1472,6 +1475,27 @@
     <string name="import_game_confirm">Импортировать</string>
     <string name="import_game_cancel">Отмена</string>
     <string name="game_import_change_hint">Вы можете изменить путь, если файл игры находится в другом месте</string>
+    <string name="delete_all_custom_icons">Удалить все кастомные иконки</string>
+    <string name="confirm_delete_all_custom_icons">Вы уверены, что хотите удалить ВСЕ кастомные иконки? Это действие нельзя отменить.</string>
+    <string name="create_pack">Создать пак</string>
+    <string name="select_all">Выбрать всё</string>
+    <string name="deselect_all">Снять всё</string>
+    <string name="close">Закрыть</string>
+    <string name="preview">Просмотр</string>
+    <string name="edit_icon">Редактировать иконку</string>
+    <string name="select_for_pack">Выбрать для пака</string>
+    <string name="rotate">Повернуть 90°</string>
+    <string name="edit_external">Изменить внешним приложением</string>
+    <string name="no_app_found">Не найдено приложение для редактирования</string>
+    <string name="pack_name">Название пака</string>
+    <string name="enter_pack_name">Введите название пака</string>
+    <string name="share_pack">Поделиться паком</string>
+    <string name="pack_created">Пак успешно создан!</string>
+    <string name="failed_to_create_pack">Не удалось создать пак</string>
+    <string name="export_pack_zip">Экспорт в ZIP</string>
+    <string name="saved">Сохранено!</string>
+    <string name="failed_to_export">Не удалось экспортировать</string>
+    <string name="no_icons_selected">Не выбрано ни одной иконки</string>
 </resources>
 
 
