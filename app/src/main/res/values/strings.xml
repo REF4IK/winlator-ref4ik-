@@ -560,6 +560,9 @@
     <string name="input_controls">Input Controls</string>
     <string name="install_content">Install Content</string>
     <string name="install_wine_components">Install Wine Components</string>
+    <string name="loading_components_from_github">Loading components from GitHub...</string>
+    <string name="install_selected">Install Selected</string>
+    <string name="components_icon_description">Components icon</string>
     <string name="install_drivers">Install Drivers</string>
     <string name="install_drivers_message">You will now be prompted to pick a driver. These must be the same ones used in other emulators like Yuzu, Dolphin, Citra, etc.</string>
     <string name="install_drivers_warning">Be warned that because of limitations of current PC emulators, Qualcomm Drivers may not work on chipsets below 8 Gen2 without getting patched.</string>
@@ -1459,6 +1462,27 @@
     <string name="screenshot">Screenshot</string>
     <string name="game_cover">Game cover</string>
     <string name="game_import_change_hint">You can change the path if the game file is stored in a different location</string>
+    <string name="delete_all_custom_icons">Delete All Custom Icons</string>
+    <string name="confirm_delete_all_custom_icons">Are you sure you want to delete ALL custom icons? This cannot be undone.</string>
+    <string name="create_pack">Create Pack</string>
+    <string name="select_all">Select All</string>
+    <string name="deselect_all">Deselect All</string>
+    <string name="close">Close</string>
+    <string name="preview">Preview</string>
+    <string name="edit_icon">Edit Icon</string>
+    <string name="select_for_pack">Select for Pack</string>
+    <string name="rotate">Rotate 90°</string>
+    <string name="edit_external">Edit with external app</string>
+    <string name="no_app_found">No app found to edit this file</string>
+    <string name="pack_name">Pack name</string>
+    <string name="enter_pack_name">Enter pack name</string>
+    <string name="share_pack">Share pack</string>
+    <string name="pack_created">Pack created successfully!</string>
+    <string name="failed_to_create_pack">Failed to create pack</string>
+    <string name="export_pack_zip">Export as ZIP</string>
+    <string name="saved">Saved!</string>
+    <string name="failed_to_export">Failed to export</string>
+    <string name="no_icons_selected">No icons selected</string>
 </resources>
 
 

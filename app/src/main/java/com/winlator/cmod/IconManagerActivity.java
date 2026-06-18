@@ -1,20 +1,16 @@
 package com.winlator.cmod;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.LayoutInflater;
+import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
-import android.widget.FrameLayout;
-import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.PopupMenu;
@@ -22,12 +18,16 @@ import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.preference.PreferenceManager;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.tabs.TabLayout;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.Callback;
@@ -36,29 +36,40 @@ import com.winlator.cmod.inputcontrols.IconPackManager;
 import com.winlator.cmod.inputcontrols.IconPackManager.IconPack;
 import com.winlator.cmod.widget.IconPackAdapter;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class IconManagerActivity extends AppCompatActivity {
     public static final String EXTRA_TAB = "tab";
 
     private TabLayout tabLayout;
+    private RecyclerView recyclerMy;
     private FrameLayout frameContent;
     private TextView tvEmpty;
     private ImageButton btAddIcon;
 
     private CustomIconManager customIconManager;
     private IconPackManager iconPackManager;
-    private boolean isDarkMode;
 
-    // Tabs: 0=My, 1=Packs
     private int currentTab = 0;
     private ListView listViewPacks;
-    private GridView gridViewMy;
     private View llContentMy;
     private View llContentPacks;
 
     private final List<IconPack> userPacks = new ArrayList<>();
+
+    // Multi-select
+    private boolean multiSelectMode = false;
+    private Set<Integer> selectedIconIds = new HashSet<>();
+    private View llBottomActions;
+    private MaterialButton btSelectAll;
+
+    // My Icons adapter
+    private MyIconRecyclerAdapter myAdapter;
+    private final List<Integer> myIconIdList = new ArrayList<>();
 
     private ActivityResultLauncher<Intent> filePickerLauncher;
     private Callback<Uri> importCallback;
@@ -67,9 +78,6 @@ public class IconManagerActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.icon_manager_activity);
-
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        isDarkMode = prefs.getBoolean("dark_mode", false);
 
         customIconManager = new CustomIconManager(this);
         iconPackManager = new IconPackManager(this);
@@ -86,13 +94,15 @@ public class IconManagerActivity extends AppCompatActivity {
         frameContent = findViewById(R.id.FLContent);
         tvEmpty = findViewById(R.id.TVEmpty);
         btAddIcon = findViewById(R.id.BTAddIcon);
+        llBottomActions = findViewById(R.id.LLBottomActions);
+        btSelectAll = findViewById(R.id.BTSelectAll);
 
         setupTabs();
         setupContent();
         setupAddButton();
+        setupBottomActions();
         setupFilePicker();
 
-        // Restore tab from intent
         int requestedTab = getIntent().getIntExtra(EXTRA_TAB, 0);
         if (requestedTab >= 0 && requestedTab < tabLayout.getTabCount()) {
             tabLayout.getTabAt(requestedTab).select();
@@ -102,58 +112,120 @@ public class IconManagerActivity extends AppCompatActivity {
     private void setupTabs() {
         tabLayout.addTab(tabLayout.newTab().setText(R.string.my_icons));
         tabLayout.addTab(tabLayout.newTab().setText(R.string.packs));
-
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 currentTab = tab.getPosition();
+                exitMultiSelectMode();
                 updateContent();
             }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
+            @Override public void onTabUnselected(TabLayout.Tab tab) {}
+            @Override public void onTabReselected(TabLayout.Tab tab) {}
         });
     }
 
     private void setupContent() {
-        // Inflate two content views, but only show the selected one
-        LayoutInflater inflater = LayoutInflater.from(this);
-
-        // My tab - grid of personal custom icons
         llContentMy = createMyTabView();
         frameContent.addView(llContentMy);
-
-        // Packs tab - list of user icon packs
         llContentPacks = createPacksTabView();
         frameContent.addView(llContentPacks);
     }
 
     private View createMyTabView() {
-        GridView grid = new GridView(this);
-        grid.setId(View.generateViewId());
-        grid.setNumColumns(4);
-        grid.setBackgroundColor(Color.BLACK);
-        grid.setPadding(16, 16, 16, 16);
-        grid.setVerticalSpacing(12);
-        grid.setHorizontalSpacing(12);
-        grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
-        grid.setGravity(android.view.Gravity.CENTER);
-        gridViewMy = grid;
-        return grid;
+        LinearLayout root = new LinearLayout(this);
+        root.setId(View.generateViewId());
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(0xff2a2a2a);
+
+        recyclerMy = new RecyclerView(this);
+        recyclerMy.setId(View.generateViewId());
+        recyclerMy.setBackgroundColor(0xff2a2a2a);
+        recyclerMy.setPadding(12, 12, 12, 12);
+        recyclerMy.setClipToPadding(false);
+        recyclerMy.setLayoutManager(new GridLayoutManager(this, 4));
+        recyclerMy.setHasFixedSize(true);
+
+        // Drag & drop via ItemTouchHelper
+        ItemTouchHelper.SimpleCallback dragCb = new ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT, 0) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from,
+                                  @NonNull RecyclerView.ViewHolder to) {
+                int fromPos = from.getAdapterPosition();
+                int toPos = to.getAdapterPosition();
+                if (fromPos >= 0 && toPos >= 0 && fromPos < myIconIdList.size() && toPos < myIconIdList.size()) {
+                    Integer moved = myIconIdList.remove(fromPos);
+                    myIconIdList.add(toPos, moved);
+                    myAdapter.notifyItemMoved(fromPos, toPos);
+                    customIconManager.saveIconOrder(myIconIdList);
+                    return true;
+                }
+                return false;
+            }
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int dir) {}
+        };
+        ItemTouchHelper ith = new ItemTouchHelper(dragCb);
+        ith.attachToRecyclerView(recyclerMy);
+
+        // Enable drag handle on long-press
+        recyclerMy.addOnItemTouchListener(new RecyclerView.OnItemTouchListener() {
+            private final android.os.Handler h = new android.os.Handler();
+            private boolean dragging = false;
+            @Override
+            public boolean onInterceptTouchEvent(@NonNull RecyclerView rv, @NonNull MotionEvent e) {
+                if (e.getAction() == MotionEvent.ACTION_DOWN && !multiSelectMode) {
+                    View child = rv.findChildViewUnder(e.getX(), e.getY());
+                    if (child != null) {
+                        int pos = rv.getChildAdapterPosition(child);
+                        if (pos >= 0) {
+                            h.postDelayed(() -> {
+                                if (!multiSelectMode) {
+                                    dragging = true;
+                                    ith.startDrag(rv.getChildViewHolder(child));
+                                }
+                            }, 400);
+                        }
+                    }
+                }
+                if (e.getAction() == MotionEvent.ACTION_UP || e.getAction() == MotionEvent.ACTION_CANCEL) {
+                    h.removeCallbacksAndMessages(null);
+                    dragging = false;
+                }
+                return false;
+            }
+            @Override public void onTouchEvent(@NonNull RecyclerView rv, @NonNull MotionEvent e) {}
+            @Override public void onRequestDisallowInterceptTouchEvent(boolean disallowIntercept) {}
+        });
+
+        root.addView(recyclerMy, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        return root;
     }
 
     private View createPacksTabView() {
-        ListView listView = new ListView(this);
-        listView.setId(View.generateViewId());
-        listView.setBackgroundColor(Color.BLACK);
-        listView.setDivider(null);
-        listView.setDividerHeight(0);
-        listView.setPadding(0, 8, 0, 8);
-        listViewPacks = listView;
-        return listView;
+        listViewPacks = new ListView(this);
+        listViewPacks.setId(View.generateViewId());
+        listViewPacks.setBackgroundColor(0xff2a2a2a);
+        listViewPacks.setDivider(null);
+        listViewPacks.setDividerHeight(0);
+        listViewPacks.setPadding(0, 8, 0, 8);
+        return listViewPacks;
+    }
+
+    private void setupBottomActions() {
+        btSelectAll.setOnClickListener(v -> {
+            if (selectedIconIds.size() == myIconIdList.size()) {
+                selectedIconIds.clear();
+                btSelectAll.setText(R.string.select_all);
+            } else {
+                selectedIconIds.addAll(myIconIdList);
+                btSelectAll.setText(R.string.deselect_all);
+            }
+            myAdapter.notifyDataSetChanged();
+        });
+
+        findViewById(R.id.BTExitSelectMode).setOnClickListener(v -> exitMultiSelectMode());
     }
 
     private void setupAddButton() {
@@ -161,14 +233,13 @@ public class IconManagerActivity extends AppCompatActivity {
             PopupMenu popup = new PopupMenu(this, v);
             popup.inflate(R.menu.icon_manager_add_menu);
             popup.setOnMenuItemClickListener(item -> {
-                int id = item.getItemId();
-                if (id == R.id.add_icon_image) {
+                if (item.getItemId() == R.id.add_icon_image) {
                     openFilePicker("image/*");
-                    importCallback = uri -> importIconFromUri(uri);
+                    importCallback = this::importIconFromUri;
                     return true;
-                } else if (id == R.id.add_icon_pack_zip) {
+                } else if (item.getItemId() == R.id.add_icon_pack_zip) {
                     openFilePicker("application/zip");
-                    importCallback = uri -> importPackFromZip(uri);
+                    importCallback = this::importPackFromZip;
                     return true;
                 }
                 return false;
@@ -195,19 +266,15 @@ public class IconManagerActivity extends AppCompatActivity {
     private void openFilePicker(String type) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        if (type != null) {
-            intent.setType(type);
-        } else {
-            intent.setType("*/*");
-        }
+        intent.setType(type != null ? type : "*/*");
         filePickerLauncher.launch(Intent.createChooser(intent, getString(R.string.add_custom_icon)));
     }
 
     private void importIconFromUri(Uri uri) {
-        // Save as a single-icon pack
-        IconPack pack = iconPackManager.importIconAsPack(uri);
-        if (pack != null) {
+        int iconId = customIconManager.importIcon(uri);
+        if (iconId >= 0) {
             AppUtils.showToast(this, R.string.icon_imported_successfully);
+            tabLayout.getTabAt(0).select();
             updateContent();
         } else {
             AppUtils.showToast(this, R.string.failed_to_import_icon);
@@ -233,72 +300,164 @@ public class IconManagerActivity extends AppCompatActivity {
     private void updateContent() {
         llContentMy.setVisibility(currentTab == 0 ? View.VISIBLE : View.GONE);
         llContentPacks.setVisibility(currentTab == 1 ? View.VISIBLE : View.GONE);
-
-        // Show "+" on all tabs
+        if (currentTab != 0) exitMultiSelectMode();
         btAddIcon.setVisibility(View.VISIBLE);
-
         switch (currentTab) {
             case 0: loadMyTab(); break;
             case 1: loadPacksTab(); break;
         }
     }
 
+    // ─── My Icons ───
+
     private void loadMyTab() {
-        // Show user's imported icons in a grid
-        int[] iconIds = customIconManager.getCustomIconIds();
-        MyIconAdapter adapter = new MyIconAdapter(this, iconIds, customIconManager);
-        gridViewMy.setAdapter(adapter);
-        gridViewMy.setOnItemClickListener((parent, view, position, id) -> {
-            int iconId = iconIds[position];
-            if (CustomIconManager.isCustomIcon(iconId)) {
-                showDeleteCustomIconDialog(iconId);
-            }
-        });
+        int[] ids = customIconManager.getCustomIconIds();
+        int[] ordered = customIconManager.getIconIdsInOrder(ids);
+        myIconIdList.clear();
+        for (int id : ordered) myIconIdList.add(id);
+        myAdapter = new MyIconRecyclerAdapter();
+        recyclerMy.setAdapter(myAdapter);
+        tvEmpty.setVisibility(myIconIdList.isEmpty() && !multiSelectMode ? View.VISIBLE : View.GONE);
     }
 
+    private void showPreviewDialog(int iconId) {
+        Bitmap bm = customIconManager.loadIcon(iconId);
+        if (bm == null) return;
+        ImageView iv = new ImageView(this);
+        iv.setImageBitmap(bm);
+        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        iv.setPadding(32, 32, 32, 32);
+        iv.setBackgroundColor(0xff2a2a2a);
+        new AlertDialog.Builder(this).setView(iv).setPositiveButton(R.string.close, null).show();
+    }
+
+    private void showIconEditDialog(final int iconId) {
+        Bitmap bm = customIconManager.loadIcon(iconId);
+        if (bm == null) return;
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(24, 16, 24, 16);
+        root.setBackgroundColor(0xff2a2a2a);
+
+        final ImageView iv = new ImageView(this);
+        iv.setImageBitmap(bm);
+        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        int size = (int)(getResources().getDisplayMetrics().density * 140);
+        iv.setLayoutParams(new LinearLayout.LayoutParams(size, size));
+        iv.setLayoutParams(new LinearLayout.LayoutParams(size, size));
+        iv.setPadding(8, 8, 8, 8);
+        iv.setBackgroundColor(0xff1a1a1a);
+        root.addView(iv);
+
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow.setGravity(Gravity.CENTER);
+        btnRow.setPadding(0, 16, 0, 0);
+
+        MaterialButton btRotate = new MaterialButton(this);
+        btRotate.setText(R.string.rotate);
+        btRotate.setOnClickListener(v -> {
+            customIconManager.rotateIcon(iconId);
+            Bitmap newBm = customIconManager.loadIcon(iconId);
+            if (newBm != null) iv.setImageBitmap(newBm);
+            if (myAdapter != null) myAdapter.notifyDataSetChanged();
+            AppUtils.showToast(this, R.string.saved);
+        });
+        btnRow.addView(btRotate);
+
+        MaterialButton btEdit = new MaterialButton(this);
+        btEdit.setText(R.string.edit_external);
+        LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ep.setMargins(16, 0, 0, 0);
+        btEdit.setLayoutParams(ep);
+        btEdit.setOnClickListener(v -> {
+            File iconFile = customIconManager.getIconFile(iconId);
+            if (iconFile != null) {
+                Intent editIntent = new Intent(Intent.ACTION_EDIT);
+                editIntent.setDataAndType(Uri.fromFile(iconFile), "image/png");
+                editIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    startActivity(Intent.createChooser(editIntent, getString(R.string.edit_external)));
+                } catch (Exception e) {
+                    AppUtils.showToast(this, R.string.no_app_found);
+                }
+            }
+        });
+        btnRow.addView(btEdit);
+
+        root.addView(btnRow);
+        new AlertDialog.Builder(this).setTitle(R.string.edit_icon)
+            .setView(root).setPositiveButton(R.string.close, null).show();
+    }
+
+    // ─── Multi-select ───
+
+    private void enterMultiSelectMode() {
+        multiSelectMode = true;
+        selectedIconIds.clear();
+        llBottomActions.setVisibility(View.VISIBLE);
+        btSelectAll.setText(R.string.select_all);
+        if (myAdapter != null) myAdapter.notifyDataSetChanged();
+    }
+
+    private void exitMultiSelectMode() {
+        multiSelectMode = false;
+        selectedIconIds.clear();
+        llBottomActions.setVisibility(View.GONE);
+        if (myAdapter != null) myAdapter.notifyDataSetChanged();
+    }
+
+    private void deleteSelectedIcons() {
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.delete_custom_icon)
+            .setMessage(R.string.confirm_delete_custom_icon)
+            .setPositiveButton(R.string.ok, (d, w) -> {
+                for (int iconId : selectedIconIds) {
+                    customIconManager.deleteIcon(iconId);
+                }
+                exitMultiSelectMode();
+                updateContent();
+            })
+            .setNegativeButton(R.string.cancel, null).show();
+    }
+
+    // ─── Packs ───
+
     private void loadPacksTab() {
-        // Show user icon packs
         userPacks.clear();
         userPacks.addAll(iconPackManager.getIconPacks());
-        IconPackAdapter adapter = new IconPackAdapter(this, userPacks);
-        listViewPacks.setAdapter(adapter);
+        listViewPacks.setAdapter(new IconPackAdapter(this, userPacks));
         listViewPacks.setOnItemClickListener((parent, view, position, id) -> {
-            IconPack pack = userPacks.get(position);
-            openPackDetail(pack);
+            Intent intent = new Intent(this, IconPackDetailActivity.class);
+            intent.putExtra(IconPackDetailActivity.EXTRA_PACK_NAME, userPacks.get(position).name);
+            startActivity(intent);
         });
         listViewPacks.setOnItemLongClickListener((parent, view, position, id) -> {
-            IconPack pack = userPacks.get(position);
-            showPackOptionsDialog(pack);
+            showPackOptionsPopup(view, userPacks.get(position));
             return true;
         });
         tvEmpty.setVisibility(userPacks.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
-    private void openPackDetail(IconPack pack) {
-        Intent intent = new Intent(this, IconPackDetailActivity.class);
-        intent.putExtra(IconPackDetailActivity.EXTRA_PACK_NAME, pack.name);
-        startActivity(intent);
-    }
-
-    private void showPackOptionsDialog(IconPack pack) {
-        PopupMenu popup = new PopupMenu(this, findViewById(android.R.id.content));
+    private void showPackOptionsPopup(View anchor, IconPack pack) {
+        PopupMenu popup = new PopupMenu(this, anchor);
         popup.inflate(R.menu.icon_pack_options_menu);
         popup.setOnMenuItemClickListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.rename_pack) {
-                showRenameDialog(pack);
-                return true;
-            } else if (id == R.id.delete_pack) {
-                new AlertDialog.Builder(this)
-                    .setTitle(R.string.delete_custom_icon)
-                    .setMessage(R.string.confirm_delete_custom_icon)
-                    .setPositiveButton(R.string.ok, (d, w) -> {
-                        iconPackManager.deleteIconPack(pack);
-                        updateContent();
-                    })
-                    .setNegativeButton(R.string.cancel, null)
-                    .show();
-                return true;
+            switch (item.getItemId()) {
+                case R.id.rename_pack:
+                    showRenameDialog(pack);
+                    return true;
+                case R.id.delete_pack:
+                    new AlertDialog.Builder(this)
+                        .setTitle(R.string.delete_custom_icon)
+                        .setMessage(R.string.confirm_delete_custom_icon)
+                        .setPositiveButton(R.string.ok, (d, dw) -> {
+                            iconPackManager.deleteIconPack(pack);
+                            updateContent();
+                        }).setNegativeButton(R.string.cancel, null).show();
+                    return true;
             }
             return false;
         });
@@ -306,20 +465,117 @@ public class IconManagerActivity extends AppCompatActivity {
     }
 
     private void showRenameDialog(IconPack pack) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.profile_name);
         final android.widget.EditText input = new android.widget.EditText(this);
         input.setText(pack.name);
-        builder.setView(input);
-        builder.setPositiveButton(R.string.ok, (d, w) -> {
-            String newName = input.getText().toString().trim();
-            if (!newName.isEmpty()) {
-                iconPackManager.renameIconPack(pack, newName);
-                updateContent();
+        new AlertDialog.Builder(this).setTitle(R.string.profile_name)
+            .setView(input)
+            .setPositiveButton(R.string.ok, (d, w) -> {
+                String newName = input.getText().toString().trim();
+                if (!newName.isEmpty()) {
+                    iconPackManager.renameIconPack(pack, newName);
+                    updateContent();
+                }
+            }).setNegativeButton(R.string.cancel, null).show();
+    }
+
+    // ─── RecyclerView Adapter ───
+
+    private class MyIconRecyclerAdapter extends RecyclerView.Adapter<MyIconRecyclerAdapter.VH> {
+        class VH extends RecyclerView.ViewHolder {
+            final ImageView iv;
+            final View checkOverlay;
+            VH(@NonNull View itemView) {
+                super(itemView);
+                iv = itemView.findViewById(android.R.id.icon);
+                checkOverlay = itemView.findViewById(android.R.id.background);
             }
+        }
+
+        @NonNull
+        @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            LinearLayout root = new LinearLayout(IconManagerActivity.this);
+            root.setOrientation(LinearLayout.VERTICAL);
+            int size = (int)(getResources().getDisplayMetrics().density * 86);
+            RecyclerView.LayoutParams rp = new RecyclerView.LayoutParams(size, size);
+            int m = (int)(getResources().getDisplayMetrics().density * 4);
+            rp.setMargins(m, m, m, m);
+            root.setLayoutParams(rp);
+            root.setGravity(Gravity.CENTER);
+
+            View check = new View(IconManagerActivity.this);
+            check.setId(android.R.id.background);
+            check.setBackgroundColor(0x8800aaff);
+            check.setVisibility(View.GONE);
+            root.addView(check, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+            ImageView iv = new ImageView(IconManagerActivity.this);
+            iv.setId(android.R.id.icon);
+            iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iv.setPadding(6, 6, 6, 6);
+            iv.setBackgroundResource(R.drawable.icon_background);
+            root.addView(iv, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+            return new VH(root);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull VH holder, int pos) {
+            int iconId = myIconIdList.get(pos);
+            Bitmap bm = customIconManager.loadIcon(iconId);
+            holder.iv.setImageBitmap(bm);
+            boolean sel = selectedIconIds.contains(iconId);
+            holder.checkOverlay.setVisibility(sel ? View.VISIBLE : View.GONE);
+
+            holder.itemView.setOnClickListener(v -> {
+                if (multiSelectMode) toggleSel(iconId);
+                else showPreviewDialog(iconId);
+            });
+            holder.itemView.setOnLongClickListener(v -> {
+                if (multiSelectMode) toggleSel(iconId);
+                else showMyIconPopup(v, iconId);
+                return true;
+            });
+        }
+
+        private void toggleSel(int iconId) {
+            if (selectedIconIds.contains(iconId)) selectedIconIds.remove(iconId);
+            else selectedIconIds.add(iconId);
+            btSelectAll.setText(selectedIconIds.size() == myIconIdList.size() ? R.string.deselect_all : R.string.select_all);
+            notifyDataSetChanged();
+        }
+
+        @Override
+        public int getItemCount() { return myIconIdList.size(); }
+    }
+
+    private void showMyIconPopup(View anchor, final int iconId) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenu().add(0, 1, 0, R.string.preview);
+        popup.getMenu().add(0, 2, 0, R.string.edit_icon);
+        popup.getMenu().add(0, 3, 0, R.string.delete_custom_icon);
+        popup.getMenu().add(0, 4, 0, R.string.delete_all_custom_icons);
+        popup.setOnMenuItemClickListener(item -> {
+            switch (item.getItemId()) {
+                case 1: showPreviewDialog(iconId); return true;
+                case 2: showIconEditDialog(iconId); return true;
+                case 3: showDeleteCustomIconDialog(iconId); return true;
+                case 4:
+                    new AlertDialog.Builder(this)
+                        .setTitle(R.string.delete_all_custom_icons)
+                        .setMessage(R.string.confirm_delete_all_custom_icons)
+                        .setPositiveButton(R.string.ok, (d, w) -> {
+                            customIconManager.deleteAllIcons();
+                            exitMultiSelectMode();
+                            updateContent();
+                        }).setNegativeButton(R.string.cancel, null).show();
+                    return true;
+            }
+            return false;
         });
-        builder.setNegativeButton(R.string.cancel, null);
-        builder.show();
+        popup.show();
     }
 
     private void showDeleteCustomIconDialog(int iconId) {
@@ -329,53 +585,6 @@ public class IconManagerActivity extends AppCompatActivity {
             .setPositiveButton(R.string.ok, (d, w) -> {
                 customIconManager.deleteIcon(iconId);
                 updateContent();
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
-    }
-
-    /**
-     * Adapter for the My icons grid
-     */
-    private static class MyIconAdapter extends BaseAdapter {
-        private final android.content.Context context;
-        private final int[] iconIds;
-        private final CustomIconManager customIconManager;
-
-        MyIconAdapter(android.content.Context context, int[] iconIds, CustomIconManager manager) {
-            this.context = context;
-            this.iconIds = iconIds;
-            this.customIconManager = manager;
-        }
-
-        @Override
-        public int getCount() { return iconIds.length; }
-
-        @Override
-        public Object getItem(int position) { return iconIds[position]; }
-
-        @Override
-        public long getItemId(int position) { return position; }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            ImageView imageView;
-            if (convertView instanceof ImageView) {
-                imageView = (ImageView) convertView;
-            } else {
-                imageView = new ImageView(context);
-                imageView.setLayoutParams(new GridView.LayoutParams(120, 120));
-                imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                imageView.setPadding(12, 12, 12, 12);
-                imageView.setBackgroundResource(R.drawable.icon_background);
-            }
-            android.graphics.Bitmap icon = customIconManager.loadIcon(iconIds[position]);
-            if (icon != null) {
-                imageView.setImageBitmap(icon);
-            } else {
-                imageView.setImageResource(R.drawable.icon_background);
-            }
-            return imageView;
-        }
+            }).setNegativeButton(R.string.cancel, null).show();
     }
 }

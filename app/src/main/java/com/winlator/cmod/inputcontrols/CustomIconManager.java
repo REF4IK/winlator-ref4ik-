@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.util.Log;
 
+import com.winlator.cmod.core.FileUtils;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -270,5 +272,87 @@ public class CustomIconManager {
         }
         
         return -1; // No available ID
+    }
+    
+    /**
+     * Deletes all custom icons
+     */
+    public void deleteAllIcons() {
+        int[] ids = getCustomIconIds();
+        for (int id : ids) {
+            deleteIcon(id);
+        }
+        Log.i(TAG, "Deleted all " + ids.length + " custom icons");
+    }
+
+    /**
+     * Gets the File for a custom icon by its ID
+     */
+    public File getIconFile(int iconId) {
+        if (!isCustomIcon(iconId)) return null;
+        File f = new File(customIconsDir, ICON_PREFIX + iconId + ICON_EXTENSION);
+        return f.exists() ? f : null;
+    }
+
+    /** Rotates a custom icon 90 degrees clockwise */
+    public void rotateIcon(int iconId) {
+        Bitmap bm = loadIcon(iconId);
+        if (bm == null) return;
+        int w = bm.getWidth(), h = bm.getHeight();
+        android.graphics.Matrix m = new android.graphics.Matrix();
+        m.postRotate(90);
+        Bitmap rotated = Bitmap.createBitmap(bm, 0, 0, w, h, m, true);
+        bm.recycle();
+        File f = new File(customIconsDir, ICON_PREFIX + iconId + ICON_EXTENSION);
+        try (FileOutputStream fos = new FileOutputStream(f)) {
+            rotated.compress(Bitmap.CompressFormat.PNG, QUALITY, fos);
+        } catch (IOException e) {
+            Log.e(TAG, "rotateIcon failed", e);
+        }
+        rotated.recycle();
+    }
+
+    // ─── Icon ordering ───
+
+    private static final String ORDER_FILE = "custom_icons_order.txt";
+
+    /** Saves the current display order of icon IDs to a file */
+    public void saveIconOrder(List<Integer> order) {
+        StringBuilder sb = new StringBuilder();
+        for (int id : order) {
+            if (sb.length() > 0) sb.append(",");
+            sb.append(id);
+        }
+        FileUtils.writeString(new File(customIconsDir, ORDER_FILE), sb.toString());
+    }
+
+    /**
+     * Reads saved order and merges with actual icon IDs.
+     * Icons not in the saved order get appended at the end.
+     */
+    public int[] getIconIdsInOrder(int[] actualIds) {
+        File orderFile = new File(customIconsDir, ORDER_FILE);
+        if (!orderFile.exists()) return actualIds;
+
+        String content = null;
+        try {
+            content = new String(java.nio.file.Files.readAllBytes(orderFile.toPath()));
+        } catch (IOException e) {
+            return actualIds;
+        }
+        if (content == null || content.isEmpty()) return actualIds;
+
+        String[] parts = content.split(",");
+        java.util.LinkedHashSet<Integer> orderedSet = new java.util.LinkedHashSet<>();
+        for (String p : parts) {
+            try { orderedSet.add(Integer.parseInt(p.trim())); } catch (NumberFormatException ignored) {}
+        }
+        // Add actual IDs that aren't in the saved order
+        for (int id : actualIds) orderedSet.add(id);
+
+        int[] result = new int[orderedSet.size()];
+        int i = 0;
+        for (int id : orderedSet) result[i++] = id;
+        return result;
     }
 }

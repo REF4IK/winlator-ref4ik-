@@ -47,7 +47,7 @@
         android:background="?attr/colorSurface">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/BTCancel"
+            android:id="@+id/BTCancelShortcut"
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="@dimen/shortcut_settings_button_height"

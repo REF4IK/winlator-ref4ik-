@@ -21,14 +21,14 @@
             android:layout_height="32dp"
             android:src="@android:drawable/ic_menu_save"
             android:tint="@android:color/white"
-            android:contentDescription="Components icon" />
+            android:contentDescription="@string/components_icon_description" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="12dp"
-            android:text="Install Components"
+            android:text="@string/install_wine_components"
             android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="@android:color/white" />
@@ -51,7 +51,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginBottom="32dp"
-        android:text="Loading components from GitHub..."
+        android:text="@string/loading_components_from_github"
         android:textSize="14sp"
         android:textColor="?android:attr/textColorSecondary"
         android:visibility="visible" />
@@ -86,7 +86,7 @@
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Cancel"
+            android:text="@string/cancel"
             android:textAllCaps="false"
             android:minWidth="80dp" />
 
@@ -96,7 +96,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="Install Selected"
+            android:text="@string/install_selected"
             android:textAllCaps="false"
             android:minWidth="120dp"
             android:enabled="false" />

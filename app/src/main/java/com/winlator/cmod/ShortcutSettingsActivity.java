@@ -89,7 +89,7 @@ public class ShortcutSettingsActivity extends AppCompatActivity {
 
         embedDialogContent();
 
-        findViewById(R.id.BTCancel).setOnClickListener(v -> handleCancel());
+        findViewById(R.id.BTCancelShortcut).setOnClickListener(v -> handleCancel());
         findViewById(R.id.BTSave).setOnClickListener(v -> handleSave());
     }
 

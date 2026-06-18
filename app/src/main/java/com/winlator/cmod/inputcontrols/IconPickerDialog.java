@@ -54,7 +54,7 @@ public class IconPickerDialog {
         root.setOrientation(LinearLayout.VERTICAL);
         int padding = (int) UnitUtils.dpToPx(8);
         root.setPadding(padding, padding, padding, padding);
-        root.setBackgroundColor(0xff2a2a2a); // gray
+        root.setBackgroundColor(0xff3a3a3a); // gray
 
         // Header
         LinearLayout header = new LinearLayout(activity);
@@ -161,7 +161,7 @@ public class IconPickerDialog {
         LinearLayout.LayoutParams ivParams = new LinearLayout.LayoutParams(size, size);
         ivPreview.setLayoutParams(ivParams);
         ivPreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        ivPreview.setBackgroundColor(0xff1a1a1a);
+        ivPreview.setBackgroundColor(0xff2a2a2a);
         if (pack.preview != null) ivPreview.setImageBitmap(pack.preview);
         packRow.addView(ivPreview);
 
@@ -261,7 +261,7 @@ public class IconPickerDialog {
             LinearLayout.LayoutParams cellParams = new LinearLayout.LayoutParams(iconSize, iconSize);
             cellParams.setMargins(margin, margin, margin, margin);
             cell.setLayoutParams(cellParams);
-            cell.setBackgroundColor(0xff1a1a1a);
+            cell.setBackgroundColor(0xff2a2a2a);
             if (globalId == selectedGlobalId) {
                 cell.setBackgroundColor(0xff11a9ef);
             }
@@ -322,7 +322,7 @@ public class IconPickerDialog {
             final LinearLayout cell = new LinearLayout(activity);
             cell.setOrientation(LinearLayout.VERTICAL);
             cell.setGravity(Gravity.CENTER);
-            cell.setBackgroundColor(id == selectedId ? 0xff11a9ef : 0xff1a1a1a);
+            cell.setBackgroundColor(id == selectedId ? 0xff11a9ef : 0xff2a2a2a);
 
             ImageView iv = new ImageView(activity);
             iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
