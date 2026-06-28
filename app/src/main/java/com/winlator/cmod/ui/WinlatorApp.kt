@@ -6,6 +6,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -174,27 +178,48 @@ fun WinlatorApp(
                 modifier = Modifier.width(300.dp),
                 drawerContainerColor = MaterialTheme.colorScheme.surface,
             ) {
-                // Navigation items
-                drawerItems.forEach { item ->
-                    NavigationDrawerItem(
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = {
-                            Text(
-                                text = item.label,
-                            )
-                        },
-                        selected = currentScreen == item.screen,
-                        onClick = {
-                            currentScreen = item.screen
-                            scope.launch { drawerState.close() }
-                            when (item.screen) {
-                                Screen.Steam -> onOpenSteam()
-                                Screen.FileManager -> onOpenFileManager()
-                                else -> { }
-                            }
-                        },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.logowi),
+                        contentDescription = "Logo",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .padding(top = 16.dp, bottom = 8.dp)
                     )
+                    // Navigation items
+                    drawerItems.forEach { item ->
+                        NavigationDrawerItem(
+                            icon = {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.label,
+                                    tint = if (currentScreen == item.screen) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = item.label,
+                                )
+                            },
+                            selected = currentScreen == item.screen,
+                            onClick = {
+                                currentScreen = item.screen
+                                scope.launch { drawerState.close() }
+                                when (item.screen) {
+                                    Screen.Steam -> onOpenSteam()
+                                    Screen.FileManager -> onOpenFileManager()
+                                    else -> { }
+                                }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         },

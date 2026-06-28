@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
@@ -75,31 +77,25 @@ fun AboutScreen() {
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Info,
-                    contentDescription = null,
-                    modifier = Modifier.size(70.dp),
-                    tint = primary,
+                Image(
+                    painter = painterResource(R.drawable.logowi),
+                    contentDescription = "Logo",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
                 )
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = "Winlator-Bionic-Ref4ik-Mod",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = primary,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = BuildConfig.VERSION_NAME,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = bodyColor,
-                    )
-                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Version " + BuildConfig.VERSION_NAME,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = bodyColor,
+                )
             }
         }
 

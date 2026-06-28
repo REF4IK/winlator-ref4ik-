@@ -53,7 +53,8 @@ class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentD
     private val sensorReader = SensorReader()
     
     // Compose states
-    private val processList = mutableStateListOf<ProcessInfo>()
+    private var processList by mutableStateOf<List<ProcessInfo>>(emptyList())
+    private val tempProcessList = ArrayList<ProcessInfo>()
     private var cpuUsagePercent by mutableStateOf(0)
     private val coreSpeeds = mutableStateListOf<Float>()
     private var usedMemBytes by mutableStateOf(0L)
@@ -200,10 +201,13 @@ class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentD
         activity.runOnUiThread {
             synchronized(lock) {
                 if (index == 0) {
-                    processList.clear()
+                    tempProcessList.clear()
                 }
-                processList.add(processInfo)
-                numProcessesText = numProcesses.toString()
+                tempProcessList.add(processInfo)
+                if (index == numProcesses - 1 || numProcesses == 0) {
+                    processList = ArrayList(tempProcessList)
+                    numProcessesText = numProcesses.toString()
+                }
             }
         }
     }
@@ -281,7 +285,7 @@ class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentD
                                 }
                             } else {
                                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                    items(processList) { process ->
+                                    items(processList, key = { it.pid }) { process ->
                                         ProcessRow(process)
                                         Spacer(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
                                     }
