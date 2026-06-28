@@ -91,6 +91,7 @@ fun WinlatorApp(
     var isShortcutsGridView by remember { mutableStateOf(true) }
     var showShortcutSettings by remember { mutableStateOf(false) }
     var shortcutSettingsShortcut by remember { mutableStateOf<Shortcut?>(null) }
+    var fileManagerContainerId by remember { mutableStateOf(-1) }
 
     // Скрываем только верхний статус-бар (часы, батарея), нижний навигационный бар оставляем видимым, поддерживая вырез (notch)
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
@@ -245,11 +246,11 @@ fun WinlatorApp(
                             onClick = {
                                 currentScreen = item.screen
                                 scope.launch { drawerState.close() }
-                                when (item.screen) {
-                                    Screen.Steam -> onOpenSteam()
-                                    Screen.FileManager -> onOpenFileManager()
-                                    else -> { }
-                                }
+                                 when (item.screen) {
+                                     Screen.Steam -> onOpenSteam()
+                                     Screen.FileManager -> fileManagerContainerId = -1
+                                     else -> { }
+                                 }
                             },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                         )
@@ -334,6 +335,10 @@ fun WinlatorApp(
                             isContainerEditMode = true
                             showContainerEdit = true
                         },
+                        onOpenFileBrowser = { id ->
+                            fileManagerContainerId = id
+                            currentScreen = Screen.FileManager
+                        }
                     )
                     Screen.InputControls -> InputControlsScreen()
                     Screen.Saves -> FragmentHostScreen(
@@ -366,7 +371,10 @@ fun WinlatorApp(
                         onOpenGPUPerformance = { showGPUPerformance = true },
                     )
                     Screen.About -> AboutScreen()
-                    Screen.FileManager -> FileManagerScreen()
+                    Screen.FileManager -> FileManagerScreen(
+                        containerId = fileManagerContainerId,
+                        onBack = { currentScreen = Screen.Containers }
+                    )
                     else -> PlaceholderScreen(
                         title = "Winlator CMOD",
                         subtitle = "Select a section from the menu",

@@ -35,6 +35,7 @@ fun ContainersScreen(
     refreshKey: Int = 0,
     onCreateContainer: () -> Unit = {},
     onEditContainer: (Int) -> Unit = {},
+    onOpenFileBrowser: (Int) -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val manager = containerManager ?: remember(ctx, refreshKey) { ContainerManager(ctx) }
@@ -119,11 +120,7 @@ fun ContainersScreen(
                 if (c.rootDir == null || !c.rootDir.isDirectory) {
                     AppUtils.showToast(ctx, R.string.container_file_manager_unavailable)
                 } else {
-                    val intent = Intent(ctx, FileManagerActivity::class.java)
-                    intent.putExtra(FileManagerActivity.EXTRA_TITLE, ctx.getString(R.string.container_file_manager))
-                    intent.putExtra(FileManagerActivity.EXTRA_CONTAINER_ID, c.id)
-                    intent.putExtra(FileManagerActivity.EXTRA_BROWSE_MODE, true)
-                    ctx.startActivity(intent)
+                    onOpenFileBrowser(c.id)
                 }
             })
             DropdownMenuItem(text = { Text(stringResource(R.string.reconfigure)) }, onClick = {

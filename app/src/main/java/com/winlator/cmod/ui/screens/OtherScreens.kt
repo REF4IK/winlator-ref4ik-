@@ -43,10 +43,4 @@ fun AdrenotoolsScreen() {
     )
 }
 
-@Composable
-fun FileManagerScreen() {
-    PlaceholderScreen(
-        title = stringResource(R.string.file_manager),
-        subtitle = "Browse and manage files"
-    )
-}
+
