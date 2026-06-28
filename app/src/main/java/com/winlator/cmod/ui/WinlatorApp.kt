@@ -121,6 +121,34 @@ fun WinlatorApp(
         }
         onDispose { }
     }
+    LaunchedEffect(isDarkMode) {
+        if (activity != null) {
+            val window = activity.window
+            window.navigationBarColor = if (isDarkMode) {
+                android.graphics.Color.parseColor("#121212")
+            } else {
+                android.graphics.Color.parseColor("#FFFFFF")
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                val controller = window.decorView.windowInsetsController
+                controller?.setSystemBarsAppearance(
+                    if (isDarkMode) 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                )
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                @Suppress("DEPRECATION")
+                val decorView = window.decorView
+                var flags = decorView.systemUiVisibility
+                flags = if (isDarkMode) {
+                    flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                } else {
+                    flags or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                }
+                decorView.systemUiVisibility = flags
+            }
+        }
+    }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current

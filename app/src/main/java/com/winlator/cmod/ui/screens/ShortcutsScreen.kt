@@ -83,7 +83,6 @@ fun ShortcutsScreen(
     }
 
     val manager = remember(refreshKey, refreshKeyInternal) { ContainerManager(ctx) }
-    var showAddMenu by remember { mutableStateOf(false) }
     var showContainerPicker by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf(false) }
     var shortcutForMenu by remember { mutableStateOf<Shortcut?>(null) }
@@ -95,11 +94,10 @@ fun ShortcutsScreen(
         manager.loadShortcuts()
     }
 
-    BackHandler(enabled = showAddMenu || showContainerPicker || shortcutForMenu != null) {
+    BackHandler(enabled = showContainerPicker || shortcutForMenu != null) {
         when {
             shortcutForMenu != null -> shortcutForMenu = null
             showContainerPicker -> showContainerPicker = false
-            showAddMenu -> showAddMenu = false
         }
     }
 
@@ -160,7 +158,10 @@ Column(modifier = Modifier.fillMaxSize()) {
         }
 
         FloatingActionButton(
-            onClick = { showAddMenu = true },
+            onClick = {
+                pendingImport = true
+                showContainerPicker = true
+            },
             containerColor = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -170,38 +171,6 @@ Column(modifier = Modifier.fillMaxSize()) {
         }
     }
     } // Column wrapper end
-
-    // Меню добавления
-    if (showAddMenu) {
-        AlertDialog(
-            onDismissRequest = { showAddMenu = false },
-            title = { Text(stringResource(R.string.add)) },
-            text = {
-                Column {
-                    TextButton(
-                        onClick = {
-                            pendingImport = true
-                            showAddMenu = false
-                            showContainerPicker = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.import_game)) }
-                    TextButton(
-                        onClick = {
-                            pendingImport = false
-                            showAddMenu = false
-                            showContainerPicker = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.add_shortcut)) }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showAddMenu = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
-    }
 
     // Диалог выбора контейнера
     if (showContainerPicker) {
