@@ -483,6 +483,9 @@
     <string name="install_drivers_message">现在将提示您选择驱动。这些必须与 Yuzu、Dolphin、Citra 等其他模拟器中使用的相同。</string>
     <string name="install_drivers_warning">请注意，由于当前 PC 模拟器的限制，Qualcomm 驱动可能无法在低于 8 Gen2 的芯片组上工作，除非进行修补。</string>
     <string name="install_failed">安装失败</string>
+    <string name="install">安装</string>
+    <string name="back">返回</string>
+    <string name="no_content_found">未找到内容</string>
     <string name="install_wine">安装 Wine</string>
     <string name="installation_error">安装错误：%1$s</string>
     <string name="installed_version">已安装版本</string>
@@ -1007,6 +1010,27 @@
     <string name="fps_short_gpu_temp">GPU温度</string>
     <string name="fps_short_renderer">渲染器</string>
     <string name="fps_short_cpu_load">CPU负载</string>
+    <!-- Container edit screen -->
+    <string name="desktop_theme">桌面主题</string>
+    <string name="desktop_background">桌面背景</string>
+    <string name="color">颜色</string>
+    <string name="no_env_vars">无环境变量</string>
+    <string name="add_env_var">添加环境变量</string>
+    <string name="no_drives">无驱动器</string>
+    <string name="box64">Box64</string>
+    <string name="fexcore">FEXCore</string>
+    <string name="rc_files">RC文件</string>
+    <string name="wow64_mode">WoW64模式</string>
+    <string name="legacy_mode_message">已启用兼容模式。输入类型设置由兼容模式管理。</string>
+    <string name="enable_xinput">启用XInput</string>
+    <string name="enable_dinput">启用DInput</string>
+    <string name="dinput_mapper">DInput映射</string>
+    <string name="sdl2_compatibility">SDL2兼容模式</string>
+    <string name="processor_affinity_wow64">处理器亲和性 (WoW64)</string>
+    <string name="dpi">DPI</string>
+    <string name="emulator">模拟器</string>
+    <string name="midi_soundfont">MIDI音色库</string>
+    <string name="locale">区域设置</string>
     <string name="fps_short_cpu_temp">CPU温度</string>
     <string name="fps_short_batt_temp">电池温度</string>
     <string name="fps_short_power">功耗</string>

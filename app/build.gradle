@@ -185,6 +185,7 @@ dependencies {
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material-icons-extended'
     implementation 'io.coil-kt:coil-compose:2.7.0'
+    implementation 'io.coil-kt:coil-gif:2.7.0'
     implementation libs.activity.compose
     implementation libs.lifecycle.viewmodel.ktx
     implementation libs.lifecycle.viewmodel.compose

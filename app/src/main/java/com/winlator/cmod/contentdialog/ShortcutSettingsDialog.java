@@ -1870,6 +1870,41 @@ public class ShortcutSettingsDialog extends ContentDialog {
         }).start();
     }
 
+    public void showVersionDownloadDialog(com.winlator.cmod.contents.ContentProfile.ContentType type, String displayName, final com.winlator.cmod.core.Callback<String> onInstalled) {
+        loadRemoteProfiles(() -> {
+            List<com.winlator.cmod.contents.ContentProfile> downloadableProfiles = new ArrayList<>();
+            for (com.winlator.cmod.contents.ContentProfile profile : contentsManager.getProfiles(type)) {
+                if (profile.remoteUrl == null || profile.remoteUrl.isEmpty()) continue;
+                if (com.winlator.cmod.contents.ContentsManager.getInstallDir(context, profile).exists()) continue;
+                downloadableProfiles.add(profile);
+            }
+
+            if (downloadableProfiles.isEmpty()) {
+                com.winlator.cmod.core.AppUtils.showToast(context, context.getString(R.string.all_component_versions_installed, displayName));
+                return;
+            }
+
+            String[] items = new String[downloadableProfiles.size()];
+            for (int i = 0; i < downloadableProfiles.size(); i++) {
+                items[i] = getVersionSpinnerValue(downloadableProfiles.get(i));
+            }
+
+            new android.app.AlertDialog.Builder(context)
+                    .setTitle(context.getString(R.string.download_component_title, displayName, downloadableProfiles.size()))
+                    .setItems(items, (dialog, which) -> {
+                        if (which < 0 || which >= downloadableProfiles.size()) return;
+                        com.winlator.cmod.contents.ContentProfile selectedProfile = downloadableProfiles.get(which);
+                        String selectedValue = getVersionSpinnerValue(selectedProfile);
+                        downloadAndInstallShortcutContent(selectedProfile, () -> {
+                            contentsManager.syncContents();
+                            onInstalled.call(selectedValue);
+                        });
+                    })
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
+        });
+    }
+
     private void showShortcutVersionDownloadDialog(ContentProfile.ContentType type, String displayName, Spinner spinner, Runnable refreshSpinner) {
         loadRemoteProfiles(() -> {
             List<ContentProfile> downloadableProfiles = new ArrayList<>();
