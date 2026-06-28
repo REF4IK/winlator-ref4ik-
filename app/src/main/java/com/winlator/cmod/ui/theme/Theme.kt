@@ -1,16 +1,19 @@
 package com.winlator.cmod.ui.theme
 
 import android.app.Activity
+import android.content.SharedPreferences
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.preference.PreferenceManager
 
+// Material 3 Light theme colors - mapped from existing XML colors
 private val LightColorScheme = lightColorScheme(
     primary = md_theme_light_primary,
     onPrimary = md_theme_light_onPrimary,
@@ -39,6 +42,7 @@ private val LightColorScheme = lightColorScheme(
     scrim = md_theme_light_scrim,
 )
 
+// Material 3 Dark theme colors
 private val DarkColorScheme = darkColorScheme(
     primary = md_theme_dark_primary,
     onPrimary = md_theme_dark_onPrimary,
@@ -67,12 +71,422 @@ private val DarkColorScheme = darkColorScheme(
     scrim = md_theme_dark_scrim,
 )
 
+data class ThemeInfo(val id: String, val name: String, val primaryColor: Color, val accentColor: Color)
+
+val ThemesList = listOf(
+    ThemeInfo("default", "Teal Classic", Color(0xFF1A6C59), Color(0xFF8CD5BC)),
+    ThemeInfo("midnight", "Midnight OLED", Color(0xFF00B2FF), Color(0xFF005180)),
+    ThemeInfo("cyberpunk", "Cyberpunk Neon", Color(0xFFFF007F), Color(0xFF9D00FF)),
+    ThemeInfo("royal", "Royal Obsidian", Color(0xFFD4AF37), Color(0xFF4C4015)),
+    ThemeInfo("dracula", "Dracula Vampire", Color(0xFFFF5555), Color(0xFFBD93F9)),
+    ThemeInfo("frost", "Nordic Frost", Color(0xFF88C0D0), Color(0xFF5E81AC)),
+    ThemeInfo("forest", "Forest Moss", Color(0xFF2E6F40), Color(0xFF81C784)),
+    ThemeInfo("ocean", "Ocean Breeze", Color(0xFF00838F), Color(0xFF4DD0E1)),
+    ThemeInfo("sakura", "Sakura Blossom", Color(0xFFC2185B), Color(0xFFF48FB1)),
+    ThemeInfo("sunset", "Sunset Glow", Color(0xFFE65100), Color(0xFFFFB74D)),
+    ThemeInfo("matrix", "Matrix Code", Color(0xFF00DD00), Color(0xFF00FF00)),
+    ThemeInfo("monochrome", "Silver Steel", Color(0xFF455A64), Color(0xFFCFD8DC)),
+    ThemeInfo("chocolate", "Sweet Cocoa", Color(0xFF5D4037), Color(0xFFD7CCC8)),
+    ThemeInfo("custom", "Custom Palette", Color(0xFF1A6C59), Color(0xFF8CD5BC))
+)
+
+fun getColorSchemeFor(themeId: String, isDark: Boolean, customColorArgb: Int): ColorScheme {
+    val customColor = Color(customColorArgb)
+    return when (themeId) {
+        "midnight" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF00B2FF),
+                onPrimary = Color.Black,
+                primaryContainer = Color(0xFF003366),
+                onPrimaryContainer = Color(0xFFB3E0FF),
+                background = Color(0xFF000000),
+                surface = Color(0xFF000000),
+                onBackground = Color(0xFFE5F5FF),
+                onSurface = Color(0xFFE5F5FF),
+                surfaceVariant = Color(0xFF121212),
+                onSurfaceVariant = Color(0xFF888888),
+                outline = Color(0xFF444444)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFF0088CC),
+                onPrimary = Color.White,
+                primaryContainer = Color(0xFFCCE6FF),
+                onPrimaryContainer = Color(0xFF003366),
+                background = Color(0xFFF9FBFF),
+                surface = Color(0xFFF9FBFF),
+                onBackground = Color(0xFF001122),
+                onSurface = Color(0xFF001122),
+                surfaceVariant = Color(0xFFE1E5EC),
+                onSurfaceVariant = Color(0xFF40474F)
+            )
+        }
+        "cyberpunk" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFFF007F),
+                onPrimary = Color.White,
+                secondary = Color(0xFF9D00FF),
+                background = Color(0xFF120024),
+                surface = Color(0xFF1A0033),
+                onBackground = Color(0xFFFFE5F0),
+                onSurface = Color(0xFFFFE5F0),
+                primaryContainer = Color(0xFF4A0033),
+                onPrimaryContainer = Color(0xFFFFB3D9),
+                surfaceVariant = Color(0xFF2E004B),
+                onSurfaceVariant = Color(0xFFD3A2FF)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFFE60073),
+                onPrimary = Color.White,
+                secondary = Color(0xFF7A00CC),
+                background = Color(0xFFFFF0F5),
+                surface = Color(0xFFFFF0F5),
+                onBackground = Color(0xFF290014),
+                onSurface = Color(0xFF290014),
+                surfaceVariant = Color(0xFFFFD1E6),
+                onSurfaceVariant = Color(0xFF5C3D4D)
+            )
+        }
+        "royal" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFD4AF37),
+                onPrimary = Color.Black,
+                background = Color(0xFF121212),
+                surface = Color(0xFF1A1A1A),
+                onBackground = Color(0xFFF9F6F0),
+                onSurface = Color(0xFFF9F6F0),
+                primaryContainer = Color(0xFF3F350F),
+                onPrimaryContainer = Color(0xFFFFF1C2),
+                surfaceVariant = Color(0xFF282828),
+                onSurfaceVariant = Color(0xFFC5C5C5)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFF967205),
+                onPrimary = Color.White,
+                background = Color(0xFFFFFDF9),
+                surface = Color(0xFFFFFDF9),
+                onBackground = Color(0xFF211D03),
+                onSurface = Color(0xFF211D03),
+                surfaceVariant = Color(0xFFEDE6D3),
+                onSurfaceVariant = Color(0xFF4F4A3C)
+            )
+        }
+        "dracula" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFFF5555),
+                onPrimary = Color.Black,
+                secondary = Color(0xFFBD93F9),
+                background = Color(0xFF282A36),
+                surface = Color(0xFF282A36),
+                onBackground = Color(0xFFF8F8F2),
+                onSurface = Color(0xFFF8F8F2),
+                primaryContainer = Color(0xFF44475A),
+                onPrimaryContainer = Color(0xFFF8F8F2),
+                surfaceVariant = Color(0xFF3A3D52),
+                onSurfaceVariant = Color(0xFFF8F8F2)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFFC53939),
+                onPrimary = Color.White,
+                secondary = Color(0xFF7A4FBA),
+                background = Color(0xFFF9F8F9),
+                surface = Color(0xFFF9F8F9),
+                onBackground = Color(0xFF2A1C2A),
+                onSurface = Color(0xFF2A1C2A),
+                surfaceVariant = Color(0xFFEDE9EE),
+                onSurfaceVariant = Color(0xFF4B424B)
+            )
+        }
+        "frost" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF88C0D0),
+                onPrimary = Color(0xFF2E3440),
+                secondary = Color(0xFF81A1C1),
+                background = Color(0xFF2E3440),
+                surface = Color(0xFF3B4252),
+                onBackground = Color(0xFFECEFF4),
+                onSurface = Color(0xFFECEFF4),
+                primaryContainer = Color(0xFF434C5E),
+                onPrimaryContainer = Color(0xFF8FBCBB),
+                surfaceVariant = Color(0xFF4C566A),
+                onSurfaceVariant = Color(0xFFD8DEE9)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFF4C566A),
+                onPrimary = Color.White,
+                secondary = Color(0xFF5E81AC),
+                background = Color(0xFFECEFF4),
+                surface = Color(0xFFD8DEE9),
+                onBackground = Color(0xFF2E3440),
+                onSurface = Color(0xFF2E3440),
+                surfaceVariant = Color(0xFFE5E9F0),
+                onSurfaceVariant = Color(0xFF4C566A)
+            )
+        }
+        "forest" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF81C784),
+                onPrimary = Color(0xFF003300),
+                background = Color(0xFF132515),
+                surface = Color(0xFF1B2F1D),
+                onBackground = Color(0xFFE8F5E9),
+                onSurface = Color(0xFFE8F5E9),
+                primaryContainer = Color(0xFF2E6F40),
+                onPrimaryContainer = Color(0xFFC8E6C9),
+                surfaceVariant = Color(0xFF2B3A2E),
+                onSurfaceVariant = Color(0xFFB9CBBF)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFF2E6F40),
+                onPrimary = Color.White,
+                background = Color(0xFFF1F8F3),
+                surface = Color(0xFFE8F5E9),
+                onBackground = Color(0xFF002000),
+                onSurface = Color(0xFF002000),
+                surfaceVariant = Color(0xFFC8E6C9),
+                onSurfaceVariant = Color(0xFF334A38)
+            )
+        }
+        "ocean" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF4DD0E1),
+                onPrimary = Color(0xFF00363A),
+                background = Color(0xFF00161A),
+                surface = Color(0xFF002428),
+                onBackground = Color(0xFFE0F7FA),
+                onSurface = Color(0xFFE0F7FA),
+                primaryContainer = Color(0xFF006064),
+                onPrimaryContainer = Color(0xFFB2EBF2),
+                surfaceVariant = Color(0xFF20353A),
+                onSurfaceVariant = Color(0xFFAEC4C9)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFF00838F),
+                onPrimary = Color.White,
+                background = Color(0xFFE0F7FA),
+                surface = Color(0xFFB2EBF2),
+                onBackground = Color(0xFF002D30),
+                onSurface = Color(0xFF002D30),
+                surfaceVariant = Color(0xFF80DEEA),
+                onSurfaceVariant = Color(0xFF004D40)
+            )
+        }
+        "sakura" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFF48FB1),
+                onPrimary = Color(0xFF4A0020),
+                background = Color(0xFF201317),
+                surface = Color(0xFF2A1C20),
+                onBackground = Color(0xFFFCE4EC),
+                onSurface = Color(0xFFFCE4EC),
+                primaryContainer = Color(0xFF880E4F),
+                onPrimaryContainer = Color(0xFFF8BBD0),
+                surfaceVariant = Color(0xFF3A2B30),
+                onSurfaceVariant = Color(0xFFECA3BD)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFFC2185B),
+                onPrimary = Color.White,
+                background = Color(0xFFFFF0F5),
+                surface = Color(0xFFFCE4EC),
+                onBackground = Color(0xFF3F001D),
+                onSurface = Color(0xFF3F001D),
+                surfaceVariant = Color(0xFFF8BBD0),
+                onSurfaceVariant = Color(0xFF880E4F)
+            )
+        }
+        "sunset" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFFFB74D),
+                onPrimary = Color(0xFF4E2500),
+                background = Color(0xFF1F1510),
+                surface = Color(0xFF2D1F18),
+                onBackground = Color(0xFFFFF3E0),
+                onSurface = Color(0xFFFFF3E0),
+                primaryContainer = Color(0xFFE65100),
+                onPrimaryContainer = Color(0xFFFFCC80),
+                surfaceVariant = Color(0xFF3E2F27),
+                onSurfaceVariant = Color(0xFFF5C099)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFFE65100),
+                onPrimary = Color.White,
+                background = Color(0xFFFFF8E1),
+                surface = Color(0xFFFFE0B2),
+                onBackground = Color(0xFF3E1B00),
+                onSurface = Color(0xFF3E1B00),
+                surfaceVariant = Color(0xFFFFCC80),
+                onSurfaceVariant = Color(0xFFE65100)
+            )
+        }
+        "matrix" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFF00FF00),
+                onPrimary = Color.Black,
+                background = Color(0xFF000800),
+                surface = Color(0xFF001200),
+                onBackground = Color(0xFFD0FFD0),
+                onSurface = Color(0xFFD0FFD0),
+                primaryContainer = Color(0xFF004400),
+                onPrimaryContainer = Color(0xFF80FF80),
+                surfaceVariant = Color(0xFF002200),
+                onSurfaceVariant = Color(0xFF00FF00)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFF008800),
+                onPrimary = Color.White,
+                background = Color(0xFFF0FFF0),
+                surface = Color(0xFFD0FFD0),
+                onBackground = Color(0xFF003300),
+                onSurface = Color(0xFF003300),
+                surfaceVariant = Color(0xFF80FF80),
+                onSurfaceVariant = Color(0xFF004400)
+            )
+        }
+        "monochrome" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFCFD8DC),
+                onPrimary = Color.Black,
+                background = Color(0xFF1A2124),
+                surface = Color(0xFF263238),
+                onBackground = Color(0xFFECEFF1),
+                onSurface = Color(0xFFECEFF1),
+                primaryContainer = Color(0xFF37474F),
+                onPrimaryContainer = Color(0xFFB0BEC5),
+                surfaceVariant = Color(0xFF3C4950),
+                onSurfaceVariant = Color(0xFFCFD8DC)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFF455A64),
+                onPrimary = Color.White,
+                background = Color(0xFFECEFF1),
+                surface = Color(0xFFCFD8DC),
+                onBackground = Color(0xFF1E272C),
+                onSurface = Color(0xFF1E272C),
+                surfaceVariant = Color(0xFFB0BEC5),
+                onSurfaceVariant = Color(0xFF37474F)
+            )
+        }
+        "chocolate" -> if (isDark) {
+            darkColorScheme(
+                primary = Color(0xFFD7CCC8),
+                onPrimary = Color(0xFF2E1912),
+                background = Color(0xFF231A17),
+                surface = Color(0xFF3E2723),
+                onBackground = Color(0xFFEFEBE9),
+                onSurface = Color(0xFFEFEBE9),
+                primaryContainer = Color(0xFF5D4037),
+                onPrimaryContainer = Color(0xFFBCAAA4),
+                surfaceVariant = Color(0xFF4E342E),
+                onSurfaceVariant = Color(0xFFD7CCC8)
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFF5D4037),
+                onPrimary = Color.White,
+                background = Color(0xFFEFEBE9),
+                surface = Color(0xFFD7CCC8),
+                onBackground = Color(0xFF2E1912),
+                onSurface = Color(0xFF2E1912),
+                surfaceVariant = Color(0xFFBCAAA4),
+                onSurfaceVariant = Color(0xFF4E342E)
+            )
+        }
+        "custom" -> {
+            if (isDark) {
+                darkColorScheme(
+                    primary = customColor,
+                    onPrimary = if (customColor.luminance() > 0.5f) Color.Black else Color.White,
+                    primaryContainer = customColor.copy(alpha = 0.2f),
+                    onPrimaryContainer = customColor,
+                    background = Color(0xFF121212),
+                    surface = Color(0xFF161616),
+                    onBackground = Color(0xFFE1E3DF),
+                    onSurface = Color(0xFFE1E3DF),
+                    surfaceVariant = Color(0xFF282B29),
+                    onSurfaceVariant = Color(0xFFC0C9C2),
+                    outline = Color(0xFF8A938C),
+                    outlineVariant = Color(0xFF404943)
+                )
+            } else {
+                lightColorScheme(
+                    primary = customColor,
+                    onPrimary = if (customColor.luminance() > 0.5f) Color.Black else Color.White,
+                    primaryContainer = customColor.copy(alpha = 0.2f),
+                    onPrimaryContainer = customColor,
+                    background = Color(0xFFFBFDF9),
+                    surface = Color(0xFFF5F7F5),
+                    onBackground = Color(0xFF191C1A),
+                    onSurface = Color(0xFF191C1A),
+                    surfaceVariant = Color(0xFFDBE5DD),
+                    onSurfaceVariant = Color(0xFF404943),
+                    outline = Color(0xFF707973),
+                    outlineVariant = Color(0xFFC0C9C2)
+                )
+            }
+        }
+        else -> if (isDark) DarkColorScheme else LightColorScheme
+    }
+}
+
+@Composable
+fun SharedPreferences.observeString(key: String, defaultValue: String): State<String> {
+    val state = remember { mutableStateOf(getString(key, defaultValue) ?: defaultValue) }
+    DisposableEffect(this, key) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+            if (k == key) {
+                state.value = getString(key, defaultValue) ?: defaultValue
+            }
+        }
+        registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+    return state
+}
+
+@Composable
+fun SharedPreferences.observeInt(key: String, defaultValue: Int): State<Int> {
+    val state = remember { mutableStateOf(getInt(key, defaultValue)) }
+    DisposableEffect(this, key) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+            if (k == key) {
+                state.value = getInt(key, defaultValue)
+            }
+        }
+        registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+    return state
+}
+
 @Composable
 fun WinlatorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+
+    val themeId by prefs.observeString("theme_id", "default")
+    val customColor by prefs.observeInt("custom_theme_color", 0xFF1A6C59.toInt())
+
+    val colorScheme = remember(themeId, darkTheme, customColor) {
+        getColorSchemeFor(themeId, darkTheme, customColor)
+    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {

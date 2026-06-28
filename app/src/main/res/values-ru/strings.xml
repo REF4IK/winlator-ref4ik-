@@ -1521,6 +1521,26 @@
     <string name="saved">Сохранено!</string>
     <string name="failed_to_export">Не удалось экспортировать</string>
     <string name="no_icons_selected">Не выбрано ни одной иконки</string>
+
+    <!-- Theme Manager Strings -->
+    <string name="theme_manager">Менеджер тем</string>
+    <string name="select_theme">Выберите тему</string>
+    <string name="custom_color">Кастомный цвет</string>
+    <string name="select_primary_color">Выберите основной цвет приложения:</string>
+    <string name="theme_default">Классический бирюзовый</string>
+    <string name="theme_midnight">Ночной OLED</string>
+    <string name="theme_cyberpunk">Киберпанк неон</string>
+    <string name="theme_royal">Королевский обсидиан</string>
+    <string name="theme_dracula">Дракула вампир</string>
+    <string name="theme_frost">Северный мороз</string>
+    <string name="theme_custom">Кастомная палитра</string>
+    <string name="theme_forest">Лесной мох</string>
+    <string name="theme_ocean">Океанский бриз</string>
+    <string name="theme_sakura">Цветущая сакура</string>
+    <string name="theme_sunset">Закатное сияние</string>
+    <string name="theme_matrix">Код Матрицы</string>
+    <string name="theme_monochrome">Серебряная сталь</string>
+    <string name="theme_chocolate">Сладкое какао</string>
 </resources>
 
 

@@ -330,4 +330,24 @@
     <string name="emulator">模拟器</string>
     <string name="midi_soundfont">MIDI音色库</string>
     <string name="locale">区域设置</string>
+
+    <!-- Theme Manager Strings -->
+    <string name="theme_manager">主题管理器</string>
+    <string name="select_theme">选择主题</string>
+    <string name="custom_color">自定义颜色</string>
+    <string name="select_primary_color">选择应用主色调：</string>
+    <string name="theme_default">经典蓝绿</string>
+    <string name="theme_midnight">暗夜 OLED</string>
+    <string name="theme_cyberpunk">赛博朋克霓虹</string>
+    <string name="theme_royal">皇家黑曜石</string>
+    <string name="theme_dracula">德古拉吸血鬼</string>
+    <string name="theme_frost">北欧冰霜</string>
+    <string name="theme_custom">自定义调色板</string>
+    <string name="theme_forest">森林苔藓</string>
+    <string name="theme_ocean">海洋微风</string>
+    <string name="theme_sakura">樱花绽放</string>
+    <string name="theme_sunset">落日余晖</string>
+    <string name="theme_matrix">矩阵代码</string>
+    <string name="theme_monochrome">银钢单色</string>
+    <string name="theme_chocolate">甜美可可</string>
 </resources>

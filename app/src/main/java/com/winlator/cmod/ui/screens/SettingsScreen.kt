@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +23,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.preference.PreferenceManager
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 /**
  * Полный перенос SettingsFragment.java на Jetpack Compose.
@@ -70,8 +75,11 @@ fun SettingsScreen(
     var openWithBrowser by remember { mutableStateOf(prefs.getBoolean("open_with_android_browser", false)) }
     var shareClipboard by remember { mutableStateOf(prefs.getBoolean("share_android_clipboard", false)) }
     var adrenoTurbo by remember { mutableStateOf(prefs.getBoolean("adreno_turbo_mode", false)) }
+    var themeId by remember { mutableStateOf(prefs.getString("theme_id", "default") ?: "default") }
+    var customThemeColor by remember { mutableStateOf(prefs.getInt("custom_theme_color", 0xFF1A6C59.toInt())) }
 
     // ---- Состояния диалогов ----
+    var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showAnimDialog by remember { mutableStateOf(false) }
     var showTriggerDialog by remember { mutableStateOf(false) }
@@ -205,12 +213,93 @@ fun SettingsScreen(
                     onClick = { showLanguageDialog = true }
                 )
                 SettingsDivider()
-                SettingsClickRow(
-                    icon = Icons.Filled.Animation,
-                    title = "Анимация перехода",
-                    subtitle = animLabel(transitionAnim),
-                    onClick = { showAnimDialog = true }
+                val currentThemeName = stringResource(
+                    when (themeId) {
+                        "midnight" -> com.winlator.cmod.R.string.theme_midnight
+                        "cyberpunk" -> com.winlator.cmod.R.string.theme_cyberpunk
+                        "royal" -> com.winlator.cmod.R.string.theme_royal
+                        "dracula" -> com.winlator.cmod.R.string.theme_dracula
+                        "frost" -> com.winlator.cmod.R.string.theme_frost
+                        "forest" -> com.winlator.cmod.R.string.theme_forest
+                        "ocean" -> com.winlator.cmod.R.string.theme_ocean
+                        "sakura" -> com.winlator.cmod.R.string.theme_sakura
+                        "sunset" -> com.winlator.cmod.R.string.theme_sunset
+                        "matrix" -> com.winlator.cmod.R.string.theme_matrix
+                        "monochrome" -> com.winlator.cmod.R.string.theme_monochrome
+                        "chocolate" -> com.winlator.cmod.R.string.theme_chocolate
+                        "custom" -> com.winlator.cmod.R.string.theme_custom
+                        else -> com.winlator.cmod.R.string.theme_default
+                    }
                 )
+                SettingsClickRow(
+                    icon = Icons.Filled.Palette,
+                    title = stringResource(com.winlator.cmod.R.string.theme_manager),
+                    subtitle = currentThemeName,
+                    onClick = { showThemeDialog = true }
+                )
+            }
+
+            if (themeId == "custom") {
+                SectionHeader(stringResource(com.winlator.cmod.R.string.custom_color), Icons.Filled.Brush)
+                SettingsCard {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(com.winlator.cmod.R.string.select_primary_color),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(12.dp))
+
+                        val row1Colors = listOf(
+                            Color(0xFFE53935), Color(0xFFD81B60), Color(0xFF8E24AA), Color(0xFF5E35B1), Color(0xFF3949AB), Color(0xFF1E88E5), Color(0xFF00ACC1)
+                        )
+                        val row2Colors = listOf(
+                            Color(0xFF00897B), Color(0xFF43A047), Color(0xFF7CB342), Color(0xFFFDD835), Color(0xFFFFB300), Color(0xFFF4511E), Color(0xFF795548)
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                row1Colors.forEach { color ->
+                                    val isSelected = customThemeColor == color.toArgb()
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(color, shape = androidx.compose.foundation.shape.CircleShape)
+                                            .border(
+                                                width = if (isSelected) 3.dp else 1.dp,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                                shape = androidx.compose.foundation.shape.CircleShape
+                                            )
+                                            .clickable {
+                                                customThemeColor = color.toArgb()
+                                                saveInt("custom_theme_color", color.toArgb())
+                                            }
+                                    )
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                row2Colors.forEach { color ->
+                                    val isSelected = customThemeColor == color.toArgb()
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(color, shape = androidx.compose.foundation.shape.CircleShape)
+                                            .border(
+                                                width = if (isSelected) 3.dp else 1.dp,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                                shape = androidx.compose.foundation.shape.CircleShape
+                                            )
+                                            .clickable {
+                                                customThemeColor = color.toArgb()
+                                                saveInt("custom_theme_color", color.toArgb())
+                                            }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // 3. Shortcuts
@@ -475,6 +564,85 @@ fun SettingsScreen(
     }
 
     // ---- Диалоги ----
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            title = { Text(stringResource(com.winlator.cmod.R.string.select_theme)) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    com.winlator.cmod.ui.theme.ThemesList.forEach { theme ->
+                        val isSelected = theme.id == themeId
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    themeId = theme.id
+                                    saveString("theme_id", theme.id)
+                                    showThemeDialog = false
+                                }
+                                .border(
+                                    width = if (isSelected) 2.dp else 0.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    val localizedName = stringResource(
+                                        when (theme.id) {
+                                            "midnight" -> com.winlator.cmod.R.string.theme_midnight
+                                            "cyberpunk" -> com.winlator.cmod.R.string.theme_cyberpunk
+                                            "royal" -> com.winlator.cmod.R.string.theme_royal
+                                            "dracula" -> com.winlator.cmod.R.string.theme_dracula
+                                            "frost" -> com.winlator.cmod.R.string.theme_frost
+                                            "forest" -> com.winlator.cmod.R.string.theme_forest
+                                            "ocean" -> com.winlator.cmod.R.string.theme_ocean
+                                            "sakura" -> com.winlator.cmod.R.string.theme_sakura
+                                            "sunset" -> com.winlator.cmod.R.string.theme_sunset
+                                            "matrix" -> com.winlator.cmod.R.string.theme_matrix
+                                            "monochrome" -> com.winlator.cmod.R.string.theme_monochrome
+                                            "chocolate" -> com.winlator.cmod.R.string.theme_chocolate
+                                            "custom" -> com.winlator.cmod.R.string.theme_custom
+                                            else -> com.winlator.cmod.R.string.theme_default
+                                        }
+                                    )
+                                    Text(localizedName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Box(Modifier.size(16.dp).background(theme.primaryColor, shape = androidx.compose.foundation.shape.CircleShape))
+                                        Box(Modifier.size(16.dp).background(theme.accentColor, shape = androidx.compose.foundation.shape.CircleShape))
+                                    }
+                                }
+                                RadioButton(selected = isSelected, onClick = {
+                                    themeId = theme.id
+                                    saveString("theme_id", theme.id)
+                                    showThemeDialog = false
+                                })
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) { Text("OK") }
+            }
+        )
+    }
+
     if (showLanguageDialog) {
         ChoiceDialog(
             title = "Язык",

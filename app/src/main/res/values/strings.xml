@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="_continue">Continue</string>
     <string name="_copy">copy</string>
@@ -1533,6 +1533,26 @@
     <string name="optional">optional</string>
     <string name="game_imported">Game imported</string>
     <string name="name_and_exe_required">Name and executable are required</string>
+
+    <!-- Theme Manager Strings -->
+    <string name="theme_manager">Theme Manager</string>
+    <string name="select_theme">Select Theme</string>
+    <string name="custom_color">Custom Color</string>
+    <string name="select_primary_color">Select application primary color:</string>
+    <string name="theme_default">Teal Classic</string>
+    <string name="theme_midnight">Midnight OLED</string>
+    <string name="theme_cyberpunk">Cyberpunk Neon</string>
+    <string name="theme_royal">Royal Obsidian</string>
+    <string name="theme_dracula">Dracula Vampire</string>
+    <string name="theme_frost">Nordic Frost</string>
+    <string name="theme_custom">Custom Palette</string>
+    <string name="theme_forest">Forest Moss</string>
+    <string name="theme_ocean">Ocean Breeze</string>
+    <string name="theme_sakura">Sakura Blossom</string>
+    <string name="theme_sunset">Sunset Glow</string>
+    <string name="theme_matrix">Matrix Code</string>
+    <string name="theme_monochrome">Silver Steel</string>
+    <string name="theme_chocolate">Sweet Cocoa</string>
 </resources>
 
 
