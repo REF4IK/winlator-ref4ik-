@@ -1,11 +1,20 @@
 package com.winlator.cmod.ui.screens
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -25,6 +34,9 @@ import com.winlator.cmod.box86_64.rc.RCManager
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.core.KeyValueSet
 import com.winlator.cmod.core.StringUtils
+import com.winlator.cmod.core.WineThemeManager
+import com.winlator.cmod.core.ImageUtils
+import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.fexcore.FEXCoreEditPresetDialog
 import com.winlator.cmod.fexcore.FEXCorePresetManager
 import com.winlator.cmod.winhandler.WinHandler
@@ -169,6 +181,8 @@ fun WineConfigTab(
     videoMemorySize: String, onVideoMemorySizeChange: (String) -> Unit,
     mouseWarpOverride: String, onMouseWarpOverrideChange: (String) -> Unit,
     logPixels: Int, onLogPixelsChange: (Int) -> Unit,
+    onExportProfile: () -> Unit,
+    onImportProfile: () -> Unit,
 ) {
     val ctx = LocalContext.current
     Column(
@@ -194,12 +208,132 @@ fun WineConfigTab(
             )
             if (bgType == "COLOR") {
                 val colors = listOf("#ff8f00", "#d32f2f", "#9575cd", "#2e7d32", "#00838f", "#0277bd", "#607d8b", "#000000")
-                SpinnerRow(
-                    label = stringResource(R.string.color),
-                    entries = colors,
-                    selected = bgColor,
-                    onSelected = { onDesktopThemeChange("$theme,$bgType,$it") },
-                )
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(stringResource(R.string.color), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        colors.forEach { colorHex ->
+                            val color = remember(colorHex) { Color(android.graphics.Color.parseColor(colorHex)) }
+                            val isSelected = bgColor.equals(colorHex, ignoreCase = true)
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(color, shape = CircleShape)
+                                    .border(
+                                        width = if (isSelected) 3.dp else 1.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.5f),
+                                        shape = CircleShape
+                                    )
+                                    .clickable { onDesktopThemeChange("$theme,$bgType,$colorHex") }
+                            )
+                        }
+                    }
+                }
+            }
+            if (bgType == "IMAGE") {
+                val userWallpaperFile = remember { WineThemeManager.getUserWallpaperFile(ctx) }
+                var wallpaperExists by remember { mutableStateOf(userWallpaperFile.isFile) }
+                var bitmap by remember(wallpaperExists, desktopTheme) {
+                    mutableStateOf(
+                        if (userWallpaperFile.isFile) {
+                            try {
+                                BitmapFactory.decodeFile(userWallpaperFile.path)?.asImageBitmap()
+                            } catch (_: Exception) { null }
+                        } else null
+                    )
+                }
+                
+                val pickerLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri: Uri? ->
+                    if (uri != null) {
+                        try {
+                            val bitmapObj = ImageUtils.getBitmapFromUri(ctx, uri, 1280)
+                            if (bitmapObj != null) {
+                                ImageUtils.save(bitmapObj, userWallpaperFile, Bitmap.CompressFormat.PNG, 100)
+                                wallpaperExists = true
+                                onDesktopThemeChange("$theme,$bgType,$bgColor,${userWallpaperFile.lastModified()}")
+                            }
+                        } catch (e: Exception) {
+                            AppUtils.showToast(ctx, "Failed to load image: ${e.message}")
+                        }
+                    }
+                }
+                
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.desktop_background) + ":",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (bitmap != null) {
+                            Card(
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.size(80.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Image(
+                                    bitmap = bitmap!!,
+                                    contentDescription = "Current wallpaper",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        } else {
+                            Card(
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.size(80.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text("No Image", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Button(
+                                onClick = { pickerLauncher.launch("image/*") },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Filled.Photo, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.browse))
+                            }
+                            if (wallpaperExists) {
+                                OutlinedButton(
+                                    onClick = {
+                                        userWallpaperFile.delete()
+                                        wallpaperExists = false
+                                        onDesktopThemeChange("$theme,$bgType,$bgColor,0")
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Icon(Icons.Filled.Delete, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.remove))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -254,6 +388,30 @@ fun WineConfigTab(
                     valueRange = 96f..240f,
                     steps = (240 - 96) / 24 - 1,
                 )
+            }
+        }
+
+        SectionCard(title = stringResource(R.string.container_profile_actions), icon = Icons.Filled.Palette) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onExportProfile,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Publish, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.export_container_profile))
+                }
+                Button(
+                    onClick = onImportProfile,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Download, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.import_container_profile))
+                }
             }
         }
     }
@@ -482,6 +640,19 @@ fun AdvancedTab(
     enableDInput: Boolean, onEnableDInputChange: (Boolean) -> Unit,
     dinputMapperType: Int, onDinputMapperTypeChange: (Int) -> Unit,
     sdl2Toggle: Boolean, onSdl2ToggleChange: (Boolean) -> Unit,
+    presetsRefreshKey: Int,
+    onBox64PresetAdd: () -> Unit,
+    onBox64PresetEdit: () -> Unit,
+    onBox64PresetDuplicate: () -> Unit,
+    onBox64PresetRemove: () -> Unit,
+    onBox64PresetExport: () -> Unit,
+    onBox64PresetImport: () -> Unit,
+    onFexcorePresetAdd: () -> Unit,
+    onFexcorePresetEdit: () -> Unit,
+    onFexcorePresetDuplicate: () -> Unit,
+    onFexcorePresetRemove: () -> Unit,
+    onFexcorePresetExport: () -> Unit,
+    onFexcorePresetImport: () -> Unit,
 ) {
     val ctx = LocalContext.current
     val numCpus = remember { Runtime.getRuntime().availableProcessors() }
@@ -498,7 +669,7 @@ fun AdvancedTab(
                 entries = box64Versions, selected = box64Version,
                 onSelected = { onBox64VersionChange(it) },
             )
-            val box64Presets = remember { Box86_64PresetManager.getPresets("box64", ctx) }
+            val box64Presets = remember(presetsRefreshKey) { Box86_64PresetManager.getPresets("box64", ctx) }
             val box64PresetNames = remember(box64Presets) { box64Presets.map { it.name } }
             SpinnerRow(
                 label = stringResource(R.string.preset),
@@ -509,21 +680,17 @@ fun AdvancedTab(
                     if (preset != null) onBox64PresetChange(preset.id)
                 },
             )
-            // Кнопки Add/Edit/Duplicate для Box64 preset (как в оригинале)
+            // Кнопки управления Box64 preset (Add, Edit, Duplicate, Remove, Export, Import)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.End,
             ) {
-                IconButton(onClick = {
-                    val d = Box86_64EditPresetDialog(ctx, "box64", null)
-                    d.show()
-                }) { Icon(Icons.Filled.Add, stringResource(R.string.add)) }
-                IconButton(onClick = {
-                    Box86_64EditPresetDialog(ctx, "box64", box64Preset).show()
-                }) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
-                IconButton(onClick = {
-                    Box86_64PresetManager.duplicatePreset("box64", ctx, box64Preset)
-                }) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) }
+                IconButton(onClick = onBox64PresetAdd) { Icon(Icons.Filled.Add, stringResource(R.string.add)) }
+                IconButton(onClick = onBox64PresetEdit) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
+                IconButton(onClick = onBox64PresetDuplicate) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) }
+                IconButton(onClick = onBox64PresetRemove) { Icon(Icons.Filled.Delete, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.error) }
+                IconButton(onClick = onBox64PresetExport) { Icon(Icons.Filled.Publish, stringResource(R.string.export_container_profile)) }
+                IconButton(onClick = onBox64PresetImport) { Icon(Icons.Filled.Download, stringResource(R.string.import_container_profile)) }
             }
             val rcManager = remember { RCManager(ctx) }
             val rcFiles = remember { rcManager.getRCFiles() }
@@ -544,7 +711,7 @@ fun AdvancedTab(
                 entries = fexcoreVersions, selected = fexcoreVersion,
                 onSelected = { onFexcoreVersionChange(it) },
             )
-            val fexcorePresets = remember { FEXCorePresetManager.getPresets(ctx) }
+            val fexcorePresets = remember(presetsRefreshKey) { FEXCorePresetManager.getPresets(ctx) }
             val fexcorePresetNames = remember(fexcorePresets) { fexcorePresets.map { it.name } }
             SpinnerRow(
                 label = stringResource(R.string.preset),
@@ -555,20 +722,17 @@ fun AdvancedTab(
                     if (preset != null) onFexcorePresetChange(preset.id)
                 },
             )
-            // Кнопки Add/Edit/Duplicate для FEXCore preset (как в оригинале)
+            // Кнопки управления FEXCore preset (Add, Edit, Duplicate, Remove, Export, Import)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.End,
             ) {
-                IconButton(onClick = {
-                    FEXCoreEditPresetDialog(ctx, null).show()
-                }) { Icon(Icons.Filled.Add, stringResource(R.string.add)) }
-                IconButton(onClick = {
-                    FEXCoreEditPresetDialog(ctx, fexcorePreset).show()
-                }) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
-                IconButton(onClick = {
-                    FEXCorePresetManager.duplicatePreset(ctx, fexcorePreset)
-                }) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) }
+                IconButton(onClick = onFexcorePresetAdd) { Icon(Icons.Filled.Add, stringResource(R.string.add)) }
+                IconButton(onClick = onFexcorePresetEdit) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
+                IconButton(onClick = onFexcorePresetDuplicate) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) }
+                IconButton(onClick = onFexcorePresetRemove) { Icon(Icons.Filled.Delete, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.error) }
+                IconButton(onClick = onFexcorePresetExport) { Icon(Icons.Filled.Publish, stringResource(R.string.export_container_profile)) }
+                IconButton(onClick = onFexcorePresetImport) { Icon(Icons.Filled.Download, stringResource(R.string.import_container_profile)) }
             }
         }
 

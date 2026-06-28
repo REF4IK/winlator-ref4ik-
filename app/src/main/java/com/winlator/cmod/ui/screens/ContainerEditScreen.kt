@@ -2,7 +2,13 @@ package com.winlator.cmod.ui.screens
 
 import android.app.Activity
 import android.content.Context
+import android.net.Uri
 import android.view.View
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.winlator.cmod.contentdialog.DXVKConfigDialog
+import com.winlator.cmod.contentdialog.GraphicsDriverConfigDialog
+import com.winlator.cmod.core.AppUtils
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +25,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
 import com.winlator.cmod.box86_64.Box86_64Preset
+import com.winlator.cmod.box86_64.Box86_64PresetManager
+import com.winlator.cmod.box86_64.Box86_64EditPresetDialog
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.contents.ContentProfile
@@ -28,6 +36,8 @@ import com.winlator.cmod.core.WineInfo
 import com.winlator.cmod.core.WineRegistryEditor
 import com.winlator.cmod.core.WineThemeManager
 import com.winlator.cmod.fexcore.FEXCorePreset
+import com.winlator.cmod.fexcore.FEXCorePresetManager
+import com.winlator.cmod.fexcore.FEXCoreEditPresetDialog
 import com.winlator.cmod.winhandler.WinHandler
 import org.json.JSONArray
 import org.json.JSONObject
@@ -50,7 +60,6 @@ fun ContainerEditScreen(
     val containerManager = remember { ContainerManager(ctx) }
     val contentsManager = remember { ContentsManager(ctx) }
     val sp = remember { androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx) }
-
     val container = remember(isEditMode, containerId) {
         if (isEditMode) containerManager.getContainerById(containerId) else null
     }
@@ -178,6 +187,162 @@ fun ContainerEditScreen(
     // Списки доступных версий (из ресурсов, fallback — массивы по умолчанию)
     val graphicsDriverVersions = remember { ctx.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).toList() }
     val dxvkVersions = remember { ctx.resources.getStringArray(R.array.dxvk_version_entries).toList() }
+
+    var presetsRefreshKey by remember { mutableStateOf(0) }
+
+    val importBox64PresetLauncher = rememberLauncherForActivityResult<Array<String>, Uri?>(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                ctx.contentResolver.openInputStream(uri)?.use { isStream ->
+                    Box86_64PresetManager.importPreset("box64", ctx, isStream)
+                }
+                presetsRefreshKey++
+                AppUtils.showToast(ctx, "Box64 Preset imported successfully.")
+            } catch (e: Exception) {
+                AppUtils.showToast(ctx, "Failed to import Box64 preset: ${e.message}")
+            }
+        }
+    }
+
+    val importFexcorePresetLauncher = rememberLauncherForActivityResult<Array<String>, Uri?>(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                ctx.contentResolver.openInputStream(uri)?.use { isStream ->
+                    FEXCorePresetManager.importPreset(ctx, isStream)
+                }
+                presetsRefreshKey++
+                AppUtils.showToast(ctx, "FEXCore Preset imported successfully.")
+            } catch (e: Exception) {
+                AppUtils.showToast(ctx, "Failed to import FEXCore preset: ${e.message}")
+            }
+        }
+    }
+
+    var showProfilePreviewDialog by remember { mutableStateOf<JSONObject?>(null) }
+    var previewText by remember { mutableStateOf("") }
+
+    val exportProfileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val profileJson = buildContainerProfileJsonCompose(
+                    name = name,
+                    screenSize = if (isCustomScreen) "${customScreenWidth}x${customScreenHeight}" else screenSize,
+                    envVars = envVars,
+                    graphicsDriver = graphicsDriver,
+                    graphicsDriverConfig = graphicsDriverConfig,
+                    dxwrapper = dxwrapper,
+                    ddrawrapper = ddrawrapper,
+                    dxwrapperConfig = dxwrapperConfig,
+                    audioDriver = audioDriver,
+                    audioDriverConfig = audioDriverConfig,
+                    emulator = emulator,
+                    winComponents = winComponents,
+                    drives = drives,
+                    fullscreenStretched = fullscreenStretched,
+                    cpuList = cpuList,
+                    cpuListWoW64 = cpuListWoW64,
+                    wow64Mode = wow64Mode,
+                    startupSelection = startupSelection,
+                    box64Version = box64Version,
+                    box64Preset = box64Preset,
+                    fexcoreVersion = fexcoreVersion,
+                    fexcorePreset = fexcorePreset,
+                    desktopTheme = desktopTheme,
+                    rcfileId = rcfileId,
+                    midiSoundFont = midiSoundFont,
+                    lcAll = lcAll,
+                    primaryController = primaryController,
+                    controllerMapping = controllerMapping,
+                    enableXInput = enableXInput,
+                    enableDInput = enableDInput,
+                    dinputMapperType = dinputMapperType,
+                    csmt = csmt,
+                    gpuNamePos = gpuNamePos,
+                    offscreenRenderingMode = offscreenRenderingMode,
+                    strictShaderMath = strictShaderMath,
+                    videoMemorySize = videoMemorySize,
+                    mouseWarpOverride = mouseWarpOverride,
+                    logPixels = logPixels
+                )
+                ctx.contentResolver.openOutputStream(uri)?.use { os ->
+                    os.write(profileJson.toByteArray(Charsets.UTF_8))
+                }
+                AppUtils.showToast(ctx, R.string.container_profile_exported)
+            } catch (e: Exception) {
+                AppUtils.showToast(ctx, "Failed to export profile: ${e.message}")
+            }
+        }
+    }
+
+    val importProfileLauncher = rememberLauncherForActivityResult<Array<String>, Uri?>(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val content = ctx.contentResolver.openInputStream(uri)?.use { it.reader().readText() }
+                if (content != null) {
+                    val profile = JSONObject(content)
+                    val settings = profile.optJSONObject("settings") ?: profile
+                    
+                    val lines = mutableListOf<String>()
+                    val dxConfig = DXVKConfigDialog.parseConfig(settings.optString("dxwrapperConfig", Container.DEFAULT_DXWRAPPERCONFIG))
+                    val dxWrapperVal = settings.optString("dxwrapper", "-")
+                    val dxVersion = if (dxWrapperVal.equals("vkd3d", ignoreCase = true)) {
+                        dxConfig.get("vkd3dVersion", "-")
+                    } else {
+                        dxConfig.get("version", "-")
+                    }
+                    val graphicsDriverVersion = GraphicsDriverConfigDialog.getVersion(settings.optString("graphicsDriverConfig", Container.DEFAULT_GRAPHICSDRIVERCONFIG))
+                    
+                    val pName = profile.optString("profileName", "")
+                    if (pName.isNotEmpty()) lines.add(ctx.getString(R.string.profile_name_label) + ": " + pName)
+                    lines.add(ctx.getString(R.string.profile_source_container) + ": " + profile.optString("sourceContainerName", "-"))
+                    lines.add(ctx.getString(R.string.screen_size) + ": " + settings.optString("screenSize", "-"))
+                    lines.add(ctx.getString(R.string.graphics_driver) + ": " + settings.optString("graphicsDriver", "-") + " / " + graphicsDriverVersion)
+                    lines.add("DX Wrapper: " + settings.optString("dxwrapper", "-") + " / " + dxVersion)
+                    lines.add("DDraw/Glide: " + settings.optString("ddrawrapper", "-"))
+                    lines.add(ctx.getString(R.string.audio_driver) + ": " + settings.optString("audioDriver", "-"))
+                    lines.add("Emulator: " + settings.optString("emulator", "-"))
+                    lines.add("Box64: " + settings.optString("box64Version", "-") + " / " + settings.optString("box64Preset", "-"))
+                    lines.add("FEXCore: " + settings.optString("fexcoreVersion", "-") + " / " + settings.optString("fexcorePreset", "-"))
+                    lines.add("Box64 preset config: " + (if (settings.has("box64PresetProfile")) ctx.getString(R.string.included) else ctx.getString(R.string.not_set)))
+                    lines.add("FEXCore preset config: " + (if (settings.has("fexcorePresetProfile")) ctx.getString(R.string.included) else ctx.getString(R.string.not_set)))
+                    lines.add(ctx.getString(R.string.startup_selection) + ": " + settings.optInt("startupSelection", 0))
+                    lines.add(ctx.getString(R.string.audio_driver) + " config: " + (if (settings.has("audioDriverConfig")) ctx.getString(R.string.included) else ctx.getString(R.string.not_set)))
+                    lines.add(ctx.getString(R.string.graphics_driver) + " config: " + (if (settings.has("graphicsDriverConfig")) ctx.getString(R.string.included) else ctx.getString(R.string.not_set)))
+                    lines.add("DX config: " + (if (settings.has("dxwrapperConfig")) ctx.getString(R.string.included) else ctx.getString(R.string.not_set)))
+                    lines.add("Win components: " + settings.optString("wincomponents", "-"))
+                    lines.add("Drives: " + settings.optString("drives", "-"))
+                    lines.add("Env Vars: " + settings.optString("envVars", "-"))
+                    lines.add("MIDI: " + settings.optString("midiSoundFont", ctx.getString(R.string.disabled)))
+                    lines.add("LC_ALL: " + settings.optString("lc_all", "-"))
+                    lines.add("CSMT: " + (if (settings.optBoolean("csmtEnabled", true)) ctx.getString(R.string.enabled) else ctx.getString(R.string.disabled)))
+                    lines.add("GPU device ID: " + settings.optInt("gpuDeviceId", 0))
+                    lines.add("Offscreen: " + settings.optString("offscreenRenderingMode", "-"))
+                    lines.add("Video memory: " + settings.optString("videoMemorySize", "-"))
+                    lines.add("Mouse warp: " + settings.optString("mouseWarpOverride", "-"))
+                    lines.add("Fullscreen stretched: " + (if (settings.optBoolean("fullscreenStretched", false)) ctx.getString(R.string.enabled) else ctx.getString(R.string.disabled)))
+                    lines.add("WoW64 mode: " + (if (settings.optBoolean("wow64Mode", true)) ctx.getString(R.string.enabled) else ctx.getString(R.string.disabled)))
+                    lines.add("Input flags: " + settings.optInt("inputType", 0))
+                    lines.add("RC file id: " + settings.optInt("rcfileId", 0))
+                    lines.add("XR primary controller: " + settings.optInt("primaryController", 1))
+                    lines.add("XR mapping: " + (if (settings.has("controllerMapping")) ctx.getString(R.string.included) else ctx.getString(R.string.not_set)))
+                    lines.add(ctx.getString(R.string.bundled_components) + ": " + profile.optInt("bundledComponentsCount", 0))
+                    
+                    previewText = lines.joinToString("\n")
+                    showProfilePreviewDialog = settings
+                }
+            } catch (e: Exception) {
+                AppUtils.showToast(ctx, "Failed to import profile: ${e.message}")
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -334,6 +499,8 @@ fun ContainerEditScreen(
                     videoMemorySize = videoMemorySize, onVideoMemorySizeChange = { videoMemorySize = it },
                     mouseWarpOverride = mouseWarpOverride, onMouseWarpOverrideChange = { mouseWarpOverride = it },
                     logPixels = logPixels, onLogPixelsChange = { logPixels = it },
+                    onExportProfile = { exportProfileLauncher.launch(name.ifEmpty { "container-profile" } + ".json") },
+                    onImportProfile = { importProfileLauncher.launch(arrayOf("application/json", "*/*")) }
                 )
                 1 -> WinComponentsTab(winComponents = winComponents, onWinComponentsChange = { winComponents = it })
                 2 -> EnvVarsTab(envVars = envVars, onEnvVarsChange = { envVars = it })
@@ -353,6 +520,63 @@ fun ContainerEditScreen(
                     enableDInput = enableDInput, onEnableDInputChange = { enableDInput = it },
                     dinputMapperType = dinputMapperType, onDinputMapperTypeChange = { dinputMapperType = it },
                     sdl2Toggle = sdl2Toggle, onSdl2ToggleChange = { sdl2Toggle = it },
+                    presetsRefreshKey = presetsRefreshKey,
+                    onBox64PresetAdd = {
+                        Box86_64EditPresetDialog(ctx, "box64", null).apply {
+                            setOnConfirmCallback { presetsRefreshKey++ }
+                        }.show()
+                    },
+                    onBox64PresetEdit = {
+                        Box86_64EditPresetDialog(ctx, "box64", box64Preset).apply {
+                            setOnConfirmCallback { presetsRefreshKey++ }
+                        }.show()
+                    },
+                    onBox64PresetDuplicate = {
+                        Box86_64PresetManager.duplicatePreset("box64", ctx, box64Preset)
+                        presetsRefreshKey++
+                    },
+                    onBox64PresetRemove = {
+                        if (!box64Preset.startsWith("custom")) {
+                            AppUtils.showToast(ctx, R.string.you_cannot_remove_this_preset)
+                        } else {
+                            Box86_64PresetManager.removePreset("box64", ctx, box64Preset)
+                            presetsRefreshKey++
+                        }
+                    },
+                    onBox64PresetExport = {
+                        Box86_64PresetManager.exportPreset("box64", ctx, box64Preset)
+                    },
+                    onBox64PresetImport = {
+                        importBox64PresetLauncher.launch(arrayOf("*/*"))
+                    },
+                    onFexcorePresetAdd = {
+                        FEXCoreEditPresetDialog(ctx, null).apply {
+                            setOnConfirmCallback { presetsRefreshKey++ }
+                        }.show()
+                    },
+                    onFexcorePresetEdit = {
+                        FEXCoreEditPresetDialog(ctx, fexcorePreset).apply {
+                            setOnConfirmCallback { presetsRefreshKey++ }
+                        }.show()
+                    },
+                    onFexcorePresetDuplicate = {
+                        FEXCorePresetManager.duplicatePreset(ctx, fexcorePreset)
+                        presetsRefreshKey++
+                    },
+                    onFexcorePresetRemove = {
+                        if (!fexcorePreset.startsWith("custom")) {
+                            AppUtils.showToast(ctx, R.string.you_cannot_remove_this_preset)
+                        } else {
+                            FEXCorePresetManager.removePreset(ctx, fexcorePreset)
+                            presetsRefreshKey++
+                        }
+                    },
+                    onFexcorePresetExport = {
+                        FEXCorePresetManager.exportPreset(ctx, fexcorePreset)
+                    },
+                    onFexcorePresetImport = {
+                        importFexcorePresetLauncher.launch(arrayOf("*/*"))
+                    }
                 )
                 5 -> XRTab(
                     primaryController = primaryController, onPrimaryControllerChange = { primaryController = it },
@@ -419,6 +643,82 @@ fun ContainerEditScreen(
                 audioDriverConfig = newConfig
                 showAudioConfigDialog = false
             },
+        )
+    }
+
+    if (showProfilePreviewDialog != null) {
+        val settings = showProfilePreviewDialog!!
+        AlertDialog(
+            onDismissRequest = { showProfilePreviewDialog = null },
+            title = { Text(stringResource(R.string.container_profile_preview)) },
+            text = {
+                Box(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp).verticalScroll(rememberScrollState())
+                ) {
+                    Text(text = previewText, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showProfilePreviewDialog = null
+                    try {
+                        if (settings.has("screenSize")) screenSize = settings.getString("screenSize")
+                        if (settings.has("envVars")) envVars = settings.getString("envVars")
+                        if (settings.has("cpuList")) cpuList = settings.getString("cpuList")
+                        if (settings.has("cpuListWoW64")) cpuListWoW64 = settings.getString("cpuListWoW64")
+                        if (settings.has("graphicsDriver")) graphicsDriver = settings.getString("graphicsDriver")
+                        if (settings.has("graphicsDriverConfig")) graphicsDriverConfig = settings.getString("graphicsDriverConfig")
+                        if (settings.has("dxwrapper")) dxwrapper = settings.getString("dxwrapper")
+                        if (settings.has("ddrawrapper")) ddrawrapper = settings.getString("ddrawrapper")
+                        if (settings.has("dxwrapperConfig")) dxwrapperConfig = settings.getString("dxwrapperConfig")
+                        if (settings.has("audioDriver")) audioDriver = settings.getString("audioDriver")
+                        if (settings.has("audioDriverConfig")) audioDriverConfig = settings.getString("audioDriverConfig")
+                        if (settings.has("emulator")) emulator = settings.getString("emulator")
+                        if (settings.has("wincomponents")) winComponents = settings.getString("wincomponents")
+                        if (settings.has("drives")) drives = settings.getString("drives")
+                        if (settings.has("fullscreenStretched")) fullscreenStretched = settings.getBoolean("fullscreenStretched")
+                        if (settings.has("wow64Mode")) wow64Mode = settings.getBoolean("wow64Mode")
+                        if (settings.has("startupSelection")) startupSelection = settings.getInt("startupSelection")
+                        if (settings.has("box64Version")) box64Version = settings.getString("box64Version")
+                        if (settings.has("box64Preset")) box64Preset = settings.getString("box64Preset")
+                        if (settings.has("fexcoreVersion")) fexcoreVersion = settings.getString("fexcoreVersion")
+                        if (settings.has("fexcorePreset")) fexcorePreset = settings.getString("fexcorePreset")
+                        if (settings.has("desktopTheme")) desktopTheme = settings.getString("desktopTheme")
+                        if (settings.has("rcfileId")) rcfileId = settings.getInt("rcfileId")
+                        if (settings.has("midiSoundFont")) midiSoundFont = settings.getString("midiSoundFont")
+                        if (settings.has("lc_all")) lcAll = settings.getString("lc_all")
+                        if (settings.has("primaryController")) primaryController = settings.getInt("primaryController")
+                        if (settings.has("controllerMapping")) controllerMapping = settings.getString("controllerMapping")
+                        
+                        val inputType = settings.optInt("inputType", 0)
+                        enableXInput = (inputType and WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()) != 0
+                        enableDInput = (inputType and WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()) != 0
+                        dinputMapperType = if ((inputType and WinHandler.FLAG_DINPUT_MAPPER_XINPUT.toInt()) != 0) 1 else 0
+
+                        if (settings.has("csmtEnabled")) csmt = if (settings.optBoolean("csmtEnabled", true)) 3 else 0
+                        if (settings.has("gpuDeviceId")) {
+                            val deviceId = settings.getInt("gpuDeviceId")
+                            gpuNamePos = findGpuNamePosition(ctx, deviceId)
+                        }
+                        if (settings.has("offscreenRenderingMode")) offscreenRenderingMode = settings.getString("offscreenRenderingMode")
+                        if (settings.has("strictShaderMath")) strictShaderMath = settings.getInt("strictShaderMath")
+                        if (settings.has("videoMemorySize")) videoMemorySize = settings.getString("videoMemorySize")
+                        if (settings.has("mouseWarpOverride")) mouseWarpOverride = settings.getString("mouseWarpOverride")
+                        if (settings.has("logPixels")) logPixels = settings.getInt("logPixels")
+
+                        AppUtils.showToast(ctx, R.string.container_profile_applied)
+                    } catch (e: Exception) {
+                        AppUtils.showToast(ctx, "Failed to apply profile: ${e.message}")
+                    }
+                }) {
+                    Text(stringResource(R.string.apply_profile))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showProfilePreviewDialog = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
     }
 }
@@ -648,4 +948,72 @@ private fun saveWineRegistryKeys(
         reg.setStringValue("Software\\Wine\\DirectInput", "MouseWarpOverride", mouseWarpOverride)
         reg.setDwordValue("Control Panel\\Desktop", "LogPixels", logPixels)
     }
+}
+
+private fun buildContainerProfileJsonCompose(
+    name: String, screenSize: String, envVars: String,
+    graphicsDriver: String, graphicsDriverConfig: String,
+    dxwrapper: String, ddrawrapper: String, dxwrapperConfig: String,
+    audioDriver: String, audioDriverConfig: String, emulator: String,
+    winComponents: String, drives: String, fullscreenStretched: Boolean,
+    cpuList: String, cpuListWoW64: String, wow64Mode: Boolean,
+    startupSelection: Int, box64Version: String, box64Preset: String,
+    fexcoreVersion: String, fexcorePreset: String, desktopTheme: String,
+    rcfileId: Int, midiSoundFont: String, lcAll: String,
+    primaryController: Int, controllerMapping: String,
+    enableXInput: Boolean, enableDInput: Boolean, dinputMapperType: Int,
+    csmt: Int, gpuNamePos: Int, offscreenRenderingMode: String,
+    strictShaderMath: Int, videoMemorySize: String, mouseWarpOverride: String, logPixels: Int
+): String {
+    val profile = JSONObject()
+    profile.put("profileType", "container-profile")
+    profile.put("schemaVersion", 1.0)
+    profile.put("profileName", name)
+    profile.put("sourceContainerName", name)
+    profile.put("exportedAt", System.currentTimeMillis())
+
+    val settings = JSONObject()
+    settings.put("screenSize", screenSize)
+    settings.put("envVars", envVars)
+    settings.put("cpuList", cpuList)
+    settings.put("cpuListWoW64", cpuListWoW64)
+    settings.put("graphicsDriver", graphicsDriver)
+    settings.put("graphicsDriverConfig", graphicsDriverConfig)
+    settings.put("dxwrapper", dxwrapper)
+    settings.put("ddrawrapper", ddrawrapper)
+    settings.put("dxwrapperConfig", dxwrapperConfig)
+    settings.put("audioDriver", audioDriver)
+    settings.put("audioDriverConfig", audioDriverConfig)
+    settings.put("emulator", emulator)
+    settings.put("wincomponents", winComponents)
+    settings.put("drives", drives)
+    settings.put("fullscreenStretched", fullscreenStretched)
+    settings.put("wow64Mode", wow64Mode)
+    settings.put("startupSelection", startupSelection)
+    settings.put("box64Version", box64Version)
+    settings.put("box64Preset", box64Preset)
+    settings.put("fexcoreVersion", fexcoreVersion)
+    settings.put("fexcorePreset", fexcorePreset)
+    settings.put("desktopTheme", desktopTheme)
+    settings.put("rcfileId", rcfileId)
+    settings.put("midiSoundFont", midiSoundFont)
+    settings.put("lc_all", lcAll)
+    settings.put("primaryController", primaryController)
+    settings.put("controllerMapping", controllerMapping)
+
+    var inputType = 0
+    if (enableXInput) inputType = inputType or WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()
+    if (enableDInput) inputType = inputType or WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()
+    inputType = inputType or (if (dinputMapperType == 0) WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt() else WinHandler.FLAG_DINPUT_MAPPER_XINPUT.toInt())
+    settings.put("inputType", inputType)
+
+    settings.put("csmtEnabled", csmt != 0)
+    settings.put("offscreenRenderingMode", offscreenRenderingMode)
+    settings.put("strictShaderMath", strictShaderMath)
+    settings.put("videoMemorySize", videoMemorySize)
+    settings.put("mouseWarpOverride", mouseWarpOverride)
+    settings.put("logPixels", logPixels)
+
+    profile.put("settings", settings)
+    return profile.toString(2)
 }
