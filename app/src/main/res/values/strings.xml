@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="_continue">Continue</string>
     <string name="_copy">copy</string>
@@ -21,7 +21,7 @@
     <string name="abc_menu_space_shortcut_label">space</string>
     <string name="abc_menu_sym_shortcut_label">Sym+</string>
     <string name="abc_prepend_shortcut_label">Menu+</string>
-    <string name="abc_search_hint">SearchвЂ¦</string>
+    <string name="abc_search_hint">SearchРІР‚В¦</string>
     <string name="abc_searchview_description_clear">Clear query</string>
     <string name="abc_searchview_description_query">Search query</string>
     <string name="abc_searchview_description_search">Search</string>
@@ -31,6 +31,7 @@
     <string name="abc_shareactionprovider_share_with_application">Share with %s</string>
     <string name="abc_toolbar_collapse_description">Collapse</string>
     <string name="about">About</string>
+    <string name="about_description">Winlator CMOD is a Wine compatibility layer for Android, allowing you to run Windows applications on your device.</string>
     <string name="active_windows">Active Windows</string>
     <string name="minimized">Minimized</string>
     <string name="add">Add</string>
@@ -204,7 +205,7 @@
     <string name="contrast">Contrast</string>
     <string name="controls_editor">Controls Editor</string>
     <string name="copy">Copy</string>
-    <string name="creating_container">Creating ContainerвЂ¦</string>
+    <string name="creating_container">Creating ContainerРІР‚В¦</string>
     <string name="credits_and_third_party_apps">Credits and Third-party apps</string>
     <string name="csmt">CSMT (Command Stream Multi-Thread)</string>
     <string name="cursor_speed">Cursor Speed</string>
@@ -267,7 +268,7 @@
     <string name="driver_store_title">Driver Store</string>
     <string name="drives">Drives</string>
     <string name="duplicate">Duplicate</string>
-    <string name="duplicating_container">Duplicating ContainerвЂ¦</string>
+    <string name="duplicating_container">Duplicating ContainerРІР‚В¦</string>
     <string name="dxwrapper">DX Wrapper</string>
     <string name="dxwrapper_help_content">&lt;i>&lt;b>WineD3D&lt;/b>&lt;/i> is a translation layer for DirectX 1-11 to OpenGL.&lt;br />&lt;br /> &lt;i>&lt;b>DXVK&lt;/b>&lt;/i> is a translation layer for Direct3D 9-11 to Vulkan.&lt;br />&lt;br /> &lt;i>&lt;b>VKD3D&lt;/b>&lt;/i> is a translation layer for Direct3D 12 API to Vulkan.&lt;br />&lt;br /> &lt;i>&lt;b>CNC DDraw&lt;/b>&lt;/i> is an implementation of DirectDraw for better compatibility with classic games.</string>
     <string name="edit">Edit</string>
@@ -316,9 +317,9 @@
     <string name="end_process">End Process</string>
     <string name="profile_process_start">Start profiling</string>
     <string name="profile_process_stop">Stop profiling &amp; show stats</string>
-    <string name="profile_started">Profiling \"%1$s\" — open Task Manager again to stop and view stats.</string>
+    <string name="profile_started">Profiling \"%1$s\" вЂ” open Task Manager again to stop and view stats.</string>
     <string name="profile_result_title">Profiling result</string>
-    <string name="profile_requires_fps_counter">Enable the FPS counter overlay first — profiling collects samples from it.</string>
+    <string name="profile_requires_fps_counter">Enable the FPS counter overlay first вЂ” profiling collects samples from it.</string>
     <string name="profile_result_body">%1$s  (PID %2$d)\nDuration: %3$s    Frames sampled: %4$d\n\nFPS\n  avg: %5$s    min: %6$s    max: %7$s\n  1%% low: %8$s    0.1%% low: %9$s\n\nTemperatures (avg / max)\n  CPU: %10$s / %11$s\n  GPU: %12$s / %13$s\n  Battery: %14$s / %15$s\n\nLoad (avg / max)\n  CPU: %16$s / %17$s\n  GPU: %18$s / %19$s\n  RAM (avg / peak): %20$s / %21$s</string>
     <string name="enter_delay_seconds">Enter the delay in seconds:</string>
     <string name="enter_profile_name">Enter Profile Name</string>
@@ -330,7 +331,7 @@
     <string name="exec_arguments">Exec Arguments</string>
     <string name="exec_delay">Delayed Execution (seconds):</string>
     <string name="exit">Exit</string>
-    <string name="exit_button_text">В В В EXITВ В В </string>
+    <string name="exit_button_text">Р’В Р’В Р’В EXITР’В Р’В Р’В </string>
     <string name="expand_button_title">Advanced</string>
     <string name="experimental">Experimental</string>
     <string name="export">Export</string>
@@ -385,7 +386,7 @@
     <string name="file_list">File List</string>
     <string name="fill_all_fields">Path and Save Name are required</string>
     <string name="filter">Filter</string>
-    <string name="finishing_installation">Finishing installationвЂ¦</string>
+    <string name="finishing_installation">Finishing installationРІР‚В¦</string>
     <string name="fm_action_cancel">Cancel</string>
     <string name="fm_action_new_folder">New Folder</string>
     <string name="fm_action_paste">Paste</string>
@@ -421,7 +422,7 @@
     <string name="fm_sort_date">By Date</string>
     <string name="fm_sort_name">By Name</string>
     <string name="fm_sort_size">By Size</string>
-    <string name="fm_subtitle_template">%1$s • %2$s</string>
+    <string name="fm_subtitle_template">%1$s вЂў %2$s</string>
     <string name="fm_title">Files</string>
     <string name="fm_item_actions">Item actions</string>
     <string name="fm_drives_root">Container drives</string>
@@ -477,12 +478,12 @@
     <string name="gpu_performance_thermal_hint">Thermal Hint API (non-root)</string>
     <string name="gpu_performance_game_mode">Game Mode API (non-root)</string>
     <string name="gpu_performance_performance">Maximum Performance</string>
-    <string name="gpu_performance_warning">⚠️ WARNING: Forcing high frequency may cause overheating and increased battery usage. Use with caution!</string>
+    <string name="gpu_performance_warning">вљ пёЏ WARNING: Forcing high frequency may cause overheating and increased battery usage. Use with caution!</string>
     <string name="gpu_detecting">GPU: Detecting...</string>
     <string name="gpu_current_freq_loading">Current Frequency: Loading...</string>
     <string name="gpu_max_freq_loading">Max Frequency: Loading...</string>
     <string name="gpu_performance_mode_label">Performance Mode:</string>
-    <string name="gpu_performance_modes_description">• Default Mode: Uses system settings\n• Maximum Performance: Maximum performance (root/non-root)\n• Force Maximum Frequency: Force max frequency (root/non-root)\n• Sustained Performance: Stable performance (non-root)\n• Thermal Hint: Thermal hints (non-root)\n• Game Mode: Game mode (non-root)</string>
+    <string name="gpu_performance_modes_description">вЂў Default Mode: Uses system settings\nвЂў Maximum Performance: Maximum performance (root/non-root)\nвЂў Force Maximum Frequency: Force max frequency (root/non-root)\nвЂў Sustained Performance: Stable performance (non-root)\nвЂў Thermal Hint: Thermal hints (non-root)\nвЂў Game Mode: Game mode (non-root)</string>
     <string name="gpu_control_root_unavailable">Root GPU control unavailable. Using non-root optimizations.</string>
     <string name="gpu_control_unavailable">GPU control unavailable. Root access or newer Android version required.</string>
     <string name="gpu_non_adreno_warning">Non-Adreno GPU detected. Function may not work correctly.</string>
@@ -520,7 +521,7 @@
     <string name="group_edit">Group Edit</string>
     <string name="group_name">Group Name</string>
     <string name="height">Height</string>
-    <string name="help_button_text">В В В HELPВ В В </string>
+    <string name="help_button_text">Р’В Р’В Р’В HELPР’В Р’В Р’В </string>
     <string name="help_dinput">If your game utilizes the &lt;i>&lt;b>DInput API&lt;/b>&lt;/i> for game controller support, please enable this option.&lt;br/>&lt;br/> This option will affect both &lt;i>&lt;b>virtual&lt;/b>&lt;/i> (provided by Input Controls) and &lt;i>&lt;b>physical&lt;/b>&lt;/i> game controllers.</string>
     <string name="help_file_provider">"&lt;i>&lt;b>File Provider&lt;/b>&lt;/i> allows access to Winlator's internal data through android file manager.&lt;br/>&lt;br/>"</string>
     <string name="help_steamgrid">SteamGrid API Key</string>
@@ -567,13 +568,16 @@
     <string name="install_drivers_message">You will now be prompted to pick a driver. These must be the same ones used in other emulators like Yuzu, Dolphin, Citra, etc.</string>
     <string name="install_drivers_warning">Be warned that because of limitations of current PC emulators, Qualcomm Drivers may not work on chipsets below 8 Gen2 without getting patched.</string>
     <string name="install_failed">Install Failed</string>
+    <string name="install">Install</string>
+    <string name="back">Back</string>
+    <string name="no_content_found">No content found</string>
     <string name="install_wine">Install Wine</string>
     <string name="installation_error">Installation Error: %1$s</string>
     <string name="installed_version">Installed Version</string>
     <string name="installed_wine">Installed Wine</string>
-    <string name="installing_content">Installing ContentвЂ¦</string>
-    <string name="installing_soundfont">Installing SoundFontвЂ¦</string>
-    <string name="installing_system_files">Installing System FilesвЂ¦</string>
+    <string name="installing_content">Installing ContentРІР‚В¦</string>
+    <string name="installing_soundfont">Installing SoundFontРІР‚В¦</string>
+    <string name="installing_system_files">Installing System FilesРІР‚В¦</string>
     <string name="installing_winetricks">Installing dependencies with winetricks...</string>
     <string name="intermediate">Intermediate</string>
     <string name="invalid_container">Invalid Path</string>
@@ -588,7 +592,7 @@
     <string name="left_analog_stick_settings">Left Analog Stick Settings</string>
     <string name="left_controller">Left controller</string>
     <string name="letter">Letter</string>
-    <string name="loading">LoadingвЂ¦</string>
+    <string name="loading">LoadingРІР‚В¦</string>
     <string name="logs">Logs</string>
     <string name="logs_exported_to">Logs exported to</string>
     <string name="menu_group_controls">Controls</string>
@@ -657,7 +661,7 @@
     <string name="mtrl_exceed_max_badge_number_suffix">%1$d%2$s</string>
     <string name="mtrl_picker_a11y_next_month">Change to next month</string>
     <string name="mtrl_picker_a11y_prev_month">Change to previous month</string>
-    <string name="mtrl_picker_announce_current_range_selection">Start date selection: %1$s вЂ“ End date selection: %2$s</string>
+    <string name="mtrl_picker_announce_current_range_selection">Start date selection: %1$s РІР‚вЂњ End date selection: %2$s</string>
     <string name="mtrl_picker_announce_current_selection">Current selection: %1$s</string>
     <string name="mtrl_picker_announce_current_selection_none">none</string>
     <string name="mtrl_picker_cancel">Cancel</string>
@@ -674,11 +678,11 @@
     <string name="mtrl_picker_navigate_to_current_year_description">Navigate to current year %1$d</string>
     <string name="mtrl_picker_navigate_to_year_description">Navigate to year %1$d</string>
     <string name="mtrl_picker_out_of_range">Out of range: %1$s</string>
-    <string name="mtrl_picker_range_header_only_end_selected">Start date вЂ“ %1$s</string>
-    <string name="mtrl_picker_range_header_only_start_selected">%1$s вЂ“ End date</string>
-    <string name="mtrl_picker_range_header_selected">%1$s вЂ“ %2$s</string>
+    <string name="mtrl_picker_range_header_only_end_selected">Start date РІР‚вЂњ %1$s</string>
+    <string name="mtrl_picker_range_header_only_start_selected">%1$s РІР‚вЂњ End date</string>
+    <string name="mtrl_picker_range_header_selected">%1$s РІР‚вЂњ %2$s</string>
     <string name="mtrl_picker_range_header_title">Select Range</string>
-    <string name="mtrl_picker_range_header_unselected">Start date вЂ“ End date</string>
+    <string name="mtrl_picker_range_header_unselected">Start date РІР‚вЂњ End date</string>
     <string name="mtrl_picker_save">Save</string>
     <string name="mtrl_picker_start_date_description">Start date %1$s</string>
     <string name="mtrl_picker_text_input_date_hint">Date</string>
@@ -721,6 +725,7 @@
     <string name="no_control_element_selected">No control element selected</string>
     <string name="no_drivers_available">Drivers Unavailable</string>
     <string name="no_items_to_display">No items to display</string>
+    <string name="internal_storage">Internal Storage</string>
     <string name="no_profile_found">No profile found</string>
     <string name="no_profile_selected">No profile selected</string>
     <string name="no_saves_to_display">No saves to display</string>
@@ -840,8 +845,8 @@
     <string name="pref_volumeUpAction">Volume up</string>
     <string name="pref_xrMode">Meta Oculus XR mode</string>
     <string name="preference_copied">\"%1$s\" copied to clipboard.</string>
-    <string name="preferences_button_text">В В В PREFERENCESВ В В </string>
-    <string name="preparing_installation">Preparing installationвЂ¦</string>
+    <string name="preferences_button_text">Р’В Р’В Р’В PREFERENCESР’В Р’В Р’В </string>
+    <string name="preparing_installation">Preparing installationРІР‚В¦</string>
     <string name="preset">Preset</string>
     <string name="press_any_button_on_your_controller">Press any button on your controller</string>
     <string name="primary_controller">Primary controller</string>
@@ -863,8 +868,8 @@
     <string name="reinstall_imagefs">Reinstall Imagefs</string>
     <string name="relative_mouse_movement">Relative Mouse Movement</string>
     <string name="remove">Remove</string>
-    <string name="removing_container">Removing ContainerвЂ¦</string>
-    <string name="removing_wine">Removing WineвЂ¦</string>
+    <string name="removing_container">Removing ContainerРІР‚В¦</string>
+    <string name="removing_wine">Removing WineРІР‚В¦</string>
     <string name="reset">Reset</string>
     <string name="restore">Restore</string>
     <string name="restoring_data">Restoring data...</string>
@@ -910,12 +915,12 @@
     <string name="steam_no_containers">No containers available. Create a container first.</string>
     <string name="steam_status_installed">Steam is installed in container %1$s.</string>
     <string name="steam_status_not_installed">Steam is not installed in container %1$s yet.</string>
-    <string name="steam_downloading_installer">Downloading Steam installer…</string>
+    <string name="steam_downloading_installer">Downloading Steam installerвЂ¦</string>
     <string name="steam_download_failed">Failed to download the Steam installer.</string>
     <string name="steam_install_launched">Steam installer launched for container %1$s.</string>
     <string name="steam_install_launched_short">Steam installer launched.</string>
     <string name="steam_client_not_found">Steam client was not found in the selected container.</string>
-    <string name="steam_importing_games">Importing installed Steam games…</string>
+    <string name="steam_importing_games">Importing installed Steam gamesвЂ¦</string>
     <string name="steam_no_games_found">No installed Steam games were found in this container.</string>
     <string name="steam_import_complete">Imported %1$d Steam game shortcuts into %2$s.</string>
     <string name="common_ui_cancel">Cancel</string>
@@ -931,7 +936,7 @@
     <string name="steam_login_open_steam_app_qr_hint">Open the Steam mobile app and scan the QR code</string>
     <string name="steam_login_failed_to_load_qr_code">Failed to load QR code</string>
     <string name="steam_login_retry">Retry</string>
-    <string name="steam_login_generating_code">Generating code…</string>
+    <string name="steam_login_generating_code">Generating codeвЂ¦</string>
     <string name="steam_login_two_factor_auth">Two-factor authentication</string>
     <string name="steam_login_approve_login_steam_app">Approve the login in the Steam mobile app</string>
     <string name="steam_login_enter_code_sent_to">Enter the code sent to %1$s</string>
@@ -977,7 +982,7 @@
     <string name="sound_font_removed_success">Soundfont removed successfully!</string>
     <string name="spinner_container_selection">Transferring...</string>
     <string name="stability">Stability</string>
-    <string name="starting_up">Starting upвЂ¦</string>
+    <string name="starting_up">Starting upРІР‚В¦</string>
     <string name="stage_preparing_wine">Preparing Wine</string>
     <string name="stage_extracting_driver">Extracting driver</string>
     <string name="stage_configuring_audio">Configuring audio</string>
@@ -1036,7 +1041,7 @@
     <string name="untitled">Untitled</string>
     <string name="up_directory">Up Directory</string>
     <string name="updated_save_path">Updated save path</string>
-    <string name="updating_system_files">Updating System FilesвЂ¦</string>
+    <string name="updating_system_files">Updating System FilesРІР‚В¦</string>
     <string name="use_dri3_extension">Use DRI3 extension</string>
     <string name="use_glibc">Use glibc</string>
     <string name="use_secondary_executable">Use secondary executable?</string>
@@ -1050,7 +1055,7 @@
     <string name="vcrun2010">Visual C++ 2010</string>
     <string name="version">Version</string>
     <string name="version_code">Version Code</string>
-    <string name="version_format">Р’РµСЂСЃРёСЏ: %1$s</string>
+    <string name="version_format">Р вЂ™Р ВµРЎР‚РЎРѓР С‘РЎРЏ: %1$s</string>
     <string name="vertical">Vertical</string>
     <string name="video_memory_size">Video Memory Size</string>
     <string name="vkbasalt">vkBasalt</string>
@@ -1073,9 +1078,9 @@
     
     <!-- DXVK Download strings -->
     <string name="download_dxvk">Download DXVK</string>
-    <string name="downloading">Downloading %1$sвЂ¦</string>
-    <string name="installing">Installing %1$sвЂ¦</string>
-    <string name="loading_dxvk_versions">Loading available DXVK versionsвЂ¦</string>
+    <string name="downloading">Downloading %1$sРІР‚В¦</string>
+    <string name="installing">Installing %1$sРІР‚В¦</string>
+    <string name="loading_dxvk_versions">Loading available DXVK versionsРІР‚В¦</string>
     <string name="failed_to_load_remote_contents">Failed to load remote contents</string>
     <string name="no_dxvk_versions_available">No DXVK versions available for download</string>
     <string name="all_dxvk_installed">All DXVK versions are already installed</string>
@@ -1088,11 +1093,11 @@
     <!-- Graphics Driver Download strings -->
     <string name="download_graphics_driver">Download Graphics Driver</string>
     <string name="available_drivers">Available Drivers</string>
-    <string name="loading_driver_versions">Loading available driver versionsвЂ¦</string>
+    <string name="loading_driver_versions">Loading available driver versionsРІР‚В¦</string>
     <string name="no_driver_versions_available">No driver versions available for download</string>
     <string name="all_drivers_installed">All driver versions are already installed</string>
     <string name="download_driver_title">Download Graphics Driver (%1$d available)</string>
-    <string name="please_wait">Please waitвЂ¦</string>
+    <string name="please_wait">Please waitРІР‚В¦</string>
 
     <!-- DXVK download item layout samples and a11y descriptions -->
     <string name="dxvk_download_icon_desc">DXVK download icon</string>
@@ -1103,7 +1108,7 @@
     
     <!-- Content Manager strings -->
     <string name="installed_size">Installed Size</string>
-    <string name="loading_size">Loading sizeвЂ¦</string>
+    <string name="loading_size">Loading sizeРІР‚В¦</string>
     <string name="download_progress">Downloading</string>
     <string name="download_failed">Download failed</string>
     <string name="unknown_size">Unknown</string>
@@ -1146,7 +1151,7 @@
     <string name="off">OFF</string>
     <string name="on">ON</string>
     <string name="target_fps">FPS:</string>
-    <string name="current_fps">Current: -- FPS → -- FPS</string>
+    <string name="current_fps">Current: -- FPS в†’ -- FPS</string>
     <string name="generation_mode">Mode:</string>
     
     <string name="dxvk_tear_free">Tear-free presentation</string>
@@ -1198,7 +1203,7 @@
     <string name="repo_url_required">Repository URL is required</string>
     <string name="invalid_repo_format">Invalid repository format. Use: username/repo or https://github.com/username/repo</string>
     <string name="custom_repo_description">Add a GitHub repository with drivers. The repository must contain releases with .zip driver files.</string>
-    <string name="repo_url_examples">Examples:\n• username/repository\n• github.com/username/repository\n• https://github.com/username/repository</string>
+    <string name="repo_url_examples">Examples:\nвЂў username/repository\nвЂў github.com/username/repository\nвЂў https://github.com/username/repository</string>
     <string name="repository_added_successfully">Repository "%1$s" added successfully</string>
     <string name="repository_url_format">URL: %1$s</string>
     <string name="confirm_deletion">Confirm Deletion</string>
@@ -1219,6 +1224,7 @@
     <string name="container_profile_actions">Profile Actions</string>
     <string name="export_container_profile">Export Profile</string>
     <string name="import_container_profile">Import Profile</string>
+    <string name="install_components">Install</string>
     <string name="container_profile_preview">Profile Preview</string>
     <string name="controls_profile_preview">Controls Profile Preview</string>
     <string name="container_profile_exported">Profile exported</string>
@@ -1403,7 +1409,7 @@
     <string name="lsfg_performance_mode_desc">Use the faster LSFG mode when available.</string>
     <string name="lsfg_not_supported">Frame generation requires a Bionic container</string>
     <string name="lsfg_install_prompt">Lossless Scaling is in your Steam library but Lossless.dll was not found. Install app 993090 first.</string>
-    <string name="lsfg_not_in_library">A licensed Lossless.dll is required — select it in the app settings</string>
+    <string name="lsfg_not_in_library">A licensed Lossless.dll is required вЂ” select it in the app settings</string>
     <string name="lsfg_install_title">Install Lossless Scaling?</string>
     <string name="lsfg_install_message">This will download Lossless Scaling from Steam to enable frame generation.</string>
     <string name="lsfg_installing">Downloading Lossless Scaling...</string>
@@ -1471,10 +1477,31 @@
     <string name="preview">Preview</string>
     <string name="edit_icon">Edit Icon</string>
     <string name="select_for_pack">Select for Pack</string>
-    <string name="rotate">Rotate 90°</string>
+    <string name="rotate">Rotate 90В°</string>
     <string name="edit_external">Edit with external app</string>
     <string name="no_app_found">No app found to edit this file</string>
     <string name="pack_name">Pack name</string>
+    <!-- Container edit screen -->
+    <string name="desktop_theme">Desktop Theme</string>
+    <string name="desktop_background">Desktop Background</string>
+    <string name="color">Color</string>
+    <string name="no_env_vars">No environment variables</string>
+    <string name="add_env_var">Add Environment Variable</string>
+    <string name="no_drives">No drives</string>
+    <string name="box64">Box64</string>
+    <string name="fexcore">FEXCore</string>
+    <string name="rc_files">RC Files</string>
+    <string name="wow64_mode">WoW64 Mode</string>
+    <string name="legacy_mode_message">Legacy mode is enabled. Input type settings are managed by legacy mode.</string>
+    <string name="enable_xinput">Enable XInput</string>
+    <string name="enable_dinput">Enable DInput</string>
+    <string name="dinput_mapper">DInput Mapper</string>
+    <string name="sdl2_compatibility">SDL2 Compatibility Mode</string>
+    <string name="processor_affinity_wow64">Processor Affinity (WoW64)</string>
+    <string name="dpi">DPI</string>
+    <string name="emulator">Emulator</string>
+    <string name="midi_soundfont">MIDI SoundFont</string>
+    <string name="locale">Locale</string>
     <string name="enter_pack_name">Enter pack name</string>
     <string name="share_pack">Share pack</string>
     <string name="pack_created">Pack created successfully!</string>
@@ -1483,6 +1510,29 @@
     <string name="saved">Saved!</string>
     <string name="failed_to_export">Failed to export</string>
     <string name="no_icons_selected">No icons selected</string>
+    <string name="high_performance">High Performance</string>
+    <string name="medium_latency">Medium Latency</string>
+    <string name="frame_synchronization">Frame Synchronization</string>
+    <string name="present_mode">Present Mode</string>
+    <string name="resource_type">Resource Type</string>
+    <string name="adrenotools_turnip">Adrenotools Turnip</string>
+    <string name="enable_blit">Enable Blit</string>
+    <string name="download_graphics_drivers">Download Graphics Drivers</string>
+    <string name="tear_free">Tear Free</string>
+    <string name="latency">Latency</string>
+    <string name="available_extensions">Available Extensions</string>
+    <string name="no_shortcuts">No shortcuts yet. Tap + to add a game.</string>
+    <string name="no_containers">No containers available. Create one first.</string>
+    <string name="import_game">Import Game</string>
+    <string name="add_shortcut">Add Shortcut</string>
+    <string name="search">Search</string>
+    <string name="add_cover">Add cover</string>
+    <string name="exe_path">Path to executable</string>
+    <string name="select_exe">Select .exe file</string>
+    <string name="exe_path_hint">You can change the path if the game file is located elsewhere</string>
+    <string name="optional">optional</string>
+    <string name="game_imported">Game imported</string>
+    <string name="name_and_exe_required">Name and executable are required</string>
 </resources>
 
 

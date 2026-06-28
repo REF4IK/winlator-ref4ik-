@@ -79,7 +79,7 @@
 
         <activity
             android:name="com.winlator.cmod.XServerDisplayActivity"
-            android:theme="@style/AppTheme"
+            android:theme="@style/AppThemeFullscreen"
             android:launchMode="singleTask"
             android:supportsPictureInPicture="true"
             android:screenOrientation="sensorLandscape"
@@ -88,7 +88,7 @@
 
         <activity
             android:name="com.winlator.cmod.XrActivity"
-            android:theme="@style/AppTheme"
+            android:theme="@style/AppThemeFullscreen"
             android:launchMode="singleTask"
             android:resizeableActivity="false"
             android:screenOrientation="landscape"
@@ -104,7 +104,7 @@
 
         <activity
             android:name="com.winlator.cmod.ControlsEditorActivity"
-            android:theme="@style/AppTheme"
+            android:theme="@style/AppThemeFullscreen"
             android:screenOrientation="sensorLandscape"
             android:exported="false" />
 

@@ -41,6 +41,7 @@
         <item name="navigationViewStyle">@style/Widget.Winlator.NavigationView</item>
         <item name="spinnerStyle">@style/Widget.Winlator.Spinner</item>
         <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 
     <!-- Material Design 3 Dark Theme -->
@@ -88,6 +89,7 @@
         <item name="navigationViewStyle">@style/Widget.Winlator.NavigationView</item>
         <item name="spinnerStyle">@style/Widget.Winlator.Spinner.Dark</item>
         <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 
     <style name="ThemeOverlay.Winlator.Toolbar" parent="ThemeOverlay.Material3.ActionBar">
@@ -136,6 +138,7 @@
         <item name="android:windowBackground">#000000</item>
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowTranslucentNavigation">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 
     <!-- Dark Theme Fullscreen -->
@@ -144,6 +147,7 @@
         <item name="android:windowBackground">#000000</item>
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowTranslucentNavigation">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 
     <style name="AppTheme.SteamSettings" parent="@style/AppTheme.Dark">

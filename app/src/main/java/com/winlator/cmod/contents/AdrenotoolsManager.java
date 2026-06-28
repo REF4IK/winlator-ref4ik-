@@ -163,7 +163,7 @@ public class AdrenotoolsManager {
     
     public String installDriver(Uri driverUri) {
         File tmpDir = new File(adrenotoolsContentDir, "tmp");
-        if (tmpDir.exists()) tmpDir.delete();
+        if (tmpDir.exists()) FileUtils.delete(tmpDir);
         tmpDir.mkdirs();
         ZipInputStream zis;
         InputStream is;
@@ -175,28 +175,60 @@ public class AdrenotoolsManager {
             ZipEntry entry = zis.getNextEntry();
             while (entry != null) {
                 File dstFile = new File(tmpDir, entry.getName());
-                Files.copy(zis, dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                // Создаём родительские папки для файлов в подпапках архива
+                File parentDir = dstFile.getParentFile();
+                if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
+                if (!entry.isDirectory()) {
+                    Files.copy(zis, dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
                 entry = zis.getNextEntry();
             }
             zis.close();
-            if (new File(tmpDir, "meta.json").exists()) {
-                name = getDriverName(tmpDir.getName());
+            // Ищем meta.json — либо в корне tmpDir, либо в первой подпапке
+            File metaFile = new File(tmpDir, "meta.json");
+            File driverRoot = tmpDir;
+            if (!metaFile.exists()) {
+                // Архив с подпапкой: ищем meta.json в подпапках
+                File[] subDirs = tmpDir.listFiles();
+                if (subDirs != null) {
+                    for (File f : subDirs) {
+                        if (f.isDirectory() && new File(f, "meta.json").exists()) {
+                            driverRoot = f;
+                            metaFile = new File(f, "meta.json");
+                            break;
+                        }
+                    }
+                }
+            }
+            if (metaFile.exists()) {
+                // Читаем имя драйвера из meta.json
+                try {
+                    JSONObject jsonObject = new JSONObject(FileUtils.readString(metaFile));
+                    name = jsonObject.getString("name");
+                } catch (JSONException e) {
+                    name = driverRoot.getName();
+                }
                 File dst = new File(adrenotoolsContentDir, name);
-                if (!dst.exists() && !name.equals(""))
-                    tmpDir.renameTo(dst);
-                else {
+                if (!dst.exists() && !name.equals("")) {
+                    // Перемещаем папку драйвера в итоговое место
+                    if (driverRoot != tmpDir) {
+                        driverRoot.renameTo(dst);
+                    } else {
+                        tmpDir.renameTo(dst);
+                    }
+                } else {
                     name = "";
                     FileUtils.delete(tmpDir);
                 }
             }
             else {
                 Log.d("AdrenotoolsManager", "Failed to install driver, a valid driver has not been selected");
-                tmpDir.delete();
+                FileUtils.delete(tmpDir);
             }
         }
         catch (IOException e) {
-            Log.d("AdrenotoolsManager", "Failed to install driver, a valid driver has not been selected");
-            tmpDir.delete();
+            Log.d("AdrenotoolsManager", "Failed to install driver, a valid driver has not been selected", e);
+            FileUtils.delete(tmpDir);
         }
         
         return name;

@@ -33,6 +33,13 @@
         app:itemTextAppearance="@style/TextAppearance.Material3.LabelLarge"
         app:menu="@menu/xserver_menu"/>
 
+    <!-- ComposeView for overlay dialogs (XServerMenu + TaskManager) -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/ComposeOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <EditText
         android:id="@+id/XRTextInput"
         android:layout_width="0dp"

@@ -309,4 +309,25 @@
     <string name="gpu_performance_apply_failed">无法应用性能模式。请检查权限。</string>
     <string name="gpu_settings_restored">已还原原始 GPU 设置</string>
     <string name="gpu_settings_restore_failed">无法还原 GPU 设置</string>
+    <!-- Container edit screen -->
+    <string name="desktop_theme">桌面主题</string>
+    <string name="desktop_background">桌面背景</string>
+    <string name="color">颜色</string>
+    <string name="no_env_vars">无环境变量</string>
+    <string name="add_env_var">添加环境变量</string>
+    <string name="no_drives">无驱动器</string>
+    <string name="box64">Box64</string>
+    <string name="fexcore">FEXCore</string>
+    <string name="rc_files">RC文件</string>
+    <string name="wow64_mode">WoW64模式</string>
+    <string name="legacy_mode_message">已启用兼容模式。输入类型设置由兼容模式管理。</string>
+    <string name="enable_xinput">启用XInput</string>
+    <string name="enable_dinput">启用DInput</string>
+    <string name="dinput_mapper">DInput映射</string>
+    <string name="sdl2_compatibility">SDL2兼容模式</string>
+    <string name="processor_affinity_wow64">处理器亲和性 (WoW64)</string>
+    <string name="dpi">DPI</string>
+    <string name="emulator">模拟器</string>
+    <string name="midi_soundfont">MIDI音色库</string>
+    <string name="locale">区域设置</string>
 </resources>

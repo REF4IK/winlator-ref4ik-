@@ -260,6 +260,7 @@
     <string name="driver_installation_failed">Установка драйвера не удалась</string>
     <string name="driver_installed_successfully">Драйвер %1$s успешно установлен!</string>
     <string name="driver_load_error">Ошибка загрузки драйвера: %1$s</string>
+    <string name="installed">Установлен</string>
     <string name="driver_store">Хранилище драйверов</string>
     <string name="driver_store_title">Хранилище драйверов</string>
     <string name="drives">Диски</string>
@@ -561,6 +562,8 @@
     <string name="install_drivers_message">Теперь вам будет предложено выбрать драйвер. Это должны быть те же драйверы, что используются в других эмуляторах, таких как Yuzu, Dolphin, Citra и т.д.</string>
     <string name="install_drivers_warning">Предупреждение: из-за ограничений текущих эмуляторов для ПК драйверы Qualcomm могут не работать на чипсетах ниже 8 Gen2 без патчей.</string>
     <string name="install_failed">Установка не удалась</string>
+    <string name="install">Установить</string>
+    <string name="no_content_found">Контент не найден</string>
     <string name="install_wine">Установить Wine</string>
     <string name="installation_error">Ошибка установки: %1$s</string>
     <string name="installed_version">Установленная версия</string>
@@ -1114,6 +1117,7 @@
     <string name="container_profile_actions">&#x0414;&#x0435;&#x0439;&#x0441;&#x0442;&#x0432;&#x0438;&#x044F; &#x0441; &#x043F;&#x0440;&#x043E;&#x0444;&#x0438;&#x043B;&#x0435;&#x043C;</string>
     <string name="export_container_profile">&#x042D;&#x043A;&#x0441;&#x043F;&#x043E;&#x0440;&#x0442;</string>
     <string name="import_container_profile">&#x0418;&#x043C;&#x043F;&#x043E;&#x0440;&#x0442;</string>
+    <string name="install_components">&#x0423;&#x0441;&#x0442;&#x0430;&#x043D;&#x043E;&#x0432;&#x0438;&#x0442;&#x044C;</string>
     <string name="container_profile_preview">&#x041F;&#x0440;&#x0435;&#x0434;&#x043F;&#x0440;&#x043E;&#x0441;&#x043C;&#x043E;&#x0442;&#x0440; &#x043F;&#x0440;&#x043E;&#x0444;&#x0438;&#x043B;&#x044F;</string>
     <string name="controls_profile_preview">&#x041F;&#x0440;&#x0435;&#x0434;&#x043F;&#x0440;&#x043E;&#x0441;&#x043C;&#x043E;&#x0442;&#x0440; &#x043F;&#x0440;&#x043E;&#x0444;&#x0438;&#x043B;&#x044F; &#x0443;&#x043F;&#x0440;&#x0430;&#x0432;&#x043B;&#x0435;&#x043D;&#x0438;&#x044F;</string>
     <string name="container_profile_exported">&#x041F;&#x0440;&#x043E;&#x0444;&#x0438;&#x043B;&#x044C; &#x044D;&#x043A;&#x0441;&#x043F;&#x043E;&#x0440;&#x0442;&#x0438;&#x0440;&#x043E;&#x0432;&#x0430;&#x043D;</string>
@@ -1483,6 +1487,27 @@
     <string name="close">Закрыть</string>
     <string name="preview">Просмотр</string>
     <string name="edit_icon">Редактировать иконку</string>
+    <!-- Container edit screen -->
+    <string name="desktop_theme">Тема рабочего стола</string>
+    <string name="desktop_background">Фон рабочего стола</string>
+    <string name="color">Цвет</string>
+    <string name="no_env_vars">Нет переменных окружения</string>
+    <string name="add_env_var">Добавить переменную окружения</string>
+    <string name="no_drives">Нет дисков</string>
+    <string name="box64">Box64</string>
+    <string name="fexcore">FEXCore</string>
+    <string name="rc_files">RC-файлы</string>
+    <string name="wow64_mode">Режим WoW64</string>
+    <string name="legacy_mode_message">Включён режим совместимости. Настройки типа ввода управляются режимом совместимости.</string>
+    <string name="enable_xinput">Включить XInput</string>
+    <string name="enable_dinput">Включить DInput</string>
+    <string name="dinput_mapper">DInput Mapper</string>
+    <string name="sdl2_compatibility">Режим совместимости SDL2</string>
+    <string name="processor_affinity_wow64">Привязка процессоров (WoW64)</string>
+    <string name="dpi">DPI</string>
+    <string name="emulator">Эмулятор</string>
+    <string name="midi_soundfont">MIDI SoundFont</string>
+    <string name="locale">Локаль</string>
     <string name="select_for_pack">Выбрать для пака</string>
     <string name="rotate">Повернуть 90°</string>
     <string name="edit_external">Изменить внешним приложением</string>
