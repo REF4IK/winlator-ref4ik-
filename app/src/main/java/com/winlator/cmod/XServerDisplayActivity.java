@@ -339,6 +339,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     private DrawerLayout drawerLayout;
 
+    private com.winlator.cmod.ui.XServerMenuController xserverMenuController;
+
     private ContainerManager containerManager;
 
     protected Container container;
@@ -609,6 +611,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         AppUtils.keepScreenOn(this);
 
         setContentView(R.layout.xserver_display_activity);
+
+        xserverMenuController = new com.winlator.cmod.ui.XServerMenuController(this);
 
 
 
@@ -2260,21 +2264,16 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
     @Override
-
     public void onBackPressed() {
-
         if (environment != null) {
-
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-
-                drawerLayout.openDrawer(GravityCompat.START, false);
-
+            if (xserverMenuController != null) {
+                if (xserverMenuController.isMenuVisible()) {
+                    xserverMenuController.hideMenu();
+                } else {
+                    xserverMenuController.showMenu();
+                }
             }
-
-            else drawerLayout.closeDrawer(GravityCompat.START, false);
-
         }
-
     }
 
 
@@ -2295,67 +2294,49 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-    private void openXServerDrawer() {
+    public boolean isPaused() {
+        return isPaused;
+    }
 
-        if (environment != null) {
-
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-
-                drawerLayout.openDrawer(GravityCompat.START, false);
-
-            }
-
-            else drawerLayout.closeDrawer(GravityCompat.START, false);
-
+    public void closeXServerMenu() {
+        if (xserverMenuController != null) {
+            runOnUiThread(() -> xserverMenuController.hideMenu());
         }
+    }
 
+    private void openXServerDrawer() {
+        if (environment != null) {
+            if (xserverMenuController != null) {
+                runOnUiThread(() -> xserverMenuController.toggleMenu());
+            }
+        }
     }
 
 
 
-    @SuppressLint("SourceLockedOrientationActivity")
-
-    @Override
-
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-
+    public void handleXServerMenuAction(int itemId) {
         final VulkanRenderer renderer = xServerView.getRenderer();
 
-        switch (item.getItemId()) {
-
+        switch (itemId) {
             case R.id.main_menu_keyboard:
-
                 AppUtils.showKeyboard(this);
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 break;
 
             case R.id.main_menu_input_controls:
-
                 showInputControlsDialog();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 break;
 
             case R.id.main_menu_active_windows:
-
                 showActiveWindowsDialog();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 break;
 
             case R.id.main_menu_toggle_fullscreen:
-
                 renderer.toggleFullscreen();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 touchpadView.toggleFullscreen();
-
-                // Toggle sharpen effect alongside fullscreen
                 if (renderer.isFullscreen()) {
                     preferences.edit().putBoolean("effect_sharpen", true).apply();
                     renderer.disableScanoutForEffects();
@@ -2367,267 +2348,129 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                     preferences.edit().putBoolean("effect_sharpen", false).apply();
                     renderer.clearEffects();
                 }
-
                 break;
 
             case R.id.main_menu_pause:
-
                 if (isPaused) {
-
                     ProcessHelper.resumeAllWineProcesses();
-
-                    item.setIcon(R.drawable.icon_pause);
-
-                }
-
-                else {
-
+                } else {
                     ProcessHelper.pauseAllWineProcesses();
-
-                    item.setIcon(R.drawable.icon_play);
-
                 }
-
                 isPaused = !isPaused;
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 break;
 
             case R.id.main_menu_pip_mode:
-
                 enterPictureInPictureMode();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 break;
 
             case R.id.main_menu_task_manager:
-
                 new TaskManagerDialog(this).show();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 break;
 
-
-
             case R.id.main_menu_screen_effects:
-
-                Log.d("ScreenEffectDialog", "Initializing ScreenEffectDialog");
-
                 ScreenEffectDialog screenEffectDialog = new ScreenEffectDialog(this);
-
-                screenEffectDialog.setOnConfirmCallback(() -> {
-
-                    Log.d("ScreenEffectDialog", "Confirm callback triggered. Screen effects not available with VulkanRenderer.");
-
-                });
-
-                Log.d("ScreenEffectDialog", "Showing ScreenEffectDialog");
-
+                screenEffectDialog.setOnConfirmCallback(() -> {});
                 screenEffectDialog.show();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 break;
 
             case R.id.main_menu_logs:
-
                 debugDialog.show();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
+                closeXServerMenu();
                 break;
 
-
-
-            case R.id.main_menu_terminal:  // New case for TerminalActivity
-
+            case R.id.main_menu_terminal:
                 openTerminal();
-
-                return true;
+                break;
 
             case R.id.main_menu_fps_counter:
-
                 showFpsCounterDialog();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
-                return true;
-
-            case R.id.main_menu_frame_generation:
-
-                showFrameGenerationDialog();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
-                return true;
-
-            case R.id.main_menu_winetricks:
-
-                if (winetricksFloatingView == null) {
-
-                    FrameLayout frameLayout = findViewById(R.id.FLXServerDisplay);
-
-                    winetricksFloatingView = new WinetricksFloatingView(this);
-
-                    winetricksFloatingView.setWinetricksListener(new WinetricksFloatingView.WinetricksListener() {
-
-                        @Override
-
-                        public void onWinetricksStableClick(String verb, TextView outputView) {
-
-                            if (!verb.isEmpty()) {
-
-                                runWinetricksWithVerb(container, contentsManager, verb, outputView); // Use container here
-
-                            } else {
-
-                                Toast.makeText(XServerDisplayActivity.this, "Please enter a Winetricks verb", Toast.LENGTH_SHORT).show();
-
-                            }
-
-                        }
-
-
-
-                        @Override
-
-                        public void onWinetricksLatestClick(String verb, TextView outputView) {
-
-                            if (!verb.isEmpty()) {
-
-                                runWinetricksLatestWithVerb(container, contentsManager, verb, outputView); // Use container here
-
-                            } else {
-
-                                Toast.makeText(XServerDisplayActivity.this, "Please enter a Winetricks verb", Toast.LENGTH_SHORT).show();
-
-                            }
-
-                        }
-
-
-
-                        @Override
-
-                        public void onOpenWinetricksFolder(TextView outputView) {
-
-                            runWinetricksFolder(container, contentsManager, outputView); // Use container here
-
-                        }
-
-
-
-                        @Override
-
-                        public void onToggleTransparency(View floatingView) {
-
-                            if (floatingView.getAlpha() < 1.0f) {
-
-                                floatingView.setAlpha(1.0f);
-
-                            } else {
-
-                                floatingView.setAlpha(0.5f);
-
-                            }
-
-                        }
-
-
-
-                        @Override
-
-                        public void onRestartWineserverClick(TextView outputView) {
-
-                            // NEW
-
-                            try {
-
-                                environment.setWinetricksRunning(true);
-
-                                // Determine whether to use Glibc or Bionic launcher based on preference
-
-                                if (bionicLauncher != null) {
-
-                                    bionicLauncher.restartWineServer();
-
-                                } else {
-
-                                    runOnUiThread(() -> {
-
-                                        outputView.append("No valid launcher found; cannot restart Wineserver.\n");
-
-                                    });
-
-                                    return; // Exit the method early if no valid launcher is found
-
-                                }
-
-
-
-                                // If the environment needs frequent re-initialization
-
-                                setupXEnvironment();
-
-
-
-                                // Confirm to the user in logs
-
-                                runOnUiThread(() -> {
-
-                                    outputView.append("Wineserver restarted.\n");
-
-                                });
-
-
-
-                            } catch (Exception e) {
-
-                            }
-
-                            environment.setWinetricksRunning(false);
-
-                        }
-
-
-
-                    });
-
-                    frameLayout.addView(winetricksFloatingView);
-
-                } else {
-
-                    winetricksFloatingView.setVisibility(View.VISIBLE);
-
-                }
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
-                return true;
-
-            /*case R.id.main_menu_mcp:
-
-                // TODO: Implement MCP functionality
-
-                Toast.makeText(this, "MCP Tools functionality will be implemented here", Toast.LENGTH_SHORT).show();
-
-                drawerLayout.closeDrawer(GravityCompat.START, false);
-
-                break;*/
-
-            case R.id.main_menu_exit:
-
-                exit();
-
+                closeXServerMenu();
                 break;
 
+            case R.id.main_menu_frame_generation:
+                showFrameGenerationDialog();
+                closeXServerMenu();
+                break;
+
+            case R.id.main_menu_winetricks:
+                if (winetricksFloatingView == null) {
+                    FrameLayout frameLayout = findViewById(R.id.FLXServerDisplay);
+                    winetricksFloatingView = new WinetricksFloatingView(this);
+                    winetricksFloatingView.setWinetricksListener(new WinetricksFloatingView.WinetricksListener() {
+                        @Override
+                        public void onWinetricksStableClick(String verb, TextView outputView) {
+                            if (!verb.isEmpty()) {
+                                runWinetricksWithVerb(container, contentsManager, verb, outputView);
+                            } else {
+                                Toast.makeText(XServerDisplayActivity.this, "Please enter a Winetricks verb", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onWinetricksLatestClick(String verb, TextView outputView) {
+                            if (!verb.isEmpty()) {
+                                runWinetricksLatestWithVerb(container, contentsManager, verb, outputView);
+                            } else {
+                                Toast.makeText(XServerDisplayActivity.this, "Please enter a Winetricks verb", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onOpenWinetricksFolder(TextView outputView) {
+                            runWinetricksFolder(container, contentsManager, outputView);
+                        }
+
+                        @Override
+                        public void onToggleTransparency(View floatingView) {
+                            if (floatingView.getAlpha() < 1.0f) {
+                                floatingView.setAlpha(1.0f);
+                            } else {
+                                floatingView.setAlpha(0.5f);
+                            }
+                        }
+
+                        @Override
+                        public void onRestartWineserverClick(TextView outputView) {
+                            try {
+                                environment.setWinetricksRunning(true);
+                                if (bionicLauncher != null) {
+                                    bionicLauncher.restartWineServer();
+                                } else {
+                                    runOnUiThread(() -> {
+                                        outputView.append("No valid launcher found; cannot restart Wineserver.\n");
+                                    });
+                                    return;
+                                }
+                                setupXEnvironment();
+                                runOnUiThread(() -> {
+                                    outputView.append("Wineserver restarted.\n");
+                                });
+                            } catch (Exception e) {}
+                            environment.setWinetricksRunning(false);
+                        }
+                    });
+                    frameLayout.addView(winetricksFloatingView);
+                } else {
+                    winetricksFloatingView.setVisibility(View.VISIBLE);
+                }
+                closeXServerMenu();
+                break;
+
+            case R.id.main_menu_exit:
+                exit();
+                break;
         }
+    }
 
+    @SuppressLint("SourceLockedOrientationActivity")
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        handleXServerMenuAction(item.getItemId());
         return true;
-
     }
 
 
@@ -4449,9 +4292,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         touchpadView.setSensitivity(globalCursorSpeed);
 
         touchpadView.setFourFingersTapCallback(() -> {
-
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) drawerLayout.openDrawer(GravityCompat.START, false);
-
+            if (xserverMenuController != null) {
+                runOnUiThread(() -> xserverMenuController.showMenu());
+            }
         });
 
         rootView.addView(touchpadView);
