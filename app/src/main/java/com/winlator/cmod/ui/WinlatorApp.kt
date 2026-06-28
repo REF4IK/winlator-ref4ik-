@@ -235,6 +235,13 @@ fun WinlatorApp(
                                 )
                             },
                             selected = currentScreen == item.screen,
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.primary,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurface
+                            ),
                             onClick = {
                                 currentScreen = item.screen
                                 scope.launch { drawerState.close() }

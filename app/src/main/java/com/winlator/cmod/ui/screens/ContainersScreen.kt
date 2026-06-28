@@ -3,7 +3,6 @@ package com.winlator.cmod.ui.screens
 import android.app.Activity
 import android.content.Intent
 import android.os.Environment
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,19 +23,11 @@ import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.XrActivity
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
-import com.winlator.cmod.container.Shortcut
 import com.winlator.cmod.contentdialog.StorageInfoDialog
 import com.winlator.cmod.core.AppUtils
-import com.winlator.cmod.core.PreloaderDialog
 import com.winlator.cmod.xenvironment.ImageFs
 import java.io.File
 
-/**
- * Полный перенос ContainersFragment.java на Jetpack Compose.
- * Список контейнеров с FAB (add), меню (import, terminal),
- * popup menu (edit, duplicate, remove, info, file manager, reconfigure, export),
- * запуск контейнера.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContainersScreen(
@@ -57,7 +48,6 @@ fun ContainersScreen(
 
     fun reload() { containers = manager.containers ?: emptyList() }
 
-    // Перезагрузка списка при возврате из редактора (refreshKey меняется)
     LaunchedEffect(refreshKey) { reload() }
 
     Scaffold(
@@ -90,7 +80,6 @@ fun ContainersScreen(
         }
     }
 
-    // Popup menu
     if (showMenu && menuContainer != null) {
         val c = menuContainer!!
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
@@ -159,7 +148,6 @@ fun ContainersScreen(
         }
     }
 
-    // Confirm dialog
     if (confirmAction != null) {
         AlertDialog(
             onDismissRequest = { confirmAction = null },
@@ -169,7 +157,6 @@ fun ContainersScreen(
         )
     }
 
-    // Preloader
     if (showPreloader) {
         AlertDialog(
             onDismissRequest = {}, confirmButton = {},
@@ -226,10 +213,14 @@ fun ContainerCard(
                     )
                 }
             }
-            FilledTonalButton(onClick = onRun) {
-                Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(stringResource(R.string.run))
+            FilledTonalIconButton(
+                onClick = onRun,
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            ) {
+                Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(24.dp))
             }
             IconButton(onClick = onMenu) { Icon(Icons.Filled.MoreVert, null) }
         }
