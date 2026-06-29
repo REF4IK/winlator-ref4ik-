@@ -94,6 +94,18 @@ class MainActivity : AppCompatActivity() {
 
         isDarkMode = preferences.getBoolean("dark_mode", false)
 
+        val editInputControls = intent.getBooleanExtra("edit_input_controls", false)
+        val selectedProfileId = intent.getIntExtra("selected_profile_id", 0)
+
+        if (editInputControls && selectedProfileId > 0) {
+            val editorIntent = Intent(this, ControlsEditorActivity::class.java).apply {
+                putExtra("profile_id", selectedProfileId)
+            }
+            startActivityForResult(editorIntent, EDIT_INPUT_CONTROLS_REQUEST_CODE.toInt())
+        }
+
+        val initialScreen = if (editInputControls) com.winlator.cmod.ui.navigation.Screen.InputControls else com.winlator.cmod.ui.navigation.Screen.Containers
+
         // Добавляем ComposeView в rootLayout
         val composeView = ComposeView(this).apply {
             setContent {
@@ -104,6 +116,8 @@ class MainActivity : AppCompatActivity() {
                         WinlatorApp(
                             isDarkMode = darkMode,
                             preferences = preferences,
+                            initialScreen = initialScreen,
+                            selectedProfileId = selectedProfileId,
                             onDarkModeChange = { enabled ->
                                 darkMode = enabled
                                 isDarkMode = enabled
@@ -181,6 +195,9 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == OPEN_FILE_REQUEST_CODE.toInt() && resultCode == RESULT_OK && data != null) {
             openFileCallback?.call(data.data)
             openFileCallback = null
+        } else if (requestCode == EDIT_INPUT_CONTROLS_REQUEST_CODE.toInt()) {
+            setResult(RESULT_OK)
+            finish()
         }
     }
 

@@ -426,7 +426,7 @@ fun ContainerEditScreen(
                     label = { Text(stringResource(R.string.name)) },
                     singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                 )
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = stringResource(R.string.screen_size),
                     entries = ctx.resources.getStringArray(R.array.screen_size_entries).toList(),
                     selected = screenSize,
@@ -447,35 +447,36 @@ fun ContainerEditScreen(
                         )
                     }
                 }
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = stringResource(R.string.wine_version),
                     entries = wineVersions, selected = wineVersion, enabled = !isEditMode,
                     onSelected = { wineVersion = it },
                 )
-                SpinnerRowWithConfig(
+                ContainerSpinnerRowWithConfig(
                     label = stringResource(R.string.graphics_driver),
                     entries = ctx.resources.getStringArray(R.array.graphics_driver_entries).toList(),
                     selected = graphicsDriver, onSelected = { graphicsDriver = it },
                     onConfigClick = { showGraphicsConfigDialog = true },
                 )
-                SpinnerRowWithConfig(
+                ContainerSpinnerRowWithConfig(
                     label = stringResource(R.string.dxwrapper),
                     entries = ctx.resources.getStringArray(R.array.dxwrapper_entries).toList(),
                     selected = dxwrapper, onSelected = { dxwrapper = it },
                     onConfigClick = { showDxConfigDialog = true },
                 )
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = stringResource(R.string.ddraw_wrapper),
                     entries = ctx.resources.getStringArray(R.array.ddrawrapper_entries).toList(),
-                    selected = ddrawrapper, onSelected = { ddrawrapper = it },
+                    selected = ddrawrapper,
+                    onSelected = { ddrawrapper = it },
                 )
-                SpinnerRowWithConfig(
+                ContainerSpinnerRowWithConfig(
                     label = stringResource(R.string.audio_driver),
                     entries = ctx.resources.getStringArray(R.array.audio_driver_entries).toList(),
                     selected = audioDriver, onSelected = { audioDriver = it },
                     onConfigClick = { showAudioConfigDialog = true },
                 )
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = stringResource(R.string.emulator),
                     entries = ctx.resources.getStringArray(R.array.emulator_entries).toList(),
                     selected = if (emulator.lowercase(Locale.ENGLISH) == "fexcore") "FEXCore" else "Box64",
@@ -489,7 +490,7 @@ fun ContainerEditScreen(
                     val idx = lcAllEntries.indexOf(code)
                     if (idx >= 0) lcAllNames[idx] else lcAll
                 }
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = stringResource(R.string.locale),
                     entries = lcAllNames, selected = lcAllDisplayName,
                     onSelected = { name ->

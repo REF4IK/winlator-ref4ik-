@@ -21,6 +21,10 @@ import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.ui.screens.FpsCounterSettingsDialog
+import com.winlator.cmod.ui.screens.ActiveWindowsDialogCompose
+import com.winlator.cmod.ui.screens.ScreenEffectDialogCompose
+import com.winlator.cmod.ui.screens.FrameGenerationDialogCompose
+import com.winlator.cmod.ui.screens.InputControlsDialogCompose
 
 class XServerMenuController(private val activity: XServerDisplayActivity) {
     private val composeOverlay: ComposeView = activity.findViewById(R.id.ComposeOverlay)
@@ -91,6 +95,10 @@ fun XServerMenuOverlay(
     var isPaused by remember { mutableStateOf(activity.isPaused) }
     // Флаг показа Compose-диалога счётчика FPS
     var showFpsDialog by remember { mutableStateOf(false) }
+    var showActiveWindowsDialog by remember { mutableStateOf(false) }
+    var showScreenEffectDialog by remember { mutableStateOf(false) }
+    var showFrameGenDialog by remember { mutableStateOf(false) }
+    var showInputControlsDialog by remember { mutableStateOf(false) }
 
     // List of menu items to render
     data class XMenuItem(
@@ -168,15 +176,19 @@ fun XServerMenuOverlay(
                         val title = item.titleRes?.let { stringResource(it) } ?: item.titleString ?: ""
                         Surface(
                             onClick = {
-                                if (item.id == R.id.main_menu_fps_counter) {
-                                    // Открываем Compose-диалог FPS прямо здесь
-                                    showFpsDialog = true
-                                } else {
-                                    activity.handleXServerMenuAction(item.id)
-                                    if (item.id == R.id.main_menu_pause) {
-                                        isPaused = !isPaused
+                                when (item.id) {
+                                    R.id.main_menu_fps_counter -> showFpsDialog = true
+                                    R.id.main_menu_active_windows -> showActiveWindowsDialog = true
+                                    R.id.main_menu_screen_effects -> showScreenEffectDialog = true
+                                    R.id.main_menu_frame_generation -> showFrameGenDialog = true
+                                    R.id.main_menu_input_controls -> showInputControlsDialog = true
+                                    else -> {
+                                        activity.handleXServerMenuAction(item.id)
+                                        if (item.id == R.id.main_menu_pause) {
+                                            isPaused = !isPaused
+                                        }
+                                        onDismiss()
                                     }
-                                    onDismiss()
                                 }
                             },
                             shape = RoundedCornerShape(8.dp),
@@ -218,6 +230,34 @@ fun XServerMenuOverlay(
                 // Уведомляем Activity обновить видимость и параметры счётчика FPS
                 activity.onFpsCounterConfigChangedFromCompose()
             }
+        )
+    }
+
+    if (showActiveWindowsDialog) {
+        ActiveWindowsDialogCompose(
+            activity = activity,
+            onDismiss = { showActiveWindowsDialog = false }
+        )
+    }
+
+    if (showScreenEffectDialog) {
+        ScreenEffectDialogCompose(
+            activity = activity,
+            onDismiss = { showScreenEffectDialog = false }
+        )
+    }
+
+    if (showFrameGenDialog) {
+        FrameGenerationDialogCompose(
+            activity = activity,
+            onDismiss = { showFrameGenDialog = false }
+        )
+    }
+
+    if (showInputControlsDialog) {
+        InputControlsDialogCompose(
+            activity = activity,
+            onDismiss = { showInputControlsDialog = false }
         )
     }
 }

@@ -357,7 +357,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     private boolean appWindowStarted = false;
 
-    private Runnable editInputControlsCallback;
+    public Runnable editInputControlsCallback;
 
     private Shortcut shortcut;
 
@@ -4999,7 +4999,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-    private void showInputControls(ControlsProfile profile) {
+    public void showInputControls(ControlsProfile profile) {
 
         inputControlsView.setVisibility(View.VISIBLE);
 
@@ -5037,7 +5037,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-    private void hideInputControls() {
+    public void hideInputControls() {
 
         inputControlsView.setShowTouchscreenControls(true);
 
@@ -5589,9 +5589,70 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
     public InputControlsView getInputControlsView() {
-
         return inputControlsView;
+    }
 
+    public InputControlsManager getInputControlsManager() {
+        return inputControlsManager;
+    }
+
+    public void applyInputControlsSettings(boolean showTouchscreenControls, boolean isTimeoutEnabled, boolean isHapticsEnabled,
+                                           boolean isGyroscopeEnabled, float gyroSensitivity, boolean isQuickAccessEnabled,
+                                           boolean isRelativeMouseMovementEnabled, int profileId) {
+        inputControlsView.setShowTouchscreenControls(showTouchscreenControls);
+
+        SharedPreferences prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this);
+        prefs.edit()
+            .putBoolean("show_touchscreen_controls_enabled", showTouchscreenControls)
+            .putBoolean("touchscreen_timeout_enabled", isTimeoutEnabled)
+            .putBoolean("touchscreen_haptics_enabled", isHapticsEnabled)
+            .putBoolean("gyro_enabled", isGyroscopeEnabled)
+            .putFloat("gyro_sensitivity", gyroSensitivity)
+            .putBoolean("quick_access_panel_enabled", isQuickAccessEnabled)
+            .putBoolean("relative_mouse_movement", isRelativeMouseMovementEnabled)
+            .apply();
+
+        isRelativeMouseMovement = isRelativeMouseMovementEnabled;
+        if (xServer != null) {
+            xServer.setRelativeMouseMovement(isRelativeMouseMovementEnabled);
+        }
+
+        updateQuickAccessPanel(isQuickAccessEnabled);
+
+        if (isTimeoutEnabled && !showTouchscreenControls) {
+            startTouchscreenTimeout();
+        } else {
+            timeoutHandler.removeCallbacks(hideControlsRunnable);
+            if (touchpadView != null) touchpadView.setOnTouchListener(null);
+        }
+
+        com.winlator.cmod.inputcontrols.ControlsProfile profile = null;
+        if (profileId > 0) {
+            for (com.winlator.cmod.inputcontrols.ControlsProfile p : inputControlsManager.getProfiles()) {
+                if (p.id == profileId) {
+                    profile = p;
+                    break;
+                }
+            }
+        }
+
+        if (profile != null) {
+            showInputControls(profile);
+        } else {
+            hideInputControls();
+        }
+    }
+
+    public void launchInputControlsEditor(int selectedProfileId, Runnable onResultCallback) {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.putExtra("edit_input_controls", true);
+        intent.putExtra("selected_profile_id", selectedProfileId);
+        editInputControlsCallback = () -> {
+            hideInputControls();
+            inputControlsManager.loadProfiles(true);
+            if (onResultCallback != null) onResultCallback.run();
+        };
+        controlsEitorActivityResultLauncher.launch(intent);
     }
 
 

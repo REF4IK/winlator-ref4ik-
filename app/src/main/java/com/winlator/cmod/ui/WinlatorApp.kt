@@ -78,12 +78,14 @@ private fun getScreenTitle(screen: Screen): String {
 fun WinlatorApp(
     isDarkMode: Boolean,
     preferences: SharedPreferences,
+    initialScreen: Screen = Screen.Containers,
+    selectedProfileId: Int = 0,
     onDarkModeChange: (Boolean) -> Unit,
     onLanguageChange: (String) -> Unit,
     onOpenSteam: () -> Unit,
     onOpenFileManager: () -> Unit,
 ) {
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Containers) }
+    var currentScreen by remember { mutableStateOf<Screen>(initialScreen) }
     var showGPUPerformance by remember { mutableStateOf(false) }
     var showAdrenotools by remember { mutableStateOf(false) }
     var showDriverStore by remember { mutableStateOf(false) }
@@ -374,6 +376,7 @@ fun WinlatorApp(
                         }
                     )
                     Screen.InputControls -> InputControlsScreen(
+                        selectedProfileId = selectedProfileId,
                         onOpenGamepadTest = { currentScreen = Screen.GamepadTest },
                         onOpenIconManager = { currentScreen = Screen.IconManager }
                     )

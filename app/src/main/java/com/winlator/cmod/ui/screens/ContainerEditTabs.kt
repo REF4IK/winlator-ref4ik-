@@ -50,7 +50,7 @@ import java.util.Locale
 // ---- Переиспользуемые Composable-компоненты ----
 
 @Composable
-fun SpinnerRow(
+fun ContainerSpinnerRow(
     label: String,
     entries: List<String>,
     selected: String,
@@ -62,21 +62,23 @@ fun SpinnerRow(
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Box {
-            OutlinedButton(
-                onClick = { if (enabled) expanded = true },
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(displaySelected, modifier = Modifier.weight(1f))
-                Icon(Icons.Filled.ArrowDropDown, null)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                entries.forEach { entry ->
-                    DropdownMenuItem(
-                        text = { Text(entry) },
-                        onClick = { onSelected(entry); expanded = false }
-                    )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { if (enabled) expanded = true },
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(displaySelected, modifier = Modifier.weight(1f))
+                    Icon(Icons.Filled.ArrowDropDown, null)
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    entries.forEach { entry ->
+                        DropdownMenuItem(
+                            text = { Text(entry) },
+                            onClick = { onSelected(entry); expanded = false }
+                        )
+                    }
                 }
             }
         }
@@ -84,7 +86,7 @@ fun SpinnerRow(
 }
 
 @Composable
-fun SpinnerRowWithDownload(
+fun ContainerSpinnerRowWithDownload(
     label: String,
     entries: List<String>,
     selected: String,
@@ -97,7 +99,7 @@ fun SpinnerRowWithDownload(
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
                 OutlinedButton(
                     onClick = { if (enabled) expanded = true },
@@ -132,7 +134,7 @@ fun SpinnerRowWithDownload(
 }
 
 @Composable
-fun SpinnerRowWithConfig(
+fun ContainerSpinnerRowWithConfig(
     label: String,
     entries: List<String>,
     selected: String,
@@ -145,7 +147,7 @@ fun SpinnerRowWithConfig(
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
                 OutlinedButton(
                     onClick = { if (enabled) expanded = true },
@@ -171,6 +173,7 @@ fun SpinnerRowWithConfig(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.configuration))
             }
@@ -246,13 +249,13 @@ fun WineConfigTab(
             val theme = themeParts.getOrElse(0) { "LIGHT" }
             val bgType = themeParts.getOrElse(1) { "IMAGE" }
             val bgColor = themeParts.getOrElse(2) { "#0277bd" }
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.desktop_theme),
                 entries = listOf("LIGHT", "DARK"),
                 selected = theme,
                 onSelected = { onDesktopThemeChange("$it,$bgType,$bgColor") },
             )
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.desktop_background),
                 entries = listOf("IMAGE", "COLOR"),
                 selected = bgType,
@@ -390,7 +393,7 @@ fun WineConfigTab(
         }
 
         SectionCard(title = stringResource(R.string.registry_keys), icon = Icons.Filled.Tune) {
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.csmt),
                 entries = listOf("Disable", "Enable"),
                 selected = if (csmt == 0) "Disable" else "Enable",
@@ -402,31 +405,31 @@ fun WineConfigTab(
                     (0 until json.length()).map { json.getJSONObject(it).optString("name", "GPU $it") }
                 } catch (_: Exception) { listOf("Default GPU") }
             }
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.gpu_name),
                 entries = gpuNames,
                 selected = gpuNames.getOrElse(gpuNamePos) { gpuNames[0] },
                 onSelected = { onGpuNamePosChange(gpuNames.indexOf(it)) },
             )
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.offscreen_rendering_mode),
                 entries = listOf("Backbuffer", "FBO"),
                 selected = if (offscreenRenderingMode.equals("backbuffer", true)) "Backbuffer" else "FBO",
                 onSelected = { onOffscreenRenderingModeChange(it.lowercase()) },
             )
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.strict_shader_math),
                 entries = listOf("Disable", "Enable"),
                 selected = if (strictShaderMath == 0) "Disable" else "Enable",
                 onSelected = { onStrictShaderMathChange(if (it == "Disable") 0 else 1) },
             )
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.video_memory_size),
                 entries = ctx.resources.getStringArray(R.array.video_memory_size_entries).toList(),
                 selected = videoMemorySize,
                 onSelected = { onVideoMemorySizeChange(it) },
             )
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.mouse_warp_override),
                 entries = listOf("Disable", "Enable", "Force"),
                 selected = mouseWarpOverride.replaceFirstChar { it.uppercase() },
@@ -489,7 +492,7 @@ fun WinComponentsTab(
         SectionCard(title = stringResource(R.string.directx), icon = Icons.Filled.VideogameAsset) {
             directXComponents.forEach { comp ->
                 val value = kv.get(comp) ?: "0"
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = StringUtils.getString(ctx, comp),
                     entries = options,
                     selected = options.getOrElse(value.toIntOrNull() ?: 0) { options[0] },
@@ -503,7 +506,7 @@ fun WinComponentsTab(
         SectionCard(title = stringResource(R.string.general), icon = Icons.Filled.Build) {
             generalComponents.forEach { comp ->
                 val value = kv.get(comp) ?: "0"
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = StringUtils.getString(ctx, comp),
                     entries = options,
                     selected = options.getOrElse(value.toIntOrNull() ?: 0) { options[0] },
@@ -613,7 +616,7 @@ fun EnvVarsTab(
                         when (type) {
                             "CHECKBOX", "SELECT" -> {
                                 val options = knownVar.slice(2 until knownVar.size)
-                                SpinnerRow(
+                                ContainerSpinnerRow(
                                     label = stringResource(R.string.value),
                                     entries = options,
                                     selected = varValue,
@@ -830,7 +833,7 @@ fun AdvancedTab(
         if (emulator.lowercase(java.util.Locale.ENGLISH) != "fexcore") {
             // Box64
             SectionCard(title = stringResource(R.string.box64), icon = Icons.Filled.Code) {
-                SpinnerRowWithDownload(
+                ContainerSpinnerRowWithDownload(
                     label = stringResource(R.string.version),
                     entries = box64Versions, selected = box64Version,
                     onSelected = { onBox64VersionChange(it) },
@@ -838,7 +841,7 @@ fun AdvancedTab(
                 )
                 val box64Presets = remember(presetsRefreshKey) { Box86_64PresetManager.getPresets("box64", ctx) }
                 val box64PresetNames = remember(box64Presets) { box64Presets.map { it.name } }
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = stringResource(R.string.preset),
                     entries = box64PresetNames,
                     selected = box64Presets.firstOrNull { it.id == box64Preset }?.name ?: box64Preset,
@@ -862,7 +865,7 @@ fun AdvancedTab(
                 val rcManager = remember { RCManager(ctx) }
                 val rcFiles = remember { rcManager.getRCFiles() }
                 val rcFileNames = remember(rcFiles) { rcFiles.map { it.getName() } }
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = stringResource(R.string.rc_files),
                     entries = rcFileNames,
                     selected = rcFiles.getOrElse(rcfileId) { rcFiles.getOrNull(0) }?.getName() ?: "",
@@ -874,7 +877,7 @@ fun AdvancedTab(
         if (isArm64EC && emulator.lowercase(java.util.Locale.ENGLISH) == "fexcore") {
             // FEXCore
             SectionCard(title = stringResource(R.string.fexcore), icon = Icons.Filled.Memory) {
-                SpinnerRowWithDownload(
+                ContainerSpinnerRowWithDownload(
                     label = stringResource(R.string.version),
                     entries = fexcoreVersions, selected = fexcoreVersion,
                     onSelected = { onFexcoreVersionChange(it) },
@@ -882,7 +885,7 @@ fun AdvancedTab(
                 )
                 val fexcorePresets = remember(presetsRefreshKey) { FEXCorePresetManager.getPresets(ctx) }
                 val fexcorePresetNames = remember(fexcorePresets) { fexcorePresets.map { it.name } }
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = stringResource(R.string.preset),
                     entries = fexcorePresetNames,
                     selected = fexcorePresets.firstOrNull { it.id == fexcorePreset }?.name ?: fexcorePreset,
@@ -908,7 +911,7 @@ fun AdvancedTab(
 
         // System
         SectionCard(title = stringResource(R.string.system), icon = Icons.Filled.Settings) {
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.startup_selection),
                 entries = ctx.resources.getStringArray(R.array.startup_selection_entries).toList(),
                 selected = ctx.resources.getStringArray(R.array.startup_selection_entries).getOrElse(startupSelection) { "" },
@@ -925,7 +928,7 @@ fun AdvancedTab(
                 SwitchRow(stringResource(R.string.enable_xinput), enableXInput, onEnableXInputChange)
                 SwitchRow(stringResource(R.string.enable_dinput), enableDInput, onEnableDInputChange)
                 if (enableDInput) {
-                    SpinnerRow(
+                    ContainerSpinnerRow(
                         label = stringResource(R.string.dinput_mapper),
                         entries = ctx.resources.getStringArray(R.array.dinput_mapper_type_entries).toList(),
                         selected = ctx.resources.getStringArray(R.array.dinput_mapper_type_entries).getOrElse(dinputMapperType) { "" },
@@ -998,7 +1001,7 @@ fun XRTab(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         SectionCard(title = stringResource(R.string.xr), icon = Icons.Filled.ViewInAr) {
-            SpinnerRow(
+            ContainerSpinnerRow(
                 label = stringResource(R.string.primary_controller),
                 entries = controllers,
                 selected = controllers.getOrElse(primaryController) { controllers.getOrElse(1) { "" } },
@@ -1008,7 +1011,7 @@ fun XRTab(
             buttonNames.forEachIndexed { index, btnName ->
                 val kcId = mappingBytes.getOrElse(index) { 0 }
                 val kcName = keycodes.getOrElse(kcId) { keycodes.getOrElse(0) { "KEY_A" } }
-                SpinnerRow(
+                ContainerSpinnerRow(
                     label = btnName,
                     entries = keycodes,
                     selected = kcName,
