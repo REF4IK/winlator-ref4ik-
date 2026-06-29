@@ -54,6 +54,7 @@
     <string name="app_language_chinese">Китайский</string>
     <string name="app_language_system">Системный по умолчанию</string>
     <string name="transition_animation">Анимация переходов</string>
+    <string name="terminal">&#x0422;&#x0435;&#x0440;&#x043C;&#x0438;&#x043D;&#x0430;&#x043B;</string>
     <string name="animation_slide_vertical">Вертикальное скольжение</string>
     <string name="animation_slide_horizontal">Горизонтальное скольжение</string>
     <string name="animation_fade">Затухание</string>
@@ -1117,6 +1118,9 @@
     <string name="container_profile_actions">&#x0414;&#x0435;&#x0439;&#x0441;&#x0442;&#x0432;&#x0438;&#x044F; &#x0441; &#x043F;&#x0440;&#x043E;&#x0444;&#x0438;&#x043B;&#x0435;&#x043C;</string>
     <string name="export_container_profile">&#x042D;&#x043A;&#x0441;&#x043F;&#x043E;&#x0440;&#x0442;</string>
     <string name="import_container_profile">&#x0418;&#x043C;&#x043F;&#x043E;&#x0440;&#x0442;</string>
+    <string name="profile_imported_successfully">&#x041F;&#x0440;&#x043E;&#x0444;&#x0438;&#x043B;&#x044C; &#x0443;&#x0441;&#x043F;&#x0435;&#x0448;&#x043D;&#x043E; &#x0438;&#x043C;&#x043F;&#x043E;&#x0440;&#x0442;&#x0438;&#x0440;&#x043E;&#x0432;&#x0430;&#x043D;</string>
+    <string name="confirm">&#x041F;&#x043E;&#x0434;&#x0442;&#x0432;&#x0435;&#x0440;&#x0434;&#x0438;&#x0442;&#x044C;</string>
+    <string name="groups">&#x0413;&#x0440;&#x0443;&#x043F;&#x043F;&#x044B;</string>
     <string name="install_components">&#x0423;&#x0441;&#x0442;&#x0430;&#x043D;&#x043E;&#x0432;&#x0438;&#x0442;&#x044C;</string>
     <string name="container_profile_preview">&#x041F;&#x0440;&#x0435;&#x0434;&#x043F;&#x0440;&#x043E;&#x0441;&#x043C;&#x043E;&#x0442;&#x0440; &#x043F;&#x0440;&#x043E;&#x0444;&#x0438;&#x043B;&#x044F;</string>
     <string name="controls_profile_preview">&#x041F;&#x0440;&#x0435;&#x0434;&#x043F;&#x0440;&#x043E;&#x0441;&#x043C;&#x043E;&#x0442;&#x0440; &#x043F;&#x0440;&#x043E;&#x0444;&#x0438;&#x043B;&#x044F; &#x0443;&#x043F;&#x0440;&#x0430;&#x0432;&#x043B;&#x0435;&#x043D;&#x0438;&#x044F;</string>

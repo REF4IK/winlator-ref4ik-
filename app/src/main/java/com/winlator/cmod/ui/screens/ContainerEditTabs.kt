@@ -641,6 +641,7 @@ fun AdvancedTab(
     sdl2Toggle: Boolean, onSdl2ToggleChange: (Boolean) -> Unit,
     presetsRefreshKey: Int,
     isArm64EC: Boolean,
+    emulator: String,
     onBox64PresetAdd: () -> Unit,
     onBox64PresetEdit: () -> Unit,
     onBox64PresetDuplicate: () -> Unit,
@@ -661,49 +662,51 @@ fun AdvancedTab(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Box64
-        SectionCard(title = stringResource(R.string.box64), icon = Icons.Filled.Code) {
-            val box64Versions = remember { ctx.resources.getStringArray(R.array.box64_version_entries).toList() }
-            SpinnerRow(
-                label = stringResource(R.string.version),
-                entries = box64Versions, selected = box64Version,
-                onSelected = { onBox64VersionChange(it) },
-            )
-            val box64Presets = remember(presetsRefreshKey) { Box86_64PresetManager.getPresets("box64", ctx) }
-            val box64PresetNames = remember(box64Presets) { box64Presets.map { it.name } }
-            SpinnerRow(
-                label = stringResource(R.string.preset),
-                entries = box64PresetNames,
-                selected = box64Presets.firstOrNull { it.id == box64Preset }?.name ?: box64Preset,
-                onSelected = {
-                    val preset = box64Presets.firstOrNull { p -> p.name == it }
-                    if (preset != null) onBox64PresetChange(preset.id)
-                },
-            )
-            // Кнопки управления Box64 preset (Add, Edit, Duplicate, Remove, Export, Import)
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                IconButton(onClick = onBox64PresetAdd) { Icon(Icons.Filled.Add, stringResource(R.string.add)) }
-                IconButton(onClick = onBox64PresetEdit) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
-                IconButton(onClick = onBox64PresetDuplicate) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) }
-                IconButton(onClick = onBox64PresetRemove) { Icon(Icons.Filled.Delete, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.error) }
-                IconButton(onClick = onBox64PresetExport) { Icon(Icons.Filled.Publish, stringResource(R.string.export_container_profile)) }
-                IconButton(onClick = onBox64PresetImport) { Icon(Icons.Filled.Download, stringResource(R.string.import_container_profile)) }
+        if (emulator.lowercase(java.util.Locale.ENGLISH) != "fexcore") {
+            // Box64
+            SectionCard(title = stringResource(R.string.box64), icon = Icons.Filled.Code) {
+                val box64Versions = remember { ctx.resources.getStringArray(R.array.box64_version_entries).toList() }
+                SpinnerRow(
+                    label = stringResource(R.string.version),
+                    entries = box64Versions, selected = box64Version,
+                    onSelected = { onBox64VersionChange(it) },
+                )
+                val box64Presets = remember(presetsRefreshKey) { Box86_64PresetManager.getPresets("box64", ctx) }
+                val box64PresetNames = remember(box64Presets) { box64Presets.map { it.name } }
+                SpinnerRow(
+                    label = stringResource(R.string.preset),
+                    entries = box64PresetNames,
+                    selected = box64Presets.firstOrNull { it.id == box64Preset }?.name ?: box64Preset,
+                    onSelected = {
+                        val preset = box64Presets.firstOrNull { p -> p.name == it }
+                        if (preset != null) onBox64PresetChange(preset.id)
+                    },
+                )
+                // Кнопки управления Box64 preset (Add, Edit, Duplicate, Remove, Export, Import)
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    IconButton(onClick = onBox64PresetAdd) { Icon(Icons.Filled.Add, stringResource(R.string.add)) }
+                    IconButton(onClick = onBox64PresetEdit) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
+                    IconButton(onClick = onBox64PresetDuplicate) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) }
+                    IconButton(onClick = onBox64PresetRemove) { Icon(Icons.Filled.Delete, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.error) }
+                    IconButton(onClick = onBox64PresetExport) { Icon(Icons.Filled.Publish, stringResource(R.string.export_container_profile)) }
+                    IconButton(onClick = onBox64PresetImport) { Icon(Icons.Filled.Download, stringResource(R.string.import_container_profile)) }
+                }
+                val rcManager = remember { RCManager(ctx) }
+                val rcFiles = remember { rcManager.getRCFiles() }
+                val rcFileNames = remember(rcFiles) { rcFiles.map { it.getName() } }
+                SpinnerRow(
+                    label = stringResource(R.string.rc_files),
+                    entries = rcFileNames,
+                    selected = rcFiles.getOrElse(rcfileId) { rcFiles.getOrNull(0) }?.getName() ?: "",
+                    onSelected = { onRcfileIdChange(rcFiles.indexOfFirst { r -> r.getName() == it }) },
+                )
             }
-            val rcManager = remember { RCManager(ctx) }
-            val rcFiles = remember { rcManager.getRCFiles() }
-            val rcFileNames = remember(rcFiles) { rcFiles.map { it.getName() } }
-            SpinnerRow(
-                label = stringResource(R.string.rc_files),
-                entries = rcFileNames,
-                selected = rcFiles.getOrElse(rcfileId) { rcFiles.getOrNull(0) }?.getName() ?: "",
-                onSelected = { onRcfileIdChange(rcFiles.indexOfFirst { r -> r.getName() == it }) },
-            )
         }
 
-        if (isArm64EC) {
+        if (isArm64EC && emulator.lowercase(java.util.Locale.ENGLISH) == "fexcore") {
             // FEXCore
             SectionCard(title = stringResource(R.string.fexcore), icon = Icons.Filled.Memory) {
                 val fexcoreVersions = remember { ctx.resources.getStringArray(R.array.fexcore_version_entries).toList() }

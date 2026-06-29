@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
-import com.winlator.cmod.TerminalActivity
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
 import com.winlator.cmod.core.AppUtils
@@ -33,35 +33,42 @@ import com.winlator.cmod.ui.screens.*
  * Navigation drawer items corresponding to the main menu.
  */
 private val drawerItems = listOf(
-    DrawerItem("Shortcuts", Icons.Filled.VideogameAsset, Screen.Shortcuts),
-    DrawerItem("Containers", Icons.Filled.Storage, Screen.Containers),
-    DrawerItem("Input Controls", Icons.Filled.Gamepad, Screen.InputControls),
-    DrawerItem("Saves", Icons.Filled.Save, Screen.Saves),
-    DrawerItem("Box64 RC", Icons.Filled.Code, Screen.Box86_64RC),
-    DrawerItem("Contents", Icons.Filled.Extension, Screen.Contents),
-    DrawerItem("Steam", Icons.Filled.Folder, Screen.Steam),
-    DrawerItem("Adreno GPU Drivers", Icons.Filled.Adb, Screen.Adrenotools),
-    DrawerItem("Settings", Icons.Filled.Settings, Screen.Settings),
-    DrawerItem("About", Icons.Filled.Info, Screen.About),
-    DrawerItem("File Manager", Icons.Filled.Description, Screen.FileManager),
+    DrawerItem(R.string.shortcuts, Icons.Filled.VideogameAsset, Screen.Shortcuts),
+    DrawerItem(R.string.containers, Icons.Filled.Storage, Screen.Containers),
+    DrawerItem(R.string.input_controls, Icons.Filled.Gamepad, Screen.InputControls),
+    DrawerItem(R.string.saves, Icons.Filled.Save, Screen.Saves),
+    DrawerItem(R.string.box64_rc_file, Icons.Filled.Code, Screen.Box86_64RC),
+    DrawerItem(R.string.contents, Icons.Filled.Extension, Screen.Contents),
+    DrawerItem(R.string.steam, Icons.Filled.Folder, Screen.Steam),
+    DrawerItem(R.string.adrenotools_gpu_drivers, Icons.Filled.Adb, Screen.Adrenotools),
+    DrawerItem(R.string.settings, Icons.Filled.Settings, Screen.Settings),
+    DrawerItem(R.string.about, Icons.Filled.Info, Screen.About),
+    DrawerItem(R.string.file_manager, Icons.Filled.Description, Screen.FileManager),
 )
 
 private data class DrawerItem(
-    val label: String,
+    val labelResId: Int,
     val icon: ImageVector,
     val screen: Screen,
 )
 
+@Composable
 private fun getScreenTitle(screen: Screen): String {
     return when (screen) {
-        Screen.Shortcuts -> "Shortcuts"
-        Screen.Containers -> "Containers"
-        Screen.InputControls -> "Input Controls"
-        Screen.Saves -> "Saves"
-        Screen.Box86_64RC -> "Box64 RC"
-        Screen.Contents -> "Contents"
-        Screen.Adrenotools -> "Adreno GPU Drivers"
-        Screen.Settings -> "Settings"
+        Screen.Shortcuts -> stringResource(R.string.shortcuts)
+        Screen.Containers -> stringResource(R.string.containers)
+        Screen.InputControls -> stringResource(R.string.input_controls)
+        Screen.Saves -> stringResource(R.string.saves)
+        Screen.Box86_64RC -> stringResource(R.string.box64_rc_file)
+        Screen.Contents -> stringResource(R.string.contents)
+        Screen.Adrenotools -> stringResource(R.string.adrenotools_gpu_drivers)
+        Screen.Settings -> stringResource(R.string.settings)
+        Screen.Steam -> stringResource(R.string.steam)
+        Screen.About -> stringResource(R.string.about)
+        Screen.FileManager -> stringResource(R.string.file_manager)
+        Screen.GamepadTest -> stringResource(R.string.gamepad_test)
+        Screen.IconManager -> stringResource(R.string.icon_manager)
+        Screen.Terminal -> stringResource(R.string.terminal)
         else -> "Winlator CMOD"
     }
 }
@@ -252,13 +259,13 @@ fun WinlatorApp(
                             icon = {
                                 Icon(
                                     imageVector = item.icon,
-                                    contentDescription = item.label,
+                                    contentDescription = stringResource(item.labelResId),
                                     tint = if (currentScreen == item.screen) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
                                 )
                             },
                             label = {
                                 Text(
-                                    text = item.label,
+                                    text = stringResource(item.labelResId),
                                 )
                             },
                             selected = currentScreen == item.screen,
@@ -315,7 +322,7 @@ fun WinlatorApp(
                             }
                             if (currentScreen == Screen.Containers) {
                                 IconButton(onClick = {
-                                    context.startActivity(android.content.Intent(context, TerminalActivity::class.java))
+                                    currentScreen = Screen.Terminal
                                 }) { Icon(Icons.Filled.Terminal, contentDescription = "Open Terminal") }
                                 IconButton(onClick = { showContainerImportInfo = true }) {
                                     Icon(Icons.Filled.Download, contentDescription = "Import Container")
@@ -366,12 +373,24 @@ fun WinlatorApp(
                             currentScreen = Screen.FileManager
                         }
                     )
-                    Screen.InputControls -> InputControlsScreen()
+                    Screen.InputControls -> InputControlsScreen(
+                        onOpenGamepadTest = { currentScreen = Screen.GamepadTest },
+                        onOpenIconManager = { currentScreen = Screen.IconManager }
+                    )
+                    Screen.GamepadTest -> GamepadTestScreen(
+                        onBack = { currentScreen = Screen.InputControls }
+                    )
+                    Screen.IconManager -> IconManagerScreen(
+                        onBack = { currentScreen = Screen.InputControls }
+                    )
+                    Screen.Terminal -> TerminalScreen(
+                        onBack = { currentScreen = Screen.Containers }
+                    )
                     Screen.Saves -> FragmentHostScreen(
                         fragmentClass = com.winlator.cmod.SavesFragment::class.java,
                     )
-                    Screen.Box86_64RC -> FragmentHostScreen(
-                        fragmentClass = com.winlator.cmod.Box86_64RCFragment::class.java,
+                    Screen.Box86_64RC -> Box86_64RCScreen(
+                        onBack = { currentScreen = Screen.Containers }
                     )
                     Screen.Contents -> ContentsScreen(
                         onBack = { currentScreen = Screen.Containers },

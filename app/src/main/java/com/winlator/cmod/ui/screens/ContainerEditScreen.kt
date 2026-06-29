@@ -537,6 +537,7 @@ fun ContainerEditScreen(
                     sdl2Toggle = sdl2Toggle, onSdl2ToggleChange = { sdl2Toggle = it },
                     presetsRefreshKey = presetsRefreshKey,
                     isArm64EC = isArm64EC,
+                    emulator = emulator,
                     onBox64PresetAdd = {
                         activeBox64PresetEditId = null
                         showBox64PresetDialog = true

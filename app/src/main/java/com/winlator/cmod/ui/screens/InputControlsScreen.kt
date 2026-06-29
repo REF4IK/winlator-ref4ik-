@@ -46,7 +46,11 @@ private const val INPUT_CONTROLS_URL = "https://raw.githubusercontent.com/brunod
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InputControlsScreen(selectedProfileId: Int = 0) {
+fun InputControlsScreen(
+    selectedProfileId: Int = 0,
+    onOpenGamepadTest: () -> Unit = {},
+    onOpenIconManager: () -> Unit = {},
+) {
     val ctx = LocalContext.current
     val manager = remember { InputControlsManager(ctx) }
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(ctx) }
@@ -280,13 +284,26 @@ fun InputControlsScreen(selectedProfileId: Int = 0) {
         HorizontalDivider()
 
         // ---- Action buttons ----
-        Button(onClick = { ctx.startActivity(Intent(ctx, ControlsEditorActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = {
+                val profile = currentProfile
+                if (profile != null) {
+                    val intent = Intent(ctx, ControlsEditorActivity::class.java).apply {
+                        putExtra("profile_id", profile.id)
+                    }
+                    ctx.startActivity(intent)
+                } else {
+                    AppUtils.showToast(ctx, R.string.no_profile_selected)
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(stringResource(R.string.controls_editor))
         }
-        OutlinedButton(onClick = { ctx.startActivity(Intent(ctx, GamePadTestActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = onOpenGamepadTest, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.gamepad_test))
         }
-        OutlinedButton(onClick = { ctx.startActivity(Intent(ctx, IconManagerActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = onOpenIconManager, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.icon_manager))
         }
 

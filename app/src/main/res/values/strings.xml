@@ -57,6 +57,7 @@
     <string name="transition_animation">Transition Animation</string>
     <string name="terminal_command_hint">Enter command</string>
     <string name="terminal_execute">Execute</string>
+    <string name="terminal">Terminal</string>
     <string name="animation_slide_vertical">Slide Vertical</string>
     <string name="animation_slide_horizontal">Slide Horizontal</string>
     <string name="animation_fade">Fade</string>
@@ -1225,6 +1226,9 @@
     <string name="export_container_profile">Export Profile</string>
     <string name="import_container_profile">Import Profile</string>
     <string name="install_components">Install</string>
+    <string name="profile_imported_successfully">Profile imported successfully</string>
+    <string name="confirm">Confirm</string>
+    <string name="groups">Groups</string>
     <string name="container_profile_preview">Profile Preview</string>
     <string name="controls_profile_preview">Controls Profile Preview</string>
     <string name="container_profile_exported">Profile exported</string>

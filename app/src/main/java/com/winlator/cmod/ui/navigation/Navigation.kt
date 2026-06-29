@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.VideogameAsset
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -35,6 +37,9 @@ sealed class Screen(
     data object GPUPerformance : Screen("gpu_performance", "GPU Performance", Icons.Filled.Memory)
     data object About : Screen("about", "About", Icons.Filled.Info)
     data object FileManager : Screen("file_manager", "File Manager", Icons.Filled.Description)
+    data object GamepadTest : Screen("gamepad_test", "Gamepad Test", Icons.Filled.Gamepad)
+    data object IconManager : Screen("icon_manager", "Icon Manager", Icons.Filled.Image)
+    data object Terminal : Screen("terminal", "Terminal", Icons.Filled.Terminal)
     data object ContainerDetail : Screen("container_detail/{containerId}", "Container", Icons.Filled.Storage) {
         fun createRoute(containerId: Int = -1) = "container_detail/$containerId"
     }
