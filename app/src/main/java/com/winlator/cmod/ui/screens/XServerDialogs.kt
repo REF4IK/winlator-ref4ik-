@@ -545,47 +545,49 @@ fun ScreenEffectDialogCompose(
             tonalElevation = 6.dp
         ) {
             Column(Modifier.fillMaxSize()) {
+                // Compact header
                 Row(
-                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(16.dp),
+                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(horizontal = 10.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(painterResource(R.drawable.icon_screen_effect), null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.screen_effect), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Icon(painterResource(R.drawable.icon_screen_effect), null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.screen_effect), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { resetSettings() }) {
-                        Text(stringResource(R.string.reset), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { resetSettings() }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                        Text(stringResource(R.string.reset), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                     }
                 }
 
                 val scrollState = rememberScrollState()
                 Row(Modifier.fillMaxWidth().weight(1f)) {
+                    // Left column: color sliders
                     Column(
-                        Modifier.weight(1.2f).fillMaxHeight().verticalScroll(scrollState).padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        Modifier.weight(1.2f).fillMaxHeight().verticalScroll(scrollState).padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(stringResource(R.string.color_adjustment), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-                        
+                        Text(stringResource(R.string.color_adjustment), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+
                         Column {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(stringResource(R.string.brightness))
-                                Text("${brightness.toInt()}")
+                                Text(stringResource(R.string.brightness), style = MaterialTheme.typography.bodySmall)
+                                Text("${brightness.toInt()}", style = MaterialTheme.typography.bodySmall)
                             }
                             Slider(value = brightness, onValueChange = { brightness = it }, valueRange = -50f..50f)
                         }
 
                         Column {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(stringResource(R.string.contrast))
-                                Text("${contrast.toInt()}")
+                                Text(stringResource(R.string.contrast), style = MaterialTheme.typography.bodySmall)
+                                Text("${contrast.toInt()}", style = MaterialTheme.typography.bodySmall)
                             }
                             Slider(value = contrast, onValueChange = { contrast = it }, valueRange = -100f..100f)
                         }
 
                         Column {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(stringResource(R.string.gamma))
-                                Text(String.format(Locale.US, "%.2f", gamma))
+                                Text(stringResource(R.string.gamma), style = MaterialTheme.typography.bodySmall)
+                                Text(String.format(Locale.US, "%.2f", gamma), style = MaterialTheme.typography.bodySmall)
                             }
                             Slider(value = gamma, onValueChange = { gamma = it }, valueRange = 0.5f..3.0f)
                         }
@@ -593,16 +595,17 @@ fun ScreenEffectDialogCompose(
 
                     Box(Modifier.fillMaxHeight().width(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
 
+                    // Right column: profile + effects
                     Column(
-                        Modifier.weight(1.8f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        Modifier.weight(1.8f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(stringResource(R.string.profile), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                        Text(stringResource(R.string.profile), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             var dropdownExpanded by remember { mutableStateOf(false) }
                             Box(modifier = Modifier.weight(1f)) {
-                                OutlinedButton(onClick = { dropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                    Text(selectedProfile.ifEmpty { "-- Default Profile --" })
+                                OutlinedButton(onClick = { dropdownExpanded = true }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
+                                    Text(selectedProfile.ifEmpty { "-- Default Profile --" }, style = MaterialTheme.typography.bodySmall)
                                 }
                                 DropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
                                     profileList.forEach { name ->
@@ -617,9 +620,8 @@ fun ScreenEffectDialogCompose(
                                     }
                                 }
                             }
-                            Spacer(Modifier.width(4.dp))
-                            IconButton(onClick = { showAddProfileDialog = true }) {
-                                Icon(Icons.Filled.Add, "Add profile")
+                            IconButton(onClick = { showAddProfileDialog = true }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Filled.Add, "Add profile", modifier = Modifier.size(18.dp))
                             }
                             IconButton(onClick = {
                                 if (selectedProfile.isNotEmpty()) {
@@ -630,12 +632,12 @@ fun ScreenEffectDialogCompose(
                                     selectedProfile = ""
                                     resetSettings()
                                 }
-                            }) {
-                                Icon(Icons.Filled.Delete, "Remove profile", tint = MaterialTheme.colorScheme.error)
+                            }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Filled.Delete, "Remove profile", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
                             }
                         }
 
-                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                        HorizontalDivider(Modifier.padding(vertical = 2.dp))
 
                         CheckBoxRow(label = stringResource(R.string.enable_fxaa), checked = enableFXAA, onCheckedChange = { enableFXAA = it })
                         CheckBoxRow(label = stringResource(R.string.enable_crt_shader), checked = enableCRT, onCheckedChange = { enableCRT = it })
@@ -667,8 +669,8 @@ fun ScreenEffectDialogCompose(
                             CheckBoxRow(label = stringResource(R.string.fsr_aspect_fit), checked = fsrAspectFit, onCheckedChange = { fsrAspectFit = it })
                             Column {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(stringResource(R.string.fsr_sharpness))
-                                    Text("${fsrSharpness.toInt()}%")
+                                    Text(stringResource(R.string.fsr_sharpness), style = MaterialTheme.typography.bodySmall)
+                                    Text("${fsrSharpness.toInt()}%", style = MaterialTheme.typography.bodySmall)
                                 }
                                 Slider(value = fsrSharpness, onValueChange = { fsrSharpness = it }, valueRange = 0f..100f)
                             }
@@ -677,7 +679,7 @@ fun ScreenEffectDialogCompose(
                 }
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
@@ -778,7 +780,7 @@ fun FrameGenerationDialogCompose(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                 Text(stringResource(R.string.lsfg_description), style = MaterialTheme.typography.bodyMedium)
 
                 Column {

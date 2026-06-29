@@ -885,6 +885,7 @@
     <string name="saves">Saves</string>
     <string name="scale">Scale</string>
     <string name="screen_effect">Screen Effects</string>
+    <string name="effects">Effects</string>
     <string name="screen_size">Screen Size</string>
     <string name="search_menu_title">Search</string>
     <string name="searchbar_scrolling_view_behavior">com.google.android.material.search.SearchBar$ScrollingViewBehavior</string>
