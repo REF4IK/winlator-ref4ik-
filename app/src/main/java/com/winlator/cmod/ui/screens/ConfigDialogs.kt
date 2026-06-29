@@ -27,7 +27,20 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.core.AppUtils
+import com.winlator.cmod.core.DriverResolver
 import com.winlator.cmod.widget.SeekBar
+import android.net.Uri
+import androidx.preference.PreferenceManager
+import com.winlator.cmod.contents.ContentsManager
+import com.winlator.cmod.contents.ContentProfile
+import com.winlator.cmod.contents.AdrenotoolsManager
+import com.winlator.cmod.contents.Downloader
+import com.winlator.cmod.contentdialog.DriverDownloadDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import androidx.compose.material.icons.filled.Download
 
 // =====================================================================
 // Audio Driver Config Dialog (Compose)
@@ -164,7 +177,12 @@ fun GraphicsDriverConfigDialogCompose(
     val initialBlacklist = remember(initialConfig) { initial["blacklistedExtensions"] ?: "" }
     val blacklistedExtensions = remember { mutableStateOf(initialBlacklist) }
 
-    val versions = if (availableVersions.isEmpty()) listOf("System", "Turnip", "WineD3D") else availableVersions
+    var versions by remember {
+        mutableStateOf(
+            (context.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).toList() +
+             AdrenotoolsManager(context).enumarateInstalledDrivers()).distinct()
+        )
+    }
     val frameSyncOptions = listOf("Normal", "Always", "Never")
     val presentModeOptions = listOf("mailbox", "fifo", "immediate", "relaxed")
     val resourceTypeOptions = listOf("auto", "vk_memory", "dumb", "shared")
@@ -205,14 +223,219 @@ fun GraphicsDriverConfigDialogCompose(
                     onSelected = { selectedVersion = versions[it] },
                 )
 
-                // Download button (заглушка — открывает лог)
+                val coroutineScope = rememberCoroutineScope()
+                var showDownloadListDialog by remember { mutableStateOf(false) }
+                var downloadableDrivers by remember { mutableStateOf<List<DriverResolver.DriverInfo>>(emptyList()) }
+                var isLoadingRemote by remember { mutableStateOf(false) }
+
+                var showProgressDialog by remember { mutableStateOf(false) }
+                var progressPercent by remember { mutableStateOf(0) }
+                var progressMessage by remember { mutableStateOf("") }
+
+                // Download button (реальное скачивание Turnip/драйверов через Compose-диалоги)
                 Button(
                     onClick = {
-                        AppUtils.showToast(context, context.getString(R.string.download_graphics_drivers))
+                        isLoadingRemote = true
+                        val resolver = DriverResolver(context)
+                        coroutineScope.launch(Dispatchers.IO) {
+                            resolver.searchDrivers(object : DriverResolver.DriverSearchCallback {
+                                override fun onDriversFound(drivers: List<DriverResolver.DriverInfo>) {
+                                    coroutineScope.launch(Dispatchers.Main) {
+                                        isLoadingRemote = false
+                                        if (drivers.isEmpty()) {
+                                            AppUtils.showToast(context, context.getString(R.string.no_driver_versions_available))
+                                        } else {
+                                            downloadableDrivers = drivers
+                                            showDownloadListDialog = true
+                                        }
+                                    }
+                                }
+                                override fun onError(error: String) {
+                                    coroutineScope.launch(Dispatchers.Main) {
+                                        isLoadingRemote = false
+                                        AppUtils.showToast(context, context.getString(R.string.download_error, error))
+                                    }
+                                }
+                            })
+                        }
                     },
+                    enabled = !isLoadingRemote,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(stringResource(R.string.download_graphics_drivers))
+                    if (isLoadingRemote) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.download_graphics_drivers))
+                    }
+                }
+
+                // Dialog list of downloadable graphics drivers
+                if (showDownloadListDialog) {
+                    val grouped = remember(downloadableDrivers) { downloadableDrivers.groupBy { it.repoName } }
+                    AlertDialog(
+                        onDismissRequest = { showDownloadListDialog = false },
+                        title = { Text(stringResource(R.string.download_graphics_driver)) },
+                        text = {
+                            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 550.dp)) {
+                                val scrollState = rememberScrollState()
+                                Column(modifier = Modifier.verticalScroll(scrollState)) {
+                                    grouped.forEach { (repoName, drivers) ->
+                                        Text(
+                                            text = repoName,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(vertical = 8.dp)
+                                        )
+                                        drivers.forEach { driver ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        showDownloadListDialog = false
+                                                        showProgressDialog = true
+                                                        progressMessage = context.getString(R.string.downloading_driver_message, driver.name)
+                                                        progressPercent = 0
+
+                                                        val resolver = DriverResolver(context)
+                                                        coroutineScope.launch(Dispatchers.IO) {
+                                                            resolver.downloadDriver(driver, object : DriverResolver.DriverDownloadCallback {
+                                                                override fun onProgress(progress: Int) {
+                                                                    coroutineScope.launch(Dispatchers.Main) {
+                                                                        progressPercent = progress
+                                                                    }
+                                                                }
+                                                                override fun onComplete(driverUri: Uri?) {
+                                                                    coroutineScope.launch(Dispatchers.Main) {
+                                                                        progressMessage = context.getString(R.string.installing, driver.name)
+                                                                    }
+                                                                    coroutineScope.launch(Dispatchers.IO) {
+                                                                        try {
+                                                                            val adrenotools = AdrenotoolsManager(context)
+                                                                            val installedDriverId = adrenotools.installDriver(driverUri)
+                                                                            coroutineScope.launch(Dispatchers.Main) {
+                                                                                showProgressDialog = false
+                                                                                if (!installedDriverId.isNullOrEmpty()) {
+                                                                                    AppUtils.showToast(context, context.getString(R.string.driver_installed_successfully, driver.name))
+                                                                                    val contentsManager = ContentsManager(context)
+                                                                                    contentsManager.syncContents()
+                                                                                    versions = (context.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).toList() +
+                                                                                                 AdrenotoolsManager(context).enumarateInstalledDrivers()).distinct()
+                                                                                    selectedVersion = installedDriverId
+                                                                                } else {
+                                                                                    AppUtils.showToast(context, context.getString(R.string.driver_installation_failed))
+                                                                                }
+                                                                            }
+                                                                        } catch (e: Exception) {
+                                                                            coroutineScope.launch(Dispatchers.Main) {
+                                                                                showProgressDialog = false
+                                                                                AppUtils.showToast(context, context.getString(R.string.installation_error, e.message))
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                                override fun onError(error: String) {
+                                                                    coroutineScope.launch(Dispatchers.Main) {
+                                                                        showProgressDialog = false
+                                                                        AppUtils.showToast(context, context.getString(R.string.download_error, error))
+                                                                    }
+                                                                }
+                                                            })
+                                                        }
+                                                    }
+                                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = driver.name,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                    Text(
+                                                        text = "Version: ${driver.version}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                                    )
+                                                }
+                                                Icon(
+                                                    imageVector = Icons.Filled.Download,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
+                                            HorizontalDivider()
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {},
+                        dismissButton = {
+                            TextButton(onClick = { showDownloadListDialog = false }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
+                    )
+                }
+
+                // Progress Loading Dialog
+                if (showProgressDialog) {
+                    Dialog(
+                        onDismissRequest = {},
+                        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 6.dp,
+                            modifier = Modifier.padding(24.dp).fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                Text(text = progressMessage, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    LinearProgressIndicator(
+                                        progress = { progressPercent / 100f },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(text = "$progressPercent%", style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Remote fetch Loading dialog (visual indicator)
+                if (isLoadingRemote) {
+                    Dialog(
+                        onDismissRequest = {},
+                        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 6.dp,
+                            modifier = Modifier.padding(24.dp).fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(24.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CircularProgressIndicator()
+                                Text(text = stringResource(R.string.loading), style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
                 }
 
                 // Available extensions (информационно)
@@ -369,7 +592,33 @@ fun DXVKConfigDialogCompose(
     var enableGraphicsPipelineLibrary by remember { mutableStateOf(initial["enableGraphicsPipelineLibrary"] ?: "Auto") }
     var relaxedBarriers by remember { mutableStateOf(initial["relaxedBarriers"] ?: "Auto") }
 
-    val versions = if (availableVersions.isEmpty()) listOf("1.10.1", "1.10.2", "1.10.3", "2.0", "2.1") else availableVersions
+    val contentsManager = remember { ContentsManager(context) }
+    val coroutineScope = rememberCoroutineScope()
+
+    var versions by remember {
+        mutableStateOf(run {
+            val contentsManager = ContentsManager(context)
+            contentsManager.syncContents()
+            val originalItems = context.resources.getStringArray(R.array.dxvk_version_entries).toList()
+            val installedProfilesList = (contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_DXVK) ?: emptyList())
+                .filter { it.remoteUrl == null || it.remoteUrl.isEmpty() }
+                .map {
+                    val entryName = ContentsManager.getEntryName(it)
+                    val firstDashIndex = entryName.indexOf('-')
+                    if (firstDashIndex >= 0) entryName.substring(firstDashIndex + 1) else entryName
+                }
+            (originalItems + installedProfilesList).distinct()
+        })
+    }
+
+    var showDownloadListDialog by remember { mutableStateOf(false) }
+    var downloadableProfiles by remember { mutableStateOf<List<ContentProfile>>(emptyList()) }
+    var installedVersions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoadingRemote by remember { mutableStateOf(false) }
+
+    var showProgressDialog by remember { mutableStateOf(false) }
+    var progressMessage by remember { mutableStateOf("") }
+
     val autoOnOff = listOf("Auto", "True", "False")
     val numOptions = (0..8).map { it.toString() }
     val syncIntervalOptions = listOf("-1", "0", "1", "2", "3", "4")
@@ -404,10 +653,211 @@ fun DXVKConfigDialogCompose(
                 )
                 Button(
                     onClick = {
-                        AppUtils.showToast(context, context.getString(R.string.download_dxvk))
+                        isLoadingRemote = true
+                        coroutineScope.launch(Dispatchers.IO) {
+                            try {
+                                val sp = PreferenceManager.getDefaultSharedPreferences(context)
+                                val contentsURL = sp.getString("downloadable_contents_url",
+                                    "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json")
+                                val json = Downloader.downloadString(contentsURL)
+                                if (json != null) {
+                                    contentsManager.setRemoteProfiles(json)
+
+                                    val allProfiles = contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_DXVK)
+                                    val installed = allProfiles.filter { it.remoteUrl == null || it.remoteUrl.isEmpty() }
+                                        .map { it.verName + "_v" + it.verCode }
+
+                                    val downloadable = allProfiles.filter { it.remoteUrl != null && it.remoteUrl.isNotEmpty() }
+
+                                    withContext(Dispatchers.Main) {
+                                        downloadableProfiles = downloadable
+                                        installedVersions = installed
+                                        if (downloadable.isEmpty()) {
+                                            AppUtils.showToast(context, context.getString(R.string.all_dxvk_installed))
+                                        } else {
+                                            showDownloadListDialog = true
+                                        }
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        AppUtils.showToast(context, context.getString(R.string.failed_to_load_remote_contents))
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + e.message)
+                                }
+                            } finally {
+                                withContext(Dispatchers.Main) {
+                                    isLoadingRemote = false
+                                }
+                            }
+                        }
                     },
+                    enabled = !isLoadingRemote,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.download_dxvk)) }
+                ) {
+                    if (isLoadingRemote) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.download_dxvk))
+                    }
+                }
+
+                // Dialog list of downloadable DXVK versions
+                if (showDownloadListDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDownloadListDialog = false },
+                        title = { Text(context.getString(R.string.download_dxvk_title, downloadableProfiles.size)) },
+                        text = {
+                            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 550.dp)) {
+                                val scrollState = rememberScrollState()
+                                Column(modifier = Modifier.verticalScroll(scrollState)) {
+                                    downloadableProfiles.forEach { profile ->
+                                        val versionKey = profile.verName + "_v" + profile.verCode
+                                        val isInstalled = installedVersions.contains(versionKey)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable(enabled = !isInstalled) {
+                                                    showDownloadListDialog = false
+                                                    showProgressDialog = true
+                                                    progressMessage = context.getString(R.string.downloading, profile.verName)
+
+                                                    coroutineScope.launch(Dispatchers.IO) {
+                                                        try {
+                                                            val timestamp = System.currentTimeMillis()
+                                                            val tempFile = File(context.cacheDir, "dxvk_temp_${timestamp}.tar.xz")
+                                                            val downloaded = Downloader.downloadFile(profile.remoteUrl, tempFile)
+                                                            if (!downloaded || !tempFile.exists()) {
+                                                                withContext(Dispatchers.Main) {
+                                                                    showProgressDialog = false
+                                                                    AppUtils.showToast(context, context.getString(R.string.failed_to_download, profile.verName))
+                                                                }
+                                                                return@launch
+                                                            }
+
+                                                            withContext(Dispatchers.Main) {
+                                                                progressMessage = context.getString(R.string.installing, profile.verName)
+                                                            }
+
+                                                            withContext(Dispatchers.Main) {
+                                                                val callback = object : ContentsManager.OnInstallFinishedCallback {
+                                                                    var isExtracting = true
+                                                                    override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
+                                                                        showProgressDialog = false
+                                                                        val errorMsgResId = when (reason) {
+                                                                            ContentsManager.InstallFailedReason.ERROR_BADTAR -> R.string.file_cannot_be_recognized
+                                                                            ContentsManager.InstallFailedReason.ERROR_NOPROFILE -> R.string.profile_not_found_in_content
+                                                                            ContentsManager.InstallFailedReason.ERROR_BADPROFILE -> R.string.profile_cannot_be_recognized
+                                                                            ContentsManager.InstallFailedReason.ERROR_EXIST -> R.string.content_already_exist
+                                                                            ContentsManager.InstallFailedReason.ERROR_MISSINGFILES -> R.string.content_is_incomplete
+                                                                            ContentsManager.InstallFailedReason.ERROR_UNTRUSTPROFILE -> R.string.content_cannot_be_trusted
+                                                                            else -> R.string.unable_to_install_content
+                                                                        }
+                                                                        AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + context.getString(errorMsgResId))
+                                                                        if (tempFile.exists()) tempFile.delete()
+                                                                    }
+                                                                    override fun onSucceed(installedProfile: ContentProfile) {
+                                                                        if (isExtracting) {
+                                                                            isExtracting = false
+                                                                            contentsManager.finishInstallContent(installedProfile, this)
+                                                                        } else {
+                                                                            showProgressDialog = false
+                                                                            AppUtils.showToast(context, context.getString(R.string.installed_successfully, installedProfile.verName))
+                                                                            contentsManager.syncContents()
+
+                                                                            val originalItems = context.resources.getStringArray(R.array.dxvk_version_entries).toList()
+                                                                            val installedProfilesList = contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_DXVK)
+                                                                                .filter { it.remoteUrl == null || it.remoteUrl.isEmpty() }
+                                                                                .map {
+                                                                                    val entryName = ContentsManager.getEntryName(it)
+                                                                                    val firstDashIndex = entryName.indexOf('-')
+                                                                                    if (firstDashIndex >= 0) entryName.substring(firstDashIndex + 1) else entryName
+                                                                                }
+                                                                            versions = (originalItems + installedProfilesList).distinct()
+
+                                                                            val entryName = ContentsManager.getEntryName(installedProfile)
+                                                                            val firstDashIndex = entryName.indexOf('-')
+                                                                            val versionString = if (firstDashIndex >= 0) entryName.substring(firstDashIndex + 1) else entryName
+                                                                            version = versionString
+
+                                                                            if (tempFile.exists()) tempFile.delete()
+                                                                        }
+                                                                    }
+                                                                }
+                                                                contentsManager.extraContentFile(Uri.fromFile(tempFile), callback)
+                                                            }
+                                                        } catch (e: Exception) {
+                                                            withContext(Dispatchers.Main) {
+                                                                    showProgressDialog = false
+                                                                    AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + e.message)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = if (isInstalled) "${profile.verName} (${context.getString(R.string.installed)})" else profile.verName,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (isInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+                                                )
+                                                if (profile.desc != null && profile.desc.isNotEmpty()) {
+                                                    Text(
+                                                        text = profile.desc,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                                    )
+                                                }
+                                            }
+                                            Icon(
+                                                imageVector = if (isInstalled) Icons.Filled.Download else Icons.Filled.Download,
+                                                contentDescription = null,
+                                                tint = if (isInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                        HorizontalDivider()
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {},
+                        dismissButton = {
+                            TextButton(onClick = { showDownloadListDialog = false }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
+                    )
+                }
+
+                // Progress Loading Dialog
+                if (showProgressDialog) {
+                    Dialog(
+                        onDismissRequest = {},
+                        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 6.dp,
+                            modifier = Modifier.padding(24.dp).fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(24.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CircularProgressIndicator()
+                                Text(text = progressMessage, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                }
 
                 // Framerate
                 DxvkRowWithHelp(
@@ -720,4 +1170,248 @@ private fun findClosestLatencyIndex(target: Int): Int {
         }
     }
     return bestIdx
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ContentDownloadDialogCompose(
+    context: Context,
+    contentType: ContentProfile.ContentType,
+    displayName: String,
+    onDismiss: () -> Unit,
+    onInstalled: (String) -> Unit
+) {
+    val contentsManager = remember { ContentsManager(context) }
+    val coroutineScope = rememberCoroutineScope()
+
+    var showDownloadListDialog by remember { mutableStateOf(false) }
+    var downloadableProfiles by remember { mutableStateOf<List<ContentProfile>>(emptyList()) }
+    var installedVersions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoadingRemote by remember { mutableStateOf(false) }
+
+    var showProgressDialog by remember { mutableStateOf(false) }
+    var progressMessage by remember { mutableStateOf("") }
+
+    // Load remote profiles automatically on launch
+    LaunchedEffect(Unit) {
+        isLoadingRemote = true
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                // Ensure contentsManager syncContents is called
+                contentsManager.syncContents()
+
+                val sp = PreferenceManager.getDefaultSharedPreferences(context)
+                val contentsURL = sp.getString("downloadable_contents_url",
+                    "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json")
+                val json = Downloader.downloadString(contentsURL)
+                if (json != null) {
+                    contentsManager.setRemoteProfiles(json)
+
+                    val allProfiles = contentsManager.getProfiles(contentType)
+                    val installed = allProfiles.filter { ContentsManager.getInstallDir(context, it).exists() }
+                        .map { it.verName + "_v" + it.verCode }
+
+                    val downloadable = allProfiles.filter { it.remoteUrl != null && it.remoteUrl.isNotEmpty() && !ContentsManager.getInstallDir(context, it).exists() }
+
+                    withContext(Dispatchers.Main) {
+                        downloadableProfiles = downloadable
+                        installedVersions = installed
+                        if (downloadable.isEmpty()) {
+                            AppUtils.showToast(context, context.getString(R.string.all_component_versions_installed, displayName))
+                            onDismiss()
+                        } else {
+                            showDownloadListDialog = true
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        AppUtils.showToast(context, context.getString(R.string.failed_to_load_remote_contents))
+                        onDismiss()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + e.message)
+                    onDismiss()
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoadingRemote = false
+                }
+            }
+        }
+    }
+
+    if (isLoadingRemote) {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier.padding(24.dp).fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(text = context.getString(R.string.loading), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+    }
+
+    if (showDownloadListDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(context.getString(R.string.download_component_title, displayName, downloadableProfiles.size)) },
+            text = {
+                Box(modifier = Modifier.fillMaxWidth().heightIn(max = 550.dp)) {
+                    val scrollState = rememberScrollState()
+                    Column(modifier = Modifier.verticalScroll(scrollState)) {
+                        downloadableProfiles.forEach { profile ->
+                            val versionKey = profile.verName + "_v" + profile.verCode
+                            val isInstalled = installedVersions.contains(versionKey)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = !isInstalled) {
+                                        showDownloadListDialog = false
+                                        showProgressDialog = true
+                                        progressMessage = context.getString(R.string.downloading, profile.verName)
+
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            try {
+                                                // Create target download directory (Download/Winlator)
+                                                val downloadDir = File(android.os.Environment.getExternalStorageDirectory(), "Download/Winlator")
+                                                if (!downloadDir.exists()) downloadDir.mkdirs()
+
+                                                val timestamp = System.currentTimeMillis()
+                                                val tempFile = File(context.cacheDir, "comp_temp_${timestamp}.tar.xz")
+                                                val downloaded = Downloader.downloadFile(profile.remoteUrl, tempFile)
+                                                if (!downloaded || !tempFile.exists()) {
+                                                    withContext(Dispatchers.Main) {
+                                                        showProgressDialog = false
+                                                        AppUtils.showToast(context, context.getString(R.string.failed_to_download, profile.verName))
+                                                    }
+                                                    return@launch
+                                                }
+
+                                                withContext(Dispatchers.Main) {
+                                                    progressMessage = context.getString(R.string.installing, profile.verName)
+                                                }
+
+                                                withContext(Dispatchers.Main) {
+                                                    val callback = object : ContentsManager.OnInstallFinishedCallback {
+                                                        var isExtracting = true
+                                                        override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
+                                                            showProgressDialog = false
+                                                            val errorMsgResId = when (reason) {
+                                                                ContentsManager.InstallFailedReason.ERROR_BADTAR -> R.string.file_cannot_be_recognized
+                                                                ContentsManager.InstallFailedReason.ERROR_NOPROFILE -> R.string.profile_not_found_in_content
+                                                                ContentsManager.InstallFailedReason.ERROR_BADPROFILE -> R.string.profile_cannot_be_recognized
+                                                                ContentsManager.InstallFailedReason.ERROR_EXIST -> R.string.content_already_exist
+                                                                ContentsManager.InstallFailedReason.ERROR_MISSINGFILES -> R.string.content_is_incomplete
+                                                                ContentsManager.InstallFailedReason.ERROR_UNTRUSTPROFILE -> R.string.content_cannot_be_trusted
+                                                                else -> R.string.unable_to_install_content
+                                                            }
+                                                            AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + context.getString(errorMsgResId))
+                                                            if (tempFile.exists()) tempFile.delete()
+                                                            onDismiss()
+                                                        }
+                                                        override fun onSucceed(installedProfile: ContentProfile) {
+                                                            if (isExtracting) {
+                                                                isExtracting = false
+                                                                contentsManager.finishInstallContent(installedProfile, this)
+                                                            } else {
+                                                                showProgressDialog = false
+                                                                AppUtils.showToast(context, context.getString(R.string.installed_successfully, installedProfile.verName))
+                                                                contentsManager.syncContents()
+
+                                                                val entryName = ContentsManager.getEntryName(installedProfile)
+                                                                val firstDashIndex = entryName.indexOf('-')
+                                                                val versionString = if (firstDashIndex >= 0) entryName.substring(firstDashIndex + 1) else entryName
+
+                                                                onInstalled(versionString)
+                                                                if (tempFile.exists()) tempFile.delete()
+                                                                onDismiss()
+                                                            }
+                                                        }
+                                                    }
+                                                    contentsManager.extraContentFile(Uri.fromFile(tempFile), callback)
+                                                }
+                                            } catch (e: Exception) {
+                                                withContext(Dispatchers.Main) {
+                                                    showProgressDialog = false
+                                                    AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + e.message)
+                                                    onDismiss()
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isInstalled) "${profile.verName} (${context.getString(R.string.installed)})" else profile.verName,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (profile.desc != null && profile.desc.isNotEmpty()) {
+                                        Text(
+                                            text = profile.desc,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    imageVector = Icons.Filled.Download,
+                                    contentDescription = null,
+                                    tint = if (isInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showProgressDialog) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier.padding(24.dp).fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(text = progressMessage, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+    }
 }

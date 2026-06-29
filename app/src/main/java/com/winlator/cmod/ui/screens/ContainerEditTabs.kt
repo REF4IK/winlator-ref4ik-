@@ -39,6 +39,11 @@ import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.fexcore.FEXCorePresetManager
 import com.winlator.cmod.winhandler.WinHandler
 import com.winlator.cmod.xserver.XKeycode
+import com.winlator.cmod.widget.EnvVarsView
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import org.json.JSONArray
 import java.util.Locale
 
@@ -73,6 +78,54 @@ fun SpinnerRow(
                         onClick = { onSelected(entry); expanded = false }
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SpinnerRowWithDownload(
+    label: String,
+    entries: List<String>,
+    selected: String,
+    enabled: Boolean = true,
+    onSelected: (String) -> Unit,
+    onDownloadClick: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displaySelected = entries.firstOrNull { it.equals(selected, ignoreCase = true) } ?: selected
+
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { if (enabled) expanded = true },
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(displaySelected, modifier = Modifier.weight(1f))
+                    Icon(Icons.Filled.ArrowDropDown, null)
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    entries.forEach { entry ->
+                        DropdownMenuItem(
+                            text = { Text(entry) },
+                            onClick = { onSelected(entry); expanded = false }
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            FilledIconButton(
+                onClick = onDownloadClick,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Filled.Download, contentDescription = "Download")
             }
         }
     }
@@ -516,11 +569,119 @@ fun EnvVarsTab(
         var varValue by remember { mutableStateOf(if (editingIndex >= 0) vars[editingIndex].second else "") }
         AlertDialog(
             onDismissRequest = { showAddDialog = false; editingIndex = -1 },
-            title = { Text(stringResource(R.string.add_env_var)) },
+            title = { Text(if (editingIndex >= 0) stringResource(R.string.edit) else stringResource(R.string.add_env_var)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = varName, onValueChange = { varName = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = varValue, onValueChange = { varValue = it }, label = { Text("Value") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    // Name row with trailing dropdown icon
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = varName,
+                            onValueChange = { varName = it },
+                            label = { Text("Name") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Box {
+                            var menuExpanded by remember { mutableStateOf(false) }
+                            IconButton(onClick = { menuExpanded = true }) {
+                                Icon(Icons.Filled.ArrowDropDown, contentDescription = "Select variable")
+                            }
+                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                EnvVarsView.knownEnvVars.forEach { known ->
+                                    DropdownMenuItem(
+                                        text = { Text(known[0]) },
+                                        onClick = {
+                                            varName = known[0]
+                                            varValue = when (known[1]) {
+                                                "CHECKBOX", "SELECT" -> known[2]
+                                                "SELECT_MULTIPLE" -> ""
+                                                else -> ""
+                                            }
+                                            menuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Value field based on variable type
+                    val knownVar = remember(varName) { EnvVarsView.knownEnvVars.firstOrNull { it[0] == varName } }
+                    if (knownVar != null) {
+                        val type = knownVar[1]
+                        when (type) {
+                            "CHECKBOX", "SELECT" -> {
+                                val options = knownVar.slice(2 until knownVar.size)
+                                SpinnerRow(
+                                    label = stringResource(R.string.value),
+                                    entries = options,
+                                    selected = varValue,
+                                    onSelected = { varValue = it }
+                                )
+                            }
+                            "SELECT_MULTIPLE" -> {
+                                val options = knownVar.slice(2 until knownVar.size)
+                                val selectedOptions = remember(varValue) { varValue.split(",").filter { it.isNotEmpty() }.toSet() }
+                                Text("Select values:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+
+                                Box(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                                    val scroll = rememberScrollState()
+                                    Column(modifier = Modifier.verticalScroll(scroll)) {
+                                        options.forEach { option ->
+                                            val checked = selectedOptions.contains(option)
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        val updated = if (checked) selectedOptions - option else selectedOptions + option
+                                                        varValue = updated.joinToString(",")
+                                                    }
+                                                    .padding(vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Checkbox(
+                                                    checked = checked,
+                                                    onCheckedChange = {
+                                                        val updated = if (it) selectedOptions + option else selectedOptions - option
+                                                        varValue = updated.joinToString(",")
+                                                    }
+                                                )
+                                                Text(option, style = MaterialTheme.typography.bodyMedium)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            "NUMBER" -> {
+                                OutlinedTextField(
+                                    value = varValue,
+                                    onValueChange = { varValue = it.filter { c -> c.isDigit() } },
+                                    label = { Text("Value (Number)") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            else -> {
+                                OutlinedTextField(
+                                    value = varValue,
+                                    onValueChange = { varValue = it },
+                                    label = { Text("Value") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = varValue,
+                            onValueChange = { varValue = it },
+                            label = { Text("Value") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -626,9 +787,11 @@ private fun parseDrives(drives: String): List<Pair<Char, String>> {
 @Composable
 fun AdvancedTab(
     box64Version: String, onBox64VersionChange: (String) -> Unit,
+    box64Versions: List<String>,
     box64Preset: String, onBox64PresetChange: (String) -> Unit,
     rcfileId: Int, onRcfileIdChange: (Int) -> Unit,
     fexcoreVersion: String, onFexcoreVersionChange: (String) -> Unit,
+    fexcoreVersions: List<String>,
     fexcorePreset: String, onFexcorePresetChange: (String) -> Unit,
     startupSelection: Int, onStartupSelectionChange: (Int) -> Unit,
     wow64Mode: Boolean, onWow64ModeChange: (Boolean) -> Unit,
@@ -654,6 +817,8 @@ fun AdvancedTab(
     onFexcorePresetRemove: () -> Unit,
     onFexcorePresetExport: () -> Unit,
     onFexcorePresetImport: () -> Unit,
+    onBox64VersionDownload: () -> Unit,
+    onFexcoreVersionDownload: () -> Unit,
 ) {
     val ctx = LocalContext.current
     val numCpus = remember { Runtime.getRuntime().availableProcessors() }
@@ -665,11 +830,11 @@ fun AdvancedTab(
         if (emulator.lowercase(java.util.Locale.ENGLISH) != "fexcore") {
             // Box64
             SectionCard(title = stringResource(R.string.box64), icon = Icons.Filled.Code) {
-                val box64Versions = remember { ctx.resources.getStringArray(R.array.box64_version_entries).toList() }
-                SpinnerRow(
+                SpinnerRowWithDownload(
                     label = stringResource(R.string.version),
                     entries = box64Versions, selected = box64Version,
                     onSelected = { onBox64VersionChange(it) },
+                    onDownloadClick = onBox64VersionDownload
                 )
                 val box64Presets = remember(presetsRefreshKey) { Box86_64PresetManager.getPresets("box64", ctx) }
                 val box64PresetNames = remember(box64Presets) { box64Presets.map { it.name } }
@@ -709,11 +874,11 @@ fun AdvancedTab(
         if (isArm64EC && emulator.lowercase(java.util.Locale.ENGLISH) == "fexcore") {
             // FEXCore
             SectionCard(title = stringResource(R.string.fexcore), icon = Icons.Filled.Memory) {
-                val fexcoreVersions = remember { ctx.resources.getStringArray(R.array.fexcore_version_entries).toList() }
-                SpinnerRow(
+                SpinnerRowWithDownload(
                     label = stringResource(R.string.version),
                     entries = fexcoreVersions, selected = fexcoreVersion,
                     onSelected = { onFexcoreVersionChange(it) },
+                    onDownloadClick = onFexcoreVersionDownload
                 )
                 val fexcorePresets = remember(presetsRefreshKey) { FEXCorePresetManager.getPresets(ctx) }
                 val fexcorePresetNames = remember(fexcorePresets) { fexcorePresets.map { it.name } }

@@ -122,6 +122,9 @@ fun ContainerEditScreen(
     var startupSelection by remember { mutableStateOf((container?.startupSelection ?: Container.STARTUP_SELECTION_ESSENTIAL).toInt()) }
     var wow64Mode by remember { mutableStateOf(container?.isWoW64Mode ?: true) }
 
+    var showBox64Download by remember { mutableStateOf(false) }
+    var showFexcoreDownload by remember { mutableStateOf(false) }
+
     // Game Controller
     val legacyMode = remember { sp.getBoolean("legacy_mode_enabled", false) }
     var enableXInput by remember {
@@ -200,6 +203,13 @@ fun ContainerEditScreen(
     // Списки доступных версий (из ресурсов, fallback — массивы по умолчанию)
     val graphicsDriverVersions = remember { ctx.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).toList() }
     val dxvkVersions = remember { ctx.resources.getStringArray(R.array.dxvk_version_entries).toList() }
+
+    var box64Versions by remember(isArm64EC) {
+        mutableStateOf(loadBox64Versions(ctx, contentsManager, isArm64EC))
+    }
+    var fexcoreVersions by remember {
+        mutableStateOf(loadFEXCoreVersions(ctx, contentsManager))
+    }
 
     var presetsRefreshKey by remember { mutableStateOf(0) }
 
@@ -522,9 +532,11 @@ fun ContainerEditScreen(
                 3 -> DrivesTab(drives = drives, onDrivesChange = { drives = it })
                 4 -> AdvancedTab(
                     box64Version = box64Version, onBox64VersionChange = { box64Version = it },
+                    box64Versions = box64Versions,
                     box64Preset = box64Preset, onBox64PresetChange = { box64Preset = it },
                     rcfileId = rcfileId, onRcfileIdChange = { rcfileId = it },
                     fexcoreVersion = fexcoreVersion, onFexcoreVersionChange = { fexcoreVersion = it },
+                    fexcoreVersions = fexcoreVersions,
                     fexcorePreset = fexcorePreset, onFexcorePresetChange = { fexcorePreset = it },
                     startupSelection = startupSelection, onStartupSelectionChange = { startupSelection = it },
                     wow64Mode = wow64Mode, onWow64ModeChange = { wow64Mode = it },
@@ -589,7 +601,9 @@ fun ContainerEditScreen(
                     },
                     onFexcorePresetImport = {
                         importFexcorePresetLauncher.launch(arrayOf("*/*"))
-                    }
+                    },
+                    onBox64VersionDownload = { showBox64Download = true },
+                    onFexcoreVersionDownload = { showFexcoreDownload = true }
                 )
                 5 -> XRTab(
                     primaryController = primaryController, onPrimaryControllerChange = { primaryController = it },
@@ -679,6 +693,32 @@ fun ContainerEditScreen(
             onConfirm = {
                 presetsRefreshKey++
                 showFexcorePresetDialog = false
+            }
+        )
+    }
+
+    if (showBox64Download) {
+        ContentDownloadDialogCompose(
+            context = ctx,
+            contentType = com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_BOX64,
+            displayName = "Box64",
+            onDismiss = { showBox64Download = false },
+            onInstalled = { installedVersion ->
+                box64Version = installedVersion
+                box64Versions = loadBox64Versions(ctx, contentsManager, isArm64EC)
+            }
+        )
+    }
+
+    if (showFexcoreDownload) {
+        ContentDownloadDialogCompose(
+            context = ctx,
+            contentType = com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
+            displayName = "FEXCore",
+            onDismiss = { showFexcoreDownload = false },
+            onInstalled = { installedVersion ->
+                fexcoreVersion = installedVersion
+                fexcoreVersions = loadFEXCoreVersions(ctx, contentsManager)
             }
         )
     }
@@ -796,6 +836,41 @@ private fun loadWineVersions(ctx: Context, contentsManager: ContentsManager): Li
         deduped[entryName] = entryName
     }
     list.addAll(deduped.values)
+    return list.distinct()
+}
+
+private fun loadBox64Versions(ctx: Context, manager: ContentsManager, isArm64EC: Boolean): List<String> {
+    val list = mutableListOf<String>()
+    val originalItems = ctx.resources.getStringArray(
+        if (isArm64EC) R.array.wowbox64_version_entries else R.array.box64_version_entries
+    )
+    list.addAll(originalItems)
+
+    val contentType = if (isArm64EC) ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64 else ContentProfile.ContentType.CONTENT_TYPE_BOX64
+    val profiles = manager.getProfiles(contentType) ?: emptyList()
+    for (profile in profiles) {
+        if (profile.remoteUrl == null || ContentsManager.getInstallDir(ctx, profile).exists()) {
+            val entryName = ContentsManager.getEntryName(profile)
+            val firstDashIndex = entryName.indexOf('-')
+            list.add(if (firstDashIndex >= 0) entryName.substring(firstDashIndex + 1) else entryName)
+        }
+    }
+    return list.distinct()
+}
+
+private fun loadFEXCoreVersions(ctx: Context, manager: ContentsManager): List<String> {
+    val list = mutableListOf<String>()
+    val originalItems = ctx.resources.getStringArray(R.array.fexcore_version_entries)
+    list.addAll(originalItems)
+
+    val profiles = manager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_FEXCORE) ?: emptyList()
+    for (profile in profiles) {
+        if (profile.remoteUrl == null || ContentsManager.getInstallDir(ctx, profile).exists()) {
+            val entryName = ContentsManager.getEntryName(profile)
+            val firstDashIndex = entryName.indexOf('-')
+            list.add(if (firstDashIndex >= 0) entryName.substring(firstDashIndex + 1) else entryName)
+        }
+    }
     return list.distinct()
 }
 
