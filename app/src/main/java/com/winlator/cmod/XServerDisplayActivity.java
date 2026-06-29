@@ -2867,7 +2867,29 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     }
 
-    
+    /**
+     * Вызывается из Compose-диалога FPS счётчика после сохранения настроек.
+     * Обновляет видимость, модули, ориентацию и масштаб оверлея.
+     */
+    public void onFpsCounterConfigChangedFromCompose() {
+        android.util.Log.d("FpsCounter", "FPS Counter config changed from Compose dialog");
+        updateFpsCounterVisibility();
+        if (frameRating != null) {
+            frameRating.updateModuleVisibility();
+            frameRating.updateOrientation();
+            frameRating.updateScaleAndTextSize();
+        }
+        if (imageFs != null) {
+            com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent.updateMangoHudConfigFile(
+                    this,
+                    imageFs,
+                    false
+            );
+            com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent.sendMangoHudReloadSignal();
+        }
+    }
+
+
 
     /**
 

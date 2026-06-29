@@ -1,8 +1,6 @@
 package com.winlator.cmod.ui
 
 import android.view.View
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -20,9 +18,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
+import com.winlator.cmod.ui.screens.FpsCounterSettingsDialog
 
 class XServerMenuController(private val activity: XServerDisplayActivity) {
     private val composeOverlay: ComposeView = activity.findViewById(R.id.ComposeOverlay)
@@ -74,7 +72,6 @@ class XServerMenuController(private val activity: XServerDisplayActivity) {
         composeOverlay.visibility = View.GONE
     }
 
-
     fun toggleMenu() {
         if (isMenuVisible) hideMenu() else showMenu()
     }
@@ -92,6 +89,8 @@ fun XServerMenuOverlay(
     }
 
     var isPaused by remember { mutableStateOf(activity.isPaused) }
+    // Флаг показа Compose-диалога счётчика FPS
+    var showFpsDialog by remember { mutableStateOf(false) }
 
     // List of menu items to render
     data class XMenuItem(
@@ -169,11 +168,16 @@ fun XServerMenuOverlay(
                         val title = item.titleRes?.let { stringResource(it) } ?: item.titleString ?: ""
                         Surface(
                             onClick = {
-                                activity.handleXServerMenuAction(item.id)
-                                if (item.id == R.id.main_menu_pause) {
-                                    isPaused = !isPaused
+                                if (item.id == R.id.main_menu_fps_counter) {
+                                    // Открываем Compose-диалог FPS прямо здесь
+                                    showFpsDialog = true
+                                } else {
+                                    activity.handleXServerMenuAction(item.id)
+                                    if (item.id == R.id.main_menu_pause) {
+                                        isPaused = !isPaused
+                                    }
+                                    onDismiss()
                                 }
-                                onDismiss()
                             },
                             shape = RoundedCornerShape(8.dp),
                             color = Color.Transparent,
@@ -204,5 +208,16 @@ fun XServerMenuOverlay(
                 }
             }
         }
+    }
+
+    // Compose-диалог настроек счётчика FPS
+    if (showFpsDialog) {
+        FpsCounterSettingsDialog(
+            onDismiss = { showFpsDialog = false },
+            onConfigChanged = {
+                // Уведомляем Activity обновить видимость и параметры счётчика FPS
+                activity.onFpsCounterConfigChangedFromCompose()
+            }
+        )
     }
 }
