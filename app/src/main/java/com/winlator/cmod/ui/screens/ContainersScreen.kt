@@ -47,7 +47,10 @@ fun ContainersScreen(
     var confirmAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var confirmTitle by remember { mutableStateOf("") }
 
-    fun reload() { containers = manager.containers ?: emptyList() }
+    fun reload() {
+        manager.reload()
+        containers = manager.containers ?: emptyList()
+    }
 
     LaunchedEffect(refreshKey) { reload() }
 

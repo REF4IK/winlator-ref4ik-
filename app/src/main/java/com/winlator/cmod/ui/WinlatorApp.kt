@@ -93,6 +93,30 @@ fun WinlatorApp(
     var shortcutSettingsShortcut by remember { mutableStateOf<Shortcut?>(null) }
     var fileManagerContainerId by remember { mutableStateOf(-1) }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val imageFs = remember { com.winlator.cmod.xenvironment.ImageFs.find(context) }
+    var isInstalling by remember {
+        mutableStateOf(!imageFs.isValid() || imageFs.version < com.winlator.cmod.xenvironment.ImageFsInstaller.LATEST_VERSION)
+    }
+    var installProgress by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(isInstalling) {
+        if (isInstalling) {
+            com.winlator.cmod.xenvironment.ImageFsInstaller.installFromAssets(
+                context,
+                object : com.winlator.cmod.xenvironment.ImageFsInstaller.OnProgressListener {
+                    override fun onProgress(progress: Int) {
+                        installProgress = progress
+                    }
+                    override fun onFinished(success: Boolean) {
+                        isInstalling = false
+                        containersRefreshKey++
+                    }
+                }
+            )
+        }
+    }
+
     // Скрываем только верхний статус-бар (часы, батарея), нижний навигационный бар оставляем видимым, поддерживая вырез (notch)
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
     DisposableEffect(Unit) {
@@ -152,7 +176,6 @@ fun WinlatorApp(
     }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
     val appContainerManager = remember(context) { ContainerManager(context) }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
@@ -200,8 +223,11 @@ fun WinlatorApp(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
+    if (isInstalling) {
+        InstallerScreen(progress = installProgress, isFinished = installProgress >= 100)
+    } else {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
                 modifier = Modifier.width(300.dp),
@@ -369,6 +395,7 @@ fun WinlatorApp(
                             com.winlator.cmod.core.AppUtils.showToast(context, "Настройки сохранены")
                         },
                         onOpenGPUPerformance = { showGPUPerformance = true },
+                        onReinstallImageFs = { isInstalling = true }
                     )
                     Screen.About -> AboutScreen()
                     Screen.FileManager -> FileManagerScreen(
@@ -398,6 +425,7 @@ fun WinlatorApp(
             }
             if (showContainerEdit) {
                 ContainerEditScreen(
+                    containerManager = appContainerManager,
                     containerId = editContainerId,
                     isEditMode = isContainerEditMode,
                     onBack = { showContainerEdit = false; containersRefreshKey++ },
@@ -443,5 +471,6 @@ fun WinlatorApp(
                 }
             }
         }
+    }
     }
 }

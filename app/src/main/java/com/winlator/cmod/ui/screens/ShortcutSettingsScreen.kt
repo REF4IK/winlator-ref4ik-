@@ -48,10 +48,8 @@ import com.winlator.cmod.contents.ContentsManager
 import com.winlator.cmod.core.DefaultVersion
 import com.winlator.cmod.box86_64.Box86_64Preset
 import com.winlator.cmod.box86_64.Box86_64PresetManager
-import com.winlator.cmod.box86_64.Box86_64EditPresetDialog
 import com.winlator.cmod.fexcore.FEXCorePreset
 import com.winlator.cmod.fexcore.FEXCorePresetManager
-import com.winlator.cmod.fexcore.FEXCoreEditPresetDialog
 import com.winlator.cmod.fexcore.FEXCoreManager
 import com.winlator.cmod.winhandler.WinHandler
 import com.winlator.cmod.box86_64.rc.RCManager
@@ -110,6 +108,13 @@ fun ShortcutSettingsScreen(
         val raw = shortcut.getExtra("emulator", container.emulator) ?: ""
         mutableStateOf(if (raw.lowercase() == "box64") "Box64" else "FEXCore")
     }
+
+    LaunchedEffect(isArm64EC) {
+        if (!isArm64EC) {
+            emulator = "Box64"
+        }
+    }
+
     var emulator64 by remember {
         val raw = shortcut.getExtra("emulator64", container.emulator) ?: ""
         mutableStateOf(if (raw.lowercase() == "box64") "Box64" else "FEXCore")
@@ -158,6 +163,11 @@ fun ShortcutSettingsScreen(
     var showGraphicsConfig by remember { mutableStateOf(false) }
     var showDxConfig by remember { mutableStateOf(false) }
     var showAudioConfig by remember { mutableStateOf(false) }
+
+    var activeBox64PresetEditId by remember { mutableStateOf<String?>(null) }
+    var activeFexcorePresetEditId by remember { mutableStateOf<String?>(null) }
+    var showBox64PresetDialog by remember { mutableStateOf(false) }
+    var showFexcorePresetDialog by remember { mutableStateOf(false) }
 
     val dialogHelper = remember { ShortcutSettingsDialog(ctx, shortcut) }
     var versionRefreshTrigger by remember { mutableStateOf(0) }
@@ -620,15 +630,13 @@ fun ShortcutSettingsScreen(
                                 horizontalArrangement = Arrangement.End
                             ) {
                                 IconButton(onClick = {
-                                    val dialog = Box86_64EditPresetDialog(ctx, "box64", null)
-                                    dialog.setOnConfirmCallback { presetsRefreshTrigger++ }
-                                    dialog.show()
+                                    activeBox64PresetEditId = null
+                                    showBox64PresetDialog = true
                                 }) { Icon(Icons.Filled.Add, "Add Preset") }
 
                                 IconButton(onClick = {
-                                    val dialog = Box86_64EditPresetDialog(ctx, "box64", box64Preset)
-                                    dialog.setOnConfirmCallback { presetsRefreshTrigger++ }
-                                    dialog.show()
+                                    activeBox64PresetEditId = box64Preset
+                                    showBox64PresetDialog = true
                                 }) { Icon(Icons.Filled.Edit, "Edit Preset") }
 
                                 IconButton(onClick = {
@@ -707,15 +715,13 @@ fun ShortcutSettingsScreen(
                                     horizontalArrangement = Arrangement.End
                                 ) {
                                     IconButton(onClick = {
-                                        val dialog = FEXCoreEditPresetDialog(ctx, null)
-                                        dialog.setOnConfirmCallback { presetsRefreshTrigger++ }
-                                        dialog.show()
+                                        activeFexcorePresetEditId = null
+                                        showFexcorePresetDialog = true
                                     }) { Icon(Icons.Filled.Add, "Add Preset") }
 
                                     IconButton(onClick = {
-                                        val dialog = FEXCoreEditPresetDialog(ctx, fexcorePreset)
-                                        dialog.setOnConfirmCallback { presetsRefreshTrigger++ }
-                                        dialog.show()
+                                        activeFexcorePresetEditId = fexcorePreset
+                                        showFexcorePresetDialog = true
                                     }) { Icon(Icons.Filled.Edit, "Edit Preset") }
 
                                     IconButton(onClick = {
@@ -936,6 +942,30 @@ fun ShortcutSettingsScreen(
             initialConfig = audioDriverConfig,
             onDismiss = { showAudioConfig = false },
             onConfirm = { audioDriverConfig = it; showAudioConfig = false },
+        )
+    }
+
+    if (showBox64PresetDialog) {
+        EditPresetDialog(
+            prefix = "box64",
+            presetId = activeBox64PresetEditId,
+            onDismiss = { showBox64PresetDialog = false },
+            onConfirm = {
+                presetsRefreshTrigger++
+                showBox64PresetDialog = false
+            }
+        )
+    }
+
+    if (showFexcorePresetDialog) {
+        EditPresetDialog(
+            prefix = "fexcore",
+            presetId = activeFexcorePresetEditId,
+            onDismiss = { showFexcorePresetDialog = false },
+            onConfirm = {
+                presetsRefreshTrigger++
+                showFexcorePresetDialog = false
+            }
         )
     }
 }

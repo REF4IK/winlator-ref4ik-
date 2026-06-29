@@ -242,15 +242,15 @@ fun FileManagerScreen(
                     }
                     DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                         DropdownMenuItem(
-                            text = { Text("Name") },
+                            text = { Text(stringResource(R.string.fm_sort_by_name)) },
                             onClick = { sortBy = FMSortBy.NAME; showSortMenu = false; reloadCurrentLocation() }
                         )
                         DropdownMenuItem(
-                            text = { Text("Date") },
+                            text = { Text(stringResource(R.string.fm_sort_by_date)) },
                             onClick = { sortBy = FMSortBy.DATE; showSortMenu = false; reloadCurrentLocation() }
                         )
                         DropdownMenuItem(
-                            text = { Text("Size") },
+                            text = { Text(stringResource(R.string.fm_sort_by_size)) },
                             onClick = { sortBy = FMSortBy.SIZE; showSortMenu = false; reloadCurrentLocation() }
                         )
                     }
@@ -265,7 +265,7 @@ fun FileManagerScreen(
                                 onClick = { showNewFolderDialog = true; showActionMenu = false }
                             )
                             DropdownMenuItem(
-                                text = { Text("New Text File") },
+                                text = { Text(stringResource(R.string.fm_new_file_title)) },
                                 onClick = { showNewFileDialog = true; showActionMenu = false }
                             )
                         }
@@ -577,20 +577,20 @@ fun FileManagerScreen(
         var fileContent by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showNewFileDialog = false },
-            title = { Text("New Text File") },
+            title = { Text(stringResource(R.string.fm_new_file_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = fileName,
                         onValueChange = { fileName = it },
-                        label = { Text("Filename (e.g. text.txt)") },
+                        label = { Text(stringResource(R.string.fm_new_file_name_hint)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = fileContent,
                         onValueChange = { fileContent = it },
-                        label = { Text("Content") },
+                        label = { Text(stringResource(R.string.fm_new_file_content_hint)) },
                         modifier = Modifier.fillMaxWidth().height(100.dp)
                     )
                 }
@@ -605,7 +605,7 @@ fun FileManagerScreen(
                             FileWriter(newFile).use { it.write(fileContent) }
                             reloadCurrentLocation()
                         } catch (e: Exception) {
-                            AppUtils.showToast(ctx, "Failed to create file: ${e.message}")
+                            AppUtils.showToast(ctx, ctx.getString(R.string.installation_error, e.message ?: ""))
                         }
                     }
                 }) {
@@ -697,11 +697,11 @@ fun FileManagerScreen(
         val containers = remember { containerManager.containers }
         AlertDialog(
             onDismissRequest = { showShortcutContainerSelect = null },
-            title = { Text("Select Container") },
+            title = { Text(stringResource(R.string.fm_select_container)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (containers.isNullOrEmpty()) {
-                        Text("No containers available.", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.fm_no_containers), style = MaterialTheme.typography.bodyMedium)
                     } else {
                         containers.forEach { container ->
                             TextButton(
@@ -1018,9 +1018,9 @@ private fun createShortcutForContainer(ctx: Context, exeFile: File, container: C
         val desktopFile = File(container.getDesktopDir(), "$fileNameWithoutExt.desktop")
         FileWriter(desktopFile).use { it.write(shortcutDesktop) }
 
-        AppUtils.showToast(ctx, "Shortcut created for Container: ${container.name}")
+        AppUtils.showToast(ctx, ctx.getString(R.string.fm_shortcut_created_success, container.name))
     } catch (e: Exception) {
         Log.e("FileManager", "Error creating shortcut", e)
-        AppUtils.showToast(ctx, "Error creating shortcut!")
+        AppUtils.showToast(ctx, ctx.getString(R.string.fm_shortcut_create_fail))
     }
 }

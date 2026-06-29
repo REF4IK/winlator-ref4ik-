@@ -737,8 +737,8 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
         }
     }
 
-    public static void resetEmulatorsVersion(AppCompatActivity activity) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(activity);
+    public static void resetEmulatorsVersion(Context context) {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor editor = preferences.edit();
         editor.remove("current_box64_version");
         editor.remove("current_wowbox64_version");

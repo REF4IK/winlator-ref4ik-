@@ -1553,6 +1553,23 @@
     <string name="theme_matrix">Matrix Code</string>
     <string name="theme_monochrome">Silver Steel</string>
     <string name="theme_chocolate">Sweet Cocoa</string>
+
+    <!-- File Manager strings -->
+    <string name="fm_new_file_title">New Text File</string>
+    <string name="fm_new_file_name_hint">Filename (e.g. text.txt)</string>
+    <string name="fm_new_file_content_hint">Content</string>
+    <string name="fm_select_container">Select Container</string>
+    <string name="fm_no_containers">No containers available</string>
+    <string name="fm_wrong_path_detect_drive">Wrong path! Can\'t detect drive!</string>
+    <string name="fm_shortcut_created_success">Shortcut created for Container: %1$s</string>
+    <string name="fm_shortcut_create_fail">Error creating shortcut!</string>
+    <string name="fm_sort_by_name">Name</string>
+    <string name="fm_sort_by_date">Date</string>
+    <string name="fm_sort_by_size">Size</string>
+    <string name="reinstall_imagefs_label">Reinstall ImageFs</string>
+    <!-- Installer Screen strings -->
+    <string name="inst_setup_finished">Setup Finished</string>
+    <string name="inst_please_wait">Please wait while the system files are being unpacked. This may take a few minutes.</string>
 </resources>
 
 

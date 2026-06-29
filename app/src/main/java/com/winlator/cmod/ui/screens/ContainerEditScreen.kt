@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
 import com.winlator.cmod.box86_64.Box86_64Preset
 import com.winlator.cmod.box86_64.Box86_64PresetManager
-import com.winlator.cmod.box86_64.Box86_64EditPresetDialog
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.contents.ContentProfile
@@ -37,7 +36,6 @@ import com.winlator.cmod.core.WineRegistryEditor
 import com.winlator.cmod.core.WineThemeManager
 import com.winlator.cmod.fexcore.FEXCorePreset
 import com.winlator.cmod.fexcore.FEXCorePresetManager
-import com.winlator.cmod.fexcore.FEXCoreEditPresetDialog
 import com.winlator.cmod.winhandler.WinHandler
 import org.json.JSONArray
 import org.json.JSONObject
@@ -52,12 +50,12 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContainerEditScreen(
+    containerManager: ContainerManager,
     containerId: Int,
     isEditMode: Boolean,
     onBack: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    val containerManager = remember { ContainerManager(ctx) }
     val contentsManager = remember { ContentsManager(ctx) }
     val sp = remember { androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx) }
     val container = remember(isEditMode, containerId) {
@@ -65,7 +63,7 @@ fun ContainerEditScreen(
     }
 
     // ---- Состояния всех полей ----
-    var name by remember { mutableStateOf(container?.name ?: "Container-${System.currentTimeMillis().toString().takeLast(4)}") }
+    var name by remember { mutableStateOf(container?.name ?: "Container-${containerManager.getNextContainerId()}") }
     var screenSize by remember { mutableStateOf(container?.screenSize ?: Container.DEFAULT_SCREEN_SIZE) }
     var customScreenWidth by remember { mutableStateOf("") }
     var customScreenHeight by remember { mutableStateOf("") }
@@ -82,6 +80,16 @@ fun ContainerEditScreen(
     var audioDriver by remember { mutableStateOf(container?.audioDriver ?: Container.DEFAULT_AUDIO_DRIVER) }
     var audioDriverConfig by remember { mutableStateOf(container?.audioDriverConfig ?: "performanceMode=1,volume=1.0,latencyMillis=20") }
     var emulator by remember { mutableStateOf(container?.emulator ?: Container.DEFAULT_EMULATOR) }
+
+    val wineInfo = remember(wineVersion) { WineInfo.fromIdentifier(ctx, contentsManager, wineVersion) }
+    val isArm64EC = remember(wineInfo) { wineInfo.isArm64EC() }
+
+    LaunchedEffect(isArm64EC) {
+        if (!isArm64EC) {
+            emulator = "box64"
+        }
+    }
+
     var midiSoundFont by remember { mutableStateOf(container?.midiSoundFont ?: "") }
     var lcAll by remember { mutableStateOf(container?.getLC_ALL() ?: (Locale.getDefault().language + "_" + Locale.getDefault().country + ".UTF-8")) }
     var fullscreenStretched by remember { mutableStateOf(container?.isFullscreenStretched ?: false) }
@@ -183,6 +191,11 @@ fun ContainerEditScreen(
     var showGraphicsConfigDialog by remember { mutableStateOf(false) }
     var showDxConfigDialog by remember { mutableStateOf(false) }
     var showAudioConfigDialog by remember { mutableStateOf(false) }
+
+    var activeBox64PresetEditId by remember { mutableStateOf<String?>(null) }
+    var activeFexcorePresetEditId by remember { mutableStateOf<String?>(null) }
+    var showBox64PresetDialog by remember { mutableStateOf(false) }
+    var showFexcorePresetDialog by remember { mutableStateOf(false) }
 
     // Списки доступных версий (из ресурсов, fallback — массивы по умолчанию)
     val graphicsDriverVersions = remember { ctx.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).toList() }
@@ -455,7 +468,9 @@ fun ContainerEditScreen(
                 SpinnerRow(
                     label = stringResource(R.string.emulator),
                     entries = ctx.resources.getStringArray(R.array.emulator_entries).toList(),
-                    selected = emulator, onSelected = { emulator = it },
+                    selected = if (emulator.lowercase(Locale.ENGLISH) == "fexcore") "FEXCore" else "Box64",
+                    enabled = isArm64EC,
+                    onSelected = { emulator = it.lowercase(Locale.ENGLISH) },
                 )
                 val lcAllEntries = remember { ctx.resources.getStringArray(R.array.some_lc_all).toList() }
                 val lcAllNames = remember { ctx.resources.getStringArray(R.array.some_lc_all_names).toList() }
@@ -521,15 +536,14 @@ fun ContainerEditScreen(
                     dinputMapperType = dinputMapperType, onDinputMapperTypeChange = { dinputMapperType = it },
                     sdl2Toggle = sdl2Toggle, onSdl2ToggleChange = { sdl2Toggle = it },
                     presetsRefreshKey = presetsRefreshKey,
+                    isArm64EC = isArm64EC,
                     onBox64PresetAdd = {
-                        Box86_64EditPresetDialog(ctx, "box64", null).apply {
-                            setOnConfirmCallback { presetsRefreshKey++ }
-                        }.show()
+                        activeBox64PresetEditId = null
+                        showBox64PresetDialog = true
                     },
                     onBox64PresetEdit = {
-                        Box86_64EditPresetDialog(ctx, "box64", box64Preset).apply {
-                            setOnConfirmCallback { presetsRefreshKey++ }
-                        }.show()
+                        activeBox64PresetEditId = box64Preset
+                        showBox64PresetDialog = true
                     },
                     onBox64PresetDuplicate = {
                         Box86_64PresetManager.duplicatePreset("box64", ctx, box64Preset)
@@ -550,14 +564,12 @@ fun ContainerEditScreen(
                         importBox64PresetLauncher.launch(arrayOf("*/*"))
                     },
                     onFexcorePresetAdd = {
-                        FEXCoreEditPresetDialog(ctx, null).apply {
-                            setOnConfirmCallback { presetsRefreshKey++ }
-                        }.show()
+                        activeFexcorePresetEditId = null
+                        showFexcorePresetDialog = true
                     },
                     onFexcorePresetEdit = {
-                        FEXCoreEditPresetDialog(ctx, fexcorePreset).apply {
-                            setOnConfirmCallback { presetsRefreshKey++ }
-                        }.show()
+                        activeFexcorePresetEditId = fexcorePreset
+                        showFexcorePresetDialog = true
                     },
                     onFexcorePresetDuplicate = {
                         FEXCorePresetManager.duplicatePreset(ctx, fexcorePreset)
@@ -643,6 +655,30 @@ fun ContainerEditScreen(
                 audioDriverConfig = newConfig
                 showAudioConfigDialog = false
             },
+        )
+    }
+
+    if (showBox64PresetDialog) {
+        EditPresetDialog(
+            prefix = "box64",
+            presetId = activeBox64PresetEditId,
+            onDismiss = { showBox64PresetDialog = false },
+            onConfirm = {
+                presetsRefreshKey++
+                showBox64PresetDialog = false
+            }
+        )
+    }
+
+    if (showFexcorePresetDialog) {
+        EditPresetDialog(
+            prefix = "fexcore",
+            presetId = activeFexcorePresetEditId,
+            onDismiss = { showFexcorePresetDialog = false },
+            onConfirm = {
+                presetsRefreshKey++
+                showFexcorePresetDialog = false
+            }
         )
     }
 

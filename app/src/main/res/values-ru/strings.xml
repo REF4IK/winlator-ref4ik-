@@ -1541,6 +1541,23 @@
     <string name="theme_matrix">Код Матрицы</string>
     <string name="theme_monochrome">Серебряная сталь</string>
     <string name="theme_chocolate">Сладкое какао</string>
+
+    <!-- File Manager strings -->
+    <string name="fm_new_file_title">Новый текстовый файл</string>
+    <string name="fm_new_file_name_hint">Имя файла (например, text.txt)</string>
+    <string name="fm_new_file_content_hint">Содержимое</string>
+    <string name="fm_select_container">Выберите контейнер</string>
+    <string name="fm_no_containers">Нет доступных контейнеров</string>
+    <string name="fm_wrong_path_detect_drive">Неверный путь! Не удалось определить диск!</string>
+    <string name="fm_shortcut_created_success">Ярлык создан для контейнера: %1$s</string>
+    <string name="fm_shortcut_create_fail">Ошибка создания ярлыка!</string>
+    <string name="fm_sort_by_name">Имя</string>
+    <string name="fm_sort_by_date">Дата</string>
+    <string name="fm_sort_by_size">Размер</string>
+    <string name="reinstall_imagefs_label">Переустановить ImageFs</string>
+    <!-- Installer Screen strings -->
+    <string name="inst_setup_finished">Настройка завершена</string>
+    <string name="inst_please_wait">Пожалуйста, подождите, пока распаковываются необходимые файлы. Это может занять несколько минут.</string>
 </resources>
 
 

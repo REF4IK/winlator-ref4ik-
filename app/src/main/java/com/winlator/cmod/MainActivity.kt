@@ -134,9 +134,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(rootLayout)
 
         // Request permissions
-        if (!requestAppPermissions()) {
-            ImageFsInstaller.installIfNeeded(this)
-        }
+        requestAppPermissions()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
             showAllFilesAccessDialog()
@@ -171,7 +169,7 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE.toInt()) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                ImageFsInstaller.installIfNeeded(this)
+                recreate()
             } else {
                 finish()
             }

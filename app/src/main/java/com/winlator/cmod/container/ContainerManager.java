@@ -57,6 +57,10 @@ public class ContainerManager {
         return containers;
     }
 
+    public void reload() {
+        loadContainers();
+    }
+
     // Load containers from the home directory
     private void loadContainers() {
         containers.clear();

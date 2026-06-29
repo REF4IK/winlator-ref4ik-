@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
-import com.winlator.cmod.box86_64.Box86_64EditPresetDialog
 import com.winlator.cmod.box86_64.Box86_64PresetManager
 import com.winlator.cmod.box86_64.rc.RCManager
 import com.winlator.cmod.container.Container
@@ -37,11 +36,11 @@ import com.winlator.cmod.core.StringUtils
 import com.winlator.cmod.core.WineThemeManager
 import com.winlator.cmod.core.ImageUtils
 import com.winlator.cmod.core.AppUtils
-import com.winlator.cmod.fexcore.FEXCoreEditPresetDialog
 import com.winlator.cmod.fexcore.FEXCorePresetManager
 import com.winlator.cmod.winhandler.WinHandler
 import com.winlator.cmod.xserver.XKeycode
 import org.json.JSONArray
+import java.util.Locale
 
 // ---- Переиспользуемые Composable-компоненты ----
 
@@ -641,6 +640,7 @@ fun AdvancedTab(
     dinputMapperType: Int, onDinputMapperTypeChange: (Int) -> Unit,
     sdl2Toggle: Boolean, onSdl2ToggleChange: (Boolean) -> Unit,
     presetsRefreshKey: Int,
+    isArm64EC: Boolean,
     onBox64PresetAdd: () -> Unit,
     onBox64PresetEdit: () -> Unit,
     onBox64PresetDuplicate: () -> Unit,
@@ -703,36 +703,38 @@ fun AdvancedTab(
             )
         }
 
-        // FEXCore
-        SectionCard(title = stringResource(R.string.fexcore), icon = Icons.Filled.Memory) {
-            val fexcoreVersions = remember { ctx.resources.getStringArray(R.array.fexcore_version_entries).toList() }
-            SpinnerRow(
-                label = stringResource(R.string.version),
-                entries = fexcoreVersions, selected = fexcoreVersion,
-                onSelected = { onFexcoreVersionChange(it) },
-            )
-            val fexcorePresets = remember(presetsRefreshKey) { FEXCorePresetManager.getPresets(ctx) }
-            val fexcorePresetNames = remember(fexcorePresets) { fexcorePresets.map { it.name } }
-            SpinnerRow(
-                label = stringResource(R.string.preset),
-                entries = fexcorePresetNames,
-                selected = fexcorePresets.firstOrNull { it.id == fexcorePreset }?.name ?: fexcorePreset,
-                onSelected = {
-                    val preset = fexcorePresets.firstOrNull { p -> p.name == it }
-                    if (preset != null) onFexcorePresetChange(preset.id)
-                },
-            )
-            // Кнопки управления FEXCore preset (Add, Edit, Duplicate, Remove, Export, Import)
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                IconButton(onClick = onFexcorePresetAdd) { Icon(Icons.Filled.Add, stringResource(R.string.add)) }
-                IconButton(onClick = onFexcorePresetEdit) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
-                IconButton(onClick = onFexcorePresetDuplicate) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) }
-                IconButton(onClick = onFexcorePresetRemove) { Icon(Icons.Filled.Delete, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.error) }
-                IconButton(onClick = onFexcorePresetExport) { Icon(Icons.Filled.Publish, stringResource(R.string.export_container_profile)) }
-                IconButton(onClick = onFexcorePresetImport) { Icon(Icons.Filled.Download, stringResource(R.string.import_container_profile)) }
+        if (isArm64EC) {
+            // FEXCore
+            SectionCard(title = stringResource(R.string.fexcore), icon = Icons.Filled.Memory) {
+                val fexcoreVersions = remember { ctx.resources.getStringArray(R.array.fexcore_version_entries).toList() }
+                SpinnerRow(
+                    label = stringResource(R.string.version),
+                    entries = fexcoreVersions, selected = fexcoreVersion,
+                    onSelected = { onFexcoreVersionChange(it) },
+                )
+                val fexcorePresets = remember(presetsRefreshKey) { FEXCorePresetManager.getPresets(ctx) }
+                val fexcorePresetNames = remember(fexcorePresets) { fexcorePresets.map { it.name } }
+                SpinnerRow(
+                    label = stringResource(R.string.preset),
+                    entries = fexcorePresetNames,
+                    selected = fexcorePresets.firstOrNull { it.id == fexcorePreset }?.name ?: fexcorePreset,
+                    onSelected = {
+                        val preset = fexcorePresets.firstOrNull { p -> p.name == it }
+                        if (preset != null) onFexcorePresetChange(preset.id)
+                    },
+                )
+                // Кнопки управления FEXCore preset (Add, Edit, Duplicate, Remove, Export, Import)
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    IconButton(onClick = onFexcorePresetAdd) { Icon(Icons.Filled.Add, stringResource(R.string.add)) }
+                    IconButton(onClick = onFexcorePresetEdit) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
+                    IconButton(onClick = onFexcorePresetDuplicate) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) }
+                    IconButton(onClick = onFexcorePresetRemove) { Icon(Icons.Filled.Delete, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.error) }
+                    IconButton(onClick = onFexcorePresetExport) { Icon(Icons.Filled.Publish, stringResource(R.string.export_container_profile)) }
+                    IconButton(onClick = onFexcorePresetImport) { Icon(Icons.Filled.Download, stringResource(R.string.import_container_profile)) }
+                }
             }
         }
 

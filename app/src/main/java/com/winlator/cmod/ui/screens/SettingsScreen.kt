@@ -44,6 +44,7 @@ fun SettingsScreen(
     onTransitionAnimationChange: (String) -> Unit = {},
     onConfirmSave: () -> Unit = {},
     onOpenGPUPerformance: () -> Unit = {},
+    onReinstallImageFs: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val prefs = preferences ?: PreferenceManager.getDefaultSharedPreferences(ctx)
@@ -737,22 +738,15 @@ fun SettingsScreen(
     if (showReinstallConfirm) {
         AlertDialog(
             onDismissRequest = { showReinstallConfirm = false },
-            title = { Text("Переустановка ImageFs") },
+            title = { Text(stringResource(com.winlator.cmod.R.string.reinstall_imagefs_label)) },
             text = { Text(ctx.getString(com.winlator.cmod.R.string.do_you_want_to_reinstall_imagefs)) },
             confirmButton = {
                 TextButton(onClick = {
                     showReinstallConfirm = false
-                    try {
-                        val activity = ctx as? com.winlator.cmod.MainActivity
-                        if (activity != null) {
-                            com.winlator.cmod.xenvironment.ImageFsInstaller.installFromAssets(activity)
-                        } else {
-                            toast("Требуется MainActivity")
-                        }
-                    } catch (e: Exception) { toast("ImageFs: ${e.message}") }
-                }) { Text("Да") }
+                    onReinstallImageFs()
+                }) { Text(stringResource(com.winlator.cmod.R.string.yes)) }
             },
-            dismissButton = { TextButton(onClick = { showReinstallConfirm = false }) { Text("Нет") } }
+            dismissButton = { TextButton(onClick = { showReinstallConfirm = false }) { Text(stringResource(com.winlator.cmod.R.string.no)) } }
         )
     }
     if (showBackupConfirm) {
