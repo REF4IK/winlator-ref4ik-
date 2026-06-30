@@ -584,12 +584,12 @@ public class ScreenEffectDialog extends ContentDialog {
         }
 
         if (types.isEmpty()) {
-            // Нет эффектов — просто очищаем, scanout восстановится сам
+            // РќРµС‚ СЌС„С„РµРєС‚РѕРІ вЂ” РїСЂРѕСЃС‚Рѕ РѕС‡РёС‰Р°РµРј, scanout РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЃСЏ СЃР°Рј
             renderer.clearEffects();
             Log.d(TAG, "No effects enabled, cleared all effects.");
         } else {
-            // BUG FIX: disableScanoutForEffects() вызываем ТОЛЬКО когда реально
-            // включаем эффекты, иначе при сбросе настроек scanout не восстанавливался.
+            // BUG FIX: disableScanoutForEffects() РІС‹Р·С‹РІР°РµРј РўРћР›Р¬РљРћ РєРѕРіРґР° СЂРµР°Р»СЊРЅРѕ
+            // РІРєР»СЋС‡Р°РµРј СЌС„С„РµРєС‚С‹, РёРЅР°С‡Рµ РїСЂРё СЃР±СЂРѕСЃРµ РЅР°СЃС‚СЂРѕРµРє scanout РЅРµ РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°Р»СЃСЏ.
             renderer.disableScanoutForEffects();
             int[] typeArr = new int[types.size()];
             float[][] paramsArr = new float[types.size()][];

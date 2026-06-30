@@ -1562,6 +1562,16 @@
     <!-- Installer Screen strings -->
     <string name="inst_setup_finished">Настройка завершена</string>
     <string name="inst_please_wait">Пожалуйста, подождите, пока распаковываются необходимые файлы. Это может занять несколько минут.</string>
+
+    <!-- First Launch Dialog strings -->
+    <string name="welcome_title">Добро пожаловать!</string>
+    <string name="welcome_greeting">Привет!\nВыбери тему оформления, которая тебе по душе.\nТы всегда сможешь изменить её в настройках.</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="theme_light_desc">Светлый фон,\nтёмный текст</string>
+    <string name="theme_dark_desc">Тёмный фон,\nсветлый текст</string>
+    <string name="start_using">Начать использовать</string>
+    <string name="can_change_in_settings">Можно изменить в любое время в Настройках → Оформление</string>
 </resources>
 
 

@@ -481,7 +481,7 @@ fun WinlatorTheme(
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
 
-    val themeId by prefs.observeString("theme_id", "default")
+    val themeId by prefs.observeString("theme_id", "midnight")
     val customColor by prefs.observeInt("custom_theme_color", 0xFF1A6C59.toInt())
 
     val colorScheme = remember(themeId, darkTheme, customColor) {

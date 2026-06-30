@@ -1575,6 +1575,16 @@
     <!-- Installer Screen strings -->
     <string name="inst_setup_finished">Setup Finished</string>
     <string name="inst_please_wait">Please wait while the system files are being unpacked. This may take a few minutes.</string>
+
+    <!-- First Launch Dialog strings -->
+    <string name="welcome_title">Welcome!</string>
+    <string name="welcome_greeting">Hello!\nChoose the theme that suits you.\nYou can always change it in settings.</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light_desc">Light background,\ndark text</string>
+    <string name="theme_dark_desc">Dark background,\nlight text</string>
+    <string name="start_using">Start using</string>
+    <string name="can_change_in_settings">Can be changed anytime in Settings → Appearance</string>
 </resources>
 
 

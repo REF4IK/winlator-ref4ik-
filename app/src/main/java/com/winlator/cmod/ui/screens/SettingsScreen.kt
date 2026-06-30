@@ -76,7 +76,7 @@ fun SettingsScreen(
     var openWithBrowser by remember { mutableStateOf(prefs.getBoolean("open_with_android_browser", false)) }
     var shareClipboard by remember { mutableStateOf(prefs.getBoolean("share_android_clipboard", false)) }
     var adrenoTurbo by remember { mutableStateOf(prefs.getBoolean("adreno_turbo_mode", false)) }
-    var themeId by remember { mutableStateOf(prefs.getString("theme_id", "default") ?: "default") }
+    var themeId by remember { mutableStateOf(prefs.getString("theme_id", "midnight") ?: "midnight") }
     var customThemeColor by remember { mutableStateOf(prefs.getInt("custom_theme_color", 0xFF1A6C59.toInt())) }
 
     // ---- Состояния диалогов ----

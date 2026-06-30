@@ -429,7 +429,7 @@ public class ContainerDetailFragment extends Fragment {
         rootView = view;
 
         // Determine if dark mode is enabled
-        isDarkMode = preferences.getBoolean("dark_mode", false); // false = светлая тема по умолчанию
+        isDarkMode = preferences.getBoolean("dark_mode", false); // false = СЃРІРµС‚Р»Р°СЏ С‚РµРјР° РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
 
         // Apply dynamic styles
         applyDynamicStyles(view, isDarkMode);
@@ -590,15 +590,15 @@ public class ContainerDetailFragment extends Fragment {
         final EditText etLC_ALL = view.findViewById(R.id.ETlcall);
         Locale systemLocal = Locale.getDefault();
         
-        // Загружаем массивы для преобразования
+        // Р—Р°РіСЂСѓР¶Р°РµРј РјР°СЃСЃРёРІС‹ РґР»СЏ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
         String[] lcCodes = getResources().getStringArray(R.array.some_lc_all);
         String[] lcNames = getResources().getStringArray(R.array.some_lc_all_names);
         
-        // Преобразуем технический код в красивое название при загрузке
+        // РџСЂРµРѕР±СЂР°Р·СѓРµРј С‚РµС…РЅРёС‡РµСЃРєРёР№ РєРѕРґ РІ РєСЂР°СЃРёРІРѕРµ РЅР°Р·РІР°РЅРёРµ РїСЂРё Р·Р°РіСЂСѓР·РєРµ
         String initialLocale = isEditMode() ? container.getLC_ALL() : systemLocal.getLanguage() + '_' + systemLocal.getCountry() + ".UTF-8";
         String initialLocaleName = initialLocale;
         
-        // Ищем красивое название для текущей локали
+        // РС‰РµРј РєСЂР°СЃРёРІРѕРµ РЅР°Р·РІР°РЅРёРµ РґР»СЏ С‚РµРєСѓС‰РµР№ Р»РѕРєР°Р»Рё
         String codeWithoutUtf = initialLocale.replace(".UTF-8", "").replace(".utf-8", "").replace(".utf8", "");
         for (int i = 0; i < lcCodes.length; i++) {
             if (lcCodes[i].equals(codeWithoutUtf)) {
@@ -607,22 +607,22 @@ public class ContainerDetailFragment extends Fragment {
             }
         }
         
-        etLC_ALL.setText(initialLocaleName); // Показываем красивое название
-        etLC_ALL.setTag(initialLocale); // Сохраняем технический код в tag
+        etLC_ALL.setText(initialLocaleName); // РџРѕРєР°Р·С‹РІР°РµРј РєСЂР°СЃРёРІРѕРµ РЅР°Р·РІР°РЅРёРµ
+        etLC_ALL.setTag(initialLocale); // РЎРѕС…СЂР°РЅСЏРµРј С‚РµС…РЅРёС‡РµСЃРєРёР№ РєРѕРґ РІ tag
 
         final View btShowLCALL = view.findViewById(R.id.BTShowLCALL);
         btShowLCALL.setOnClickListener(v -> {
             PopupMenu popupMenu = new PopupMenu(context, v);
             
-            // Отображаем красивые названия в меню
+            // РћС‚РѕР±СЂР°Р¶Р°РµРј РєСЂР°СЃРёРІС‹Рµ РЅР°Р·РІР°РЅРёСЏ РІ РјРµРЅСЋ
             for (int i = 0; i < lcNames.length; i++)
                 popupMenu.getMenu().add(Menu.NONE, i, Menu.NONE, lcNames[i]);
             
-            // При выборе показываем красивое название, но в tag сохраняем технический код
+            // РџСЂРё РІС‹Р±РѕСЂРµ РїРѕРєР°Р·С‹РІР°РµРј РєСЂР°СЃРёРІРѕРµ РЅР°Р·РІР°РЅРёРµ, РЅРѕ РІ tag СЃРѕС…СЂР°РЅСЏРµРј С‚РµС…РЅРёС‡РµСЃРєРёР№ РєРѕРґ
             popupMenu.setOnMenuItemClickListener(item -> {
                 int index = item.getItemId();
-                etLC_ALL.setText(lcNames[index]); // Показываем красивое название
-                etLC_ALL.setTag(lcCodes[index] + ".UTF-8"); // Сохраняем технический код
+                etLC_ALL.setText(lcNames[index]); // РџРѕРєР°Р·С‹РІР°РµРј РєСЂР°СЃРёРІРѕРµ РЅР°Р·РІР°РЅРёРµ
+                etLC_ALL.setTag(lcCodes[index] + ".UTF-8"); // РЎРѕС…СЂР°РЅСЏРµРј С‚РµС…РЅРёС‡РµСЃРєРёР№ РєРѕРґ
                 return true;
             });
             popupMenu.show();
@@ -803,7 +803,7 @@ public class ContainerDetailFragment extends Fragment {
                 String dxwrapperConfig = vDXWrapperConfig.getTag().toString();
                 String audioDriver = StringUtils.parseIdentifier(sAudioDriver.getSelectedItem());
                 String audioDriverConfig = vAudioDriverConfig.getTag().toString();
-                Log.d("ContainerDetailFragment", "Конфигурация аудио драйвера при сохранении: " + audioDriverConfig);
+                Log.d("ContainerDetailFragment", "РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ Р°СѓРґРёРѕ РґСЂР°Р№РІРµСЂР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё: " + audioDriverConfig);
                 String emulator = StringUtils.parseIdentifier(sEmulator.getSelectedItem());
                 String wincomponents = getWinComponents(view);
                 String drives = getDrives(view);
@@ -821,7 +821,7 @@ public class ContainerDetailFragment extends Fragment {
                 String fexcorePreset = FEXCorePresetManager.getSpinnerSelectedId(sFEXCorePreset);
                 // Capture missing properties
                 String midiSoundFont = sMIDISoundFont.getSelectedItemPosition() == 0 ? "" : sMIDISoundFont.getSelectedItem().toString();
-                // Берем технический код локали из tag (где хранится ru_RU.UTF-8), а не красивое название из поля
+                // Р‘РµСЂРµРј С‚РµС…РЅРёС‡РµСЃРєРёР№ РєРѕРґ Р»РѕРєР°Р»Рё РёР· tag (РіРґРµ С…СЂР°РЅРёС‚СЃСЏ ru_RU.UTF-8), Р° РЅРµ РєСЂР°СЃРёРІРѕРµ РЅР°Р·РІР°РЅРёРµ РёР· РїРѕР»СЏ
                 String lc_all = etLC_ALL.getTag() != null ? etLC_ALL.getTag().toString() : etLC_ALL.getText().toString();
                 int primaryController = sPrimaryController.getSelectedItemPosition();
                 String controllerMapping = getControllerMapping(view);
@@ -941,7 +941,7 @@ public class ContainerDetailFragment extends Fragment {
             }
         });
 
-        // FAB для установки компонентов
+        // FAB РґР»СЏ СѓСЃС‚Р°РЅРѕРІРєРё РєРѕРјРїРѕРЅРµРЅС‚РѕРІ
         view.findViewById(R.id.fabInstallComponents).setOnClickListener((v) -> {
             if (isEditMode()) {
                 openComponentsDialogForContainer(container);
@@ -954,10 +954,10 @@ public class ContainerDetailFragment extends Fragment {
     }
 
     /**
-     * Открыть диалог установки компонентов для текущего контейнера
+     * РћС‚РєСЂС‹С‚СЊ РґРёР°Р»РѕРі СѓСЃС‚Р°РЅРѕРІРєРё РєРѕРјРїРѕРЅРµРЅС‚РѕРІ РґР»СЏ С‚РµРєСѓС‰РµРіРѕ РєРѕРЅС‚РµР№РЅРµСЂР°
      */
     private void openComponentsDialogForContainer(Container container) {
-        // Импортируем необходимые классы
+        // РРјРїРѕСЂС‚РёСЂСѓРµРј РЅРµРѕР±С…РѕРґРёРјС‹Рµ РєР»Р°СЃСЃС‹
         com.winlator.cmod.components.ComponentsDialog dialog = 
             new com.winlator.cmod.components.ComponentsDialog(getContext(), selectedComponents -> {
             if (selectedComponents.isEmpty()) {
@@ -967,7 +967,7 @@ public class ContainerDetailFragment extends Fragment {
 
             preloaderDialog.show(R.string.downloading_file);
 
-            // Скачиваем в папку Download/Winlator - используем правильный путь
+            // РЎРєР°С‡РёРІР°РµРј РІ РїР°РїРєСѓ Download/Winlator - РёСЃРїРѕР»СЊР·СѓРµРј РїСЂР°РІРёР»СЊРЅС‹Р№ РїСѓС‚СЊ
             java.io.File downloadDir = new java.io.File(Environment.getExternalStorageDirectory(), "Download/Winlator");
 
             installComponentsToContainer(selectedComponents, container, downloadDir);
@@ -977,7 +977,7 @@ public class ContainerDetailFragment extends Fragment {
     }
 
     /**
-     * Загрузить и установить компоненты в контейнер через ярлыки
+     * Р—Р°РіСЂСѓР·РёС‚СЊ Рё СѓСЃС‚Р°РЅРѕРІРёС‚СЊ РєРѕРјРїРѕРЅРµРЅС‚С‹ РІ РєРѕРЅС‚РµР№РЅРµСЂ С‡РµСЂРµР· СЏСЂР»С‹РєРё
      */
     private void installComponentsToContainer(java.util.List<com.winlator.cmod.components.ComponentInfo> components, 
                                              Container container, java.io.File downloadDir) {
@@ -1001,12 +1001,12 @@ public class ContainerDetailFragment extends Fragment {
 
         com.winlator.cmod.components.ComponentInfo component = components.get(currentIndex[0]);
 
-        // Загружаем компонент
+        // Р—Р°РіСЂСѓР¶Р°РµРј РєРѕРјРїРѕРЅРµРЅС‚
         com.winlator.cmod.components.ComponentDownloader.download(component, downloadDir, 
             new com.winlator.cmod.components.ComponentDownloader.DownloadListener() {
             @Override
             public void onProgress(com.winlator.cmod.components.ComponentDownloader.DownloadProgress progress) {
-                // Показываем прогресс в диалоге загрузки
+                // РџРѕРєР°Р·С‹РІР°РµРј РїСЂРѕРіСЂРµСЃСЃ РІ РґРёР°Р»РѕРіРµ Р·Р°РіСЂСѓР·РєРё
                 if (getActivity() != null) {
                     String message = "Downloading " + (currentIndex[0] + 1) + "/" + totalCount + "\n" + 
                                    progress.componentName + "\n" + 
@@ -1017,22 +1017,22 @@ public class ContainerDetailFragment extends Fragment {
 
             @Override
             public void onComplete(java.io.File file, com.winlator.cmod.components.ComponentInfo comp) {
-                // После загрузки создаем ярлык и запускаем его
+                // РџРѕСЃР»Рµ Р·Р°РіСЂСѓР·РєРё СЃРѕР·РґР°РµРј СЏСЂР»С‹Рє Рё Р·Р°РїСѓСЃРєР°РµРј РµРіРѕ
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
-                        // Обновляем диалог
+                        // РћР±РЅРѕРІР»СЏРµРј РґРёР°Р»РѕРі
                         String message = "Installing " + (currentIndex[0] + 1) + "/" + totalCount + "\n" + 
                                        comp.getDisplayName() + "\nPlease complete installation...";
                         preloaderDialog.updateText(message);
                         
                         java.io.File shortcutFile = createTemporaryShortcut(container, file, comp);
                         
-                        // Автоматически запускаем установку
+                        // РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё Р·Р°РїСѓСЃРєР°РµРј СѓСЃС‚Р°РЅРѕРІРєСѓ
                         if (shortcutFile != null) {
                             launchShortcutInstallation(container, shortcutFile, comp);
                         }
                         
-                        // Переходим к следующему компоненту
+                        // РџРµСЂРµС…РѕРґРёРј Рє СЃР»РµРґСѓСЋС‰РµРјСѓ РєРѕРјРїРѕРЅРµРЅС‚Сѓ
                         currentIndex[0]++;
                         installNextComponentViaShortcut(components, container, downloadDir, currentIndex, totalCount);
                     });
@@ -1043,14 +1043,14 @@ public class ContainerDetailFragment extends Fragment {
             public void onError(String error, com.winlator.cmod.components.ComponentInfo comp) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
-                        // Показываем ошибку в диалоге
+                        // РџРѕРєР°Р·С‹РІР°РµРј РѕС€РёР±РєСѓ РІ РґРёР°Р»РѕРіРµ
                         String message = "Error downloading " + (currentIndex[0] + 1) + "/" + totalCount + "\n" + 
                                        comp.getDisplayName() + "\n" + error;
                         preloaderDialog.updateText(message);
                         
-                        // Ждем 2 секунды перед продолжением
+                        // Р–РґРµРј 2 СЃРµРєСѓРЅРґС‹ РїРµСЂРµРґ РїСЂРѕРґРѕР»Р¶РµРЅРёРµРј
                         new android.os.Handler().postDelayed(() -> {
-                            // Продолжаем со следующим
+                            // РџСЂРѕРґРѕР»Р¶Р°РµРј СЃРѕ СЃР»РµРґСѓСЋС‰РёРј
                             currentIndex[0]++;
                             installNextComponentViaShortcut(components, container, downloadDir, currentIndex, totalCount);
                         }, 2000);
@@ -1061,30 +1061,30 @@ public class ContainerDetailFragment extends Fragment {
     }
 
     /**
-     * Создать временный ярлык для автоматической установки компонента
+     * РЎРѕР·РґР°С‚СЊ РІСЂРµРјРµРЅРЅС‹Р№ СЏСЂР»С‹Рє РґР»СЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРѕР№ СѓСЃС‚Р°РЅРѕРІРєРё РєРѕРјРїРѕРЅРµРЅС‚Р°
      */
     private java.io.File createTemporaryShortcut(Container container, java.io.File componentFile, 
                                         com.winlator.cmod.components.ComponentInfo component) {
         try {
-            // Определяем буквы дисков и пути как в ShortcutsFragment
+            // РћРїСЂРµРґРµР»СЏРµРј Р±СѓРєРІС‹ РґРёСЃРєРѕРІ Рё РїСѓС‚Рё РєР°Рє РІ ShortcutsFragment
             String driveLetter = "D:"; // /storage/emulated/0/Download -> D:
-            // Важно: компонент скачивается в /storage/emulated/0/Download/Winlator,
-            // а D: в Wine мапится на /storage/emulated/0/Download.
-            // Поэтому нужен путь вида D:/Winlator/<file>, иначе Wine не найдёт файл.
+            // Р’Р°Р¶РЅРѕ: РєРѕРјРїРѕРЅРµРЅС‚ СЃРєР°С‡РёРІР°РµС‚СЃСЏ РІ /storage/emulated/0/Download/Winlator,
+            // Р° D: РІ Wine РјР°РїРёС‚СЃСЏ РЅР° /storage/emulated/0/Download.
+            // РџРѕСЌС‚РѕРјСѓ РЅСѓР¶РµРЅ РїСѓС‚СЊ РІРёРґР° D:/Winlator/<file>, РёРЅР°С‡Рµ Wine РЅРµ РЅР°Р№РґС‘С‚ С„Р°Р№Р».
             String execPath = convertToWindowsPath(componentFile.getAbsolutePath(), container);
             
-            // WINEPREFIX как в ShortcutsFragment
+            // WINEPREFIX РєР°Рє РІ ShortcutsFragment
             String winePrefix = container.getRootDir().getAbsolutePath() + 
                               "/.wine/dosdevices/z:" + 
                               container.getRootDir().getAbsolutePath().replace(
                                   "/data/user/0/" + com.winlator.cmod.MainActivity.PACKAGE_NAME + "/files/imagefs", 
                                   "") + "/.wine";
             
-            // Path должен заканчиваться на d:/ без поддиректорий!
+            // Path РґРѕР»Р¶РµРЅ Р·Р°РєР°РЅС‡РёРІР°С‚СЊСЃСЏ РЅР° d:/ Р±РµР· РїРѕРґРґРёСЂРµРєС‚РѕСЂРёР№!
             String pathLine = container.getRootDir().getAbsolutePath() + 
                             "/.wine/dosdevices/" + driveLetter.toLowerCase() + "/";
             
-            // Создаем .desktop файл
+            // РЎРѕР·РґР°РµРј .desktop С„Р°Р№Р»
             java.io.File shortcutsDir = container.getDesktopDir();
             if (!shortcutsDir.exists()) {
                 shortcutsDir.mkdirs();
@@ -1093,7 +1093,7 @@ public class ContainerDetailFragment extends Fragment {
             String shortcutName = "_winlator_component_" + component.getFileName().replace(".exe", "");
             java.io.File shortcutFile = new java.io.File(shortcutsDir, shortcutName + ".desktop");
             
-            // Создаем содержимое .desktop файла как в ShortcutsFragment
+            // РЎРѕР·РґР°РµРј СЃРѕРґРµСЂР¶РёРјРѕРµ .desktop С„Р°Р№Р»Р° РєР°Рє РІ ShortcutsFragment
             StringBuilder content = new StringBuilder();
             content.append("[Desktop Entry]\n");
             content.append("Name=").append(component.getDisplayName()).append("\n");
@@ -1124,7 +1124,7 @@ public class ContainerDetailFragment extends Fragment {
     }
 
     /**
-     * Запустить установку компонента через ярлык
+     * Р—Р°РїСѓСЃС‚РёС‚СЊ СѓСЃС‚Р°РЅРѕРІРєСѓ РєРѕРјРїРѕРЅРµРЅС‚Р° С‡РµСЂРµР· СЏСЂР»С‹Рє
      */
     private void launchShortcutInstallation(Container container, java.io.File shortcutFile,
                                            com.winlator.cmod.components.ComponentInfo component) {
@@ -1148,30 +1148,30 @@ public class ContainerDetailFragment extends Fragment {
     }
 
     /**
-     * Конвертировать Linux путь в Windows путь для Wine
+     * РљРѕРЅРІРµСЂС‚РёСЂРѕРІР°С‚СЊ Linux РїСѓС‚СЊ РІ Windows РїСѓС‚СЊ РґР»СЏ Wine
      */
     private String convertToWindowsPath(String linuxPath, Container container) {
-        // Получаем правильный путь к внешнему хранилищу
+        // РџРѕР»СѓС‡Р°РµРј РїСЂР°РІРёР»СЊРЅС‹Р№ РїСѓС‚СЊ Рє РІРЅРµС€РЅРµРјСѓ С…СЂР°РЅРёР»РёС‰Сѓ
         String externalStoragePath = Environment.getExternalStorageDirectory().getAbsolutePath();
         String downloadPath = externalStoragePath + "/Download";
         
-        // /storage/emulated/0/Download -> D:/Download (так как D: это внешнее хранилище)
+        // /storage/emulated/0/Download -> D:/Download (С‚Р°Рє РєР°Рє D: СЌС‚Рѕ РІРЅРµС€РЅРµРµ С…СЂР°РЅРёР»РёС‰Рµ)
         if (linuxPath.startsWith(downloadPath)) {
             String relativePath = linuxPath.substring(downloadPath.length());
             if (relativePath.startsWith("/")) {
                 relativePath = relativePath.substring(1);
             }
-            // Используем прямые слеши для Wine
+            // РСЃРїРѕР»СЊР·СѓРµРј РїСЂСЏРјС‹Рµ СЃР»РµС€Рё РґР»СЏ Wine
             return "D:/" + relativePath.replace("/", "/");
         }
         
-        // /storage/emulated/0 -> D:/ (внешнее хранилище)
+        // /storage/emulated/0 -> D:/ (РІРЅРµС€РЅРµРµ С…СЂР°РЅРёР»РёС‰Рµ)
         if (linuxPath.startsWith(externalStoragePath)) {
             String relativePath = linuxPath.substring(externalStoragePath.length());
             if (relativePath.startsWith("/")) {
                 relativePath = relativePath.substring(1);
             }
-            // Используем прямые слеши для Wine
+            // РСЃРїРѕР»СЊР·СѓРµРј РїСЂСЏРјС‹Рµ СЃР»РµС€Рё РґР»СЏ Wine
             return "D:/" + relativePath.replace("/", "/");
         }
         
@@ -1181,7 +1181,7 @@ public class ContainerDetailFragment extends Fragment {
             return "Z:/" + linuxPath.substring(imagefsPath.length() + 1).replace("/", "/");
         }
         
-        // По умолчанию Z:
+        // РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ Z:
         return "Z:/" + linuxPath.replace("/", "/");
     }
 
@@ -3209,19 +3209,19 @@ public class ContainerDetailFragment extends Fragment {
     }
     
     /**
-     * Очистка временных файлов компонентов после установки
+     * РћС‡РёСЃС‚РєР° РІСЂРµРјРµРЅРЅС‹С… С„Р°Р№Р»РѕРІ РєРѕРјРїРѕРЅРµРЅС‚РѕРІ РїРѕСЃР»Рµ СѓСЃС‚Р°РЅРѕРІРєРё
      */
     private void cleanupTemporaryComponentFiles(Container container) {
         try {
-            // Удаляем временные ярлыки
+            // РЈРґР°Р»СЏРµРј РІСЂРµРјРµРЅРЅС‹Рµ СЏСЂР»С‹РєРё
             java.io.File desktopDir = container.getDesktopDir();
             if (desktopDir.exists()) {
                 java.io.File[] shortcuts = desktopDir.listFiles();
                 if (shortcuts != null) {
                     for (java.io.File shortcutFile : shortcuts) {
                         if (shortcutFile.getName().startsWith("_winlator_component_")) {
-                            // Удаляем только временный ярлык
-                            // Файл компонента оставляем в папке для повторного использования
+                            // РЈРґР°Р»СЏРµРј С‚РѕР»СЊРєРѕ РІСЂРµРјРµРЅРЅС‹Р№ СЏСЂР»С‹Рє
+                            // Р¤Р°Р№Р» РєРѕРјРїРѕРЅРµРЅС‚Р° РѕСЃС‚Р°РІР»СЏРµРј РІ РїР°РїРєРµ РґР»СЏ РїРѕРІС‚РѕСЂРЅРѕРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ
                             shortcutFile.delete();
                         }
                     }
@@ -3235,7 +3235,7 @@ public class ContainerDetailFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Очищаем временные файлы компонентов после возврата из установки
+        // РћС‡РёС‰Р°РµРј РІСЂРµРјРµРЅРЅС‹Рµ С„Р°Р№Р»С‹ РєРѕРјРїРѕРЅРµРЅС‚РѕРІ РїРѕСЃР»Рµ РІРѕР·РІСЂР°С‚Р° РёР· СѓСЃС‚Р°РЅРѕРІРєРё
         if (container != null) {
             cleanupTemporaryComponentFiles(container);
         }
@@ -3243,8 +3243,8 @@ public class ContainerDetailFragment extends Fragment {
         final Context context = getContext();
         if (context == null) return;
 
-        // Подгружаем remote profiles (contents.json) как в ContentsFragment, чтобы в списке Wine
-        // отображались версии из ContentsManager (в т.ч. нескачанные).
+        // РџРѕРґРіСЂСѓР¶Р°РµРј remote profiles (contents.json) РєР°Рє РІ ContentsFragment, С‡С‚РѕР±С‹ РІ СЃРїРёСЃРєРµ Wine
+        // РѕС‚РѕР±СЂР°Р¶Р°Р»РёСЃСЊ РІРµСЂСЃРёРё РёР· ContentsManager (РІ С‚.С‡. РЅРµСЃРєР°С‡Р°РЅРЅС‹Рµ).
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
         new Thread(() -> {
             String contentsURL = sp.getString("downloadable_contents_url", "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json");

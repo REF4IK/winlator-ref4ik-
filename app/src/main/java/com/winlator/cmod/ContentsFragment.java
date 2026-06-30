@@ -68,7 +68,7 @@ public class ContentsFragment extends Fragment {
         manager.syncContents();
         sp = PreferenceManager.getDefaultSharedPreferences(getActivity());
         
-        // Инициализация кэша размеров файлов
+        // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєСЌС€Р° СЂР°Р·РјРµСЂРѕРІ С„Р°Р№Р»РѕРІ
         fileSizeCache = getContext().getSharedPreferences("file_size_cache", getContext().MODE_PRIVATE);
 
         // Initialize isDarkMode based on shared preferences or theme
@@ -305,7 +305,7 @@ public class ContentsFragment extends Fragment {
                             requireActivity().runOnUiThread(() -> {
                                 ContentDialog.alert(getContext(), R.string.content_installed_success, null);
                                 manager.syncContents();
-                                // Теперь profile.type никогда не будет null
+                                // РўРµРїРµСЂСЊ profile.type РЅРёРєРѕРіРґР° РЅРµ Р±СѓРґРµС‚ null
                                 boolean flashAfter = currentContentType == profile.type;
                                 currentContentType = profile.type;
                                 AppUtils.setSpinnerSelectionFromValue(sContentType, currentContentType.toString());
@@ -335,30 +335,30 @@ public class ContentsFragment extends Fragment {
             ContentItemAdapter adapter = new ContentItemAdapter(profiles);
             recyclerView.setAdapter(adapter);
             
-            // Предзагружаем размеры всех удаленных файлов
+            // РџСЂРµРґР·Р°РіСЂСѓР¶Р°РµРј СЂР°Р·РјРµСЂС‹ РІСЃРµС… СѓРґР°Р»РµРЅРЅС‹С… С„Р°Р№Р»РѕРІ
             new Thread(() -> {
                 boolean hasUpdates = false;
                 for (ContentProfile profile : profiles) {
                     if (profile.remoteUrl != null) {
-                        // Проверяем постоянный кэш
+                        // РџСЂРѕРІРµСЂСЏРµРј РїРѕСЃС‚РѕСЏРЅРЅС‹Р№ РєСЌС€
                         if (!fileSizeCache.contains(profile.remoteUrl)) {
                             long fileSize = Downloader.getFileSize(profile.remoteUrl);
                             
-                            // Сохраняем в постоянный кэш
+                            // РЎРѕС…СЂР°РЅСЏРµРј РІ РїРѕСЃС‚РѕСЏРЅРЅС‹Р№ РєСЌС€
                             fileSizeCache.edit().putLong(profile.remoteUrl, fileSize).apply();
                             
-                            // Обновляем временный кэш адаптера
+                            // РћР±РЅРѕРІР»СЏРµРј РІСЂРµРјРµРЅРЅС‹Р№ РєСЌС€ Р°РґР°РїС‚РµСЂР°
                             adapter.fileSizeCache.put(profile.remoteUrl, fileSize);
                             hasUpdates = true;
                         } else {
-                            // Загружаем из постоянного кэша
+                            // Р—Р°РіСЂСѓР¶Р°РµРј РёР· РїРѕСЃС‚РѕСЏРЅРЅРѕРіРѕ РєСЌС€Р°
                             long cachedSize = fileSizeCache.getLong(profile.remoteUrl, -1);
                             adapter.fileSizeCache.put(profile.remoteUrl, cachedSize);
                         }
                     }
                 }
                 
-                // Обновляем UI если были изменения
+                // РћР±РЅРѕРІР»СЏРµРј UI РµСЃР»Рё Р±С‹Р»Рё РёР·РјРµРЅРµРЅРёСЏ
                 if (hasUpdates && isAdded() && getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
                         adapter.notifyDataSetChanged();
@@ -445,7 +445,7 @@ public class ContentsFragment extends Fragment {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             final ContentProfile profile = data.get(position);
 
-            // Теперь profile.type никогда не будет null
+            // РўРµРїРµСЂСЊ profile.type РЅРёРєРѕРіРґР° РЅРµ Р±СѓРґРµС‚ null
             int iconId = switch (profile.type) {
                 case CONTENT_TYPE_WINE -> R.drawable.icon_wine;
                 default -> R.drawable.icon_settings;
@@ -455,11 +455,11 @@ public class ContentsFragment extends Fragment {
             holder.tvVersionName.setText(getContext().getString(R.string.version) + ": " + profile.verName);
             holder.tvVersionCode.setText(getContext().getString(R.string.version_code) + ": " + profile.verCode);
             
-            // Отображение размера файла
+            // РћС‚РѕР±СЂР°Р¶РµРЅРёРµ СЂР°Р·РјРµСЂР° С„Р°Р№Р»Р°
             if (profile.remoteUrl != null) {
                 String cacheKey = profile.remoteUrl;
                 
-                // Сначала проверяем постоянный кэш
+                // РЎРЅР°С‡Р°Р»Р° РїСЂРѕРІРµСЂСЏРµРј РїРѕСЃС‚РѕСЏРЅРЅС‹Р№ РєСЌС€
                 if (ContentsFragment.this.fileSizeCache.contains(cacheKey)) {
                     long cachedSize = ContentsFragment.this.fileSizeCache.getLong(cacheKey, -1);
                     holder.tvFileSize.setVisibility(View.VISIBLE);
@@ -469,10 +469,10 @@ public class ContentsFragment extends Fragment {
                     } else {
                         holder.tvFileSize.setText(getContext().getString(R.string.file_size) + ": " + getContext().getString(R.string.unknown_size));
                     }
-                    // Также обновляем временный кэш адаптера
+                    // РўР°РєР¶Рµ РѕР±РЅРѕРІР»СЏРµРј РІСЂРµРјРµРЅРЅС‹Р№ РєСЌС€ Р°РґР°РїС‚РµСЂР°
                     fileSizeCache.put(cacheKey, cachedSize);
                 } else if (fileSizeCache.containsKey(cacheKey)) {
-                    // Проверяем временный кэш адаптера
+                    // РџСЂРѕРІРµСЂСЏРµРј РІСЂРµРјРµРЅРЅС‹Р№ РєСЌС€ Р°РґР°РїС‚РµСЂР°
                     long cachedSize = fileSizeCache.get(cacheKey);
                     holder.tvFileSize.setVisibility(View.VISIBLE);
                     if (cachedSize > 0) {
@@ -482,23 +482,23 @@ public class ContentsFragment extends Fragment {
                         holder.tvFileSize.setText(getContext().getString(R.string.file_size) + ": " + getContext().getString(R.string.unknown_size));
                     }
                 } else {
-                    // Размер еще не загружен
+                    // Р Р°Р·РјРµСЂ РµС‰Рµ РЅРµ Р·Р°РіСЂСѓР¶РµРЅ
                     holder.tvFileSize.setVisibility(View.VISIBLE);
                     holder.tvFileSize.setText(getContext().getString(R.string.loading_size));
                     
-                    // Загружаем размер файла в фоновом потоке
+                    // Р—Р°РіСЂСѓР¶Р°РµРј СЂР°Р·РјРµСЂ С„Р°Р№Р»Р° РІ С„РѕРЅРѕРІРѕРј РїРѕС‚РѕРєРµ
                     new Thread(() -> {
                         long fileSize = Downloader.getFileSize(profile.remoteUrl);
                         
-                        // Сохраняем в постоянный кэш
+                        // РЎРѕС…СЂР°РЅСЏРµРј РІ РїРѕСЃС‚РѕСЏРЅРЅС‹Р№ РєСЌС€
                         ContentsFragment.this.fileSizeCache.edit().putLong(cacheKey, fileSize).apply();
                         
-                        // Также обновляем временный кэш адаптера
+                        // РўР°РєР¶Рµ РѕР±РЅРѕРІР»СЏРµРј РІСЂРµРјРµРЅРЅС‹Р№ РєСЌС€ Р°РґР°РїС‚РµСЂР°
                         fileSizeCache.put(cacheKey, fileSize);
                         
                         if (isAdded() && getActivity() != null) {
                             getActivity().runOnUiThread(() -> {
-                                // Проверяем, что ViewHolder все еще показывает тот же элемент
+                                // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ ViewHolder РІСЃРµ РµС‰Рµ РїРѕРєР°Р·С‹РІР°РµС‚ С‚РѕС‚ Р¶Рµ СЌР»РµРјРµРЅС‚
                                 if (holder.getBindingAdapterPosition() == position) {
                                     if (fileSize > 0) {
                                         String sizeText = formatFileSize(fileSize);
@@ -512,7 +512,7 @@ public class ContentsFragment extends Fragment {
                     }).start();
                 }
             } else {
-                // Для локальных файлов показываем размер установленного контента
+                // Р”Р»СЏ Р»РѕРєР°Р»СЊРЅС‹С… С„Р°Р№Р»РѕРІ РїРѕРєР°Р·С‹РІР°РµРј СЂР°Р·РјРµСЂ СѓСЃС‚Р°РЅРѕРІР»РµРЅРЅРѕРіРѕ РєРѕРЅС‚РµРЅС‚Р°
                 File installDir = ContentsManager.getInstallDir(getContext(), profile);
                 if (installDir.exists()) {
                     long dirSize = getDirSize(installDir);
@@ -536,7 +536,7 @@ public class ContentsFragment extends Fragment {
                         new ContentInfoDialog(getContext(), profile).show();
                     } else if (itemId == R.id.remove_content) {
                         ContentDialog.confirm(getContext(), R.string.do_you_want_to_remove_this_content, () -> {
-                            // Теперь profile.type никогда не будет null
+                            // РўРµРїРµСЂСЊ profile.type РЅРёРєРѕРіРґР° РЅРµ Р±СѓРґРµС‚ null
                             if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE) {
                                 ContainerManager containerManager = new ContainerManager(getContext());
                                 for (Container container : containerManager.getContainers()) {
@@ -567,16 +567,16 @@ public class ContentsFragment extends Fragment {
                     File output = new File(getContext().getCacheDir(), "temp_" + timestamp);
                     
                     boolean success = Downloader.downloadFile(profile.remoteUrl, output, (downloaded, total) -> {
-                        // Обновляем прогресс скачивания, проверяя что Fragment все еще присоединен
+                        // РћР±РЅРѕРІР»СЏРµРј РїСЂРѕРіСЂРµСЃСЃ СЃРєР°С‡РёРІР°РЅРёСЏ, РїСЂРѕРІРµСЂСЏСЏ С‡С‚Рѕ Fragment РІСЃРµ РµС‰Рµ РїСЂРёСЃРѕРµРґРёРЅРµРЅ
                         if (isAdded() && getActivity() != null) {
                             getActivity().runOnUiThread(() -> {
                                 if (total > 0) {
-                                    // Размер известен - показываем прогресс с процентами
+                                    // Р Р°Р·РјРµСЂ РёР·РІРµСЃС‚РµРЅ - РїРѕРєР°Р·С‹РІР°РµРј РїСЂРѕРіСЂРµСЃСЃ СЃ РїСЂРѕС†РµРЅС‚Р°РјРё
                                     String progressText = formatFileSize(downloaded) + " / " + formatFileSize(total);
                                     int percent = (int) ((downloaded * 100) / total);
                                     holder.tvFileSize.setText(getContext().getString(R.string.download_progress) + ": " + progressText + " (" + percent + "%)");
                                 } else {
-                                    // Размер неизвестен - показываем только скачанный объем
+                                    // Р Р°Р·РјРµСЂ РЅРµРёР·РІРµСЃС‚РµРЅ - РїРѕРєР°Р·С‹РІР°РµРј С‚РѕР»СЊРєРѕ СЃРєР°С‡Р°РЅРЅС‹Р№ РѕР±СЉРµРј
                                     String progressText = formatFileSize(downloaded);
                                     holder.tvFileSize.setText(getContext().getString(R.string.download_progress) + ": " + progressText);
                                 }
@@ -588,7 +588,7 @@ public class ContentsFragment extends Fragment {
                         intent.setData(Uri.parse(output.getAbsolutePath()));
                     }
                     
-                    // Проверяем что Fragment все еще присоединен перед обновлением UI
+                    // РџСЂРѕРІРµСЂСЏРµРј С‡С‚Рѕ Fragment РІСЃРµ РµС‰Рµ РїСЂРёСЃРѕРµРґРёРЅРµРЅ РїРµСЂРµРґ РѕР±РЅРѕРІР»РµРЅРёРµРј UI
                     if (isAdded() && getActivity() != null) {
                         getActivity().runOnUiThread(() -> {
                             holder.progressBar.setVisibility(View.GONE);

@@ -177,9 +177,9 @@ public class SettingsFragment extends Fragment {
                     
                     if (!hasShownRootWarning) {
                         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
-                        builder.setTitle("РўСЂРµР±СѓРµС‚СЃСЏ root РґРѕСЃС‚СѓРї");
+                        builder.setTitle("Р СћРЎР‚Р ВµР В±РЎС“Р ВµРЎвЂљРЎРѓРЎРЏ root Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—");
                         builder.setMessage(getString(R.string.adreno_turbo_no_root) + 
-                                         "\n\nР”Р»СЏ СЂР°Р±РѕС‚С‹ СЌС‚РѕР№ С„СѓРЅРєС†РёРё РЅРµРѕР±С…РѕРґРёРј root РґРѕСЃС‚СѓРї РЅР° СѓСЃС‚СЂРѕР№СЃС‚РІРµ.");
+                                         "\n\nР вЂќР В»РЎРЏ РЎР‚Р В°Р В±Р С•РЎвЂљРЎвЂ№ РЎРЊРЎвЂљР С•Р в„– РЎвЂћРЎС“Р Р…Р С”РЎвЂ Р С‘Р С‘ Р Р…Р ВµР С•Р В±РЎвЂ¦Р С•Р Т‘Р С‘Р С root Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С— Р Р…Р В° РЎС“РЎРѓРЎвЂљРЎР‚Р С•Р в„–РЎРѓРЎвЂљР Р†Р Вµ.");
                         builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
                             // Mark as shown
                             SharedPreferences.Editor editor = preferences.edit();
@@ -190,7 +190,7 @@ public class SettingsFragment extends Fragment {
                     } else {
                         // Just show a simple toast after first warning
                         android.widget.Toast.makeText(getContext(), 
-                            "Turbo Mode РЅРµРґРѕСЃС‚СѓРїРµРЅ (РЅРµС‚ root)", 
+                            "Turbo Mode Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р… (Р Р…Р ВµРЎвЂљ root)", 
                             android.widget.Toast.LENGTH_SHORT).show();
                     }
                 }
@@ -1124,7 +1124,7 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
     }
 
     /**
-     * РћР±РЅРѕРІР»СЏРµС‚ РѕС‚РѕР±СЂР°Р¶РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ GPU
+     * Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµРЎвЂљ Р С•РЎвЂљР С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ Р С‘Р Р…РЎвЂћР С•РЎР‚Р СР В°РЎвЂ Р С‘Р С‘ Р С• GPU
      */
     private void updateGPUInfoDisplay(TextView tvGPUInfoDisplay) {
         try {
@@ -1132,18 +1132,18 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
             GPUPerformanceManager.GPUStatus status = gpuManager.getGPUStatus();
             
             String gpuRenderer = com.winlator.cmod.core.GPUInformation.getRenderer();
-            String info = String.format("GPU: %s\nР РµРіСѓР»СЏС‚РѕСЂ: %s", 
+            String info = String.format("GPU: %s\nР В Р ВµР С–РЎС“Р В»РЎРЏРЎвЂљР С•РЎР‚: %s", 
                 gpuRenderer, 
-                status.governor != null ? status.governor : "РќРµРёР·РІРµСЃС‚РЅРѕ");
+                status.governor != null ? status.governor : "Р СњР ВµР С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР Р…Р С•");
             
             if (status.currentFreq > 0) {
-                info += String.format("\nР§Р°СЃС‚РѕС‚Р°: %s (%d%%)", 
+                info += String.format("\nР В§Р В°РЎРѓРЎвЂљР С•РЎвЂљР В°: %s (%d%%)", 
                     status.getFrequencyMHz(), status.getUsagePercent());
             }
             
             tvGPUInfoDisplay.setText(info);
         } catch (Exception e) {
-            tvGPUInfoDisplay.setText("GPU: РРЅС„РѕСЂРјР°С†РёСЏ РЅРµРґРѕСЃС‚СѓРїРЅР°");
+            tvGPUInfoDisplay.setText("GPU: Р ВР Р…РЎвЂћР С•РЎР‚Р СР В°РЎвЂ Р С‘РЎРЏ Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р Р…Р В°");
         }
     }
 

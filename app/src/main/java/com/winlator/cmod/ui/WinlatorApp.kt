@@ -102,6 +102,10 @@ fun WinlatorApp(
     var shortcutSettingsShortcut by remember { mutableStateOf<Shortcut?>(null) }
     var fileManagerContainerId by remember { mutableStateOf(-1) }
 
+    // First launch dialog state
+    var showFirstLaunchDialog by remember { mutableStateOf(false) }
+    var firstLaunchDarkMode by remember { mutableStateOf(false) }
+
     val context = androidx.compose.ui.platform.LocalContext.current
     val imageFs = remember { com.winlator.cmod.xenvironment.ImageFs.find(context) }
     var isInstalling by remember {
@@ -123,6 +127,18 @@ fun WinlatorApp(
                     }
                 }
             )
+        }
+    }
+
+    // После завершения установки ImageFs проверяем, нужно ли показать диалог первого запуска
+    val isFirstLaunch = remember {
+        !preferences.getBoolean("first_launch_completed", false)
+    }
+
+    LaunchedEffect(isInstalling, isFirstLaunch) {
+        if (!isInstalling && isFirstLaunch) {
+            firstLaunchDarkMode = false
+            showFirstLaunchDialog = true
         }
     }
 
@@ -491,6 +507,24 @@ fun WinlatorApp(
                         },
                     )
                 }
+            }
+
+            // Диалог первого запуска — поверх всего
+            if (showFirstLaunchDialog) {
+                FirstLaunchDialog(
+                    preferences = preferences,
+                    isDarkMode = firstLaunchDarkMode,
+                    onThemeSelected = { dark ->
+                        firstLaunchDarkMode = dark
+                        // Немедленно обновляем pref, чтобы тема применилась
+                        preferences.edit().putBoolean("dark_mode", dark).apply()
+                    },
+                    onDismiss = {
+                        showFirstLaunchDialog = false
+                        // Применяем выбранную тему через recreate в Activity
+                        onDarkModeChange(firstLaunchDarkMode)
+                    },
+                )
             }
         }
     }

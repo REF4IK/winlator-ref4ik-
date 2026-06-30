@@ -2811,7 +2811,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     /**
 
-     * Показывает диалог настроек FPS счетчика
+     * РџРѕРєР°Р·С‹РІР°РµС‚ РґРёР°Р»РѕРі РЅР°СЃС‚СЂРѕРµРє FPS СЃС‡РµС‚С‡РёРєР°
 
      */
 
@@ -2825,13 +2825,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             android.util.Log.d("FpsCounter", "FPS Counter config changed");
 
-            // Обновляем видимость FPS счетчика
+            // РћР±РЅРѕРІР»СЏРµРј РІРёРґРёРјРѕСЃС‚СЊ FPS СЃС‡РµС‚С‡РёРєР°
 
             updateFpsCounterVisibility();
 
             
 
-            // Если FPS счетчик видим, обновляем видимость модулей, ориентацию, масштаб и размер текста
+            // Р•СЃР»Рё FPS СЃС‡РµС‚С‡РёРє РІРёРґРёРј, РѕР±РЅРѕРІР»СЏРµРј РІРёРґРёРјРѕСЃС‚СЊ РјРѕРґСѓР»РµР№, РѕСЂРёРµРЅС‚Р°С†РёСЋ, РјР°СЃС€С‚Р°Р± Рё СЂР°Р·РјРµСЂ С‚РµРєСЃС‚Р°
 
             if (frameRating != null) {
 
@@ -2868,8 +2868,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     }
 
     /**
-     * Вызывается из Compose-диалога FPS счётчика после сохранения настроек.
-     * Обновляет видимость, модули, ориентацию и масштаб оверлея.
+     * Р’С‹Р·С‹РІР°РµС‚СЃСЏ РёР· Compose-РґРёР°Р»РѕРіР° FPS СЃС‡С‘С‚С‡РёРєР° РїРѕСЃР»Рµ СЃРѕС…СЂР°РЅРµРЅРёСЏ РЅР°СЃС‚СЂРѕРµРє.
+     * РћР±РЅРѕРІР»СЏРµС‚ РІРёРґРёРјРѕСЃС‚СЊ, РјРѕРґСѓР»Рё, РѕСЂРёРµРЅС‚Р°С†РёСЋ Рё РјР°СЃС€С‚Р°Р± РѕРІРµСЂР»РµСЏ.
      */
     public void onFpsCounterConfigChangedFromCompose() {
         android.util.Log.d("FpsCounter", "FPS Counter config changed from Compose dialog");
@@ -2893,7 +2893,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     /**
 
-     * Обновляет видимость FPS счетчика на основе настроек
+     * РћР±РЅРѕРІР»СЏРµС‚ РІРёРґРёРјРѕСЃС‚СЊ FPS СЃС‡РµС‚С‡РёРєР° РЅР° РѕСЃРЅРѕРІРµ РЅР°СЃС‚СЂРѕРµРє
 
      */
 
@@ -3295,7 +3295,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-            // Merge in container’s environment variables
+            // Merge in containerвЂ™s environment variables
 
             envVars.putAll(container.getEnvVars());
 
@@ -4239,11 +4239,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        // 3. Add your final “exec” line
+        // 3. Add your final вЂњexecвЂќ line
 
         //    For example, run wine explorer.exe /desktop=shell wfm ...
 
-        //    Also note if you need box64 or not—depends on your environment.
+        //    Also note if you need box64 or notвЂ”depends on your environment.
 
         String box64Path = imageFs.getRootDir().getPath() + "/usr/local/bin/box64";
 
@@ -4353,13 +4353,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        // Инициализируем FPS счетчик только если контейнер поддерживает FPS
+        // РРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј FPS СЃС‡РµС‚С‡РёРє С‚РѕР»СЊРєРѕ РµСЃР»Рё РєРѕРЅС‚РµР№РЅРµСЂ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ FPS
 
         if (container != null) {
 
             frameRating = new FrameRating(this, container);
 
-            frameRating.setVisibility(View.GONE);  // Изначально скрыт
+            frameRating.setVisibility(View.GONE);  // РР·РЅР°С‡Р°Р»СЊРЅРѕ СЃРєСЂС‹С‚
 
             if (xServerView != null) xServerView.getRenderer().setFrameRating(frameRating);
 
@@ -4377,7 +4377,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             
 
-            // Обновляем видимость на основе настроек
+            // РћР±РЅРѕРІР»СЏРµРј РІРёРґРёРјРѕСЃС‚СЊ РЅР° РѕСЃРЅРѕРІРµ РЅР°СЃС‚СЂРѕРµРє
 
             updateFpsCounterVisibility();
 
@@ -4385,7 +4385,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        // Восстанавливаем панель быстрого доступа если была включена
+        // Р’РѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµРј РїР°РЅРµР»СЊ Р±С‹СЃС‚СЂРѕРіРѕ РґРѕСЃС‚СѓРїР° РµСЃР»Рё Р±С‹Р»Р° РІРєР»СЋС‡РµРЅР°
 
         boolean quickAccessEnabled = preferences.getBoolean("quick_access_panel_enabled", false);
 
@@ -6357,7 +6357,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 updateFpsCounterVisibility();
 
-                // Обновляем счетчик только если он включен
+                // РћР±РЅРѕРІР»СЏРµРј СЃС‡РµС‚С‡РёРє С‚РѕР»СЊРєРѕ РµСЃР»Рё РѕРЅ РІРєР»СЋС‡РµРЅ
 
                 if (fpsCounterConfig.isEnabled() && frameRating != null) {
 
@@ -6389,7 +6389,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
 
-            // Не принудительно скрываем - оставляем управление за updateFpsCounterVisibility
+            // РќРµ РїСЂРёРЅСѓРґРёС‚РµР»СЊРЅРѕ СЃРєСЂС‹РІР°РµРј - РѕСЃС‚Р°РІР»СЏРµРј СѓРїСЂР°РІР»РµРЅРёРµ Р·Р° updateFpsCounterVisibility
 
             if (frameRating != null) frameRating.reset();
 
