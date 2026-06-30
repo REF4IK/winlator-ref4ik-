@@ -6,6 +6,11 @@ import android.os.Environment
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,10 +28,12 @@ import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.XrActivity
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
-import com.winlator.cmod.contentdialog.StorageInfoDialog
 import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.xenvironment.ImageFs
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +53,7 @@ fun ContainersScreen(
     var menuContainer by remember { mutableStateOf<Container?>(null) }
     var confirmAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var confirmTitle by remember { mutableStateOf("") }
+    var showStorageInfoContainer by remember { mutableStateOf<Container?>(null) }
 
     fun reload() {
         manager.reload()
@@ -116,7 +124,7 @@ fun ContainersScreen(
                 }
             })
             DropdownMenuItem(text = { Text(stringResource(R.string.storage_info)) }, onClick = {
-                showMenu = false; StorageInfoDialog(ctx as Activity, c).show()
+                showMenu = false; showStorageInfoContainer = c
             })
             DropdownMenuItem(text = { Text(stringResource(R.string.container_file_manager)) }, onClick = {
                 showMenu = false
@@ -162,6 +170,14 @@ fun ContainersScreen(
             onDismissRequest = {}, confirmButton = {},
             title = { Text(preloaderText) },
             text = { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
+        )
+    }
+
+    if (showStorageInfoContainer != null) {
+        StorageInfoDialogCompose(
+            context = ctx,
+            container = showStorageInfoContainer!!,
+            onDismiss = { showStorageInfoContainer = null }
         )
     }
 }
@@ -224,5 +240,173 @@ fun ContainerCard(
             }
             IconButton(onClick = onMenu) { Icon(Icons.Filled.MoreVert, null) }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StorageInfoDialogCompose(
+    context: android.content.Context,
+    container: Container,
+    onDismiss: () -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var driveCSize by remember { mutableLongStateOf(0L) }
+    var cacheSize by remember { mutableLongStateOf(0L) }
+    var totalSize by remember { mutableLongStateOf(0L) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    val internalStorageSize = remember { com.winlator.cmod.core.FileUtils.getInternalStorageSize() }
+    val rootDir = container.rootDir
+    val driveCDir = remember(rootDir) { File(rootDir, ".wine/drive_c") }
+    val cacheDir = remember(rootDir) { File(rootDir, ".cache") }
+
+    fun calculateDirectorySize(dir: File): Long {
+        if (!dir.exists()) return 0L
+        if (dir.isFile) return dir.length()
+        var size = 0L
+        val stack = java.util.Stack<File>()
+        stack.push(dir)
+        while (!stack.isEmpty()) {
+            val current = stack.pop()
+            val files = current.listFiles()
+            if (files != null) {
+                for (f in files) {
+                    if (f.isDirectory) {
+                        stack.push(f)
+                    } else {
+                        size += f.length()
+                    }
+                }
+            }
+        }
+        return size
+    }
+
+    LaunchedEffect(container) {
+        isLoading = true
+        withContext(Dispatchers.IO) {
+            val dCSize = calculateDirectorySize(driveCDir)
+            val cSize = calculateDirectorySize(cacheDir)
+            withContext(Dispatchers.Main) {
+                driveCSize = dCSize
+                cacheSize = cSize
+                totalSize = dCSize + cSize
+                isLoading = false
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.icon_info),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(stringResource(R.string.storage_info), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.padding(24.dp))
+                    Text(stringResource(R.string.loading), style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    val progress = if (internalStorageSize > 0) totalSize.toFloat() / internalStorageSize else 0f
+                    val percentage = (progress * 100).toInt()
+
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(100.dp)) {
+                        CircularProgressIndicator(
+                            progress = { progress.coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxSize(),
+                            strokeWidth = 8.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                        )
+                        Text(
+                            text = "$percentage%",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.estimated_used_space),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        DetailRow(label = "Drive C:", value = com.winlator.cmod.core.StringUtils.formatBytes(driveCSize))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        DetailRow(label = "Cache:", value = com.winlator.cmod.core.StringUtils.formatBytes(cacheSize))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        DetailRow(label = "Total Size:", value = com.winlator.cmod.core.StringUtils.formatBytes(totalSize))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    coroutineScope.launch {
+                        isLoading = true
+                        withContext(Dispatchers.IO) {
+                            com.winlator.cmod.core.FileUtils.clear(cacheDir)
+                            container.putExtra("desktopTheme", null)
+                            container.saveData()
+                            val dCSize = calculateDirectorySize(driveCDir)
+                            withContext(Dispatchers.Main) {
+                                driveCSize = dCSize
+                                cacheSize = 0L
+                                totalSize = dCSize
+                                isLoading = false
+                            }
+                        }
+                    }
+                },
+                enabled = !isLoading
+            ) {
+                Text(stringResource(R.string.clear_cache))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close))
+            }
+        }
+    )
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
     }
 }
