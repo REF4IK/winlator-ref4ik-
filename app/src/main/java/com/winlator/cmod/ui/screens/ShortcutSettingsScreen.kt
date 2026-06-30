@@ -57,6 +57,7 @@ import com.winlator.cmod.box86_64.rc.RCFile
 import com.winlator.cmod.midi.MidiManager
 import com.winlator.cmod.contentdialog.ShortcutSettingsDialog
 import java.io.File
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,19 +85,20 @@ fun ShortcutSettingsScreen(
     val screenSizeEntries = remember { ctx.resources.getStringArray(R.array.screen_size_entries).toList() }
     val initialScreenSize = remember { shortcut.getExtra("screenSize", container.screenSize) }
     var screenSize by remember {
-        mutableStateOf(if (screenSizeEntries.contains(initialScreenSize)) initialScreenSize else "Custom")
+        val entry = screenSizeEntries.firstOrNull { it.split(" ").firstOrNull() == initialScreenSize }
+        mutableStateOf(entry ?: if (initialScreenSize.contains("x")) "Custom" else initialScreenSize)
     }
+    var isCustomScreen by remember { mutableStateOf(screenSize == "Custom") }
     var customScreenWidth by remember {
-        mutableStateOf(if (!screenSizeEntries.contains(initialScreenSize) && initialScreenSize.contains("x")) {
+        mutableStateOf(if (isCustomScreen && initialScreenSize.contains("x")) {
             initialScreenSize.split("x").getOrElse(0) { "" }
         } else "")
     }
     var customScreenHeight by remember {
-        mutableStateOf(if (!screenSizeEntries.contains(initialScreenSize) && initialScreenSize.contains("x")) {
+        mutableStateOf(if (isCustomScreen && initialScreenSize.contains("x")) {
             initialScreenSize.split("x").getOrElse(1) { "" }
         } else "")
     }
-    var isCustomScreen by remember { mutableStateOf(screenSize == "Custom") }
     var graphicsDriver by remember { mutableStateOf(shortcut.getExtra("graphicsDriver", container.graphicsDriver)) }
     var graphicsDriverConfig by remember { mutableStateOf(shortcut.getExtra("graphicsDriverConfig", container.graphicsDriverConfig)) }
     var dxwrapper by remember { mutableStateOf(shortcut.getExtra("dxwrapper", container.dxWrapper)) }
@@ -108,6 +110,8 @@ fun ShortcutSettingsScreen(
         val raw = shortcut.getExtra("emulator", container.emulator) ?: ""
         mutableStateOf(if (raw.lowercase() == "box64") "Box64" else "FEXCore")
     }
+    var showBox64Download by remember { mutableStateOf(false) }
+    var showFexcoreDownload by remember { mutableStateOf(false) }
 
     LaunchedEffect(isArm64EC) {
         if (!isArm64EC) {
@@ -158,6 +162,7 @@ fun ShortcutSettingsScreen(
     var cpuListWoW64 by remember { mutableStateOf(shortcut.getExtra("cpuListWoW64", container.getCPUListWoW64(true))) }
     var winComponents by remember { mutableStateOf(shortcut.getExtra("wincomponents", container.winComponents)) }
     var envVars by remember { mutableStateOf(shortcut.getExtra("envVars", container.envVars)) }
+    var lcAll by remember { mutableStateOf(shortcut.getExtra("lc_all", container.getLC_ALL() ?: (Locale.getDefault().language + "_" + Locale.getDefault().country + ".UTF-8"))) }
 
     // Dialogs
     var showGraphicsConfig by remember { mutableStateOf(false) }
@@ -173,6 +178,7 @@ fun ShortcutSettingsScreen(
     var versionRefreshTrigger by remember { mutableStateOf(0) }
 
     val box64Versions = remember(isArm64EC, versionRefreshTrigger) {
+        contentsManager.syncContents()
         val list = mutableListOf<String>()
         val resId = if (isArm64EC) R.array.wowbox64_version_entries else R.array.box64_version_entries
         list.addAll(ctx.resources.getStringArray(resId))
@@ -192,10 +198,11 @@ fun ShortcutSettingsScreen(
                 }
             }
         }
-        list
+        list.distinct()
     }
 
     val fexcoreVersions = remember(versionRefreshTrigger) {
+        contentsManager.syncContents()
         val list = mutableListOf<String>()
         list.addAll(ctx.resources.getStringArray(R.array.fexcore_version_entries))
         contentsManager.getProfiles(com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_FEXCORE)?.forEach { profile ->
@@ -207,7 +214,7 @@ fun ShortcutSettingsScreen(
                 }
             }
         }
-        list
+        list.distinct()
     }
 
     val graphicsDriverVersions = remember { ctx.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).toList() }
@@ -337,7 +344,8 @@ fun ShortcutSettingsScreen(
                     shortcut.putExtra("inputType", finalInputType.toString())
 
                     shortcut.putExtra("execArgs", execArgs.ifEmpty { null })
-                    shortcut.putExtra("screenSize", if (isCustomScreen) "${customScreenWidth}x${customScreenHeight}" else if (screenSize != container.screenSize) screenSize else null)
+                    val finalScreenSize = if (isCustomScreen) "${customScreenWidth}x${customScreenHeight}" else (screenSize.split(" ").firstOrNull() ?: screenSize)
+                    shortcut.putExtra("screenSize", if (finalScreenSize != container.screenSize) finalScreenSize else null)
                     shortcut.putExtra("graphicsDriver", if (graphicsDriver != container.graphicsDriver) graphicsDriver else null)
                     shortcut.putExtra("graphicsDriverConfig", if (graphicsDriverConfig != container.graphicsDriverConfig) graphicsDriverConfig else null)
                     shortcut.putExtra("dxwrapper", if (dxwrapper != container.dxWrapper) dxwrapper else null)
@@ -390,6 +398,7 @@ fun ShortcutSettingsScreen(
                     shortcut.putExtra("cpuListWoW64", if (cpuListWoW64 != container.getCPUListWoW64(true)) cpuListWoW64 else null)
                     shortcut.putExtra("wincomponents", if (winComponents != container.winComponents) winComponents else null)
                     shortcut.putExtra("envVars", envVars.ifEmpty { null })
+                    shortcut.putExtra("lc_all", if (lcAll != container.getLC_ALL()) lcAll else null)
 
                     shortcut.saveData()
                     AppUtils.showToast(ctx, R.string.saved)
@@ -409,148 +418,152 @@ fun ShortcutSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // ---- Name + Custom Icon ----
-            SectionTitle(stringResource(R.string.name))
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-            SectionTitle(stringResource(R.string.custom_game_icon))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(
-                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val displayIcon = customIcon ?: shortcut.displayIcon
-                    if (displayIcon != null) {
-                        Image(bitmap = displayIcon.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit)
-                    } else {
-                        Icon(Icons.Filled.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+            // ---- Верхний блок: Contents ----
+            SectionCard(title = stringResource(R.string.contents), icon = Icons.Filled.Settings) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+
+                // Custom Icon row
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Text(stringResource(R.string.custom_game_icon), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(
+                            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            val displayIcon = customIcon ?: shortcut.displayIcon
+                            if (displayIcon != null) {
+                                Image(bitmap = displayIcon.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit)
+                            } else {
+                                Icon(Icons.Filled.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+                            }
+                        }
+                        OutlinedButton(onClick = { iconPickerLauncher.launch("image/*") }) { Text(stringResource(R.string.select_icon)) }
+                        if (customIcon != null || shortcut.getExtra("customIconPath").isNotEmpty()) {
+                            OutlinedButton(onClick = {
+                                customIcon = null
+                                shortcut.removeCustomIcon()
+                            }) { Text(stringResource(R.string.remove_icon)) }
+                        }
                     }
                 }
-                OutlinedButton(onClick = { iconPickerLauncher.launch("image/*") }) { Text(stringResource(R.string.select_icon)) }
-                if (customIcon != null || shortcut.getExtra("customIconPath").isNotEmpty()) {
-                    OutlinedButton(onClick = {
-                        customIcon = null
-                        shortcut.removeCustomIcon()
-                    }) { Text(stringResource(R.string.remove_icon)) }
+
+                // Screen Size
+                val screenSizeEntries = ctx.resources.getStringArray(R.array.screen_size_entries).toList()
+                ContainerSpinnerRow(
+                    label = stringResource(R.string.screen_size),
+                    entries = screenSizeEntries,
+                    selected = screenSize,
+                    onSelected = {
+                        screenSize = it; isCustomScreen = it == "Custom"
+                    }
+                )
+                if (isCustomScreen) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = customScreenWidth,
+                            onValueChange = { customScreenWidth = it.filter { c -> c.isDigit() } },
+                            label = { Text("W") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = customScreenHeight,
+                            onValueChange = { customScreenHeight = it.filter { c -> c.isDigit() } },
+                            label = { Text("H") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
-            }
 
-            HorizontalDivider()
+                // Graphics Driver
+                ContainerSpinnerRowWithConfig(
+                    label = stringResource(R.string.graphics_driver),
+                    entries = ctx.resources.getStringArray(R.array.graphics_driver_entries).toList(),
+                    selected = graphicsDriver,
+                    onSelected = { graphicsDriver = it },
+                    onConfigClick = { showGraphicsConfig = true }
+                )
 
-            // ---- Screen Size ----
-            SectionTitle(stringResource(R.string.screen_size))
-            val screenSizeEntries = ctx.resources.getStringArray(R.array.screen_size_entries).toList()
-            SettingsSpinner(entries = screenSizeEntries, selected = screenSize, onSelected = {
-                screenSize = it; isCustomScreen = it == "Custom"
-            })
-            if (isCustomScreen) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = customScreenWidth, onValueChange = { customScreenWidth = it.filter { c -> c.isDigit() } }, label = { Text("W") }, singleLine = true, modifier = Modifier.weight(1f))
-                    OutlinedTextField(value = customScreenHeight, onValueChange = { customScreenHeight = it.filter { c -> c.isDigit() } }, label = { Text("H") }, singleLine = true, modifier = Modifier.weight(1f))
-                }
-            }
+                // DX Wrapper
+                ContainerSpinnerRowWithConfig(
+                    label = stringResource(R.string.dxwrapper),
+                    entries = ctx.resources.getStringArray(R.array.dxwrapper_entries).toList(),
+                    selected = dxwrapper,
+                    onSelected = { dxwrapper = it },
+                    onConfigClick = { showDxConfig = true }
+                )
 
-            // ---- Graphics Driver ----
-            SectionTitle(stringResource(R.string.graphics_driver))
-            SettingsSpinnerWithConfig(
-                entries = ctx.resources.getStringArray(R.array.graphics_driver_entries).toList(),
-                selected = graphicsDriver,
-                onSelected = { graphicsDriver = it },
-                onConfig = { showGraphicsConfig = true },
-            )
-            val driverVersion = remember(graphicsDriverConfig) {
-                com.winlator.cmod.contentdialog.GraphicsDriverConfigDialog.getVersion(graphicsDriverConfig)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Current Version: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                Text(driverVersion, color = Color(0xFF0087FF), style = MaterialTheme.typography.bodyMedium)
-            }
+                // DDraw Wrapper
+                val ddrawEntries = ctx.resources.getStringArray(R.array.ddrawrapper_entries).toList()
+                ContainerSpinnerRow(
+                    label = stringResource(R.string.ddraw_wrapper),
+                    entries = ddrawEntries,
+                    selected = ddrawrapper,
+                    onSelected = { ddrawrapper = it }
+                )
 
-            // ---- DX Wrapper (with help button) ----
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionTitle(stringResource(R.string.dxwrapper))
-                Spacer(Modifier.width(4.dp))
-                IconButton(onClick = { AppUtils.showHelpBox(ctx, null, R.string.dxwrapper_help_content) }, modifier = Modifier.size(22.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Help, contentDescription = "Help", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                }
-            }
-            SettingsSpinnerWithConfig(
-                entries = ctx.resources.getStringArray(R.array.dxwrapper_entries).toList(),
-                selected = dxwrapper,
-                onSelected = { dxwrapper = it },
-                onConfig = { showDxConfig = true },
-            )
+                // Audio Driver
+                ContainerSpinnerRowWithConfig(
+                    label = stringResource(R.string.audio_driver),
+                    entries = ctx.resources.getStringArray(R.array.audio_driver_entries).toList(),
+                    selected = audioDriver,
+                    onSelected = { audioDriver = it },
+                    onConfigClick = { showAudioConfig = true }
+                )
 
-            // ---- DDraw Wrapper ----
-            SectionTitle(stringResource(R.string.ddraw_wrapper))
-            val ddrawEntries = ctx.resources.getStringArray(R.array.ddrawrapper_entries).toList()
-            SettingsSpinner(entries = ddrawEntries, selected = ddrawrapper, onSelected = { ddrawrapper = it })
-
-            // ---- Audio Driver ----
-            SectionTitle(stringResource(R.string.audio_driver))
-            SettingsSpinnerWithConfig(
-                entries = ctx.resources.getStringArray(R.array.audio_driver_entries).toList(),
-                selected = audioDriver,
-                onSelected = { audioDriver = it },
-                onConfig = { showAudioConfig = true },
-            )
-
-            // ---- 64bit Emulator (only if arm64EC) ----
-            if (isArm64EC) {
-                SectionTitle("64bit Emulator")
+                // DLL Emulator
                 val emulatorEntries = ctx.resources.getStringArray(R.array.emulator_entries).toList()
-                SettingsSpinner(entries = emulatorEntries, selected = emulator64, onSelected = { emulator64 = it })
-            }
-
-            // ---- DLL Emulator ----
-            SectionTitle(stringResource(R.string.dll_emulator))
-            val emulatorEntries = ctx.resources.getStringArray(R.array.emulator_entries).toList()
-            SettingsSpinner(
-                entries = emulatorEntries,
-                selected = emulator,
-                onSelected = { emulator = it },
-                enabled = isArm64EC,
-            )
-
-            // ---- MIDI SoundFont ----
-            SectionTitle(stringResource(R.string.midi_sound_font))
-            val midiFiles = remember { MidiManager.getSF2Files(ctx) }
-            val midiEntries = remember(midiFiles) {
-                val list = mutableListOf("None", MidiManager.DEFAULT_SF2_FILE)
-                midiFiles?.forEach { list.add(it.name) }
-                list
-            }
-            SettingsSpinner(entries = midiEntries, selected = if (midiSoundFont.isEmpty()) "None" else midiSoundFont, onSelected = {
-                midiSoundFont = if (it == "None") "" else it
-            })
-
-            HorizontalDivider()
-
-            // ---- Secondary Executable ----
-            SectionTitle(stringResource(R.string.secondary_exec))
-            SettingsSwitch(stringResource(R.string.use_secondary_executable), useSecondaryExec) { useSecondaryExec = it }
-            if (useSecondaryExec) {
-                OutlinedTextField(
-                    value = secondaryExec,
-                    onValueChange = { secondaryExec = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.enter_secondary_exec_path)) }
+                ContainerSpinnerRow(
+                    label = stringResource(R.string.dll_emulator),
+                    entries = emulatorEntries,
+                    selected = if (emulator.lowercase(Locale.ENGLISH) == "fexcore") "FEXCore" else "Box64",
+                    enabled = isArm64EC,
+                    onSelected = { emulator = it.lowercase(Locale.ENGLISH) }
                 )
-                OutlinedTextField(
-                    value = execDelay,
-                    onValueChange = { execDelay = it.filter { c -> c.isDigit() } },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.enter_delay_seconds)) }
+
+                // MIDI SoundFont
+                val midiFiles = remember { MidiManager.getSF2Files(ctx) }
+                val midiEntries = remember(midiFiles) {
+                    val list = mutableListOf("None", MidiManager.DEFAULT_SF2_FILE)
+                    midiFiles?.forEach { list.add(it.name) }
+                    list
+                }
+                ContainerSpinnerRow(
+                    label = stringResource(R.string.midi_sound_font),
+                    entries = midiEntries,
+                    selected = if (midiSoundFont.isEmpty()) "None" else midiSoundFont,
+                    onSelected = { midiSoundFont = if (it == "None") "" else it }
+                )
+
+                // Locale (LC_ALL)
+                val lcAllEntries = remember { ctx.resources.getStringArray(R.array.some_lc_all).toList() }
+                val lcAllNames = remember { ctx.resources.getStringArray(R.array.some_lc_all_names).toList() }
+                val lcAllDisplayName = remember(lcAll) {
+                    val code = lcAll.replace(".UTF-8", "")
+                    val idx = lcAllEntries.indexOf(code)
+                    if (idx >= 0) lcAllNames[idx] else lcAll
+                }
+                ContainerSpinnerRow(
+                    label = stringResource(R.string.locale),
+                    entries = lcAllNames,
+                    selected = lcAllDisplayName,
+                    onSelected = { name ->
+                        val idx = lcAllNames.indexOf(name)
+                        if (idx >= 0) lcAll = lcAllEntries[idx] + ".UTF-8"
+                    }
                 )
             }
-
-            HorizontalDivider()
 
             // ---- Tab Layout ----
             var currentTab by remember { mutableStateOf(0) }
@@ -585,133 +598,104 @@ fun ShortcutSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // ======== Box86/Box64 FieldSet ========
-                        FieldSetCard(label = stringResource(R.string.box86_box64)) {
-                            // ---- Box64 Version + Download ----
-                            SectionTitle("Box64 ${stringResource(R.string.version)}")
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.weight(1f)) {
-                                    SettingsSpinner(entries = box64Versions, selected = box64Version, onSelected = { box64Version = it })
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                FilledIconButton(
-                                    onClick = {
-                                        val contentType = if (isArm64EC) {
-                                            com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
-                                        } else {
-                                            com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_BOX64
-                                        }
-                                        dialogHelper.showVersionDownloadDialog(contentType, "Box64") { version ->
-                                            box64Version = version
-                                            versionRefreshTrigger++
-                                        }
-                                    },
-                                    modifier = Modifier.size(40.dp)
+                        // ======== Box86/Box64 Section ========
+                        if (emulator.lowercase(Locale.ENGLISH) != "fexcore") {
+                            SectionCard(title = stringResource(R.string.box64), icon = Icons.Filled.Code) {
+                                ContainerSpinnerRowWithDownload(
+                                    label = stringResource(R.string.version),
+                                    entries = box64Versions,
+                                    selected = box64Version,
+                                    onSelected = { box64Version = it },
+                                    onDownloadClick = { showBox64Download = true }
+                                )
+
+                                val box64Presets = remember(presetsRefreshTrigger) { Box86_64PresetManager.getPresets("box64", ctx) }
+                                val box64PresetNames = remember(box64Presets) { box64Presets.map { it.name } }
+                                val selectedBox64PresetName = box64Presets.firstOrNull { it.id == box64Preset }?.name ?: box64Preset
+                                ContainerSpinnerRow(
+                                    label = stringResource(R.string.preset),
+                                    entries = box64PresetNames,
+                                    selected = selectedBox64PresetName,
+                                    onSelected = { name ->
+                                        val preset = box64Presets.firstOrNull { p -> p.name == name }
+                                        if (preset != null) box64Preset = preset.id
+                                    }
+                                )
+
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.End
                                 ) {
-                                    Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.download))
-                                }
-                            }
-
-                            // ---- Box64 Preset ----
-                            SectionTitle("Box64 Preset")
-                            val box64Presets = remember(presetsRefreshTrigger) { Box86_64PresetManager.getPresets("box64", ctx) }
-                            val box64PresetNames = remember(box64Presets) { box64Presets.map { it.name } }
-                            val selectedBox64PresetName = box64Presets.firstOrNull { it.id == box64Preset }?.name ?: box64Preset
-                            SettingsSpinner(
-                                entries = box64PresetNames,
-                                selected = selectedBox64PresetName,
-                                onSelected = { name ->
-                                    val preset = box64Presets.firstOrNull { p -> p.name == name }
-                                    if (preset != null) box64Preset = preset.id
-                                }
-                            )
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                IconButton(onClick = {
-                                    activeBox64PresetEditId = null
-                                    showBox64PresetDialog = true
-                                }) { Icon(Icons.Filled.Add, "Add Preset") }
-
-                                IconButton(onClick = {
-                                    activeBox64PresetEditId = box64Preset
-                                    showBox64PresetDialog = true
-                                }) { Icon(Icons.Filled.Edit, "Edit Preset") }
-
-                                IconButton(onClick = {
-                                    Box86_64PresetManager.duplicatePreset("box64", ctx, box64Preset)
-                                    presetsRefreshTrigger++
-                                }) { Icon(Icons.Filled.ContentCopy, "Duplicate Preset") }
-
-                                if (box64Preset.startsWith("custom-")) {
                                     IconButton(onClick = {
-                                        Box86_64PresetManager.removePreset("box64", ctx, box64Preset)
+                                        activeBox64PresetEditId = null
+                                        showBox64PresetDialog = true
+                                    }) { Icon(Icons.Filled.Add, "Add Preset") }
+
+                                    IconButton(onClick = {
+                                        activeBox64PresetEditId = box64Preset
+                                        showBox64PresetDialog = true
+                                    }) { Icon(Icons.Filled.Edit, "Edit Preset") }
+
+                                    IconButton(onClick = {
+                                        Box86_64PresetManager.duplicatePreset("box64", ctx, box64Preset)
                                         presetsRefreshTrigger++
-                                    }) { Icon(Icons.Filled.Delete, "Remove Preset") }
+                                    }) { Icon(Icons.Filled.ContentCopy, "Duplicate Preset") }
+
+                                    if (box64Preset.startsWith("custom-")) {
+                                        IconButton(onClick = {
+                                            Box86_64PresetManager.removePreset("box64", ctx, box64Preset)
+                                            presetsRefreshTrigger++
+                                        }) { Icon(Icons.Filled.Delete, "Remove Preset") }
+                                    }
+
+                                    IconButton(onClick = {
+                                        Box86_64PresetManager.exportPreset("box64", ctx, box64Preset)
+                                    }) { Icon(Icons.Filled.IosShare, "Export Preset") }
+
+                                    IconButton(onClick = {
+                                        box64ImportLauncher.launch("*/*")
+                                    }) { Icon(Icons.Filled.FileOpen, "Import Preset") }
                                 }
 
-                                IconButton(onClick = {
-                                    Box86_64PresetManager.exportPreset("box64", ctx, box64Preset)
-                                }) { Icon(Icons.Filled.IosShare, "Export Preset") }
-
-                                IconButton(onClick = {
-                                    box64ImportLauncher.launch("*/*")
-                                }) { Icon(Icons.Filled.FileOpen, "Import Preset") }
+                                val rcManager = remember { RCManager(ctx) }
+                                val rcFiles: List<RCFile> = remember { rcManager.rcFiles }
+                                val rcFileNames = remember(rcFiles) { rcFiles.map { it.name } }
+                                val rcfileIdInt = rcfileId.toIntOrNull() ?: 0
+                                val selectedRcFileName = rcFiles.getOrNull(rcfileIdInt)?.name ?: rcFiles.firstOrNull()?.name ?: ""
+                                ContainerSpinnerRow(
+                                    label = stringResource(R.string.box86_64_rc_files),
+                                    entries = rcFileNames,
+                                    selected = selectedRcFileName,
+                                    onSelected = { name ->
+                                        val idx = rcFiles.indexOfFirst { r -> r.name == name }
+                                        if (idx >= 0) rcfileId = idx.toString()
+                                    }
+                                )
                             }
-
-                            // ---- RC File ----
-                            SectionTitle(stringResource(R.string.box86_64_rc_files))
-                            val rcManager = remember { RCManager(ctx) }
-                            val rcFiles: List<RCFile> = remember { rcManager.rcFiles }
-                            val rcFileNames = remember(rcFiles) { rcFiles.map { it.name } }
-                            val rcfileIdInt = rcfileId.toIntOrNull() ?: 0
-                            val selectedRcFileName = rcFiles.getOrNull(rcfileIdInt)?.name ?: rcFiles.firstOrNull()?.name ?: ""
-                            SettingsSpinner(
-                                entries = rcFileNames,
-                                selected = selectedRcFileName,
-                                onSelected = { name ->
-                                    val idx = rcFiles.indexOfFirst { r -> r.name == name }
-                                    if (idx >= 0) rcfileId = idx.toString()
-                                }
-                            )
                         }
 
-                        // ======== FEXCore FieldSet (only if arm64EC) ========
-                        if (isArm64EC) {
-                            FieldSetCard(label = stringResource(R.string.fexcore_config)) {
-                                // ---- FEXCore Version + Download ----
-                                SectionTitle("FEXCore ${stringResource(R.string.version)}")
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(Modifier.weight(1f)) {
-                                        SettingsSpinner(entries = fexcoreVersions, selected = fexcoreVersion, onSelected = { fexcoreVersion = it })
-                                    }
-                                    Spacer(Modifier.width(8.dp))
-                                    FilledIconButton(
-                                        onClick = {
-                                            val contentType = com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_FEXCORE
-                                            dialogHelper.showVersionDownloadDialog(contentType, "FEXCore") { version ->
-                                                fexcoreVersion = version
-                                                versionRefreshTrigger++
-                                            }
-                                        },
-                                        modifier = Modifier.size(40.dp)
-                                    ) {
-                                        Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.download))
-                                    }
-                                }
+                        // ======== FEXCore Section ========
+                        if (isArm64EC && emulator.lowercase(Locale.ENGLISH) == "fexcore") {
+                            SectionCard(title = stringResource(R.string.fexcore), icon = Icons.Filled.Memory) {
+                                ContainerSpinnerRowWithDownload(
+                                    label = stringResource(R.string.version),
+                                    entries = fexcoreVersions,
+                                    selected = fexcoreVersion,
+                                    onSelected = { fexcoreVersion = it },
+                                    onDownloadClick = { showFexcoreDownload = true }
+                                )
 
-                                // ---- FEXCore Preset ----
-                                SectionTitle("FEXCore ${stringResource(R.string.preset)}")
                                 val fexPresets = remember(presetsRefreshTrigger) { FEXCorePresetManager.getPresets(ctx) }
                                 val selectedPresetName = fexPresets.find { it.id == fexcorePreset }?.name ?: fexcorePreset
-                                SettingsSpinner(
+                                ContainerSpinnerRow(
+                                    label = stringResource(R.string.preset),
                                     entries = fexPresets.map { it.name },
                                     selected = selectedPresetName,
                                     onSelected = { name -> fexcorePreset = fexPresets.find { it.name == name }?.id ?: name }
                                 )
+
                                 Row(
-                                    Modifier.fillMaxWidth(),
+                                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
                                     horizontalArrangement = Arrangement.End
                                 ) {
                                     IconButton(onClick = {
@@ -747,13 +731,13 @@ fun ShortcutSettingsScreen(
                             }
                         }
 
-                        // ======== System FieldSet ========
-                        FieldSetCard(label = stringResource(R.string.system)) {
-                            SectionTitle(stringResource(R.string.startup_selection))
+                        // ======== System ========
+                        SectionCard(title = stringResource(R.string.system), icon = Icons.Filled.Settings) {
                             val startupSelectionEntries = ctx.resources.getStringArray(R.array.startup_selection_entries).toList()
                             val startupSelectionInt = startupSelection.toIntOrNull() ?: 0
                             val selectedStartupSelection = startupSelectionEntries.getOrElse(startupSelectionInt) { startupSelectionEntries.first() }
-                            SettingsSpinner(
+                            ContainerSpinnerRow(
+                                label = stringResource(R.string.startup_selection),
                                 entries = startupSelectionEntries,
                                 selected = selectedStartupSelection,
                                 onSelected = { name ->
@@ -763,13 +747,12 @@ fun ShortcutSettingsScreen(
                             )
                         }
 
-                        // ======== Input Controls FieldSet ========
-                        FieldSetCard(label = stringResource(R.string.input_controls)) {
-                            // ---- Controls Profile ----
-                            SectionTitle(stringResource(R.string.profile))
+                        // ======== Input Controls ========
+                        SectionCard(title = stringResource(R.string.input_controls), icon = Icons.Filled.Keyboard) {
                             val profileList = remember { inputControlsManager.getProfiles(true) ?: arrayListOf() }
                             val selectedProfile = profileList.find { it.id.toString() == controlsProfileId }?.name ?: stringResource(R.string.none)
-                            SettingsSpinner(
+                            ContainerSpinnerRow(
+                                label = stringResource(R.string.profile),
                                 entries = listOf(stringResource(R.string.none)) + profileList.map { it.name },
                                 selected = selectedProfile,
                                 onSelected = { name ->
@@ -777,13 +760,12 @@ fun ShortcutSettingsScreen(
                                     controlsProfileId = profile?.id?.toString() ?: "0"
                                 },
                             )
-
-                            SettingsSwitch(stringResource(R.string.disable_xinput_for_shortcut), disableXinput) { disableXinput = it }
-                            SettingsSwitch(stringResource(R.string.simulate_touch_screen), touchscreenMode) { touchscreenMode = it }
+                            SwitchRow(stringResource(R.string.disable_xinput_for_shortcut), disableXinput) { disableXinput = it }
+                            SwitchRow(stringResource(R.string.simulate_touch_screen), touchscreenMode) { touchscreenMode = it }
                         }
 
-                        // ======== Game Controller FieldSet ========
-                        FieldSetCard(label = stringResource(R.string.game_controller)) {
+                        // ======== Game Controller ========
+                        SectionCard(title = stringResource(R.string.game_controller), icon = Icons.Filled.Gamepad) {
                             if (isLegacyModeEnabled) {
                                 Text(
                                     "You are in 7.1.2 legacy input mode. Advanced input settings are not available.",
@@ -791,49 +773,53 @@ fun ShortcutSettingsScreen(
                                     color = MaterialTheme.colorScheme.error,
                                 )
                             } else {
-                                // DInput Mapper Type (shown first like old layout)
+                                SwitchRow(stringResource(R.string.enable_xinput_for_wine_game), enableXInput) {
+                                    enableXInput = it
+                                    if (it && enableDInput) {
+                                        Toast.makeText(ctx, R.string.enable_xinput_and_dinput_same_time, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                SwitchRow(stringResource(R.string.enable_dinput_for_wine_game), enableDInput) {
+                                    enableDInput = it
+                                    if (it && enableXInput) {
+                                        Toast.makeText(ctx, R.string.enable_xinput_and_dinput_same_time, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                                 if (enableDInput) {
-                                    SectionTitle(stringResource(R.string.directinput_mapper_type))
                                     val dinputEntries = ctx.resources.getStringArray(R.array.dinput_mapper_type_entries).toList()
-                                    SettingsSpinner(
+                                    ContainerSpinnerRow(
+                                        label = stringResource(R.string.directinput_mapper_type),
                                         entries = dinputEntries,
                                         selected = if (dinputMapperStandard) dinputEntries.getOrElse(0) { "" } else dinputEntries.getOrElse(1) { "" },
                                         onSelected = { selected -> dinputMapperStandard = (dinputEntries.indexOf(selected) == 0) },
                                     )
                                 }
-
-                                // XInput checkbox + help
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    SettingsSwitch(stringResource(R.string.enable_xinput_for_wine_game), enableXInput, modifier = Modifier.weight(1f)) {
-                                        enableXInput = it
-                                        if (it && enableDInput) {
-                                            Toast.makeText(ctx, R.string.enable_xinput_and_dinput_same_time, Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                    IconButton(onClick = { AppUtils.showHelpBox(ctx, null, R.string.help_xinput) }, modifier = Modifier.size(22.dp)) {
-                                        Icon(Icons.AutoMirrored.Filled.Help, contentDescription = "Help", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                                    }
-                                }
-
-                                // DInput checkbox + help
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    SettingsSwitch(stringResource(R.string.enable_dinput_for_wine_game), enableDInput, modifier = Modifier.weight(1f)) {
-                                        enableDInput = it
-                                        if (it && enableXInput) {
-                                            Toast.makeText(ctx, R.string.enable_xinput_and_dinput_same_time, Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                    IconButton(onClick = { AppUtils.showHelpBox(ctx, null, R.string.help_dinput) }, modifier = Modifier.size(22.dp)) {
-                                        Icon(Icons.AutoMirrored.Filled.Help, contentDescription = "Help", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                                    }
-                                }
                             }
                         }
 
-                        // ======== System (Exec Args + Fullscreen + Force Fullscreen) FieldSet ========
-                        FieldSetCard(label = stringResource(R.string.system)) {
-                            // ---- Exec Args with correct popup items ----
-                            SectionTitle(stringResource(R.string.exec_arguments))
+                        // ======== Secondary Executable ========
+                        SectionCard(title = stringResource(R.string.secondary_exec), icon = Icons.Filled.PlayArrow) {
+                            SwitchRow(stringResource(R.string.use_secondary_executable), useSecondaryExec) { useSecondaryExec = it }
+                            if (useSecondaryExec) {
+                                OutlinedTextField(
+                                    value = secondaryExec ?: "",
+                                    onValueChange = { secondaryExec = it },
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                                    singleLine = true,
+                                    label = { Text(stringResource(R.string.enter_secondary_exec_path)) }
+                                )
+                                OutlinedTextField(
+                                    value = execDelay,
+                                    onValueChange = { execDelay = it.filter { c -> c.isDigit() } },
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                                    singleLine = true,
+                                    label = { Text(stringResource(R.string.enter_delay_seconds)) }
+                                )
+                            }
+                        }
+
+                        // ======== Exec Arguments & Window Options ========
+                        SectionCard(title = stringResource(R.string.exec_arguments), icon = Icons.Filled.Terminal) {
                             val extraArgsItems = listOf(
                                 "-force-gfx-direct",
                                 "-force-d3d11-singlethreaded",
@@ -848,7 +834,7 @@ fun ShortcutSettingsScreen(
                                 "/d3d9"
                             )
                             var showArgsMenu by remember { mutableStateOf(false) }
-                            Box(modifier = Modifier.fillMaxWidth()) {
+                            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                                 OutlinedTextField(
                                     value = execArgs,
                                     onValueChange = { execArgs = it },
@@ -874,45 +860,55 @@ fun ShortcutSettingsScreen(
                                     }
                                 }
                             }
-
-                            SettingsSwitch(stringResource(R.string.fullscreen_stretched), fullscreenStretched) { fullscreenStretched = it }
-                            SettingsSwitch(stringResource(R.string.force_fullscreen), forceFullscreen) { forceFullscreen = it }
+                            SwitchRow(stringResource(R.string.fullscreen_stretched), fullscreenStretched) { fullscreenStretched = it }
+                            SwitchRow(stringResource(R.string.force_fullscreen), forceFullscreen) { forceFullscreen = it }
                         }
 
-                        // ======== VkBaSalt FieldSet ========
-                        FieldSetCard(label = "VkBaSalt") {
-                            SectionTitle(stringResource(R.string.vkbasalt_sharpness_effects))
+                        // ======== VkBaSalt ========
+                        SectionCard(title = "VkBaSalt", icon = Icons.Filled.Brush) {
                             val sharpnessEntries = ctx.resources.getStringArray(R.array.vkbasalt_sharpness_entries).toList()
-                            SettingsSpinner(
+                            ContainerSpinnerRow(
+                                label = stringResource(R.string.vkbasalt_sharpness_effects),
                                 entries = sharpnessEntries,
                                 selected = sharpnessEffect,
                                 onSelected = { sharpnessEffect = it }
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.vkbasalt_sharpness_level), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                                Text("${sharpnessLevel}%")
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.vkbasalt_sharpness_level), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("${sharpnessLevel}%", style = MaterialTheme.typography.bodyMedium)
+                                }
+                                Slider(
+                                    value = sharpnessLevel.toFloatOrNull() ?: 100f,
+                                    valueRange = 0f..100f,
+                                    onValueChange = { sharpnessLevel = it.toInt().toString() }
+                                )
                             }
-                            Slider(
-                                value = sharpnessLevel.toFloatOrNull() ?: 100f,
-                                valueRange = 0f..100f,
-                                onValueChange = { sharpnessLevel = it.toInt().toString() }
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.vkbasalt_sharpness_denoise), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                                Text("${sharpnessDenoise}%")
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.vkbasalt_sharpness_denoise), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("${sharpnessDenoise}%", style = MaterialTheme.typography.bodyMedium)
+                                }
+                                Slider(
+                                    value = sharpnessDenoise.toFloatOrNull() ?: 100f,
+                                    valueRange = 0f..100f,
+                                    onValueChange = { sharpnessDenoise = it.toInt().toString() }
+                                )
                             }
-                            Slider(
-                                value = sharpnessDenoise.toFloatOrNull() ?: 100f,
-                                valueRange = 0f..100f,
-                                onValueChange = { sharpnessDenoise = it.toInt().toString() }
-                            )
                         }
 
-                        // ======== Processor Affinity (CPU checkboxes) ========
-                        SectionTitle(stringResource(R.string.processor_affinity))
-                        CPUCheckboxList(cpuList = cpuList, onCpuListChange = { cpuList = it })
-                        SectionTitle(stringResource(R.string.processor_affinity_32_bit_apps))
-                        CPUCheckboxList(cpuList = cpuListWoW64, onCpuListChange = { cpuListWoW64 = it })
+                        // ======== Processor Affinity ========
+                        SectionCard(title = stringResource(R.string.processor_affinity), icon = Icons.Filled.Memory) {
+                            val numCpus = remember { Runtime.getRuntime().availableProcessors() }
+                            CpuListRow(
+                                label = stringResource(R.string.processor_affinity),
+                                cpuList = cpuList, numCpus = numCpus, onCpuListChange = { cpuList = it }
+                            )
+                            CpuListRow(
+                                label = stringResource(R.string.processor_affinity_wow64),
+                                cpuList = cpuListWoW64, numCpus = numCpus, onCpuListChange = { cpuListWoW64 = it }
+                            )
+                        }
                     }
                 }
             }
@@ -968,128 +964,30 @@ fun ShortcutSettingsScreen(
             }
         )
     }
-}
 
-// ---- CPU Checkbox List (matches old CPUListView) ----
-@Composable
-private fun CPUCheckboxList(cpuList: String, onCpuListChange: (String) -> Unit) {
-    val numProcessors = remember { Runtime.getRuntime().availableProcessors() }
-    val checkedList = remember(cpuList) { cpuList.split(",").map { it.trim() }.filter { it.isNotEmpty() } }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        for (i in 0 until numProcessors) {
-            val isChecked = checkedList.isEmpty() || checkedList.contains(i.toString())
-            Box(
-                modifier = Modifier
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape = RoundedCornerShape(4.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), shape = RoundedCornerShape(4.dp))
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Checkbox(
-                        checked = isChecked,
-                        onCheckedChange = { checked ->
-                            val currentCheckedSet = if (checkedList.isEmpty()) {
-                                (0 until numProcessors).map { it.toString() }.toSet()
-                            } else {
-                                checkedList.toSet()
-                            }
-                            val nextCheckedSet = if (checked) {
-                                currentCheckedSet + i.toString()
-                            } else {
-                                currentCheckedSet - i.toString()
-                            }
-                            onCpuListChange(nextCheckedSet.map { it.toInt() }.sorted().joinToString(","))
-                        }
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text("CPU $i", style = MaterialTheme.typography.labelSmall, fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-                }
+    if (showBox64Download) {
+        ContentDownloadDialogCompose(
+            context = ctx,
+            contentType = if (isArm64EC) com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64 else com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_BOX64,
+            displayName = "Box64",
+            onDismiss = { showBox64Download = false },
+            onInstalled = { installedVersion ->
+                box64Version = installedVersion
+                versionRefreshTrigger++
             }
-        }
-    }
-}
-
-// ---- FieldSet Card (matches old FieldSet style) ----
-@Composable
-private fun FieldSetCard(label: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp, bottom = 2.dp),
-            fontWeight = FontWeight.Bold
         )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                content = content,
-            )
-        }
     }
-}
 
-// ---- Helper composables ----
-@Composable
-private fun SectionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-}
-
-@Composable
-private fun SettingsSpinner(entries: List<String>, selected: String, onSelected: (String) -> Unit, enabled: Boolean = true) {
-    var expanded by remember { mutableStateOf(false) }
-    val display = if (selected.isEmpty()) entries.firstOrNull() ?: "" else selected
-    Box {
-        OutlinedTextField(value = display, onValueChange = {}, readOnly = true, enabled = enabled, modifier = Modifier.fillMaxWidth(), trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) })
-        if (enabled) {
-            Box(Modifier.matchParentSize().clickable { expanded = true })
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            entries.forEach { entry ->
-                DropdownMenuItem(text = { Text(entry) }, onClick = { onSelected(entry); expanded = false })
+    if (showFexcoreDownload) {
+        ContentDownloadDialogCompose(
+            context = ctx,
+            contentType = com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
+            displayName = "FEXCore",
+            onDismiss = { showFexcoreDownload = false },
+            onInstalled = { installedVersion ->
+                fexcoreVersion = installedVersion
+                versionRefreshTrigger++
             }
-        }
-    }
-}
-
-@Composable
-private fun SettingsSpinnerWithConfig(entries: List<String>, selected: String, onSelected: (String) -> Unit, onConfig: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.weight(1f)) {
-            var expanded by remember { mutableStateOf(false) }
-            val display = if (selected.isEmpty()) entries.firstOrNull() ?: "" else selected
-            Box {
-                OutlinedTextField(value = display, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) })
-                Box(Modifier.matchParentSize().clickable { expanded = true })
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    entries.forEach { entry -> DropdownMenuItem(text = { Text(entry) }, onClick = { onSelected(entry); expanded = false }) }
-                }
-            }
-        }
-        Spacer(Modifier.width(8.dp))
-        FilledIconButton(onClick = onConfig, modifier = Modifier.size(40.dp)) {
-            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.configuration))
-        }
-    }
-}
-
-@Composable
-private fun SettingsSwitch(label: String, checked: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        )
     }
 }

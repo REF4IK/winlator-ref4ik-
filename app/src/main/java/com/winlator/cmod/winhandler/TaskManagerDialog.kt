@@ -27,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -46,6 +48,13 @@ import com.winlator.cmod.xenvironment.ImageFs
 import com.winlator.cmod.xserver.XServer
 import java.io.File
 import java.util.Locale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentDialog(activity, 0), OnGetProcessInfoListener {
     private val lock = Any()
@@ -63,6 +72,7 @@ class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentD
     private var batteryTemperature by mutableStateOf(-1.0f)
     private var batteryLevel by mutableStateOf(-1)
     private var numProcessesText by mutableStateOf("0")
+    private var activeProfilingResult by mutableStateOf<com.winlator.cmod.widget.ProfilingSession.Result?>(null)
 
     private val periodicUpdate = object : Runnable {
         override fun run() {
@@ -376,6 +386,85 @@ class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentD
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
+
+                // Dialog of profiling results
+                val result = activeProfilingResult
+                if (result != null) {
+                    Dialog(
+                        onDismissRequest = { activeProfilingResult = null },
+                        properties = DialogProperties(usePlatformDefaultWidth = false)
+                    ) {
+                        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .heightIn(max = screenHeight * 0.9f)
+                                .padding(16.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Dialog Header
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.profile_result_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    IconButton(onClick = { activeProfilingResult = null }) {
+                                        Icon(Icons.Filled.Close, "Close", tint = MaterialTheme.colorScheme.onSurface)
+                                    }
+                                }
+
+                                // Chart
+                                ProfilingChart(result = result)
+
+                                // Text Summary
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .border(
+                                            1.dp,
+                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(12.dp)
+                                ) {
+                                    val context = androidx.compose.ui.platform.LocalContext.current
+                                    val summaryText = remember(result) { result.format(context) }
+                                    androidx.compose.foundation.text.selection.SelectionContainer {
+                                        Text(
+                                            text = summaryText,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                lineHeight = 18.sp
+                                            ),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -553,6 +642,158 @@ class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentD
         }
     }
 
+    @Composable
+    private fun ProfilingChart(result: com.winlator.cmod.widget.ProfilingSession.Result, modifier: Modifier = Modifier) {
+        val samples = result.fpsTimeline
+        val avgFps = result.avgFps
+        val low1Fps = result.low1Fps
+        val minFps = result.minFps
+        val maxFps = result.maxFps
+
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .background(Color(0xFF101820), RoundedCornerShape(12.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                .padding(8.dp)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
+                if (width <= 0f || height <= 0f) return@Canvas
+
+                val d = density
+
+                val padL = 36f * d
+                val padR = 12f * d
+                val padT = 12f * d
+                val padB = 20f * d
+                val plotW = width - padL - padR
+                val plotH = height - padT - padB
+
+                if (samples == null || samples.size < 2 || maxFps.isNaN() || maxFps <= 0f) {
+                    val paint = android.graphics.Paint().apply {
+                        color = Color.Gray.toArgb()
+                        textSize = 12f * d
+                        textAlign = android.graphics.Paint.Align.CENTER
+                    }
+                    drawContext.canvas.nativeCanvas.drawText("—", width / 2f, height / 2f, paint)
+                    return@Canvas
+                }
+
+                val yTop = Math.max(60f, (Math.ceil(maxFps.toDouble() / 30.0) * 30.0).toFloat())
+                val yBot = 0f
+
+                // Draw grid lines
+                val axisPaint = android.graphics.Paint().apply {
+                    style = android.graphics.Paint.Style.STROKE
+                    strokeWidth = 1.0f * d
+                    color = Color.White.copy(alpha = 0.2f).toArgb()
+                    pathEffect = android.graphics.DashPathEffect(floatArrayOf(4f * d, 4f * d), 0f)
+                }
+                val textPaint = android.graphics.Paint().apply {
+                    color = Color.White.copy(alpha = 0.7f).toArgb()
+                    textSize = 10f * d
+                }
+
+                val gridLines = floatArrayOf(30f, 60f, 90f, 120f, 144f, 240f)
+                for (gridFps in gridLines) {
+                    if (gridFps > yTop) break
+                    val y = padT + plotH - (gridFps - yBot) / (yTop - yBot) * plotH
+                    drawContext.canvas.nativeCanvas.drawLine(padL, y, padL + plotW, y, axisPaint)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        gridFps.toInt().toString(),
+                        4f * d,
+                        y + 4f * d,
+                        textPaint
+                    )
+                }
+
+                // Build line + fill paths
+                val linePath = androidx.compose.ui.graphics.Path()
+                val fillPath = androidx.compose.ui.graphics.Path()
+                val n = samples.size
+                for (i in 0 until n) {
+                    val v = Math.max(0f, samples[i])
+                    val x = padL + (i.toFloat() / (n - 1).toFloat()) * plotW
+                    val y = padT + plotH - (v - yBot) / (yTop - yBot) * plotH
+                    if (i == 0) {
+                        linePath.moveTo(x, y)
+                        fillPath.moveTo(x, padT + plotH)
+                        fillPath.lineTo(x, y)
+                    } else {
+                        linePath.lineTo(x, y)
+                        fillPath.lineTo(x, y)
+                    }
+                }
+                fillPath.lineTo(padL + plotW, padT + plotH)
+                fillPath.close()
+
+                // Fill path
+                drawPath(
+                    path = fillPath,
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color(0x664CAF50), Color(0x114CAF50)),
+                        start = Offset(0f, padT),
+                        end = Offset(0f, padT + plotH)
+                    )
+                )
+
+                // Line path
+                drawPath(
+                    path = linePath,
+                    color = Color(0xFF4CAF50),
+                    style = Stroke(width = 2f * d, join = StrokeJoin.Round, cap = StrokeCap.Round)
+                )
+
+                // Draw average line (cyan)
+                if (!avgFps.isNaN()) {
+                    val y = padT + plotH - (avgFps - yBot) / (yTop - yBot) * plotH
+                    drawLine(
+                        color = Color(0xFF03DAC5),
+                        start = Offset(padL, y),
+                        end = Offset(padL + plotW, y),
+                        strokeWidth = 1.2f * d
+                    )
+
+                    val labelPaint = android.graphics.Paint().apply {
+                        color = 0xFF03DAC5.toInt()
+                        textSize = 10f * d
+                    }
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "avg " + String.format(Locale.ENGLISH, "%.1f", avgFps),
+                        padL + plotW - 60f * d,
+                        y - 2f * d,
+                        labelPaint
+                    )
+                }
+
+                // Draw 1% low line (orange)
+                if (!low1Fps.isNaN()) {
+                    val y = padT + plotH - (low1Fps - yBot) / (yTop - yBot) * plotH
+                    drawLine(
+                        color = Color(0xFFFF9800),
+                        start = Offset(padL, y),
+                        end = Offset(padL + plotW, y),
+                        strokeWidth = 1.2f * d
+                    )
+
+                    val labelPaint = android.graphics.Paint().apply {
+                        color = 0xFFFF9800.toInt()
+                        textSize = 10f * d
+                    }
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "1% " + String.format(Locale.ENGLISH, "%.1f", low1Fps),
+                        padL + plotW - 60f * d,
+                        y + 12f * d,
+                        labelPaint
+                    )
+                }
+            }
+        }
+    }
+
     private fun showProcessorAffinityDialog(processInfo: ProcessInfo) {
         val dialog = ContentDialog(activity, R.layout.cpu_list_dialog)
         dialog.setTitle(processInfo.name)
@@ -571,7 +812,7 @@ class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentD
         val session = com.winlator.cmod.widget.ProfilingSession.getInstance()
         if (session.isActive) {
             val result = session.stop()
-            if (result != null) showProfilingResultDialog(result)
+            if (result != null) activeProfilingResult = result
         } else {
             activity.enableProfilingHook()
             session.start(processInfo.name, processInfo.pid)
@@ -580,30 +821,6 @@ class TaskManagerDialog(private val activity: XServerDisplayActivity) : ContentD
                 activity.getString(R.string.profile_started, processInfo.name),
                 android.widget.Toast.LENGTH_SHORT
             ).show()
-        }
-    }
-
-    private fun showProfilingResultDialog(result: com.winlator.cmod.widget.ProfilingSession.Result) {
-        val dialog = ContentDialog(activity, R.layout.profiling_result_dialog)
-        dialog.setTitle(activity.getString(R.string.profile_result_title))
-        val chart = dialog.findViewById<com.winlator.cmod.widget.ProfilingChartView>(R.id.ProfilingChart)
-        val summary = dialog.findViewById<android.widget.TextView>(R.id.TVProfilingSummary)
-        if (chart != null) chart.setData(result)
-        val isDark = ContentDialog.shouldUseDarkDialog(activity)
-        if (summary != null) {
-            summary.text = result.format(activity)
-            if (isDark) summary.setTextColor(androidx.core.content.ContextCompat.getColor(activity, R.color.white))
-        }
-        val cancelBtn = dialog.findViewById<android.view.View>(R.id.BTCancel)
-        if (cancelBtn != null) cancelBtn.visibility = android.view.View.GONE
-        dialog.show()
-        // Make dialog wider — default ContentDialog size is too narrow for the chart.
-        val window = dialog.window
-        if (window != null) {
-            val dm = activity.resources.displayMetrics
-            var width = (Math.min(dm.widthPixels, dm.heightPixels) * 1.4f).toInt()
-            width = Math.min(width, (Math.max(dm.widthPixels, dm.heightPixels) * 0.85f).toInt())
-            window.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
         }
     }
 

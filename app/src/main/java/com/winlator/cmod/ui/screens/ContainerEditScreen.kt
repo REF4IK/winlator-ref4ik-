@@ -64,10 +64,23 @@ fun ContainerEditScreen(
 
     // ---- Состояния всех полей ----
     var name by remember { mutableStateOf(container?.name ?: "Container-${containerManager.getNextContainerId()}") }
-    var screenSize by remember { mutableStateOf(container?.screenSize ?: Container.DEFAULT_SCREEN_SIZE) }
-    var customScreenWidth by remember { mutableStateOf("") }
-    var customScreenHeight by remember { mutableStateOf("") }
+    val screenSizeEntries = remember { ctx.resources.getStringArray(R.array.screen_size_entries).toList() }
+    val initialScreenSize = remember(container) { container?.screenSize ?: Container.DEFAULT_SCREEN_SIZE }
+    var screenSize by remember(initialScreenSize) {
+        val entry = screenSizeEntries.firstOrNull { it.split(" ").firstOrNull() == initialScreenSize }
+        mutableStateOf(entry ?: if (initialScreenSize.contains("x")) "Custom" else initialScreenSize)
+    }
     var isCustomScreen by remember { mutableStateOf(screenSize == "Custom") }
+    var customScreenWidth by remember(initialScreenSize, isCustomScreen) {
+        mutableStateOf(if (isCustomScreen && initialScreenSize.contains("x")) {
+            initialScreenSize.split("x").getOrElse(0) { "" }
+        } else "")
+    }
+    var customScreenHeight by remember(initialScreenSize, isCustomScreen) {
+        mutableStateOf(if (isCustomScreen && initialScreenSize.contains("x")) {
+            initialScreenSize.split("x").getOrElse(1) { "" }
+        } else "")
+    }
 
     val wineVersions = remember { loadWineVersions(ctx, contentsManager) }
     var wineVersion by remember { mutableStateOf(container?.wineVersion ?: WineInfo.MAIN_WINE_VERSION.identifier()) }
@@ -255,7 +268,7 @@ fun ContainerEditScreen(
             try {
                 val profileJson = buildContainerProfileJsonCompose(
                     name = name,
-                    screenSize = if (isCustomScreen) "${customScreenWidth}x${customScreenHeight}" else screenSize,
+                    screenSize = if (isCustomScreen) "${customScreenWidth}x${customScreenHeight}" else (screenSize.split(" ").firstOrNull() ?: screenSize),
                     envVars = envVars,
                     graphicsDriver = graphicsDriver,
                     graphicsDriverConfig = graphicsDriverConfig,
@@ -389,7 +402,7 @@ fun ContainerEditScreen(
                         ctx = ctx, isEditMode = isEditMode, container = container,
                         containerManager = containerManager, contentsManager = contentsManager,
                         name = name,
-                        screenSize = if (isCustomScreen) "${customScreenWidth}x${customScreenHeight}" else screenSize,
+                        screenSize = if (isCustomScreen) "${customScreenWidth}x${customScreenHeight}" else (screenSize.split(" ").firstOrNull() ?: screenSize),
                         envVars = envVars, graphicsDriver = graphicsDriver, graphicsDriverConfig = graphicsDriverConfig,
                         dxwrapper = dxwrapper, ddrawrapper = ddrawrapper, dxwrapperConfig = dxwrapperConfig,
                         audioDriver = audioDriver, audioDriverConfig = audioDriverConfig, emulator = emulator,
@@ -841,6 +854,7 @@ private fun loadWineVersions(ctx: Context, contentsManager: ContentsManager): Li
 }
 
 private fun loadBox64Versions(ctx: Context, manager: ContentsManager, isArm64EC: Boolean): List<String> {
+    manager.syncContents()
     val list = mutableListOf<String>()
     val originalItems = ctx.resources.getStringArray(
         if (isArm64EC) R.array.wowbox64_version_entries else R.array.box64_version_entries
@@ -860,6 +874,7 @@ private fun loadBox64Versions(ctx: Context, manager: ContentsManager, isArm64EC:
 }
 
 private fun loadFEXCoreVersions(ctx: Context, manager: ContentsManager): List<String> {
+    manager.syncContents()
     val list = mutableListOf<String>()
     val originalItems = ctx.resources.getStringArray(R.array.fexcore_version_entries)
     list.addAll(originalItems)

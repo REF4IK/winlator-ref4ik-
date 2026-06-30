@@ -962,9 +962,9 @@ fun CpuListRow(label: String, cpuList: String, numCpus: Int, onCpuListChange: (S
     Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
-        val rows = (0 until numCpus).chunked(4)
+        val rows = (0 until numCpus).chunked(3)
         rows.forEach { rowCpus ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowCpus.forEach { cpu ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Checkbox(
@@ -975,10 +975,11 @@ fun CpuListRow(label: String, cpuList: String, numCpus: Int, onCpuListChange: (S
                                 onCpuListChange(newSelected.joinToString(","))
                             }
                         )
+                        Spacer(Modifier.width(4.dp))
                         Text("CPU$cpu", style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                if (rowCpus.size < 4) repeat(4 - rowCpus.size) { Spacer(Modifier.weight(1f)) }
+                if (rowCpus.size < 3) repeat(3 - rowCpus.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
