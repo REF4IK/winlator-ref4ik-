@@ -53,6 +53,11 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback {
         eventExecutor.execute(r);
     }
 
-    public void onPause() {}
-    public void onResume() {}
+    public void onPause() {
+        post(() -> setVisibility(GONE));
+    }
+
+    public void onResume() {
+        postDelayed(() -> setVisibility(VISIBLE), 50);
+    }
 }

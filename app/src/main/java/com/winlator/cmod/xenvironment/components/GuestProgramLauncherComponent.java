@@ -191,6 +191,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("HOME", ImageFs.HOME_PATH);
         envVars.put("USER", ImageFs.USER);
         envVars.put("TMPDIR", "/tmp");
+        if (!envVars.has("WRAPPER_MAX_IMAGE_COUNT")) envVars.put("WRAPPER_MAX_IMAGE_COUNT", "0");
         envVars.put("LC_ALL", "en_US.utf8");
         envVars.put("DISPLAY", ":0");
         envVars.put("PATH", imageFs.getWinePath()+"/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin");
@@ -399,7 +400,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
                 if (!existingPreload.contains(mangoHudLibForEnv)) {
                     String newPreload = existingPreload.isEmpty()
                             ? mangoHudLibForEnv
-                            : (existingPreload + " " + mangoHudLibForEnv);
+                            : (existingPreload + ":" + mangoHudLibForEnv);
                     envVars.put("LD_PRELOAD", newPreload);
                 }
             } else {

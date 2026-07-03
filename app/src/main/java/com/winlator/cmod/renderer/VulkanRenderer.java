@@ -136,6 +136,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                         nativeHandle = 0;
                     } else {
                         initComplete = true;
+                        uploadAllMappedWindows();
                         xServerView.queueEvent(this::updateScene);
                         return;
                     }
@@ -213,8 +214,25 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                 }
             }
             initComplete = true;
+            uploadAllMappedWindows();
             xServerView.queueEvent(this::updateScene);
         });
+    }
+
+    private void uploadAllMappedWindows() {
+        try (XLock xl = xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
+            uploadWindowsRecursive(xServer.windowManager.rootWindow);
+        }
+    }
+
+    private void uploadWindowsRecursive(Window window) {
+        if (!window.attributes.isMapped()) return;
+        if (window != xServer.windowManager.rootWindow) {
+            onUpdateWindowContent(window);
+        }
+        for (Window child : window.getChildren()) {
+            uploadWindowsRecursive(child);
+        }
     }
 
     public void onSurfaceChanged(int width, int height) {

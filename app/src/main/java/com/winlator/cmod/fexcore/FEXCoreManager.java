@@ -125,6 +125,8 @@ public final class FEXCoreManager {
     }
 
     public static void writeToConfigFile(File configFile, String tsoPreset, String mblockValue, String x87ModePreset) {
+        File parentDir = configFile.getParentFile();
+        if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
         String tsoEnabled = "";
         String X87ReducedPrecisionValue = "" ;
         String vectorTSOEnabled = "";
@@ -307,10 +309,13 @@ public final class FEXCoreManager {
         AppUtils.setSpinnerSelectionFromValue(spinner, shortcut.getExtra("fexcoreVersion", shortcut.container.getFEXCoreVersion()));
     }
 
-    public static void createAppConfigFiles(Context ctx) {
+    public static void createAppConfigFiles(Context ctx, com.winlator.cmod.container.Container container) {
         String[] programsName = {"winhandler.exe"};
+        File imageFsRoot = new File(ctx.getFilesDir(), "imagefs");
+        ImageFs imageFS = ImageFs.find(imageFsRoot);
+        String suffix = container != null ? "-" + container.id : "";
         for (String programName : programsName) {
-            File configFile = new File(ctx.getFilesDir(), "imagefs/home/xuser/.fex-emu/AppConfig/" + programName + ".json");
+            File configFile = new File(imageFS.home_path + suffix + "/.fex-emu/AppConfig/" + programName + ".json");
             if (!configFile.exists()) {
                 switch (programName) {
                     case "winhandler.exe":

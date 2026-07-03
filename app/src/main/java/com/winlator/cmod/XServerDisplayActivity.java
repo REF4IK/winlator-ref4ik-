@@ -3551,7 +3551,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         // Generate fexcore per app settings
 
-        FEXCoreManager.createAppConfigFiles(this);
+        FEXCoreManager.createAppConfigFiles(this, container);
 
 
 
@@ -3589,7 +3589,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        // Workaround: on first container boot the GL surface ends up in a state
+        // Workaround: on every container boot the GL surface ends up in a state
 
         // where rendering produces a black screen until the user manually
 
@@ -3597,7 +3597,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         // pausing+resuming the GLSurfaceView shortly after Wine starts.
 
-        if (firstTimeBoot && xServerView != null) {
+        if (xServerView != null) {
 
             handler.postDelayed(() -> {
 
@@ -3611,7 +3611,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 }
 
-            }, 2500);
+            }, 1000);
 
         }
 
