@@ -243,12 +243,16 @@ private:
     std::vector<VkPresentModeKHR> availablePresentModes;
 
     std::unordered_map<int64_t, WinTex>         texMap;
+    std::unordered_map<int64_t, std::atomic<bool>> dirtyFlags;
 
     std::unordered_map<AHardwareBuffer*, WinTex>              ahbImportCache;
     std::unordered_map<int64_t, std::vector<AHardwareBuffer*>> windowAhbs;
 
     std::vector<WinTex>    deleteQueue;
+    std::vector<WinTex>    pendingDelete[MAX_FRAMES_IN_FLIGHT];
     std::vector<RenderEntry> renderList;
+    std::vector<RenderEntry> pendingRenderList;
+    std::atomic<bool>      renderListDirty{false};
 
     std::vector<DrawEntry>             frameDraws;
     std::vector<VkImageMemoryBarrier>  frameAhbTransitions;

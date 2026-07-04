@@ -514,6 +514,9 @@
     <string name="graphics_driver_bcn_emulation_type">BCn Emulation Type</string>
     <string name="graphics_driver_bcn_emulation_cache">BCn Emulation Cache</string>
     <string name="graphics_driver_version">Graphics Driver Version</string>
+    <string name="display_renderer">Display Renderer</string>
+    <string name="sf_compat_mode">Compatibility Mode</string>
+    <string name="sf_compat_mode_description">Convert BGRA to RGBA format. Some drivers already support BGRA natively; disabling may reduce glitches.</string>
     <string name="group">Group</string>
     <string name="group_description_gamehub">Specialized drivers for new Adreno 8xx series GPUs</string>
     <string name="group_description_kimchi">Experimental and latest Turnip driver builds</string>

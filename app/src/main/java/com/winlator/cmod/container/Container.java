@@ -32,6 +32,7 @@ public class Container {
     public static final String DEFAULT_AUDIO_DRIVER = "pulseaudio";
     public static final String DEFAULT_EMULATOR = "FEXCore";
     public static final String DEFAULT_DXWRAPPER = "dxvk";
+    public static final String DEFAULT_DISPLAY_RENDERER = "vulkan";
     public static final String DEFAULT_DXWRAPPERCONFIG = "version=" + DefaultVersion.DXVK + ",framerate=0,maxDeviceMemory=0,async=0,asyncCache=0" + ",vkd3dVersion=" + DefaultVersion.VKD3D + ",vkd3dLevel=12_1";
     public static final String DEFAULT_GRAPHICSDRIVERCONFIG = "version=" + DefaultVersion.WRAPPER + ";blacklistedExtensions=" + ";maxDeviceMemory=0" + ";adrenotoolsTurnip=1" + ";frameSync=Normal" + ";presentMode=mailbox" + ";resourceType=auto" + ";bcnEmulation=auto" + ";bcnEmulationType=compute" + ";bcnEmulationCache=0" + ";blit=0";
     public static final String DEFAULT_DDRAWRAPPER = "wined3d";
@@ -48,6 +49,8 @@ public class Container {
     private String envVars = DEFAULT_ENV_VARS;
     private String graphicsDriver = DEFAULT_GRAPHICS_DRIVER;
     private String graphicsDriverConfig = DEFAULT_GRAPHICSDRIVERCONFIG;
+    private String displayRenderer = DEFAULT_DISPLAY_RENDERER;
+    private boolean sfCompatMode = false;
     private String dxwrapper = DEFAULT_DXWRAPPER;
     private String ddrawrapper = DEFAULT_DDRAWRAPPER;
     private String dxwrapperConfig = "";
@@ -132,6 +135,14 @@ public class Container {
     public String getGraphicsDriverConfig() { return this.graphicsDriverConfig; }
 
     public void setGraphicsDriverConfig(String graphicsDriverConfig) { this.graphicsDriverConfig = graphicsDriverConfig; }
+
+    public String getDisplayRenderer() { return displayRenderer; }
+
+    public void setDisplayRenderer(String displayRenderer) { this.displayRenderer = displayRenderer != null ? displayRenderer : DEFAULT_DISPLAY_RENDERER; }
+
+    public boolean getSfCompatMode() { return sfCompatMode; }
+
+    public void setSfCompatMode(boolean sfCompatMode) { this.sfCompatMode = sfCompatMode; }
 
     public String getDXWrapper() {
         return dxwrapper;
@@ -437,6 +448,8 @@ public class Container {
             data.put("cpuListWoW64", cpuListWoW64);
             data.put("graphicsDriver", graphicsDriver);
             data.put("graphicsDriverConfig", graphicsDriverConfig);
+            data.put("displayRenderer", displayRenderer);
+            data.put("sfCompatMode", sfCompatMode);
             data.put("emulator", emulator);
             data.put("dxwrapper", dxwrapper);
             data.put("ddrawrapper", ddrawrapper);
@@ -497,8 +510,12 @@ public class Container {
                     break;
                 case "graphicsDriverConfig" :
                     setGraphicsDriverConfig(data.getString(key));
+                    break;                case "displayRenderer" :
+                    setDisplayRenderer(data.getString(key));
                     break;
-                case "emulator":
+                case "sfCompatMode" :
+                    setSfCompatMode(data.getBoolean(key));
+                    break;                case "emulator":
                     setEmulator(data.getString(key));
                     break;
                 case "wincomponents" :

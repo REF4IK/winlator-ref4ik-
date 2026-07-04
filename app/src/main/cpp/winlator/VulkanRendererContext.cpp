@@ -998,18 +998,17 @@ void VulkanRendererContext::renderLoop() {
 }
 
 void VulkanRendererContext::flushDeleteQueue() {
-
-
+    // Deferred destruction: move to per-frame pending queue.
+    // Resources will be freed when the GPU finishes the next frame.
     std::lock_guard<std::mutex> lk(renderMutex);
     if (deleteQueue.empty()) return;
-    vk_.DeviceWaitIdle(device);
-    for (auto& wt:deleteQueue) {
-        if (wt.ds  !=VK_NULL_HANDLE) vk_.FreeDescriptorSets(device,winTexPool,1,&wt.ds);
-        if (wt.view!=VK_NULL_HANDLE) vk_.DestroyImageView(device,wt.view,nullptr);
-        if (wt.img !=VK_NULL_HANDLE) vk_.DestroyImage(device,wt.img,nullptr);
-        if (wt.mem !=VK_NULL_HANDLE) vk_.FreeMemory(device,wt.mem,nullptr);
-        if (wt.stg !=VK_NULL_HANDLE){vk_.DestroyBuffer(device,wt.stg,nullptr);vk_.FreeMemory(device,wt.stgMem,nullptr);}
-    }
+    // Distribute across pendingDelete slots so we don't bloat one slot.
+    // currentFrame is not protected by renderMutex, but reads are benign.
+    size_t slot = currentFrame;
+    pendingDelete[slot].insert(
+        pendingDelete[slot].end(),
+        std::make_move_iterator(deleteQueue.begin()),
+        std::make_move_iterator(deleteQueue.end()));
     deleteQueue.clear();
 }
 
@@ -1083,14 +1082,29 @@ ok=true;}catch(...){}
 
 
         if (!deleteQueue.empty()) {
-            for (auto& wt:deleteQueue) {
-                if (wt.ds  !=VK_NULL_HANDLE) vk_.FreeDescriptorSets(device,winTexPool,1,&wt.ds);
-                if (wt.view!=VK_NULL_HANDLE) vk_.DestroyImageView(device,wt.view,nullptr);
-                if (wt.img !=VK_NULL_HANDLE) vk_.DestroyImage(device,wt.img,nullptr);
-                if (wt.mem !=VK_NULL_HANDLE) vk_.FreeMemory(device,wt.mem,nullptr);
-                if (wt.stg !=VK_NULL_HANDLE){vk_.DestroyBuffer(device,wt.stg,nullptr);vk_.FreeMemory(device,wt.stgMem,nullptr);}
-            }
+            pendingDelete[currentFrame].insert(
+                pendingDelete[currentFrame].end(),
+                std::make_move_iterator(deleteQueue.begin()),
+                std::make_move_iterator(deleteQueue.end()));
             deleteQueue.clear();
+        }
+
+        // Drain pending deletions for the frame we're about to reuse.
+        // The fence for this frame has already been waited above, so
+        // all resources queued for that frame are safe to destroy.
+        for (auto& wt : pendingDelete[currentFrame]) {
+            if (wt.ds  !=VK_NULL_HANDLE) vk_.FreeDescriptorSets(device,winTexPool,1,&wt.ds);
+            if (wt.view!=VK_NULL_HANDLE) vk_.DestroyImageView(device,wt.view,nullptr);
+            if (wt.img !=VK_NULL_HANDLE) vk_.DestroyImage(device,wt.img,nullptr);
+            if (wt.mem !=VK_NULL_HANDLE) vk_.FreeMemory(device,wt.mem,nullptr);
+            if (wt.stg !=VK_NULL_HANDLE){vk_.DestroyBuffer(device,wt.stg,nullptr);vk_.FreeMemory(device,wt.stgMem,nullptr);}
+        }
+        pendingDelete[currentFrame].clear();
+
+        // Swap in the latest render list from producer threads
+        if (renderListDirty.load(std::memory_order_acquire)) {
+            renderList = std::move(pendingRenderList);
+            renderListDirty.store(false, std::memory_order_release);
         }
 
         ox=sceneOffsetX; oy=sceneOffsetY; sx=sceneScaleX; sy=sceneScaleY;
@@ -1108,11 +1122,12 @@ ok=true;}catch(...){}
             DrawEntry de{wt.img,wt.ds,VK_NULL_HANDLE,re.x,re.y,wt.w,wt.h};
             de.isAHB=wt.isAHB;
             if (wt.needsTransition) { de.needsTransition=true; wt.needsTransition=false; }
-            if (wt.dirty && !wt.isAHB && wt.stg!=VK_NULL_HANDLE) {
+            bool isDirty = dirtyFlags[re.id].load(std::memory_order_acquire);
+            if (isDirty && !wt.isAHB && wt.stg!=VK_NULL_HANDLE) {
                 de.upload=wt.stg;
-                wt.dirty=false;
+                dirtyFlags[re.id].store(false, std::memory_order_release);
             } else if (wt.isAHB) {
-                wt.dirty=false;
+                dirtyFlags[re.id].store(false, std::memory_order_release);
             }
             frameDraws.push_back(de);
         }
@@ -1243,7 +1258,9 @@ void VulkanRendererContext::updateWindowContent(int64_t id, void* px, short w, s
         std::lock_guard<std::mutex> lk(renderMutex);
         WinTex& wt=texMap[id];
         if (wt.img==VK_NULL_HANDLE || wt.w!=w || wt.h!=h) {
-            if (wt.img!=VK_NULL_HANDLE) destroyWinTex(wt);
+            if (wt.img!=VK_NULL_HANDLE) {
+                pendingDelete[currentFrame].push_back(std::move(wt));
+            }
             if (!createWinTexResources(wt,w,h)) { texMap.erase(id); return; }
         }
         mapped=wt.mapped;
@@ -1260,7 +1277,7 @@ void VulkanRendererContext::updateWindowContent(int64_t id, void* px, short w, s
     {
         std::lock_guard<std::mutex> lk(renderMutex);
         auto it=texMap.find(id);
-        if (it!=texMap.end()) it->second.dirty=true;
+        if (it!=texMap.end()) dirtyFlags[id].store(true, std::memory_order_release);
     }
     needsRender.store(true); dirtyCV.notify_one();
 }
@@ -1308,9 +1325,15 @@ void VulkanRendererContext::updateWindowContentAHB(int64_t id, AHardwareBuffer* 
 }
 
 void VulkanRendererContext::setRenderList(const int64_t* ids, const int* xs, const int* ys, int count) {
-    std::lock_guard<std::mutex> lk(renderMutex);
-    renderList.resize(count);
-    for (int i=0;i<count;i++) renderList[i]={ids[i],xs[i],ys[i]};
+    // Double-buffered: write to pending, atomically swap in renderFrame.
+    // No renderMutex needed — producer and consumer never access the same
+    // vector concurrently.
+    {
+        std::lock_guard<std::mutex> lk(renderMutex);
+        pendingRenderList.resize(count);
+        for (int i=0;i<count;i++) pendingRenderList[i]={ids[i],xs[i],ys[i]};
+    }
+    renderListDirty.store(true, std::memory_order_release);
     needsRender.store(true); dirtyCV.notify_one();
 }
 
@@ -1325,6 +1348,7 @@ void VulkanRendererContext::removeWindow(int64_t id) {
         else it->second = {};
         texMap.erase(it);
     }
+    dirtyFlags.erase(id);
 
 
     auto wit = windowAhbs.find(id);

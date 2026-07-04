@@ -409,7 +409,7 @@ fun ScreenEffectDialogCompose(
     }
 
     fun applyVulkanEffects() {
-        val renderer = activity.xServerView?.renderer ?: return
+        val renderer = (activity.xServerView?.renderer as? com.winlator.cmod.renderer.VulkanRenderer) ?: return
         
         preferences.edit()
             .putFloat("effect_brightness", brightness)

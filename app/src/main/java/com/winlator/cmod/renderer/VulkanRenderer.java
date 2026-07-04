@@ -21,7 +21,8 @@ import com.winlator.cmod.xserver.XServer;
 
 import java.util.ArrayList;
 
-public class VulkanRenderer implements WindowManager.OnWindowModificationListener,
+public class VulkanRenderer implements XServerRenderer,
+                                       WindowManager.OnWindowModificationListener,
                                        Pointer.OnPointerMotionListener {
 
     static { System.loadLibrary("vulkan_renderer"); }
@@ -264,6 +265,16 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
         }
         if (nativeMode) xServerView.post(this::releaseScanoutSurfaces);
     }
+
+    public XServerView getXServerView() { return xServerView; }
+
+    public XServerView getRendererView() { return xServerView; }
+
+    public void setOnFrameRenderedListener(Runnable listener) {}
+
+    public String getForceFullscreenWMClass() { return null; }
+
+    public void setForceFullscreenWMClass(String wmClass) {}
 
     public void forceCleanup() {
         initComplete = false;

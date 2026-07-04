@@ -1572,6 +1572,9 @@
     <string name="theme_dark_desc">Тёмный фон,\nсветлый текст</string>
     <string name="start_using">Начать использовать</string>
     <string name="can_change_in_settings">Можно изменить в любое время в Настройках → Оформление</string>
+    <string name="display_renderer">Рендер дисплея</string>
+    <string name="sf_compat_mode">Режим совместимости</string>
+    <string name="sf_compat_mode_description">Конвертировать BGRA в RGBA. Некоторые драйверы поддерживают BGRA изначально; отключение может уменьшить лаги.</string>
 </resources>
 
 

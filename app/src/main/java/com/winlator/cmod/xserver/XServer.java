@@ -3,7 +3,7 @@ package com.winlator.cmod.xserver;
 import android.util.SparseArray;
 
 import com.winlator.cmod.core.CursorLocker;
-import com.winlator.cmod.renderer.VulkanRenderer;
+import com.winlator.cmod.renderer.XServerRenderer;
 import com.winlator.cmod.winhandler.WinHandler;
 import com.winlator.cmod.xserver.extensions.BigReqExtension;
 import com.winlator.cmod.xserver.extensions.DRI3Extension;
@@ -36,7 +36,7 @@ public class XServer {
     public final GrabManager grabManager;
     public final CursorLocker cursorLocker;
     private SHMSegmentManager shmSegmentManager;
-    private VulkanRenderer renderer;
+    private XServerRenderer renderer;
     private WinHandler winHandler;
     private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(Lockable.class);
     private boolean relativeMouseMovement = false;
@@ -76,11 +76,11 @@ public class XServer {
         this.simulateTouchScreen = simulateTouchScreen;
     }
 
-    public VulkanRenderer getRenderer() {
+    public XServerRenderer getRenderer() {
         return renderer;
     }
 
-    public void setRenderer(VulkanRenderer renderer) {
+    public void setRenderer(XServerRenderer renderer) {
         this.renderer = renderer;
     }
 

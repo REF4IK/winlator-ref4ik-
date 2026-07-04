@@ -6,7 +6,7 @@ import androidx.annotation.Keep;
 import com.winlator.cmod.xserver.Drawable;
 import java.nio.ByteBuffer;
 
-public class GPUImage extends Texture {
+public class GPUImage extends NativeTexture {
     private long hardwareBufferPtr;
     private ByteBuffer virtualData;
     private short stride;

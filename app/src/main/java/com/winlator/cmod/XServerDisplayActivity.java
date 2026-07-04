@@ -199,6 +199,10 @@ import com.winlator.cmod.midi.MidiHandler;
 import com.winlator.cmod.midi.MidiManager;
 
 import com.winlator.cmod.renderer.VulkanRenderer;
+import com.winlator.cmod.renderer.XServerRenderer;
+import com.winlator.cmod.renderer.ASurfaceRenderer;
+import com.winlator.cmod.xserver.Drawable;
+import com.winlator.cmod.widget.XServerView;
 
 import com.winlator.cmod.steam.SteamLibraryActivity;
 
@@ -2315,7 +2319,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
     public void handleXServerMenuAction(int itemId) {
-        final VulkanRenderer renderer = xServerView.getRenderer();
+        final XServerRenderer renderer = xServerView.getRenderer();
 
         switch (itemId) {
             case R.id.main_menu_keyboard:
@@ -2334,19 +2338,21 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 break;
 
             case R.id.main_menu_toggle_fullscreen:
-                renderer.toggleFullscreen();
+                if (renderer instanceof VulkanRenderer) {
+                    ((VulkanRenderer) renderer).toggleFullscreen();
+                }
                 closeXServerMenu();
                 touchpadView.toggleFullscreen();
-                if (renderer.isFullscreen()) {
+                if (renderer instanceof VulkanRenderer && ((VulkanRenderer) renderer).isFullscreen()) {
                     preferences.edit().putBoolean("effect_sharpen", true).apply();
-                    renderer.disableScanoutForEffects();
-                    renderer.setEffects(
+                    ((VulkanRenderer) renderer).disableScanoutForEffects();
+                    ((VulkanRenderer) renderer).setEffects(
                         new int[]{VulkanRenderer.EFFECT_SHARPEN},
                         new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
                     );
-                } else {
+                } else if (renderer instanceof VulkanRenderer) {
                     preferences.edit().putBoolean("effect_sharpen", false).apply();
-                    renderer.clearEffects();
+                    ((VulkanRenderer) renderer).clearEffects();
                 }
                 break;
 
@@ -4283,9 +4289,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         xServerRootView = rootView;
 
-        xServerView = new XServerView(this, xServer);
+        String displayRenderer = container != null ? container.getDisplayRenderer() : "vulkan";
+        Drawable.DRAWABLE_ASR_MODE(displayRenderer.equalsIgnoreCase("surfaceflinger"));
 
-        final VulkanRenderer renderer = xServerView.getRenderer();
+        xServerView = new XServerView(this, xServer, displayRenderer);
+
+        final XServerRenderer renderer = xServerView.getRenderer();
 
         renderer.setCursorVisible(false);
 
@@ -4293,13 +4302,21 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         if (shortcut != null) {
 
-            if (shortcut.getExtra("forceFullscreen", "0").equals("1")) renderer.toggleFullscreen();
+            if (shortcut.getExtra("forceFullscreen", "0").equals("1") && renderer instanceof VulkanRenderer) {
+                ((VulkanRenderer) renderer).toggleFullscreen();
+            }
 
-            renderer.setUnviewableWMClasses("explorer.exe");
+            if (renderer instanceof VulkanRenderer) {
+                ((VulkanRenderer) renderer).setUnviewableWMClasses("explorer.exe");
+            }
 
         }
 
 
+
+        if (renderer instanceof ASurfaceRenderer) {
+            ((ASurfaceRenderer) renderer).setSfCompatMode(container != null && container.getSfCompatMode());
+        }
 
         xServer.setRenderer(renderer);
 
@@ -4429,17 +4446,21 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             // Toggle fullscreen mode based on the final decision
 
-            renderer.toggleFullscreen();
+            if (renderer instanceof VulkanRenderer) {
+                ((VulkanRenderer) renderer).toggleFullscreen();
+            }
 
             touchpadView.toggleFullscreen();
 
             // Auto-enable sharpen effect when stretch mode is active
-            preferences.edit().putBoolean("effect_sharpen", true).apply();
-            renderer.disableScanoutForEffects();
-            renderer.setEffects(
-                new int[]{VulkanRenderer.EFFECT_SHARPEN},
-                new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
-            );
+            if (renderer instanceof VulkanRenderer) {
+                preferences.edit().putBoolean("effect_sharpen", true).apply();
+                ((VulkanRenderer) renderer).disableScanoutForEffects();
+                ((VulkanRenderer) renderer).setEffects(
+                    new int[]{VulkanRenderer.EFFECT_SHARPEN},
+                    new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
+                );
+            }
 
         }
 
@@ -4471,7 +4492,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        AppUtils.observeSoftKeyboardVisibility(drawerLayout, renderer::setScreenOffsetYRelativeToCursor);
+        AppUtils.observeSoftKeyboardVisibility(drawerLayout, visible -> renderer.setScreenOffsetYRelativeToCursor(visible));
 
     }
 

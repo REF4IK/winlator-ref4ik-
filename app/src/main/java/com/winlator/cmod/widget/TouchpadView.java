@@ -108,7 +108,8 @@ public class TouchpadView extends View {
         viewTransformation.update(outerWidth, outerHeight, innerWidth, innerHeight);
 
         float invAspect = 1.0f / viewTransformation.aspect;
-        if (!xServer.getRenderer().isFullscreen()) {
+        com.winlator.cmod.renderer.XServerRenderer r = xServer.getRenderer();
+        if (r == null || !r.isFullscreen()) {
             XForm.makeTranslation(xform, -viewTransformation.viewOffsetX, -viewTransformation.viewOffsetY);
             XForm.scale(xform, invAspect, invAspect);
         } else

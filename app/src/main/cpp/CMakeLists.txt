@@ -20,6 +20,7 @@ add_subdirectory(OpenXR-SDK)
 add_subdirectory(patchelf)
 add_subdirectory(fpslimiter)
 add_subdirectory(adrenotools)
+add_subdirectory(asurfacerenderer)
 
 # lsfg-vk-android: build LSFG Vulkan layer from source
 set(LSFGVK_ANDROID_WINE ON CACHE BOOL "Build for Wine-on-Android" FORCE)

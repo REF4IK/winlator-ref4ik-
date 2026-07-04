@@ -2,6 +2,9 @@ package com.winlator.cmod.xserver.extensions;
 
 import android.util.Log;
 import com.winlator.cmod.renderer.GPUImage;
+import com.winlator.cmod.renderer.AHBImage;
+import com.winlator.cmod.renderer.NativeTexture;
+import com.winlator.cmod.xserver.Drawable;
 
 import static com.winlator.cmod.xserver.XClientRequestHandler.RESPONSE_CODE_SUCCESS;
 
@@ -157,15 +160,15 @@ public class DRI3Extension implements Extension {
     
     private void pixmapFromHardwareBuffer(XClient client, int pixmapId, short width, short height, byte depth, int fd) throws IOException, XRequestError {
         try {
-            GPUImage gpuImage = new GPUImage(fd);
-            Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, gpuImage.getStride(), height, depth);
-            drawable.setTexture(gpuImage);
+            NativeTexture image = Drawable.IS_ASR() ? new AHBImage(fd) : new GPUImage(fd);
+            Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, image.getStride(), height, depth);
+            drawable.setTexture(image);
             drawable.setDirectScanout(true);
             client.xServer.pixmapManager.createPixmap(drawable);
         }
         finally {
             XConnectorEpoll.closeFd(fd);
-        }   
+        }
     }
 
     private void pixmapFromFd(XClient client, int pixmapId, short width, short height, int stride, int offset, byte depth, int fd, long size)  throws IOException, XRequestError {

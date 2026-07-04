@@ -93,7 +93,7 @@ public class ActiveWindowsDialog extends ContentDialog {
         LinearLayout llWindowList = findViewById(R.id.window_list_layout);
         llWindowList.removeAllViews();
 
-        VulkanRenderer renderer = xServer.getRenderer();
+        VulkanRenderer renderer = (VulkanRenderer) xServer.getRenderer();
         LayoutInflater inflater = LayoutInflater.from(getContext());
         int previewWidth = (int) UnitUtils.dpToPx(240.0f);
         int previewHeight = (int) UnitUtils.dpToPx(160.0f);

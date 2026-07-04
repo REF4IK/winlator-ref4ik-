@@ -87,6 +87,9 @@ fun ContainerEditScreen(
 
     var graphicsDriver by remember { mutableStateOf(container?.graphicsDriver ?: Container.DEFAULT_GRAPHICS_DRIVER) }
     var graphicsDriverConfig by remember { mutableStateOf(container?.graphicsDriverConfig ?: Container.DEFAULT_GRAPHICSDRIVERCONFIG) }
+    val displayRendererEntries = remember { ctx.resources.getStringArray(R.array.displayrenderers_entries).map { it.lowercase(Locale.ENGLISH) } }
+    var displayRenderer by remember { mutableStateOf(container?.displayRenderer ?: Container.DEFAULT_DISPLAY_RENDERER) }
+    var sfCompatMode by remember { mutableStateOf(container?.sfCompatMode ?: true) }
     var dxwrapper by remember { mutableStateOf(container?.dxWrapper ?: Container.DEFAULT_DXWRAPPER) }
     var dxwrapperConfig by remember { mutableStateOf(container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG) }
     var ddrawrapper by remember { mutableStateOf(container?.dDrawWrapper ?: Container.DEFAULT_DDRAWRAPPER) }
@@ -404,6 +407,7 @@ fun ContainerEditScreen(
                         name = name,
                         screenSize = if (isCustomScreen) "${customScreenWidth}x${customScreenHeight}" else (screenSize.split(" ").firstOrNull() ?: screenSize),
                         envVars = envVars, graphicsDriver = graphicsDriver, graphicsDriverConfig = graphicsDriverConfig,
+                        displayRenderer = displayRenderer, sfCompatMode = sfCompatMode,
                         dxwrapper = dxwrapper, ddrawrapper = ddrawrapper, dxwrapperConfig = dxwrapperConfig,
                         audioDriver = audioDriver, audioDriverConfig = audioDriverConfig, emulator = emulator,
                         wincomponents = winComponents, drives = drives, fullscreenStretched = fullscreenStretched,
@@ -489,6 +493,24 @@ fun ContainerEditScreen(
                     selected = audioDriver, onSelected = { audioDriver = it },
                     onConfigClick = { showAudioConfigDialog = true },
                 )
+                ContainerSpinnerRow(
+                    label = stringResource(R.string.display_renderer),
+                    entries = ctx.resources.getStringArray(R.array.displayrenderers_entries).toList(),
+                    selected = displayRendererEntries.firstOrNull { it == displayRenderer }?.let { renderer ->
+                        ctx.resources.getStringArray(R.array.displayrenderers_entries)
+                            .firstOrNull { it.lowercase(Locale.ENGLISH) == renderer }
+                    } ?: "Vulkan",
+                    onSelected = {
+                        displayRenderer = it.lowercase(Locale.ENGLISH)
+                    },
+                )
+                if (displayRenderer == "surfaceflinger") {
+                    SwitchRow(
+                        stringResource(R.string.sf_compat_mode),
+                        sfCompatMode,
+                        onCheckedChange = { sfCompatMode = it },
+                    )
+                }
                 ContainerSpinnerRow(
                     label = stringResource(R.string.emulator),
                     entries = ctx.resources.getStringArray(R.array.emulator_entries).toList(),
@@ -931,6 +953,7 @@ private fun saveContainer(
     containerManager: ContainerManager, contentsManager: ContentsManager,
     name: String, screenSize: String, envVars: String,
     graphicsDriver: String, graphicsDriverConfig: String,
+    displayRenderer: String, sfCompatMode: Boolean,
     dxwrapper: String, ddrawrapper: String, dxwrapperConfig: String,
     audioDriver: String, audioDriverConfig: String, emulator: String,
     wincomponents: String, drives: String, fullscreenStretched: Boolean,
@@ -975,6 +998,8 @@ private fun saveContainer(
         container.cpuListWoW64 = cpuListWoW64
         container.graphicsDriver = graphicsDriver
         container.graphicsDriverConfig = graphicsDriverConfig
+        container.displayRenderer = displayRenderer
+        container.sfCompatMode = sfCompatMode
         container.dxWrapper = dxwrapper
         container.dDrawWrapper = ddrawrapper
         container.dxWrapperConfig = dxwrapperConfig
@@ -1012,6 +1037,8 @@ private fun saveContainer(
             data.put("cpuListWoW64", cpuListWoW64)
             data.put("graphicsDriver", graphicsDriver)
             data.put("graphicsDriverConfig", graphicsDriverConfig)
+            data.put("displayRenderer", displayRenderer)
+            data.put("sfCompatMode", sfCompatMode)
             data.put("dxwrapper", dxwrapper)
             data.put("ddrawrapper", ddrawrapper)
             data.put("dxwrapperConfig", dxwrapperConfig)

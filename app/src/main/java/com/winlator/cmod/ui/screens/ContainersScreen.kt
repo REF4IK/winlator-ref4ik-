@@ -46,7 +46,7 @@ fun ContainersScreen(
 ) {
     val ctx = LocalContext.current
     val manager = containerManager ?: remember(ctx, refreshKey) { ContainerManager(ctx) }
-    var containers by remember(refreshKey) { mutableStateOf(manager.containers ?: emptyList()) }
+    var containers by remember(refreshKey) { mutableStateOf(manager.containers?.toList() ?: emptyList()) }
     var showPreloader by remember { mutableStateOf(false) }
     var preloaderText by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
@@ -57,7 +57,7 @@ fun ContainersScreen(
 
     fun reload() {
         manager.reload()
-        containers = manager.containers ?: emptyList()
+        containers = manager.containers?.toList() ?: emptyList()
     }
 
     LaunchedEffect(refreshKey) { reload() }

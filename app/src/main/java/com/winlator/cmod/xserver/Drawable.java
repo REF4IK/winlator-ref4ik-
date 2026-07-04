@@ -5,12 +5,14 @@ import android.graphics.Bitmap;
 import com.winlator.cmod.core.Callback;
 import com.winlator.cmod.math.Mathf;
 import com.winlator.cmod.renderer.GPUImage;
+import com.winlator.cmod.renderer.NativeTexture;
 import com.winlator.cmod.renderer.Texture;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class Drawable extends XResource {
+    private static boolean DRAWABLE_FOR_ASR = false;
     public final short width;
     public final short height;
     public final Visual visual;
@@ -27,6 +29,14 @@ public class Drawable extends XResource {
     private short dirtyWidth;
     private short dirtyHeight;
     private boolean hasDirtyRegion = false;
+
+    public static void DRAWABLE_ASR_MODE(boolean value) {
+        DRAWABLE_FOR_ASR = value;
+    }
+
+    public static boolean IS_ASR() {
+        return DRAWABLE_FOR_ASR;
+    }
 
     static {
         System.loadLibrary("winlator");
@@ -57,6 +67,9 @@ public class Drawable extends XResource {
         if (texture instanceof GPUImage) {
             ByteBuffer vd = ((GPUImage)texture).getVirtualData();
             if (vd != null) data = vd;
+        } else if (texture instanceof NativeTexture) {
+            ByteBuffer vd = ((NativeTexture)texture).getVirtualData();
+            if (vd != null) data = vd;
         }
         this.texture = texture;
     }
@@ -85,7 +98,9 @@ public class Drawable extends XResource {
     }
 
     private short getStride() {
-        return texture instanceof GPUImage ? ((GPUImage)texture).getStride() : width;
+        if (texture instanceof GPUImage) return ((GPUImage)texture).getStride();
+        if (texture instanceof NativeTexture) return ((NativeTexture)texture).getStride();
+        return width;
     }
 
     public Runnable getOnDrawListener() {

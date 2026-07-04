@@ -106,7 +106,7 @@ public class ScreenEffectDialog extends ContentDialog {
         applyDialogThemeOverrides();
 
 
-        VulkanRenderer renderer = activity.getXServerView().getRenderer();
+        VulkanRenderer renderer = (VulkanRenderer) activity.getXServerView().getRenderer();
         if (renderer == null) {
             Log.e(TAG, "Renderer is null in ScreenEffectDialog initialization!");
             return;

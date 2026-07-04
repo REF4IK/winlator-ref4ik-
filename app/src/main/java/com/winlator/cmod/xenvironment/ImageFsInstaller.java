@@ -93,7 +93,7 @@ public abstract class ImageFsInstaller {
             boolean success = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, context, "imagefs.txz", rootDir, (file, size) -> {
                 if (size > 0) {
                     long totalSize = totalSizeRef.addAndGet(size);
-                    final int progress = (int)(((float)totalSize / contentLength) * 100);
+                    final int progress = Math.min(100, (int)(((float)totalSize / contentLength) * 100));
                     if (listener != null) listener.onProgress(progress);
                 }
                 return file;

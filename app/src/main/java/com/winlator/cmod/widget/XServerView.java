@@ -8,7 +8,10 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
 
+import com.winlator.cmod.renderer.XServerRenderer;
 import com.winlator.cmod.renderer.VulkanRenderer;
+import com.winlator.cmod.renderer.ASurfaceRenderer;
+import com.winlator.cmod.xserver.Drawable;
 import com.winlator.cmod.xserver.XServer;
 
 import java.util.concurrent.ExecutorService;
@@ -16,17 +19,24 @@ import java.util.concurrent.Executors;
 
 @SuppressLint("ViewConstructor")
 public class XServerView extends SurfaceView implements SurfaceHolder.Callback {
-    private final VulkanRenderer renderer;
+    private final XServerRenderer renderer;
     private final ExecutorService eventExecutor = Executors.newSingleThreadExecutor();
 
-    public XServerView(Context context, XServer xServer) {
+    public XServerView(Context context, XServer xServer, String displayRenderer) {
         super(context);
         setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         getHolder().addCallback(this);
-        renderer = new VulkanRenderer(this, xServer);
+
+        if (displayRenderer != null && displayRenderer.equalsIgnoreCase("surfaceflinger")) {
+            Drawable.DRAWABLE_ASR_MODE(true);
+            renderer = new ASurfaceRenderer(this, xServer);
+        } else {
+            Drawable.DRAWABLE_ASR_MODE(false);
+            renderer = new VulkanRenderer(this, xServer);
+        }
     }
 
-    public VulkanRenderer getRenderer() {
+    public XServerRenderer getRenderer() {
         return renderer;
     }
 

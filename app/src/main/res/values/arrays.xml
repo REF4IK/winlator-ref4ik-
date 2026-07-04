@@ -56,6 +56,10 @@
         <item>Dd7To9</item>
         <item>WineD3D</item>
     </string-array>
+    <string-array name="displayrenderers_entries">
+        <item>Vulkan</item>
+        <item>SurfaceFlinger</item>
+    </string-array>
     <string-array name="dxvk_version_entries">
         <item>0.40.1</item>
         <item>0.96</item>

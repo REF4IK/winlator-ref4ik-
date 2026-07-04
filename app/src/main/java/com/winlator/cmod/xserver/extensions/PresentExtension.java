@@ -4,9 +4,11 @@ import static com.winlator.cmod.xserver.XClientRequestHandler.RESPONSE_CODE_SUCC
 
 import android.util.SparseArray;
 
+import com.winlator.cmod.renderer.ASurfaceRenderer;
 import com.winlator.cmod.renderer.GPUImage;
 import com.winlator.cmod.renderer.Texture;
 import com.winlator.cmod.renderer.VulkanRenderer;
+import com.winlator.cmod.renderer.XServerRenderer;
 import com.winlator.cmod.xconnector.XInputStream;
 import com.winlator.cmod.xconnector.XOutputStream;
 import com.winlator.cmod.xconnector.XStreamLock;
@@ -81,10 +83,10 @@ public class PresentExtension implements Extension {
         }
     }
 
-    private void scheduleIdleNotify(Window window, Pixmap pixmap, int serial, int idleFence, int targetFps, VulkanRenderer renderer) {
+    private void scheduleIdleNotify(Window window, Pixmap pixmap, int serial, int idleFence, int targetFps, XServerRenderer renderer) {
         if (idleFence != 0) syncExtension.setTriggered(idleFence);
         long delayMs = targetFps > 0 ? 1000 / targetFps : 16;
-        renderer.xServerView.postDelayed(() -> {
+        renderer.getXServerView().postDelayed(() -> {
             sendIdleNotify(window, pixmap, serial, idleFence);
         }, delayMs);
     }
@@ -134,30 +136,33 @@ public class PresentExtension implements Extension {
         Drawable content = window.getContent();
         if (content.visual.depth != pixmap.drawable.visual.depth) throw new BadMatch();
 
-        VulkanRenderer renderer = client.xServer.getRenderer();
-        int targetFps = renderer != null ? renderer.getFpsLimit() : 0;
+        XServerRenderer xr = client.xServer.getRenderer();
+        final VulkanRenderer vr = (xr instanceof VulkanRenderer) ? (VulkanRenderer) xr : null;
+        final ASurfaceRenderer asr = (xr instanceof ASurfaceRenderer) ? (ASurfaceRenderer) xr : null;
+        int targetFps = xr != null ? xr.getFpsLimit() : 0;
 
         long ust = System.nanoTime() / 1000;
         long msc = ust / (targetFps > 0 ? (1_000_000L / targetFps) : (1_000_000L / 60));
 
         synchronized (content.renderLock) {
-            boolean isNative = renderer != null && renderer.isNativeMode();
-
-            if (isNative && pixmap.drawable.isDirectScanout()) {
+            if (asr != null) {
                 content.setTexture(pixmap.drawable.getTexture());
-                content.setDirectScanout(true);
                 sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.FLIP, ust, msc);
-                if (window.attributes.isMapped() && renderer != null)
-                    renderer.onUpdateWindowContent(window);
-                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, renderer);
-            } else if (renderer != null && window.attributes.isMapped()) {
+                if (window.attributes.isMapped()) {
+                    asr.onUpdateWindowContent(window);
+                }
+                if (targetFps > 0) scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, vr);
+                else sendIdleNotify(window, pixmap, serial, idleFence);
+            } else if (vr != null && window.attributes.isMapped()) {
                 sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
-                renderer.onUpdateWindowContentDirect(window, pixmap.drawable, xOff, yOff);
-                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, renderer);
+                vr.onUpdateWindowContentDirect(window, pixmap.drawable, xOff, yOff);
+                if (targetFps > 0) scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, vr);
+                else sendIdleNotify(window, pixmap, serial, idleFence);
             } else {
                 content.copyArea((short)0, (short)0, xOff, yOff, pixmap.drawable.width, pixmap.drawable.height, pixmap.drawable);
                 sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
-                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, renderer);
+                if (targetFps > 0) scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, vr);
+                else sendIdleNotify(window, pixmap, serial, idleFence);
             }
         }
     }
@@ -170,11 +175,13 @@ public class PresentExtension implements Extension {
         Window window = client.xServer.windowManager.getWindow(windowId);
         if (window == null) throw new BadWindow(windowId);
 
-        if (GPUImage.isSupported() && !mask.isEmpty()) {
+        if (!Drawable.IS_ASR() && GPUImage.isSupported() && !mask.isEmpty()) {
             Drawable content = window.getContent();
             final Texture oldTexture = content.getTexture();
-            client.xServer.getRenderer().xServerView.queueEvent(oldTexture::destroy);
-            content.setTexture(new GPUImage(content.width, content.height));
+            XServerRenderer r = client.xServer.getRenderer();
+            if (r != null) r.getXServerView().queueEvent(oldTexture::destroy);
+            if (!(content.getTexture() instanceof GPUImage))
+                content.setTexture(new GPUImage(content.width, content.height));
         }
 
         synchronized (events) {
