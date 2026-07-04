@@ -200,10 +200,11 @@ fun GraphicsDriverConfigDialogCompose(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Settings, null, tint = MaterialTheme.colorScheme.primary)
                     Text(
@@ -515,8 +516,9 @@ fun GraphicsDriverConfigDialogCompose(
                     Text("Blacklisted: ${blacklistedExtensions.value}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                Spacer(Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                }
+                // Bottom fixed buttons
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onDismiss) {
                         Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.primary)
                     }
@@ -592,6 +594,15 @@ fun DXVKConfigDialogCompose(
     var enableGraphicsPipelineLibrary by remember { mutableStateOf(initial["enableGraphicsPipelineLibrary"] ?: "Auto") }
     var relaxedBarriers by remember { mutableStateOf(initial["relaxedBarriers"] ?: "Auto") }
 
+    // DXVK type: 0=none, 1=async, 2=gplasync — controls async/asyncCache visibility
+    val dxvkType = if (version.contains("gplasync")) 2 else if (version.contains("async")) 1 else 0
+    val showAsync = dxvkType != 0
+    val showAsyncCache = dxvkType == 2
+    LaunchedEffect(version) {
+        if (!showAsync) { async = false; asyncCache = false }
+        else if (!showAsyncCache) { asyncCache = false }
+    }
+
     val contentsManager = remember { ContentsManager(context) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -634,14 +645,15 @@ fun DXVKConfigDialogCompose(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(12.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.Settings, null, tint = MaterialTheme.colorScheme.primary)
-                    Text("DXVK " + stringResource(R.string.configuration), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                }
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxWidth().padding(12.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.Settings, null, tint = MaterialTheme.colorScheme.primary)
+                        Text("DXVK " + stringResource(R.string.configuration), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
                 HorizontalDivider()
 
                 // Version
@@ -876,8 +888,12 @@ fun DXVKConfigDialogCompose(
                     onSelected = { maxDeviceMemory = numOptions[it] },
                 )
                 // Async
-                ConfigSwitchRow("Async Pipeline", async) { async = it }
-                ConfigSwitchRow("Async Cache", asyncCache) { asyncCache = it }
+                if (showAsync) {
+                    ConfigSwitchRow("Async Pipeline", async) { async = it }
+                }
+                if (showAsyncCache) {
+                    ConfigSwitchRow("Async Cache", asyncCache) { asyncCache = it }
+                }
                 // Tear Free
                 DxvkRowWithHelp(
                     title = stringResource(R.string.tear_free),
@@ -1017,13 +1033,13 @@ fun DXVKConfigDialogCompose(
                 // Switches
                 ConfigSwitchRow("Defer Surface Creation", deferSurfaceCreation) { deferSurfaceCreation = it }
                 ConfigSwitchRow("Disable MSAA", disableMsaa) { disableMsaa = it }
-
-                Spacer(Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.primary)
-                    }
-                    Spacer(Modifier.width(8.dp))
+            }
+            // Bottom fixed buttons
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.width(8.dp))
                     Button(onClick = {
                         val newConfig = buildString {
                             append("version=$version")
