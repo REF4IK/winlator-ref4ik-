@@ -106,6 +106,9 @@ fun ShortcutSettingsScreen(
     var ddrawrapper by remember { mutableStateOf(shortcut.getExtra("ddrawrapper", container.dDrawWrapper)) }
     var audioDriver by remember { mutableStateOf(shortcut.getExtra("audioDriver", container.audioDriver)) }
     var audioDriverConfig by remember { mutableStateOf(shortcut.getExtra("audioDriverConfig", container.audioDriverConfig)) }
+    val displayRendererEntries = remember { ctx.resources.getStringArray(R.array.displayrenderers_entries).map { it.lowercase(Locale.ENGLISH) } }
+    var displayRenderer by remember { mutableStateOf(shortcut.getExtra("displayRenderer", container.displayRenderer)) }
+    var sfCompatMode by remember { mutableStateOf(shortcut.getExtra("sfCompatMode", if (container.sfCompatMode) "1" else "0") == "1") }
     var emulator by remember {
         val raw = shortcut.getExtra("emulator", container.emulator) ?: ""
         mutableStateOf(if (raw.lowercase() == "box64") "Box64" else "FEXCore")
@@ -352,6 +355,8 @@ fun ShortcutSettingsScreen(
                     shortcut.putExtra("dxwrapperConfig", if (dxwrapperConfig != container.getDXWrapperConfig()) dxwrapperConfig else null)
                     shortcut.putExtra("ddrawrapper", if (ddrawrapper != container.dDrawWrapper) ddrawrapper else null)
                     shortcut.putExtra("audioDriver", if (audioDriver != container.audioDriver) audioDriver else null)
+                    shortcut.putExtra("displayRenderer", if (displayRenderer != container.displayRenderer) displayRenderer else null)
+                    shortcut.putExtra("sfCompatMode", if (sfCompatMode != container.sfCompatMode) (if (sfCompatMode) "1" else "0") else null)
                     val emuSave = emulator.lowercase()
                     shortcut.putExtra("emulator", if (emuSave != container.emulator.lowercase()) emuSave else null)
                     val emu64Save = emulator64.lowercase()
@@ -521,6 +526,26 @@ fun ShortcutSettingsScreen(
                     onSelected = { audioDriver = it },
                     onConfigClick = { showAudioConfig = true }
                 )
+
+                // Display Renderer
+                ContainerSpinnerRow(
+                    label = stringResource(R.string.display_renderer),
+                    entries = ctx.resources.getStringArray(R.array.displayrenderers_entries).toList(),
+                    selected = displayRendererEntries.firstOrNull { it == displayRenderer }?.let { renderer ->
+                        ctx.resources.getStringArray(R.array.displayrenderers_entries)
+                            .firstOrNull { it.lowercase(Locale.ENGLISH) == renderer }
+                    } ?: "Vulkan",
+                    onSelected = {
+                        displayRenderer = it.lowercase(Locale.ENGLISH)
+                    },
+                )
+                if (displayRenderer == "surfaceflinger") {
+                    SwitchRow(
+                        stringResource(R.string.sf_compat_mode),
+                        sfCompatMode,
+                        onCheckedChange = { sfCompatMode = it },
+                    )
+                }
 
                 // DLL Emulator
                 val emulatorEntries = ctx.resources.getStringArray(R.array.emulator_entries).toList()
