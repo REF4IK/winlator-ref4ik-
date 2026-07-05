@@ -26,11 +26,7 @@
     </string-array>
     <string-array name="graphics_driver_entries">
         <item>Wrapper</item>
-        <item>Wrapper-v2</item>
-        <item>Wrapper-v3</item>
-        <item>Wrapper-v4</item>
-        <item>Wrapper-v5</item>
-        <item>Wrapper-v6</item>
+        <item>Wrapper-leegao</item>
     </string-array>
     <string-array name="wrapper_graphics_driver_version_entries">
         <item>System</item>
