@@ -232,7 +232,7 @@ fun FpsCounterSettingsDialog(
 
                     // ── Стиль оформления ──
                     FpsSectionHeader(
-                        title = "Стиль оформления",
+                        title = stringResource(R.string.fps_counter_style_title),
                         icon = Icons.Filled.Palette
                     )
                     FpsStyleSelectionRow(
@@ -241,7 +241,7 @@ fun FpsCounterSettingsDialog(
                         enabled = enabled
                     )
                     FpsCompactSwitchRow(
-                        label = "Белые шрифты показателей",
+                        label = stringResource(R.string.fps_counter_white_fonts),
                         checked = whiteFonts,
                         enabled = enabled,
                         onCheckedChange = { whiteFonts = it }
@@ -410,7 +410,12 @@ private fun FpsStyleSelectionRow(
     onStyleSelected: (Int) -> Unit,
     enabled: Boolean
 ) {
-    val styles = listOf("Default", "Cyber", "Retro", "Glass")
+    val styles = listOf(
+        stringResource(R.string.fps_counter_style_default),
+        stringResource(R.string.fps_counter_style_cyber),
+        stringResource(R.string.fps_counter_style_retro),
+        stringResource(R.string.fps_counter_style_glass)
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()

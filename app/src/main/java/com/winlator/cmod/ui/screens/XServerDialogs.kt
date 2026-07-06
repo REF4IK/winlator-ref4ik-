@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -545,20 +546,6 @@ fun ScreenEffectDialogCompose(
             tonalElevation = 6.dp
         ) {
             Column(Modifier.fillMaxSize()) {
-                // Compact header
-                Row(
-                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(horizontal = 10.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(painterResource(R.drawable.icon_screen_effect), null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.screen_effect), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { resetSettings() }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                        Text(stringResource(R.string.reset), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-
                 val scrollState = rememberScrollState()
                 Row(Modifier.fillMaxWidth().weight(1f)) {
                     // Left column: color sliders
@@ -682,6 +669,10 @@ fun ScreenEffectDialogCompose(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
+                    TextButton(onClick = { resetSettings() }) {
+                        Text(stringResource(R.string.reset), color = MaterialTheme.colorScheme.error)
+                    }
+                    Spacer(Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                     Spacer(Modifier.width(8.dp))
                     Button(onClick = {
@@ -691,38 +682,6 @@ fun ScreenEffectDialogCompose(
                 }
             }
         }
-    }
-
-    if (showAddProfileDialog) {
-        var profileNameInput by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showAddProfileDialog = false },
-            title = { Text(stringResource(R.string.do_you_want_to_add_a_new_profile)) },
-            text = {
-                OutlinedTextField(
-                    value = profileNameInput,
-                    onValueChange = { profileNameInput = it },
-                    label = { Text(stringResource(R.string.profile_name)) },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (profileNameInput.isNotEmpty() && !profileList.contains(profileNameInput)) {
-                        val oldProfiles = preferences.getStringSet("screen_effect_profiles", emptySet()) ?: emptySet()
-                        val newProfiles = oldProfiles.toMutableSet()
-                        newProfiles.add("$profileNameInput:")
-                        preferences.edit().putStringSet("screen_effect_profiles", newProfiles).apply()
-                        profileList = profileList + profileNameInput
-                        selectedProfile = profileNameInput
-                    }
-                    showAddProfileDialog = false
-                }) { Text(stringResource(R.string.add)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddProfileDialog = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
     }
 }
 

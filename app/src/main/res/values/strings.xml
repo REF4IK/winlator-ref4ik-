@@ -454,6 +454,12 @@
     <string name="fps_counter_fps_limit">FPS Limit</string>
     <string name="fps_counter_fps_limit_title">FPS Limit</string>
     <string name="fps_counter_no_limit">No Limit</string>
+    <string name="fps_counter_style_title">Visual Style</string>
+    <string name="fps_counter_white_fonts">White Indicator Fonts</string>
+    <string name="fps_counter_style_default">Default</string>
+    <string name="fps_counter_style_cyber">Cyber</string>
+    <string name="fps_counter_style_retro">Retro</string>
+    <string name="fps_counter_style_glass">Glass</string>
     <string name="fps_limit_applied">FPS limit applied: %s</string>
     <string name="frame_rate">Frame Rate</string>
     <string name="fullscreen_stretched">Enable Fullscreen (Stretched)</string>
