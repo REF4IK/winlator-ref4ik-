@@ -8,9 +8,27 @@ import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Environment
+import android.widget.VideoView
+import android.widget.MediaController
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Request
+import okhttp3.Response
+import org.json.JSONObject
+import java.io.IOException
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.util.Locale
+import com.winlator.cmod.core.DohOkHttp
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -88,6 +106,7 @@ fun ShortcutsScreen(
     var shortcutForMenu by remember { mutableStateOf<Shortcut?>(null) }
     var shortcutForClone by remember { mutableStateOf<Shortcut?>(null) }
     var showPropertiesFor by remember { mutableStateOf<Shortcut?>(null) }
+    var shortcutForSteamInfo by remember { mutableStateOf<Shortcut?>(null) }
 
     // Собираем все шорткаты из всех контейнеров
     val shortcuts = remember(refreshKey, refreshKeyInternal) {
@@ -256,6 +275,15 @@ Column(modifier = Modifier.fillMaxSize()) {
                         Spacer(Modifier.width(16.dp))
                         Text("Clone to Another Container")
                     }
+                    // SteamDB Info
+                    Row(modifier = Modifier.fillMaxWidth().clickable {
+                        shortcutForMenu = null
+                        shortcutForSteamInfo = s
+                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Movie, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(16.dp))
+                        Text(if (java.util.Locale.getDefault().language == "ru") "Информация Steam" else "Steam Info")
+                    }
                     // Properties
                     Row(modifier = Modifier.fillMaxWidth().clickable {
                         shortcutForMenu = null
@@ -328,6 +356,14 @@ Column(modifier = Modifier.fillMaxSize()) {
             dismissButton = {
                 TextButton(onClick = { showPropertiesFor = null }) { Text(stringResource(R.string.cancel)) }
             },
+        )
+    }
+
+    // Диалог Steam Info
+    shortcutForSteamInfo?.let { s ->
+        SteamInfoDialog(
+            shortcut = s,
+            onDismiss = { shortcutForSteamInfo = null }
         )
     }
 }
@@ -649,5 +685,634 @@ private fun runShortcut(ctx: android.content.Context, shortcut: Shortcut) {
         ctx.startActivity(intent)
     } catch (e: Exception) {
         AppUtils.showToast(ctx, "Cannot start: ${e.message}")
+    }
+}
+
+// ---- SteamDB / Steam API Game Information Card implementation ----
+
+class SteamGameInfo(
+    val appId: Int,
+    val name: String,
+    val description: String,
+    val headerImage: String,
+    val releaseDate: String,
+    val developers: List<String>,
+    val publishers: List<String>,
+    val genres: List<String>,
+    val screenshots: List<String>,
+    val trailerUrl: String?
+)
+
+data class SteamSearchResult(
+    val id: Int,
+    val name: String,
+    val tinyImage: String
+)
+
+private fun fetchAppIdByName(query: String, callback: (Int?) -> Unit) {
+    val cleanQuery = query.replace("_", " ").replace("-", " ")
+    val encoded = URLEncoder.encode(cleanQuery, StandardCharsets.UTF_8.name())
+    val url = "https://store.steampowered.com/api/storesearch/?term=$encoded&l=english&cc=us"
+    val request = Request.Builder().url(url).build()
+
+    DohOkHttp.get().newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            callback(null)
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            try {
+                if (!response.isSuccessful) {
+                    callback(null)
+                    return
+                }
+                val body = response.body?.string() ?: ""
+                val json = JSONObject(body)
+                val items = json.optJSONArray("items")
+                if (items != null && items.length() > 0) {
+                    val first = items.getJSONObject(0)
+                    callback(first.getInt("id"))
+                } else {
+                    callback(null)
+                }
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
+    })
+}
+
+private fun searchGamesOnSteam(query: String, callback: (List<SteamSearchResult>) -> Unit) {
+    val cleanQuery = query.replace("_", " ").replace("-", " ")
+    val encoded = URLEncoder.encode(cleanQuery, StandardCharsets.UTF_8.name())
+    val url = "https://store.steampowered.com/api/storesearch/?term=$encoded&l=english&cc=us"
+    val request = Request.Builder().url(url).build()
+
+    DohOkHttp.get().newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            callback(emptyList())
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            try {
+                if (!response.isSuccessful) {
+                    callback(emptyList())
+                    return
+                }
+                val body = response.body?.string() ?: ""
+                val json = JSONObject(body)
+                val items = json.optJSONArray("items") ?: return callback(emptyList())
+                val list = mutableListOf<SteamSearchResult>()
+                for (i in 0 until items.length()) {
+                    val obj = items.getJSONObject(i)
+                    list.add(SteamSearchResult(
+                        id = obj.getInt("id"),
+                        name = obj.getString("name"),
+                        tinyImage = obj.optString("tiny_image", "")
+                    ))
+                }
+                callback(list)
+            } catch (e: Exception) {
+                callback(emptyList())
+            }
+        }
+    })
+}
+
+private fun fetchGameDetails(appId: Int, locale: String, callback: (SteamGameInfo?) -> Unit) {
+    val url = "https://store.steampowered.com/api/appdetails?appids=$appId&l=$locale"
+    val request = Request.Builder().url(url).build()
+
+    DohOkHttp.get().newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            callback(null)
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            try {
+                if (!response.isSuccessful) {
+                    callback(null)
+                    return
+                }
+                val body = response.body?.string() ?: ""
+                val json = JSONObject(body)
+                val appObj = json.optJSONObject(appId.toString())
+                if (appObj != null && appObj.optBoolean("success", false)) {
+                    val data = appObj.getJSONObject("data")
+                    
+                    val name = data.getString("name")
+                    val description = data.optString("short_description", "").ifEmpty { data.optString("detailed_description", "") }
+                    val headerImage = data.optString("header_image", "")
+                    
+                    val releaseObj = data.optJSONObject("release_date")
+                    val releaseDate = releaseObj?.optString("date", "") ?: ""
+                    
+                    val developers = mutableListOf<String>()
+                    val devsArr = data.optJSONArray("developers")
+                    if (devsArr != null) {
+                        for (i in 0 until devsArr.length()) developers.add(devsArr.getString(i))
+                    }
+                    
+                    val publishers = mutableListOf<String>()
+                    val pubsArr = data.optJSONArray("publishers")
+                    if (pubsArr != null) {
+                        for (i in 0 until pubsArr.length()) publishers.add(pubsArr.getString(i))
+                    }
+                    
+                    val genres = mutableListOf<String>()
+                    val genresArr = data.optJSONArray("genres")
+                    if (genresArr != null) {
+                        for (i in 0 until genresArr.length()) {
+                            genres.add(genresArr.getJSONObject(i).getString("description"))
+                        }
+                    }
+                    
+                    val screenshots = mutableListOf<String>()
+                    val ssArr = data.optJSONArray("screenshots")
+                    if (ssArr != null) {
+                        for (i in 0 until ssArr.length()) {
+                            screenshots.add(ssArr.getJSONObject(i).getString("path_full"))
+                        }
+                    }
+                    
+                    var trailerUrl: String? = null
+                    val moviesArr = data.optJSONArray("movies")
+                    if (moviesArr != null && moviesArr.length() > 0) {
+                        val firstMovie = moviesArr.getJSONObject(0)
+                        val mp4Obj = firstMovie.optJSONObject("mp4")
+                        val rawUrl = mp4Obj?.optString("max") ?: mp4Obj?.optString("480")
+                        trailerUrl = rawUrl?.replace("http://", "https://")
+                    }
+                    
+                    callback(SteamGameInfo(
+                        appId = appId,
+                        name = name,
+                        description = description,
+                        headerImage = headerImage,
+                        releaseDate = releaseDate,
+                        developers = developers,
+                        publishers = publishers,
+                        genres = genres,
+                        screenshots = screenshots,
+                        trailerUrl = trailerUrl
+                    ))
+                } else {
+                    callback(null)
+                }
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
+    })
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SteamInfoDialog(
+    shortcut: Shortcut,
+    onDismiss: () -> Unit
+) {
+    val ctx = LocalContext.current
+    val locale = java.util.Locale.getDefault().language
+    val isRussian = locale == "ru"
+
+    var appIdState by remember { mutableStateOf<Int?>(null) }
+    var gameInfo by remember { mutableStateOf<SteamGameInfo?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    var searchQuery by remember { mutableStateOf(shortcut.name) }
+    var searchResults by remember { mutableStateOf<List<SteamSearchResult>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+
+    var activeFullScreenScreenshot by remember { mutableStateOf<String?>(null) }
+
+    fun loadDetails(appId: Int) {
+        isLoading = true
+        errorMessage = null
+        fetchGameDetails(appId, if (isRussian) "russian" else "english") { info ->
+            if (info != null) {
+                gameInfo = info
+                isLoading = false
+                // Save appId to shortcut as cache
+                shortcut.putExtra("steamAppId", appId.toString())
+                shortcut.saveData()
+            } else {
+                isLoading = false
+                errorMessage = if (isRussian) "Не удалось загрузить детали игры." else "Failed to load game details."
+            }
+        }
+    }
+
+    fun performSearch(query: String) {
+        isSearching = true
+        searchGamesOnSteam(query) { results ->
+            isSearching = false
+            searchResults = results
+            if (results.isEmpty()) {
+                errorMessage = if (isRussian) "Игры не найдены. Попробуйте другой запрос." else "No games found. Try another search query."
+            } else {
+                errorMessage = null
+            }
+        }
+    }
+
+    LaunchedEffect(shortcut) {
+        val cachedAppId = shortcut.getExtra("steamAppId").toIntOrNull()
+        if (cachedAppId != null && cachedAppId > 0) {
+            appIdState = cachedAppId
+            loadDetails(cachedAppId)
+        } else {
+            fetchAppIdByName(shortcut.name) { resolvedId ->
+                if (resolvedId != null && resolvedId > 0) {
+                    appIdState = resolvedId
+                    loadDetails(resolvedId)
+                } else {
+                    isLoading = false
+                    performSearch(shortcut.name)
+                }
+            }
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.92f),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.background,
+            tonalElevation = 8.dp
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
+                                )
+                            )
+                        )
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = gameInfo?.name ?: (if (isRussian) "Информация об игре" else "Game Information"),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
+                        }
+                    }
+                }
+
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                if (isRussian) "Загрузка информации из Steam..." else "Loading information from Steam...",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                } else if (gameInfo != null) {
+                    val info = gameInfo!!
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                        ) {
+                            coil.compose.AsyncImage(
+                                model = info.headerImage,
+                                contentDescription = info.name,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color.Black.copy(alpha = 0.7f)
+                                            )
+                                        )
+                                    )
+                            )
+                            Text(
+                                text = "AppID: ${info.appId}",
+                                color = Color.White.copy(alpha = 0.8f),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(8.dp)
+                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    if (info.releaseDate.isNotEmpty()) {
+                                        MetadataRow(label = if (isRussian) "Дата релиза" else "Release Date", value = info.releaseDate)
+                                    }
+                                    if (info.developers.isNotEmpty()) {
+                                        MetadataRow(label = if (isRussian) "Разработчик" else "Developer", value = info.developers.joinToString(", "))
+                                    }
+                                    if (info.publishers.isNotEmpty()) {
+                                        MetadataRow(label = if (isRussian) "Издатель" else "Publisher", value = info.publishers.joinToString(", "))
+                                    }
+                                    if (info.genres.isNotEmpty()) {
+                                        MetadataRow(label = if (isRussian) "Жанры" else "Genres", value = info.genres.joinToString(", "))
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = if (isRussian) "Описание" else "Description",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            val plainDescription = remember(info.description) {
+                                try {
+                                    android.text.Html.fromHtml(info.description, android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim()
+                                } catch (e: Throwable) {
+                                    info.description.replace("<[^>]*>".toRegex(), "").trim()
+                                }
+                            }
+
+                            Text(
+                                text = plainDescription,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+
+                            if (info.trailerUrl != null) {
+                                Text(
+                                    text = if (isRussian) "Видео / Трейлер" else "Video / Trailer",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.Black),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AndroidView(
+                                        modifier = Modifier.fillMaxSize(),
+                                        factory = { context ->
+                                            VideoView(context).apply {
+                                                setVideoPath(info.trailerUrl)
+                                                val mediaController = MediaController(context)
+                                                mediaController.setAnchorView(this)
+                                                setMediaController(mediaController)
+                                                setOnPreparedListener { 
+                                                    seekTo(100) 
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+
+                            if (info.screenshots.isNotEmpty()) {
+                                Text(
+                                    text = if (isRussian) "Скриншоты" else "Screenshots",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(info.screenshots) { ssUrl ->
+                                        Box(
+                                            modifier = Modifier
+                                                .width(160.dp)
+                                                .height(90.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .clickable { activeFullScreenScreenshot = ssUrl }
+                                        ) {
+                                            coil.compose.AsyncImage(
+                                                model = ssUrl,
+                                                contentDescription = "screenshot",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(10.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(10.dp))
+
+                            Text(
+                                text = if (isRussian) "Не та игра? Найти вручную:" else "Wrong game? Search manually:",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    label = { Text(if (isRussian) "Название игры" else "Game Name") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Button(
+                                    onClick = { 
+                                        gameInfo = null
+                                        performSearch(searchQuery) 
+                                    },
+                                    enabled = searchQuery.trim().isNotEmpty()
+                                ) {
+                                    Text(if (isRussian) "Поиск" else "Search")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = if (isRussian) "Поиск игры в Steam" else "Search game on Steam",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                label = { Text(if (isRussian) "Введите название" else "Enter name") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(
+                                onClick = { performSearch(searchQuery) },
+                                enabled = searchQuery.trim().isNotEmpty()
+                            ) {
+                                Text(if (isRussian) "Искать" else "Search")
+                            }
+                        }
+
+                        if (isSearching) {
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else if (searchResults.isNotEmpty()) {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(searchResults) { res ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { 
+                                                appIdState = res.id
+                                                loadDetails(res.id) 
+                                            },
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(60.dp, 30.dp)
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(Color.DarkGray)
+                                            ) {
+                                                if (res.tinyImage.isNotEmpty()) {
+                                                    coil.compose.AsyncImage(
+                                                        model = res.tinyImage,
+                                                        contentDescription = res.name,
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.width(12.dp))
+                                            Column {
+                                                Text(text = res.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text(text = "AppID: ${res.id}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = errorMessage ?: (if (isRussian) "Поиск еще не выполнялся." else "No search performed yet."),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    activeFullScreenScreenshot?.let { ssUrl ->
+        Dialog(
+            onDismissRequest = { activeFullScreenScreenshot = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clickable { activeFullScreenScreenshot = null },
+                contentAlignment = Alignment.Center
+            ) {
+                coil.compose.AsyncImage(
+                    model = ssUrl,
+                    contentDescription = "screenshot_fullscreen",
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f),
+                    contentScale = ContentScale.Fit
+                )
+                IconButton(
+                    onClick = { activeFullScreenScreenshot = null },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(32.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetadataRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "$label: ",
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.width(120.dp)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
