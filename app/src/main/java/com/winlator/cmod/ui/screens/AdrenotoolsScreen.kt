@@ -33,6 +33,7 @@ import com.winlator.cmod.contents.AdrenotoolsManager
  */
 @Composable
 fun AdrenotoolsScreen(
+    refreshKey: Int = 0,
     onBack: () -> Unit,
     onOpenDriverStore: () -> Unit,
 ) {
@@ -41,6 +42,10 @@ fun AdrenotoolsScreen(
 
     // Список установленных драйверов (обновляемый)
     var driversList by remember { mutableStateOf(adrenotoolsManager.enumarateInstalledDrivers()) }
+
+    LaunchedEffect(refreshKey) {
+        driversList = adrenotoolsManager.enumarateInstalledDrivers()
+    }
 
     // Состояние диалога подтверждения установки
     var showInstallConfirm by remember { mutableStateOf(false) }

@@ -94,6 +94,7 @@ fun WinlatorApp(
     var editContainerId by remember { mutableStateOf(0) }
     var isContainerEditMode by remember { mutableStateOf(false) }
     var containersRefreshKey by remember { mutableStateOf(0) }
+    var adrenotoolsRefreshKey by remember { mutableStateOf(0) }
     var showContainerImportInfo by remember { mutableStateOf(false) }
     var showImportGame by remember { mutableStateOf(false) }
     var importGameContainerId by remember { mutableStateOf(0) }
@@ -416,6 +417,7 @@ fun WinlatorApp(
                         onOpenInstalledComponents = { showInstalledComponents = true },
                     )
                     Screen.Adrenotools -> AdrenotoolsScreen(
+                        refreshKey = adrenotoolsRefreshKey,
                         onBack = { currentScreen = Screen.Containers },
                         onOpenDriverStore = { showDriverStore = true },
                     )
@@ -455,7 +457,7 @@ fun WinlatorApp(
             if (showDriverStore) {
                 DriverStoreScreen(
                     onBack = { showDriverStore = false },
-                    onDriverInstalled = { /* список Adrenotools обновится при возврате */ },
+                    onDriverInstalled = { adrenotoolsRefreshKey++ },
                 )
             }
             if (showInstalledComponents) {

@@ -34,6 +34,9 @@ import com.winlator.cmod.contents.AdrenotoolsManager
 import com.winlator.cmod.core.DriverResolver
 import com.winlator.cmod.core.GPUInformation
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Полный перенос DriverStoreFragment.java на Jetpack Compose.
@@ -50,6 +53,7 @@ fun DriverStoreScreen(
     val ctx = LocalContext.current
     val driverResolver = remember { DriverResolver(ctx) }
     val adrenotoolsManager = remember { AdrenotoolsManager(ctx) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Состояния
     var drivers by remember { mutableStateOf<List<DriverResolver.DriverInfo>>(emptyList()) }
@@ -83,6 +87,7 @@ fun DriverStoreScreen(
         val names = mutableSetOf<String>()
         try {
             for (id in adrenotoolsManager.enumarateInstalledDrivers()) {
+                names.add(id)
                 val n = adrenotoolsManager.getDriverName(id)
                 if (n.isNotEmpty()) names.add(n)
             }
@@ -130,18 +135,24 @@ fun DriverStoreScreen(
 
     // Установка драйвера после загрузки
     fun installDownloadedDriver(uri: Uri, driverName: String) {
-        try {
-            val installedId = adrenotoolsManager.installDriver(uri)
-            if (installedId.isNotEmpty()) {
-                Toast.makeText(ctx, ctx.getString(R.string.driver_installed_successfully, driverName), Toast.LENGTH_LONG).show()
-                // Обновляем отметку установленных и остаёмся в магазине (на списке драйверов)
-                refreshInstalledDrivers()
-                onDriverInstalled()
-            } else {
-                Toast.makeText(ctx, R.string.driver_installation_failed, Toast.LENGTH_LONG).show()
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                val installedId = adrenotoolsManager.installDriver(uri)
+                withContext(Dispatchers.Main) {
+                    if (installedId.isNotEmpty()) {
+                        Toast.makeText(ctx, ctx.getString(R.string.driver_installed_successfully, driverName), Toast.LENGTH_LONG).show()
+                        // Обновляем отметку установленных и остаёмся в магазине (на списке драйверов)
+                        refreshInstalledDrivers()
+                        onDriverInstalled()
+                    } else {
+                        Toast.makeText(ctx, R.string.driver_installation_failed, Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(ctx, ctx.getString(R.string.installation_error, e.message), Toast.LENGTH_LONG).show()
+                }
             }
-        } catch (e: Exception) {
-            Toast.makeText(ctx, ctx.getString(R.string.installation_error, e.message), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -152,12 +163,16 @@ fun DriverStoreScreen(
         driverResolver.downloadDriver(driverInfo, object : DriverResolver.DriverDownloadCallback {
             override fun onProgress(progress: Int) { downloadProgress = progress }
             override fun onComplete(driverUri: Uri) {
-                downloadingDriver = null
-                installDownloadedDriver(driverUri, driverInfo.name)
+                coroutineScope.launch(Dispatchers.Main) {
+                    downloadingDriver = null
+                    installDownloadedDriver(driverUri, driverInfo.name)
+                }
             }
             override fun onError(error: String) {
-                downloadingDriver = null
-                Toast.makeText(ctx, ctx.getString(R.string.download_error, error), Toast.LENGTH_LONG).show()
+                coroutineScope.launch(Dispatchers.Main) {
+                    downloadingDriver = null
+                    Toast.makeText(ctx, ctx.getString(R.string.download_error, error), Toast.LENGTH_LONG).show()
+                }
             }
         })
     }
@@ -275,9 +290,7 @@ fun DriverStoreScreen(
                                     isDownloading = downloadingDriver == driver,
                                     downloadProgress = downloadProgress,
                                     isInstalled = installedDriverNames.any { inst ->
-                                        inst.equals(driver.name, ignoreCase = true) ||
-                                        driver.name.contains(inst, ignoreCase = true) ||
-                                        inst.contains(driver.name, ignoreCase = true)
+                                        isDriverMatching(inst, driver.name)
                                     },
                                     onDownload = { downloadAndInstall(driver) }
                                 )
@@ -543,4 +556,26 @@ private fun extractGpuModel(renderer: String?): String? {
         if (matcher != null) return "Adreno ${matcher.groupValues[1]}"
     }
     return renderer
+}
+
+private fun isDriverMatching(installedName: String, storeName: String): Boolean {
+    val clean = { s: String ->
+        s.lowercase()
+         .replace("gmem", "")
+         .replace("sysmem", "")
+         .replace(Regex("[^a-z0-9]"), "")
+    }
+    
+    val cleanInst = clean(installedName)
+    val cleanStore = clean(storeName)
+    
+    if (cleanInst.isEmpty() || cleanStore.isEmpty()) return false
+    
+    if (cleanInst == cleanStore || cleanStore.contains(cleanInst) || cleanInst.contains(cleanStore)) {
+        return true
+    }
+    
+    val cleanInstNoV = cleanInst.replace("v", "")
+    val cleanStoreNoV = cleanStore.replace("v", "")
+    return cleanInstNoV.contains(cleanStoreNoV) || cleanStoreNoV.contains(cleanInstNoV)
 }
