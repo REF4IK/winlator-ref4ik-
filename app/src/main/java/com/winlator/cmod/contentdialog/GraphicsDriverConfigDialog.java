@@ -243,6 +243,21 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             }
         });
 
+        // Update selectedVulkanVersion whenever the user selects a different Vulkan version
+        sVulkanVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedVulkanVersion = sVulkanVersion.getSelectedItem().toString();
+                Log.d(TAG, "User selected Vulkan version: " + selectedVulkanVersion);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                selectedVulkanVersion = sVulkanVersion.getSelectedItem().toString();
+                Log.d(TAG, "User selected Vulkan version: " + selectedVulkanVersion);
+            }
+        });
+
         sMaxDeviceMemory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -492,6 +507,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
 
         // Use the custom selection logic
         setSpinnerSelectionWithFallback(sVersion, initialVersion, graphicsDriver);
+        AppUtils.setSpinnerSelectionFromValue(sVulkanVersion, selectedVulkanVersion);
         AppUtils.setSpinnerSelectionFromNumber(sMaxDeviceMemory, maxDeviceMemory);
         AppUtils.setSpinnerSelectionFromValue(sFrameSynchronization, normalizeFrameSynchronization(frameSync));
         AppUtils.setSpinnerSelectionFromValue(sPresentMode, resolveConfiguredPresentMode(frameSync, presentMode));

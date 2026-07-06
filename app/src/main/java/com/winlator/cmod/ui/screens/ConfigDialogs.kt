@@ -166,6 +166,7 @@ fun GraphicsDriverConfigDialogCompose(
 ) {
     val initial = remember(initialConfig) { parseKeyValueSet(initialConfig) }
     var selectedVersion by remember { mutableStateOf(initial["version"] ?: "System") }
+    var vulkanVersion by remember { mutableStateOf(initial["vulkanVersion"] ?: "1.3") }
     var maxDeviceMemory by remember { mutableStateOf(initial["maxDeviceMemory"] ?: "0") }
     var frameSync by remember { mutableStateOf(initial["frameSync"] ?: "Normal") }
     var presentMode by remember { mutableStateOf(initial["presentMode"] ?: "mailbox") }
@@ -283,6 +284,15 @@ fun GraphicsDriverConfigDialogCompose(
                     )
                 }
                 HorizontalDivider()
+
+                // Vulkan Version
+                val vulkanVersionOptions = remember { context.resources.getStringArray(R.array.vulkan_version_entries).toList() }
+                Text(stringResource(R.string.graphics_driver_vulkan_version), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                ConfigSpinnerRow(
+                    items = vulkanVersionOptions,
+                    selectedIndex = vulkanVersionOptions.indexOf(vulkanVersion).coerceAtLeast(0),
+                    onSelected = { vulkanVersion = vulkanVersionOptions[it] },
+                )
 
                 // Version
                 Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -596,6 +606,7 @@ fun GraphicsDriverConfigDialogCompose(
                     Button(onClick = {
                         val newConfig = buildString {
                             append("version=$selectedVersion")
+                            append(";vulkanVersion=$vulkanVersion")
                             append(";blacklistedExtensions=${blacklistedExtensions.value}")
                             append(";maxDeviceMemory=$maxDeviceMemory")
                             append(";adrenotoolsTurnip=${if (adrenotoolsTurnip) "1" else "0"}")

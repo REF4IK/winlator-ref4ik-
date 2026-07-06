@@ -5271,6 +5271,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         }
 
+        String vulkanVersion = graphicsDriverConfig.get("vulkanVersion");
+        envVars.put("WRAPPER_VK_VERSION", vulkanVersion != null ? vulkanVersion : "1.3");
+
         String blacklistedExtensions = graphicsDriverConfig.get("blacklistedExtensions");
 
         envVars.put("WRAPPER_EXTENSION_BLACKLIST", blacklistedExtensions);
