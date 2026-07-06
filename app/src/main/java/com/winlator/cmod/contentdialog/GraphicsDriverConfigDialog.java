@@ -33,6 +33,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private static final String TAG = "GraphicsDriverConfigDialog"; // Tag for logging
     HashMap<String, Boolean> extensionsState = new HashMap<>();
     private Spinner sVersion;
+    private Spinner sVulkanVersion;
     private Spinner sAvailableExtensions;
     private Spinner sMaxDeviceMemory;
     private Spinner sFrameSynchronization;
@@ -45,6 +46,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private CheckBox cbEnableBlit;
     
     private static String selectedVersion;
+    private static String selectedVulkanVersion = "1.3";
     private static String blacklistedExtensions = "";
     private static String selectedDeviceMemory;
     private static String isAdrenotoolsTurnip = "1";
@@ -166,7 +168,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     public static String writeGraphicsDriverConfig() {
         String normalizedFrameSync = normalizeFrameSynchronization(frameSynchronization);
         String effectivePresentMode = resolveConfiguredPresentMode(normalizedFrameSync, selectedPresentMode);
-        String graphicsDriverConfig = "version=" + selectedVersion + ";" + "blacklistedExtensions=" + blacklistedExtensions + ";" + "maxDeviceMemory=" + StringUtils.parseNumber(selectedDeviceMemory) + ";" + "adrenotoolsTurnip=" + isAdrenotoolsTurnip + ";" + "frameSync=" + normalizedFrameSync + ";" + "presentMode=" + effectivePresentMode + ";" + "resourceType=" + selectedResourceType + ";" + "bcnEmulation=" + selectedBCnEmulation + ";" + "bcnEmulationType=" + selectedBCnEmulationType + ";" + "bcnEmulationCache=" + isBCnCacheEnabled + ";" + "blit=" + enableBlit;
+        String graphicsDriverConfig = "version=" + selectedVersion + ";" + "blacklistedExtensions=" + blacklistedExtensions + ";" + "maxDeviceMemory=" + StringUtils.parseNumber(selectedDeviceMemory) + ";" + "adrenotoolsTurnip=" + isAdrenotoolsTurnip + ";" + "frameSync=" + normalizedFrameSync + ";" + "presentMode=" + effectivePresentMode + ";" + "resourceType=" + selectedResourceType + ";" + "bcnEmulation=" + selectedBCnEmulation + ";" + "bcnEmulationType=" + selectedBCnEmulationType + ";" + "bcnEmulationCache=" + isBCnCacheEnabled + ";" + "blit=" + enableBlit + ";" + "vulkanVersion=" + selectedVulkanVersion;
         Log.i(TAG, "Written config " + graphicsDriverConfig);
         return graphicsDriverConfig;
     }
@@ -183,6 +185,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         String graphicsDriverConfig = anchor.getTag().toString();
 
         sVersion = findViewById(R.id.SGraphicsDriverVersion);
+        sVulkanVersion = findViewById(R.id.SGraphicsDriverVulkanVersion);
         sAvailableExtensions = findViewById(R.id.SGraphicsDriverAvailableExtensions);
         sFrameSynchronization = findViewById(R.id.SGraphicsDriverFrameSync);
         sMaxDeviceMemory = findViewById(R.id.SGraphicsDriverMaxDeviceMemory);
@@ -196,7 +199,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
 
         HashMap<String, String> config = parseGraphicsDriverConfig(graphicsDriverConfig);
 
-        String initialVersion = config.get("version");
+        final String initialVersion = config.get("version");
         String blExtensions = config.get("blacklistedExtensions");
         String maxDeviceMemory = config.get("maxDeviceMemory");
         String adrenotoolsTurnip = config.get("adrenotoolsTurnip");
@@ -207,7 +210,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         String bcnEmulationType = config.get("bcnEmulationType");
         String bcnEmulationCache = config.get("bcnEmulationCache");
         String blit = config.get("blit");
+        String vulkanVersion = config.get("vulkanVersion");
 
+        selectedVulkanVersion = vulkanVersion != null && !vulkanVersion.isEmpty() ? vulkanVersion : "1.3";
         frameSynchronization = frameSync;
         selectedPresentMode = presentMode;
         selectedResourceType = resourceType != null && !resourceType.isEmpty() ? resourceType : "auto";
@@ -217,12 +222,18 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         selectedDeviceMemory = maxDeviceMemory != null && !maxDeviceMemory.isEmpty() ? maxDeviceMemory : "0";
         isAdrenotoolsTurnip = "0".equals(adrenotoolsTurnip) ? "0" : "1";
 
-        // Update the selectedVersion whenever the user selects a different version
+        // Сохраняем исходный blacklist для восстановления при возврате к исходному драйверу.
+        // initialVersion уже объявлен выше из config.get("version").
+        final String initialBlExtensions = blExtensions;
+
+        // Update the selectedVersion whenever the user selects a different version.
+        // Расширения Vulkan перезагружаются динамически в зависимости от выбранного драйвера.
         sVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedVersion = sVersion.getSelectedItem().toString();
                 Log.d(TAG, "User selected version: " + selectedVersion);
+                refreshExtensionsForDriver(selectedVersion, initialVersion, initialBlExtensions);
             }
 
             @Override
@@ -371,6 +382,78 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         });
     }
 
+    /**
+     * Загружает список доступных Vulkan-расширений для указанного драйвера.
+     * Если driverName — кастомный драйвер (не "System"), расширения запрашиваются
+     * у GPUInformation.enumerateExtensionsWithDriver, который динамически загружает
+     * драйвер через adrenotools. Иначе — у системного enumerateExtensions().
+     *
+     * Расширения, критичные для работы wrapper'а, исключаются из списка.
+     */
+    private ArrayList<String> loadExtensionsForDriver(Context context, String driverName) {
+        ArrayList<String> extensions;
+        try {
+            if (driverName == null || driverName.isEmpty() || driverName.equalsIgnoreCase("System")) {
+                extensions = new ArrayList<>(Arrays.asList(GPUInformation.enumerateExtensions()));
+            } else {
+                Log.d(TAG, "Loading extensions dynamically for driver: " + driverName);
+                extensions = new ArrayList<>(Arrays.asList(GPUInformation.enumerateExtensions(driverName, context)));
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to load extensions for driver " + driverName + ", fallback to system", t);
+            extensions = new ArrayList<>(Arrays.asList(GPUInformation.enumerateExtensions()));
+        }
+
+        // Remove essential and wrapper disabled extensions
+        String[] essentialExtensions = {"VK_GOOGLE_display_timing", "VK_KHR_shader_float_controls",
+                "VK_KHR_shader_presentable_image", "VK_EXT_image_compression_control_swapchain"};
+        for (String extension : essentialExtensions) {
+            extensions.remove(extension);
+        }
+        return extensions;
+    }
+
+    /**
+     * Перезагружает список расширений при смене драйвера в спиннере.
+     * Сохраняет текущее состояние blacklist, а если выбран исходный драйвер —
+     * восстанавливает исходный blacklist из конфига контейнера.
+     */
+    private void refreshExtensionsForDriver(String driverName, String initialVersion, String initialBlExtensions) {
+        Context context = getContext();
+        if (context == null || sAvailableExtensions == null) return;
+
+        ArrayList<String> newExtensions = loadExtensionsForDriver(context, driverName);
+
+        // Сбрасываем состояние расширений
+        extensionsState.clear();
+
+        // Если вернулись к исходному драйверу — восстанавливаем исходный blacklist
+        if (initialVersion != null && initialVersion.equals(driverName) && initialBlExtensions != null) {
+            String[] bl = initialBlExtensions.split("\\,");
+            for (String extension : bl) {
+                if (!extension.isEmpty()) {
+                    extensionsState.put(extension, false);
+                }
+            }
+        } else {
+            // Для нового драйвера — сохраняем blacklist тех расширений, которые
+            // всё ещё присутствуют в новом списке (они остаются выключенными)
+            String currentBlacklist = blacklistedExtensions;
+            if (currentBlacklist != null && !currentBlacklist.isEmpty()) {
+                String[] bl = currentBlacklist.split("\\,");
+                for (String extension : bl) {
+                    if (!extension.isEmpty() && newExtensions.contains(extension)) {
+                        extensionsState.put(extension, false);
+                    }
+                }
+            }
+        }
+
+        ExtensionAdapter newAdapter = new ExtensionAdapter(context, newExtensions);
+        sAvailableExtensions.setAdapter(newAdapter);
+        Log.d(TAG, "Refreshed extensions for driver '" + driverName + "': " + newExtensions.size() + " extensions");
+    }
+
     private void populateGraphicsDriverVersions(Context context, ContentsManager contentsManager, @Nullable String initialVersion, @Nullable String blExtensions, String maxDeviceMemory, String frameSync, String presentMode, String resourceType, String bcnEmulation, String bcnEmulationType, String bcnEmulationCache, String graphicsDriver) {
         List<String> wrapperVersions = new ArrayList<>();
         ArrayList<String> availableExtensions;
@@ -378,19 +461,14 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         String[] wrapperDefaultVersions = context.getResources().getStringArray(R.array.wrapper_graphics_driver_version_entries);
 
         wrapperVersions.addAll(Arrays.asList(wrapperDefaultVersions));
-        
+
         // Add installed versions from AdrenotoolsManager
         AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(context);
         wrapperVersions.addAll(adrenotoolsManager.enumarateInstalledDrivers());
 
-
-        availableExtensions = new ArrayList<>(Arrays.asList(GPUInformation.enumerateExtensions()));
-
-        // Remove essential and wrapper disabled extensions
-        String[] essentialExtensions = {"VK_GOOGLE_display_timing", "VK_KHR_shader_float_controls", "VK_KHR_shader_presentable_image", "VK_EXT_image_compression_control_swapchain"};
-        for (String extension : essentialExtensions) {
-            availableExtensions.remove(extension);
-        }
+        // Загружаем расширения для выбранного драйвера (динамически).
+        // Если initialVersion — кастомный драйвер, extensions будут от него.
+        availableExtensions = loadExtensionsForDriver(context, initialVersion);
 
         // Set the adapter and select the initial version
         ArrayAdapter<String> wrapperAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, wrapperVersions);
@@ -404,10 +482,10 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                 extensionsState.put(extension, false);
             }
         }
-        
+
         sVersion.setAdapter(wrapperAdapter);
         sAvailableExtensions.setAdapter(extensionsAdapter);
-        
+
         // We can start logging selected graphics driver and initial version
         Log.d(TAG, "Graphics driver: " + graphicsDriver);
         Log.d(TAG, "Initial version: " + initialVersion);

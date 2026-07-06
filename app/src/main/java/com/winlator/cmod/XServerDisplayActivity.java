@@ -4298,7 +4298,40 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         renderer.setCursorVisible(false);
 
-
+        // Передаём информацию о выбранном драйвере в VulkanRenderer, чтобы
+        // рендерер загрузил кастомный Vulkan-драйвер через adrenotools.
+        // Драйвер определяется из graphicsDriverConfig ("version") контейнера/shortcut.
+        if (renderer instanceof VulkanRenderer) {
+            try {
+                String rendererDriverId = "";
+                if (graphicsDriverConfig != null) {
+                    rendererDriverId = graphicsDriverConfig.get("version");
+                }
+                if (shortcut != null) {
+                    String shortcutDriver = shortcut.getExtra("wrapperGraphicsDriverVersion",
+                            graphicsDriverConfig != null ? graphicsDriverConfig.get("version") : "");
+                    if (shortcutDriver != null && !shortcutDriver.isEmpty()) {
+                        rendererDriverId = shortcutDriver;
+                    }
+                }
+                if (rendererDriverId != null && !rendererDriverId.isEmpty()
+                        && !rendererDriverId.equalsIgnoreCase("System")
+                        && !rendererDriverId.contains(DefaultVersion.WRAPPER)) {
+                    AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(this);
+                    String libraryName = adrenotoolsManager.getLibraryName(rendererDriverId);
+                    String nativeLibDir = AppUtils.getNativeLibDir(this);
+                    String driverPath = getFilesDir().getAbsolutePath()
+                            + "/imagefs/contents/adrenotools/" + rendererDriverId + "/";
+                    if (libraryName != null && !libraryName.isEmpty()) {
+                        ((VulkanRenderer) renderer).setDriverInfo(driverPath, libraryName, nativeLibDir);
+                        Log.d("XServerDisplayActivity", "setDriverInfo for renderer: driverId=" + rendererDriverId
+                                + " lib=" + libraryName + " path=" + driverPath);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w("XServerDisplayActivity", "Failed to set driver info for renderer", e);
+            }
+        }
 
         if (shortcut != null) {
 

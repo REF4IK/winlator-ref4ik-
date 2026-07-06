@@ -447,6 +447,7 @@
     <string name="graphics_driver_max_device_memory">最大设备内存</string>
     <string name="graphics_driver_present_modes">呈现模式</string>
     <string name="graphics_driver_resource_type">内存资源类型</string>
+    <string name="graphics_driver_vulkan_version">Vulkan 版本</string>
     <string name="graphics_driver_version">图形驱动版本</string>
     <string name="group">组</string>
     <string name="group_description_gamehub">适用于新 Adreno 8xx 系列 GPU 的专用驱动</string>

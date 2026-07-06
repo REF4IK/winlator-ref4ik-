@@ -513,6 +513,7 @@
     <string name="graphics_driver_bcn_emulation">BCn Emulation</string>
     <string name="graphics_driver_bcn_emulation_type">BCn Emulation Type</string>
     <string name="graphics_driver_bcn_emulation_cache">BCn Emulation Cache</string>
+    <string name="graphics_driver_vulkan_version">Vulkan Version</string>
     <string name="graphics_driver_version">Graphics Driver Version</string>
     <string name="display_renderer">Display Renderer</string>
     <string name="sf_compat_mode">Compatibility Mode</string>

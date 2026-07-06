@@ -57,6 +57,14 @@ public abstract class AppUtils {
         return "armhf";
     }
 
+    /**
+     * Возвращает путь к директории нативных библиотек приложения.
+     * Используется adrenotools для загрузки кастомных Vulkan-драйверов.
+     */
+    public static String getNativeLibDir(Context context) {
+        return context.getApplicationInfo().nativeLibraryDir;
+    }
+
     public static void restartActivity(AppCompatActivity activity) {
         Intent intent = activity.getIntent();
         activity.finish();

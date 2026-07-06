@@ -53,6 +53,8 @@ target_link_libraries(winlator
         GLESv2
         GLESv3
         c++_shared
+        adrenotools
+        dl
 )
 
 # Vulkan renderer shader compilation

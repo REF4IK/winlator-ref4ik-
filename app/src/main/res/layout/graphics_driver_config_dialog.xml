@@ -23,6 +23,21 @@
             android:layout_height="wrap_content"
             android:id="@+id/SGraphicsDriverVersion"/>
 
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/graphics_driver_vulkan_version"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+            android:textColor="?attr/colorOnSurface"
+            android:paddingBottom="8dp"/>
+
+        <Spinner
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/SGraphicsDriverVulkanVersion"
+            android:entries="@array/vulkan_version_entries"/>
+
         <Button
             android:id="@+id/BTDownloadGraphicsDriver"
             android:layout_width="match_parent"

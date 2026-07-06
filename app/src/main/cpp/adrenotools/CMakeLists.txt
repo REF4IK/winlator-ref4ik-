@@ -1,13 +1,37 @@
-cmake_minimum_required(VERSION 3.22.1)
-project(adrenotools)
+cmake_minimum_required(VERSION 3.14)
 
-# Stub library for adrenotools - provides empty implementation
-# The real library should be cloned from https://github.com/Pipetto-crypto/libadrenotools.git
+if(NOT ${CMAKE_ANDROID_ARCH_ABI} STREQUAL arm64-v8a)
+	message(FATAL_ERROR "Unsupported target architecture: ${CMAKE_ANDROID_ARCH_ABI}. Please make an issue on the repo!")
+endif()
 
-add_library(adrenotools STATIC
-        adrenotools_stub.c
-)
+project(adrenotools LANGUAGES CXX C)
 
-target_include_directories(adrenotools PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+set(GEN_INSTALL_TARGET OFF CACHE BOOL "")
+
+add_subdirectory(lib/linkernsbypass)
+
+set(LIB_SOURCES src/bcenabler.cpp
+                src/driver.cpp
+                include/adrenotools/bcenabler.h
+                include/adrenotools/driver.h
+                include/adrenotools/priv.h)
+
+add_library(adrenotools ${LIB_SOURCES})
+
+target_include_directories(adrenotools PUBLIC include)
+target_include_directories(adrenotools PRIVATE .)
+target_compile_options(adrenotools PRIVATE -Wall -Wextra)
+target_link_libraries(adrenotools android linkernsbypass)
+
+add_subdirectory(src/hook)
+if (${BUILD_SHARED_LIBS})
+    target_link_options(adrenotools PRIVATE "-Wl,-s,--exclude-libs,liblinkernsbypass.a")
+endif()
+if (${GEN_INSTALL_TARGET})
+  configure_file(adrenotools.pc.in adrenotools.pc @ONLY)
+  install(FILES ${CMAKE_BINARY_DIR}/adrenotools.pc DESTINATION lib/pkgconfig)
+  install(TARGETS adrenotools main_hook file_redirect_hook gsl_alloc_hook hook_impl)
+  install(DIRECTORY include/
+          DESTINATION include
+          FILES_MATCHING PATTERN "*.h*")
+endif()

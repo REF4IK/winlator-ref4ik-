@@ -28,7 +28,9 @@ import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.DriverResolver
+import com.winlator.cmod.core.GPUInformation
 import com.winlator.cmod.widget.SeekBar
+import android.util.Log
 import android.net.Uri
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.contents.ContentsManager
@@ -173,9 +175,75 @@ fun GraphicsDriverConfigDialogCompose(
     var bcnEmulationCache by remember { mutableStateOf(initial["bcnEmulationCache"] ?: "0") }
     var adrenotoolsTurnip by remember { mutableStateOf(initial["adrenotoolsTurnip"] != "0") }
     var enableBlit by remember { mutableStateOf(initial["blit"] == "1") }
-    // Чёрный список расширений (для простоты показываем счётчик)
+    var enableTurbo by remember { mutableStateOf(initial["turbo"] == "1") }
+
+    // Исходный blacklist из конфига контейнера — нужен для восстановления при возврате к исходному драйверу
     val initialBlacklist = remember(initialConfig) { initial["blacklistedExtensions"] ?: "" }
+    val initialVersion = remember(initialConfig) { initial["version"] ?: "System" }
+
+    // Динамический список расширений для выбранного драйвера
+    // essentialExtensions исключаются — они критичны для работы wrapper'а
+    val essentialExtensions = remember {
+        setOf(
+            "VK_GOOGLE_display_timing",
+            "VK_KHR_shader_float_controls",
+            "VK_KHR_shader_presentable_image",
+            "VK_EXT_image_compression_control_swapchain",
+        )
+    }
+
+    // Состояние: множество расширений, выключенных пользователем (blacklist)
     val blacklistedExtensions = remember { mutableStateOf(initialBlacklist) }
+
+    // Текущий список доступных расширений (загружается асинхронно при смене драйвера)
+    var availableExtensions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var extensionsLoading by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    // Функция загрузки расширений для драйвера. System → системный enumerateExtensions,
+    // иначе — динамическая загрузка через adrenotools (enumerateExtensionsWithDriver).
+    val loadExtensions: (String) -> Unit = remember(essentialExtensions) { { driverName ->
+        extensionsLoading = true
+        coroutineScope.launch(Dispatchers.IO) {
+            val loaded: List<String> = try {
+                val raw: Array<String> = if (driverName.isEmpty() || driverName.equals("System", ignoreCase = true)) {
+                    GPUInformation.enumerateExtensions()
+                } else {
+                    GPUInformation.enumerateExtensions(driverName, context)
+                }
+                raw.filter { it !in essentialExtensions }
+            } catch (t: Throwable) {
+                Log.e("GraphicsDriverDialog", "Failed to load extensions for driver '$driverName', fallback to system", t)
+                try {
+                    GPUInformation.enumerateExtensions().toList().filter { it !in essentialExtensions }
+                } catch (t2: Throwable) {
+                    Log.e("GraphicsDriverDialog", "System enumerateExtensions also failed", t2)
+                    emptyList()
+                }
+            }
+            withContext(Dispatchers.Main) {
+                availableExtensions = loaded
+                extensionsLoading = false
+
+                // Восстановление blacklist:
+                // - Если вернулись к исходному драйверу — восстанавливаем исходный blacklist из конфига
+                // - Иначе — сохраняем blacklist только тех расширений, которые присутствуют в новом списке
+                val restoredBlacklist: String = if (initialVersion == driverName) {
+                    initialBlacklist
+                } else {
+                    val currentSet = blacklistedExtensions.value.split(",").filter { it.isNotEmpty() }.toSet()
+                    currentSet.filter { it in loaded }.joinToString(",")
+                }
+                blacklistedExtensions.value = restoredBlacklist
+            }
+        }
+    } }
+
+    // Первичная загрузка расширений при открытии диалога + при смене драйвера
+    LaunchedEffect(selectedVersion) {
+        loadExtensions(selectedVersion)
+    }
 
     var versions by remember {
         mutableStateOf(
@@ -221,10 +289,11 @@ fun GraphicsDriverConfigDialogCompose(
                 ConfigSpinnerRow(
                     items = versions,
                     selectedIndex = versions.indexOf(selectedVersion).coerceAtLeast(0),
-                    onSelected = { selectedVersion = versions[it] },
+                    onSelected = {
+                        selectedVersion = versions[it]
+                    },
                 )
 
-                val coroutineScope = rememberCoroutineScope()
                 var showDownloadListDialog by remember { mutableStateOf(false) }
                 var downloadableDrivers by remember { mutableStateOf<List<DriverResolver.DriverInfo>>(emptyList()) }
                 var isLoadingRemote by remember { mutableStateOf(false) }
@@ -439,14 +508,12 @@ fun GraphicsDriverConfigDialogCompose(
                     }
                 }
 
-                // Available extensions (информационно)
+                // Available extensions — динамический выпадающий список с чекбоксами
                 Text(stringResource(R.string.available_extensions), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                val extensionCount = remember { 128 }
-                OutlinedTextField(
-                    value = "$extensionCount System Extensions",
-                    onValueChange = {},
-                    readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
+                ExtensionsDropdownRow(
+                    availableExtensions = availableExtensions,
+                    blacklistedExtensions = blacklistedExtensions,
+                    loading = extensionsLoading,
                 )
 
                 // Max Device Memory
@@ -511,6 +578,9 @@ fun GraphicsDriverConfigDialogCompose(
                 // Enable Blit
                 ConfigSwitchRow(stringResource(R.string.enable_blit), enableBlit) { enableBlit = it }
 
+                // Turbo Mode — через adrenotools, без root
+                ConfigSwitchRow("Turbo Mode", enableTurbo) { enableTurbo = it }
+
                 // Blacklisted extensions
                 if (blacklistedExtensions.value.isNotEmpty()) {
                     Text("Blacklisted: ${blacklistedExtensions.value}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -536,7 +606,10 @@ fun GraphicsDriverConfigDialogCompose(
                             append(";bcnEmulationType=$bcnEmulationType")
                             append(";bcnEmulationCache=$bcnEmulationCache")
                             append(";blit=${if (enableBlit) "1" else "0"}")
+                            append(";turbo=${if (enableTurbo) "1" else "0"}")
                         }
+                        // Turbo Mode — применяется сразу через adrenotools
+                        GPUInformation.setTurboMode(enableTurbo)
                         onConfirm(newConfig)
                     }) {
                         Text(stringResource(R.string.ok))
@@ -1160,6 +1233,103 @@ fun DxvkRowWithHelp(
             }
         }
         ConfigSpinnerRow(items = spinnerItems, selectedIndex = selectedIndex, onSelected = onSelected)
+    }
+}
+
+/**
+ * Выпадающий список Vulkan-расширений с чекбоксами.
+ * Расширения, отмеченные галочкой — включены (не в blacklist).
+ * Снятие галочки добавляет расширение в blacklist.
+ *
+ * @param availableExtensions список расширений, доступных для выбранного драйвера
+ * @param blacklistedExtensions mutableState со строкой blacklist (через запятую)
+ * @param loading флаг асинхронной загрузки расширений
+ */
+@Composable
+fun ExtensionsDropdownRow(
+    availableExtensions: List<String>,
+    blacklistedExtensions: androidx.compose.runtime.MutableState<String>,
+    loading: Boolean,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val blacklistSet = blacklistedExtensions.value.split(",").filter { it.isNotEmpty() }.toMutableSet()
+
+    val displayText: String = when {
+        loading -> "Loading…"
+        availableExtensions.isEmpty() -> "No extensions available"
+        else -> {
+            val enabledCount = availableExtensions.size - blacklistSet.size
+            "$enabledCount / ${availableExtensions.size} enabled"
+        }
+    }
+
+    Box {
+        OutlinedTextField(
+            value = displayText,
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                if (loading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Filled.ArrowDropDown, null)
+                }
+            },
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(enabled = !loading && availableExtensions.isNotEmpty()) { expanded = true },
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.9f).heightIn(max = 400.dp),
+        ) {
+            if (availableExtensions.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text("No extensions available") },
+                    onClick = { expanded = false },
+                )
+            } else {
+                availableExtensions.forEach { extension ->
+                    val isChecked = extension !in blacklistSet
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { checked ->
+                                        val newSet = blacklistSet.toMutableSet()
+                                        if (checked) {
+                                            newSet.remove(extension)
+                                        } else {
+                                            newSet.add(extension)
+                                        }
+                                        blacklistedExtensions.value = newSet.joinToString(",")
+                                    },
+                                )
+                                Text(
+                                    text = extension,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 4.dp),
+                                )
+                            }
+                        },
+                        onClick = {
+                            val newSet = blacklistSet.toMutableSet()
+                            if (isChecked) {
+                                newSet.add(extension)
+                            } else {
+                                newSet.remove(extension)
+                            }
+                            blacklistedExtensions.value = newSet.joinToString(",")
+                        },
+                    )
+                }
+            }
+        }
     }
 }
 

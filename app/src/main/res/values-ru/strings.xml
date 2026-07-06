@@ -507,6 +507,7 @@
     <string name="graphics_driver_bcn_emulation">Эмуляция BCn</string>
     <string name="graphics_driver_bcn_emulation_type">Тип эмуляции BCn</string>
     <string name="graphics_driver_bcn_emulation_cache">Кэш эмуляции BCn</string>
+    <string name="graphics_driver_vulkan_version">Версия Vulkan</string>
     <string name="graphics_driver_version">Версия графического драйвера</string>
     <string name="group">Группа</string>
     <string name="group_description_gamehub">Специализированные драйверы для новых GPU серии Adreno 8xx</string>
