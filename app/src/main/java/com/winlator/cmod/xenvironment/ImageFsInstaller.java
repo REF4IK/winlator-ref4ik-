@@ -56,7 +56,7 @@ public abstract class ImageFsInstaller {
             futures.add(completionService.submit(() -> {
                 File outFile = new File(rootDir, "/opt/" + version);
                 outFile.mkdirs();
-                return TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, context, version + ".txz", outFile);
+                return TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, version + ".tzst", outFile);
             }));
         }
         
@@ -86,11 +86,11 @@ public abstract class ImageFsInstaller {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             clearRootDir(rootDir);
-            final byte compressionRatio = 22;
-            final long contentLength = (long)(FileUtils.getSize(context, "imagefs.txz") * (100.0f / compressionRatio));
+            final byte compressionRatio = 28; // ZSTD level 10: ~28% of uncompressed
+            final long contentLength = (long)(FileUtils.getSize(context, "imagefs.tzst") * (100.0f / compressionRatio));
             AtomicLong totalSizeRef = new AtomicLong();
 
-            boolean success = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, context, "imagefs.txz", rootDir, (file, size) -> {
+            boolean success = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "imagefs.tzst", rootDir, (file, size) -> {
                 if (size > 0) {
                     long totalSize = totalSizeRef.addAndGet(size);
                     final int progress = Math.min(100, (int)(((float)totalSize / contentLength) * 100));
