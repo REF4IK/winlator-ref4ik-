@@ -52,6 +52,8 @@ fun FpsCounterSettingsDialog(
     var backgroundOpacity by remember { mutableFloatStateOf(config.getBackgroundOpacity().toFloat()) }
     var counterScale by remember { mutableFloatStateOf(config.getCounterScale().toFloat().coerceAtLeast(60f)) }
     var fpsLimit by remember { mutableFloatStateOf(config.getFpsLimit().toFloat()) }
+    var counterStyle by remember { mutableIntStateOf(config.getCounterStyle()) }
+    var whiteFonts by remember { mutableStateOf(config.isWhiteFonts()) }
 
     // Полноэкранный контейнер для оверлея
     Box(
@@ -140,7 +142,6 @@ fun FpsCounterSettingsDialog(
                         stringResource(R.string.fps_counter_show_gpu) to showGpu,
                         stringResource(R.string.fps_counter_show_gpu_load) to showGpuLoad,
                         stringResource(R.string.fps_counter_show_gpu_temp) to showGpuTemp,
-                        stringResource(R.string.fps_counter_show_cpu_load) to showCpuLoad,
                         stringResource(R.string.fps_counter_show_cpu_temp) to showCpuTemp,
                         stringResource(R.string.fps_counter_show_renderer) to showRenderer,
                         stringResource(R.string.fps_counter_show_frame_time_graph) to showFrameTimeGraph,
@@ -169,7 +170,6 @@ fun FpsCounterSettingsDialog(
                                             ctx.getString(R.string.fps_counter_show_gpu) -> showGpu = newVal
                                             ctx.getString(R.string.fps_counter_show_gpu_load) -> showGpuLoad = newVal
                                             ctx.getString(R.string.fps_counter_show_gpu_temp) -> showGpuTemp = newVal
-                                            ctx.getString(R.string.fps_counter_show_cpu_load) -> showCpuLoad = newVal
                                             ctx.getString(R.string.fps_counter_show_cpu_temp) -> showCpuTemp = newVal
                                             ctx.getString(R.string.fps_counter_show_renderer) -> showRenderer = newVal
                                             ctx.getString(R.string.fps_counter_show_frame_time_graph) -> showFrameTimeGraph = newVal
@@ -227,6 +227,25 @@ fun FpsCounterSettingsDialog(
                         valueRange = 60f..200f,
                         enabled = enabled
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+
+                    // ── Стиль оформления ──
+                    FpsSectionHeader(
+                        title = "Стиль оформления",
+                        icon = Icons.Filled.Palette
+                    )
+                    FpsStyleSelectionRow(
+                        selectedStyle = counterStyle,
+                        onStyleSelected = { counterStyle = it },
+                        enabled = enabled
+                    )
+                    FpsCompactSwitchRow(
+                        label = "Белые шрифты показателей",
+                        checked = whiteFonts,
+                        enabled = enabled,
+                        onCheckedChange = { whiteFonts = it }
+                    )
                 }
 
                 HorizontalDivider()
@@ -258,6 +277,8 @@ fun FpsCounterSettingsDialog(
                         config.setBackgroundOpacity(backgroundOpacity.toInt())
                         config.setCounterScale(counterScale.toInt().coerceAtLeast(60))
                         config.setFpsLimit(fpsLimit.toInt())
+                        config.setCounterStyle(counterStyle)
+                        config.setWhiteFonts(whiteFonts)
                         onConfigChanged()
                         onDismiss()
                     }) {
@@ -380,5 +401,38 @@ private fun FpsSliderRow(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+@Composable
+private fun FpsStyleSelectionRow(
+    selectedStyle: Int,
+    onStyleSelected: (Int) -> Unit,
+    enabled: Boolean
+) {
+    val styles = listOf("Default", "Cyber", "Retro", "Glass")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        styles.forEachIndexed { index, styleName ->
+            val isSelected = selectedStyle == index
+            Button(
+                onClick = { onStyleSelected(index) },
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary 
+                                     else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary 
+                                   else MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(styleName, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+            }
+        }
     }
 }

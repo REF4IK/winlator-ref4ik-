@@ -94,6 +94,8 @@ class FrameRating @JvmOverloads constructor(
     // Configuration states
     private var isHorizontalLayout by mutableStateOf(false)
     private var backgroundOpacity by mutableStateOf(153)
+    private var counterStyle by mutableIntStateOf(0)
+    private var whiteFonts by mutableStateOf(false)
 
     // Module visibility states
     private var showFps by mutableStateOf(true)
@@ -136,9 +138,80 @@ class FrameRating @JvmOverloads constructor(
     // Compose Content
     @Composable
     private fun FrameRatingContent() {
-        val bgColor = ComposeColor(0f, 0f, 0f, backgroundOpacity / 255f)
+        val bgColor = ComposeColor(0xFF181818).copy(alpha = backgroundOpacity / 255f)
         val strokeColor = ComposeColor(1f, 1f, 1f, 0.2f)
 
+        // Colors
+        val gpuColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFF19D07E)
+        val apiColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF05A9D)
+        val ramColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFE556D8)
+        val cpuColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFF42B6FF)
+        val batColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFA6E84B)
+        val pwrColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF3DE47)
+        val fpsColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFFF5F73)
+
+        // Build active modules list
+        val activeModules = remember(
+            gpuState, gpuLoadState, rendererState, gpuTempState, ramState,
+            cpuLoadState, cpuTempState, batteryTempState, batteryVoltageState, fpsState,
+            showGpu, showGpuLoad, showRenderer, showGpuTemp, showRam,
+            showCpuLoad, showCpuTemp, showBatteryTemp, showBatteryVoltage, showFps
+        ) {
+            val list = mutableListOf<ActiveModule>()
+            if (showGpu && gpuState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.GPU, "GPU", gpuState, gpuColor))
+            }
+            if (showGpuLoad && gpuLoadState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.GPU_LOAD, "GPU", gpuLoadState, gpuColor))
+            }
+            if (showRenderer && rendererState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.RENDERER, "API", rendererState, apiColor))
+            }
+            if (showGpuTemp && gpuTempState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.GPU_TEMP, "GPU", gpuTempState, gpuColor))
+            }
+            if (showRam && ramState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.RAM, "RAM", ramState, ramColor))
+            }
+            if (showCpuLoad && cpuLoadState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.CPU_LOAD, "CPU", cpuLoadState, cpuColor))
+            }
+            if (showCpuTemp && cpuTempState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.CPU_TEMP, "CPU", cpuTempState, cpuColor))
+            }
+            if (showBatteryTemp && batteryTempState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.BATTERY_TEMP, "BAT", batteryTempState, batColor))
+            }
+            if (showBatteryVoltage && batteryVoltageState.isNotEmpty()) {
+                list.add(ActiveModule(FpsCounterConfig.Module.BATTERY_VOLTAGE, "PWR", batteryVoltageState, pwrColor))
+            }
+            if (showFps) {
+                list.add(ActiveModule(FpsCounterConfig.Module.FPS, "FPS", fpsState, fpsColor))
+            }
+            list
+        }
+
+        when (counterStyle) {
+            1 -> FrameRatingBadges(activeModules, bgColor, strokeColor) // Floating Badges (Default style colors)
+            2 -> FrameRatingDashboard(activeModules, bgColor, strokeColor) // Dashboard Grid (Default style colors)
+            3 -> FrameRatingSidebar(activeModules, bgColor, strokeColor) // Sidebar Dock with progress bars (Default style colors)
+            else -> FrameRatingClassic(activeModules, bgColor, strokeColor) // Classic Card (Default)
+        }
+    }
+
+    private data class ActiveModule(
+        val type: FpsCounterConfig.Module,
+        val label: String,
+        val value: String,
+        val color: ComposeColor
+    )
+
+    @Composable
+    private fun FrameRatingClassic(
+        activeModules: List<ActiveModule>,
+        bgColor: ComposeColor,
+        strokeColor: ComposeColor
+    ) {
         Box(
             modifier = Modifier
                 .wrapContentSize()
@@ -148,86 +221,300 @@ class FrameRating @JvmOverloads constructor(
                 .padding(horizontal = 8.dp, vertical = 7.dp)
         ) {
             if (isHorizontalLayout) {
-                // Horizontal Layout
                 @OptIn(ExperimentalLayoutApi::class)
                 FlowRow(
                     modifier = Modifier.wrapContentSize(),
                     verticalArrangement = Arrangement.Center,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    RenderModules()
+                    activeModules.forEach { module ->
+                        HudItem(module.label, module.value, module.color)
+                    }
+                    if (showFrameTimeGraph) {
+                        FrameTimeGraphItem()
+                    }
                 }
             } else {
-                // Vertical Layout
                 Column(
                     modifier = Modifier.wrapContentSize(),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    RenderModules()
+                    activeModules.forEach { module ->
+                        HudItem(module.label, module.value, module.color)
+                    }
+                    if (showFrameTimeGraph) {
+                        FrameTimeGraphItem()
+                    }
                 }
             }
         }
     }
 
     @Composable
-    private fun RenderModules() {
-        if (showGpu && gpuState.isNotEmpty()) {
-            HudItem(label = "GPU", value = gpuState, color = ComposeColor(0xFF19D07E))
-        }
-        if (showGpuLoad && gpuLoadState.isNotEmpty()) {
-            HudItem(label = "GPU", value = gpuLoadState, color = ComposeColor(0xFF19D07E))
-        }
-        if (showRenderer && rendererState.isNotEmpty()) {
-            HudItem(label = "API", value = rendererState, color = ComposeColor(0xFFF05A9D))
-        }
-        if (showGpuTemp && gpuTempState.isNotEmpty()) {
-            HudItem(label = "GPU", value = gpuTempState, color = ComposeColor(0xFF19D07E))
-        }
-        if (showRam && ramState.isNotEmpty()) {
-            HudItem(label = "RAM", value = ramState, color = ComposeColor(0xFFE556D8))
-        }
-        if (showCpuLoad && cpuLoadState.isNotEmpty()) {
-            HudItem(label = "CPU", value = cpuLoadState, color = ComposeColor(0xFF42B6FF))
-        }
-        if (showCpuTemp && cpuTempState.isNotEmpty()) {
-            HudItem(label = "CPU", value = cpuTempState, color = ComposeColor(0xFF42B6FF))
-        }
-        if (showBatteryTemp && batteryTempState.isNotEmpty()) {
-            HudItem(label = "BAT", value = batteryTempState, color = ComposeColor(0xFFA6E84B))
-        }
-        if (showBatteryVoltage && batteryVoltageState.isNotEmpty()) {
-            HudItem(label = "PWR", value = batteryVoltageState, color = ComposeColor(0xFFF3DE47))
-        }
-        if (showFps) {
-            HudItem(label = "FPS", value = fpsState, color = ComposeColor(0xFFFF5F73))
-        }
-        if (showFrameTimeGraph) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                modifier = Modifier.wrapContentSize()
+    private fun FrameRatingBadges(
+        activeModules: List<ActiveModule>,
+        bgColor: ComposeColor,
+        strokeColor: ComposeColor
+    ) {
+        if (isHorizontalLayout) {
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(
+                modifier = Modifier.wrapContentSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = "FT",
-                    color = ComposeColor(0xFFFF5F73),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif
-                )
-                FrameTimeGraphCompose()
-                Text(
-                    text = frameTimeState,
-                    color = ComposeColor(0xFFF8F8F8),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
+                activeModules.forEach { module ->
+                    BadgeItem(module.label, module.value, module.color, bgColor, strokeColor)
+                }
+                if (showFrameTimeGraph) {
+                    BadgeFrameTime(bgColor, strokeColor)
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.wrapContentSize(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                activeModules.forEach { module ->
+                    BadgeItem(module.label, module.value, module.color, bgColor, strokeColor)
+                }
+                if (showFrameTimeGraph) {
+                    BadgeFrameTime(bgColor, strokeColor)
+                }
             }
         }
     }
 
     @Composable
-    private fun HudItem(label: String, value: String, color: ComposeColor) {
+    private fun BadgeItem(
+        label: String,
+        value: String,
+        labelColor: ComposeColor,
+        bgColor: ComposeColor,
+        strokeColor: ComposeColor
+    ) {
+        val valueColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF2F2F2)
+        Row(
+            modifier = Modifier
+                .wrapContentSize()
+                .clip(RoundedCornerShape(12.dp))
+                .background(bgColor)
+                .border(1.dp, strokeColor, RoundedCornerShape(12.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(label, color = labelColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(value, color = valueColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        }
+    }
+
+    @Composable
+    private fun BadgeFrameTime(bgColor: ComposeColor, strokeColor: ComposeColor) {
+        val labelColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFFF5F73)
+        val valueColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF8F8F8)
+        Row(
+            modifier = Modifier
+                .wrapContentSize()
+                .clip(RoundedCornerShape(12.dp))
+                .background(bgColor)
+                .border(1.dp, strokeColor, RoundedCornerShape(12.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text("FT", color = labelColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            FrameTimeGraphCompose()
+            Text(frameTimeState, color = valueColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        }
+    }
+
+    @Composable
+    private fun FrameRatingDashboard(
+        activeModules: List<ActiveModule>,
+        bgColor: ComposeColor,
+        strokeColor: ComposeColor
+    ) {
+        Box(
+            modifier = Modifier
+                .wrapContentSize()
+                .clip(RoundedCornerShape(12.dp))
+                .background(bgColor)
+                .border(1.dp, strokeColor, RoundedCornerShape(12.dp))
+                .padding(6.dp)
+        ) {
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(
+                modifier = Modifier.width(if (isHorizontalLayout) 380.dp else 190.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val tileWidth = if (isHorizontalLayout) 88.dp else 86.dp
+                activeModules.forEach { module ->
+                    val valueColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF2F2F2)
+                    Box(
+                        modifier = Modifier
+                            .width(tileWidth)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(bgColor.copy(alpha = (bgColor.alpha * 1.3f).coerceIn(0f, 1f)))
+                            .border(1.dp, strokeColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                            .padding(6.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(module.label, color = module.color, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                module.value,
+                                color = valueColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+                
+                if (showFrameTimeGraph) {
+                    val ftLabelColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFFF5F73)
+                    val ftValueColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF8F8F8)
+                    Box(
+                        modifier = Modifier
+                            .width(if (isHorizontalLayout) 180.dp else 176.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(bgColor.copy(alpha = (bgColor.alpha * 1.3f).coerceIn(0f, 1f)))
+                            .border(1.dp, strokeColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                            .padding(6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("FT", color = ftLabelColor, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            FrameTimeGraphCompose()
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(frameTimeState, color = ftValueColor, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun FrameRatingSidebar(
+        activeModules: List<ActiveModule>,
+        bgColor: ComposeColor,
+        strokeColor: ComposeColor
+    ) {
+        val valueColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF2F2F2)
+        
+        Box(
+            modifier = Modifier
+                .width(130.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(bgColor)
+                .border(1.dp, strokeColor, RoundedCornerShape(12.dp))
+                .padding(8.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                activeModules.forEach { module ->
+                    val progressValue = when (module.type) {
+                        FpsCounterConfig.Module.GPU_LOAD -> parsePercentage(module.value)
+                        FpsCounterConfig.Module.CPU_LOAD -> parsePercentage(module.value)
+                        FpsCounterConfig.Module.RAM -> parseRamRatio(module.value)
+                        else -> -1f
+                    }
+                    
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(module.label, color = module.color, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                module.value,
+                                color = valueColor,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1
+                            )
+                        }
+                        
+                        if (progressValue >= 0f) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            androidx.compose.material3.LinearProgressIndicator(
+                                progress = { progressValue },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = module.color,
+                                trackColor = module.color.copy(alpha = 0.2f)
+                            )
+                        }
+                    }
+                }
+                
+                if (showFrameTimeGraph) {
+                    val ftLabelColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFFF5F73)
+                    val ftValueColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF8F8F8)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("FT", color = ftLabelColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(frameTimeState, color = ftValueColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            FrameTimeGraphCompose()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun parsePercentage(value: String): Float {
+        return try {
+            val numeric = value.replace("%", "").trim()
+            (numeric.toFloatOrNull() ?: 0f) / 100f
+        } catch (e: Exception) {
+            0f
+        }
+    }
+
+    private fun parseRamRatio(value: String): Float {
+        return try {
+            if (value.contains("/")) {
+                val parts = value.split("/")
+                val used = parts[0].replace(Regex("[^0-9.]"), "").toFloatOrNull() ?: 0f
+                val total = parts[1].replace(Regex("[^0-9.]"), "").toFloatOrNull() ?: 1f
+                if (total > 0f) (used / total).coerceIn(0f, 1f) else 0f
+            } else {
+                0f
+            }
+        } catch (e: Exception) {
+            0f
+        }
+    }
+
+    @Composable
+    private fun HudItem(label: String, value: String, labelColor: ComposeColor) {
+        val valueColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF2F2F2)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -235,14 +522,41 @@ class FrameRating @JvmOverloads constructor(
         ) {
             Text(
                 text = label,
-                color = color,
+                color = labelColor,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.SansSerif
             )
             Text(
                 text = value,
-                color = ComposeColor(0xFFF2F2F2),
+                color = valueColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+
+    @Composable
+    private fun FrameTimeGraphItem() {
+        val ftLabelColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFFF5F73)
+        val ftValueColor = if (whiteFonts) ComposeColor(0xFFFFFFFF) else ComposeColor(0xFFF8F8F8)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            modifier = Modifier.wrapContentSize()
+        ) {
+            Text(
+                text = "FT",
+                color = ftLabelColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.SansSerif
+            )
+            FrameTimeGraphCompose()
+            Text(
+                text = frameTimeState,
+                color = ftValueColor,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
@@ -252,6 +566,11 @@ class FrameRating @JvmOverloads constructor(
 
     @Composable
     private fun FrameTimeGraphCompose() {
+        val linePaintColor = ComposeColor(0xFFFFB300)
+        val fillPaintColor = ComposeColor(0x33FFB300)
+        val guide60Color = ComposeColor(0x55FFFFFF)
+        val guide30Color = ComposeColor(0x44FF5252)
+
         Canvas(modifier = Modifier.size(width = 58.dp, height = 16.dp)) {
             val width = size.width
             val height = size.height
@@ -259,7 +578,7 @@ class FrameRating @JvmOverloads constructor(
             // Draw guides
             val y60 = height - (TARGET_60_FPS_MS / MAX_FRAME_TIME_MS * height)
             drawLine(
-                color = ComposeColor(0x55FFFFFF),
+                color = guide60Color,
                 start = Offset(0f, y60),
                 end = Offset(width, y60),
                 strokeWidth = 1f
@@ -267,7 +586,7 @@ class FrameRating @JvmOverloads constructor(
 
             val y30 = height - (TARGET_30_FPS_MS / MAX_FRAME_TIME_MS * height)
             drawLine(
-                color = ComposeColor(0x44FF5252),
+                color = guide30Color,
                 start = Offset(0f, y30),
                 end = Offset(width, y30),
                 strokeWidth = 1f
@@ -297,8 +616,8 @@ class FrameRating @JvmOverloads constructor(
                 fillPath.lineTo(width, height)
                 fillPath.close()
 
-                drawPath(fillPath, color = ComposeColor(0x33FFB300))
-                drawPath(linePath, color = ComposeColor(0xFFFFB300), style = Stroke(width = 1.8.dp.toPx()))
+                drawPath(fillPath, color = fillPaintColor)
+                drawPath(linePath, color = linePaintColor, style = Stroke(width = 1.8.dp.toPx()))
             }
         }
     }
@@ -361,6 +680,8 @@ class FrameRating @JvmOverloads constructor(
         showCpuTemp = config.isModuleVisible(FpsCounterConfig.Module.CPU_TEMP)
         showBatteryTemp = config.isModuleVisible(FpsCounterConfig.Module.BATTERY_TEMP)
         showBatteryVoltage = config.isModuleVisible(FpsCounterConfig.Module.BATTERY_VOLTAGE)
+        counterStyle = config.counterStyle
+        whiteFonts = config.isWhiteFonts()
         updateBackgroundOpacity()
         updateScaleAndTextSize()
     }

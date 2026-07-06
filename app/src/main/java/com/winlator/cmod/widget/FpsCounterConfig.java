@@ -22,6 +22,7 @@ public class FpsCounterConfig {
     private static final String KEY_COUNTER_SCALE = "fps_counter_scale";
     private static final String KEY_FPS_LIMIT = "fps_counter_fps_limit";
     private static final String KEY_COUNTER_STYLE = "fps_counter_style";
+    private static final String KEY_WHITE_FONTS = "fps_counter_white_fonts";
     private static final int OLD_DEFAULT_BACKGROUND_OPACITY = 51;
     private static final int DEFAULT_BACKGROUND_OPACITY = 153;
 
@@ -168,6 +169,14 @@ public class FpsCounterConfig {
         prefs.edit().putInt(KEY_COUNTER_STYLE, style).apply();
     }
 
+    public boolean isWhiteFonts() {
+        return prefs.getBoolean(KEY_WHITE_FONTS, false);
+    }
+
+    public void setWhiteFonts(boolean whiteFonts) {
+        prefs.edit().putBoolean(KEY_WHITE_FONTS, whiteFonts).apply();
+    }
+
     public void resetToDefaults() {
         prefs.edit().clear()
             .putBoolean(KEY_ENABLED, false)
@@ -187,6 +196,7 @@ public class FpsCounterConfig {
             .putInt(KEY_COUNTER_SCALE, 60)
             .putInt(KEY_FPS_LIMIT, 0)
             .putInt(KEY_COUNTER_STYLE, 0)
+            .putBoolean(KEY_WHITE_FONTS, false)
             .apply();
     }
 
