@@ -1082,20 +1082,38 @@ fun SteamInfoDialog(
                     ) {
                         if (gameInfo != null) {
                             val heroUrl = remember(gameInfo) {
-                                "https://shared.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/library_hero.jpg"
+                                "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/library_hero.jpg"
                             }
-                            var imageModel by remember(heroUrl) { mutableStateOf<Any>(heroUrl) }
-                            coil.compose.AsyncImage(
-                                model = imageModel,
-                                onError = {
-                                    if (imageModel == heroUrl) {
-                                        imageModel = gameInfo!!.headerImage
+                            var backgroundModel by remember(heroUrl) { mutableStateOf<Any>(heroUrl) }
+                            
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                coil.compose.AsyncImage(
+                                    model = backgroundModel,
+                                    onError = {
+                                        if (backgroundModel == heroUrl) {
+                                            backgroundModel = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/capsule_616x353.jpg"
+                                        }
+                                    },
+                                    contentDescription = gameInfo!!.name,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                
+                                if (backgroundModel == heroUrl) {
+                                    val logoUrl = remember(gameInfo) {
+                                        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/logo.png"
                                     }
-                                },
-                                contentDescription = gameInfo!!.name,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
+                                    coil.compose.AsyncImage(
+                                        model = logoUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .height(90.dp)
+                                            .padding(horizontal = 16.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                            }
                         } else {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
