@@ -388,4 +388,103 @@ import java.nio.file.Files;
             return file != null && file.getName().startsWith("_winlator_component_");
         }
 
+        /**
+         * Resolve the EXE file on the Android filesystem from the .desktop Path line
+         * and the shortcut's Wine path.
+         */
+        public File resolveExeFile() {
+            try {
+                String pathLine = null;
+                String execLine = null;
+                for (String line : FileUtils.readLines(file)) {
+                    line = line.trim();
+                    if (line.startsWith("Path=")) {
+                        pathLine = line.substring(5);
+                    }
+                    if (line.startsWith("Exec=")) {
+                        execLine = line.substring(5);
+                    }
+                }
+
+                // Try using Path + executable filename
+                if (pathLine != null && !pathLine.isEmpty()) {
+                    String exeName = this.path;
+                    int lastSlash = exeName.lastIndexOf("/");
+                    if (lastSlash >= 0) exeName = exeName.substring(lastSlash + 1);
+                    int lastBackslash = exeName.lastIndexOf("\\");
+                    if (lastBackslash >= 0) exeName = exeName.substring(lastBackslash + 1);
+
+                    File candidate = new File(pathLine, exeName);
+                    if (candidate.isFile()) return candidate;
+                }
+
+                // Try resolving the full wine path through dosdevices
+                if (this.path != null && !this.path.isEmpty()) {
+                    String winePath = this.path.replace("\\", "/");
+                    // Extract drive letter (e.g., "C:" or "D:")
+                    if (winePath.length() >= 2 && winePath.charAt(1) == ':') {
+                        String driveLetter = winePath.substring(0, 2).toLowerCase();
+                        String rest = winePath.substring(2);
+                        if (rest.startsWith("/")) rest = rest.substring(1);
+
+                        // dosdevices path
+                        File dosdevicesDir = new File(container.getRootDir(),
+                            ".wine/dosdevices/" + driveLetter);
+                        File candidate = new File(dosdevicesDir, rest);
+                        if (candidate.isFile()) return candidate;
+
+                        // Also try drive_c directly for C:
+                        if (driveLetter.equals("c:")) {
+                            File driveC = new File(container.getRootDir(), ".wine/drive_c");
+                            candidate = new File(driveC, rest);
+                            if (candidate.isFile()) return candidate;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("Shortcut", "Failed to resolve exe file", e);
+            }
+            return null;
+        }
+
+        /**
+         * Extract icon from EXE file via PEParser and save it to the icons directory.
+         * Returns the extracted Bitmap, or null on failure.
+         */
+        public Bitmap extractAndSaveIcon() {
+            try {
+                File exeFile = resolveExeFile();
+                if (exeFile == null || !exeFile.isFile()) return null;
+
+                Bitmap extracted = com.winlator.cmod.win32.PEParser.extractIcon(exeFile);
+                if (extracted == null) return null;
+
+                // Save to icons dir so it loads next time
+                int randomNum = (int)(Math.random() * 10000);
+                String iconName = randomNum + "_" + this.name + ".0";
+                File iconDir = container.getIconsDir(64);
+                if (!iconDir.exists()) iconDir.mkdirs();
+                File savedIconFile = new File(iconDir, iconName + ".png");
+                FileUtils.saveBitmapToFile(extracted, savedIconFile);
+
+                // Update the .desktop file Icon= line
+                // Read existing content
+                StringBuilder newContent = new StringBuilder();
+                for (String line : FileUtils.readLines(file)) {
+                    if (line.trim().startsWith("Icon=")) {
+                        newContent.append("Icon=").append(iconName).append("\n");
+                    } else {
+                        newContent.append(line).append("\n");
+                    }
+                }
+                FileUtils.writeString(file, newContent.toString());
+
+                Log.d("Shortcut", "Extracted and saved icon from EXE: " + savedIconFile.getAbsolutePath());
+                return extracted;
+            } catch (Exception e) {
+                Log.e("Shortcut", "Failed to extract icon from EXE", e);
+                return null;
+            }
+        }
+
     }

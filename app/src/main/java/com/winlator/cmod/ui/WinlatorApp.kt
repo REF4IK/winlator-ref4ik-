@@ -102,6 +102,7 @@ fun WinlatorApp(
     var showShortcutSettings by remember { mutableStateOf(false) }
     var shortcutSettingsShortcut by remember { mutableStateOf<Shortcut?>(null) }
     var fileManagerContainerId by remember { mutableStateOf(-1) }
+    var hideTopBarBySteamInfo by remember { mutableStateOf(false) }
 
     // First launch dialog state
     var showFirstLaunchDialog by remember { mutableStateOf(false) }
@@ -315,50 +316,52 @@ fun WinlatorApp(
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = getScreenTitle(currentScreen)
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = {
-                                scope.launch {
-                                    if (drawerState.isClosed) drawerState.open() else drawerState.close()
-                                }
-                            }) {
-                                Icon(Icons.Filled.Menu, contentDescription = "Menu")
-                            }
-                        },
-                        actions = {
-                            if (currentScreen == Screen.Shortcuts) {
-                                IconButton(onClick = { isShortcutsGridView = !isShortcutsGridView }) {
-                                    Icon(
-                                        if (isShortcutsGridView) Icons.Filled.GridOn else Icons.Filled.List,
-                                        contentDescription = "Toggle view",
-                                    )
-                                }
-                            }
-                            if (currentScreen == Screen.Containers) {
+                    if (!hideTopBarBySteamInfo) {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    text = getScreenTitle(currentScreen)
+                                )
+                            },
+                            navigationIcon = {
                                 IconButton(onClick = {
-                                    currentScreen = Screen.Terminal
-                                }) { Icon(Icons.Filled.Terminal, contentDescription = "Open Terminal") }
-                                IconButton(onClick = { showContainerImportInfo = true }) {
-                                    Icon(Icons.Filled.Download, contentDescription = "Import Container")
+                                    scope.launch {
+                                        if (drawerState.isClosed) drawerState.open() else drawerState.close()
+                                    }
+                                }) {
+                                    Icon(Icons.Filled.Menu, contentDescription = "Menu")
                                 }
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                    )
+                            },
+                            actions = {
+                                if (currentScreen == Screen.Shortcuts) {
+                                    IconButton(onClick = { isShortcutsGridView = !isShortcutsGridView }) {
+                                        Icon(
+                                            if (isShortcutsGridView) Icons.Filled.GridOn else Icons.Filled.List,
+                                            contentDescription = "Toggle view",
+                                        )
+                                    }
+                                }
+                                if (currentScreen == Screen.Containers) {
+                                    IconButton(onClick = {
+                                        currentScreen = Screen.Terminal
+                                    }) { Icon(Icons.Filled.Terminal, contentDescription = "Open Terminal") }
+                                    IconButton(onClick = { showContainerImportInfo = true }) {
+                                        Icon(Icons.Filled.Download, contentDescription = "Import Container")
+                                    }
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                            ),
+                        )
+                    }
                 },
             ) { padding ->
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding),
+                        .padding(if (hideTopBarBySteamInfo) PaddingValues(0.dp) else padding),
                 ) {
                     when (currentScreen) {
                     Screen.Shortcuts -> ShortcutsScreen(
@@ -373,6 +376,7 @@ fun WinlatorApp(
                             shortcutSettingsShortcut = shortcut
                             showShortcutSettings = true
                         },
+                        onShowSteamInfo = { show -> hideTopBarBySteamInfo = show }
                     )
                     Screen.Containers -> ContainersScreen(
                         containerManager = appContainerManager,

@@ -19,6 +19,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import java.util.concurrent.ConcurrentHashMap
+import coil.request.ImageRequest
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Request
@@ -67,6 +72,9 @@ import com.winlator.cmod.core.ShortcutCoverFetcher
 import java.io.File
 import java.io.FileWriter
 
+private val STEAM_GAME_INFO_CACHE = ConcurrentHashMap<Int, SteamGameInfo>()
+private val STEAM_NAME_TO_APP_ID_CACHE = ConcurrentHashMap<String, Int>()
+
 /**
  * Compose-версия ShortcutsFragment.
  * Список шорткатов в grid-режиме, FAB для импорта, диалог выбора контейнера.
@@ -80,6 +88,7 @@ fun ShortcutsScreen(
     onImportGame: (Container) -> Unit = {},
     onOpenShortcutSettings: (Shortcut) -> Unit = {},
     onBack: () -> Unit = {},
+    onShowSteamInfo: (Boolean) -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -103,19 +112,22 @@ fun ShortcutsScreen(
     val manager = remember(refreshKey, refreshKeyInternal) { ContainerManager(ctx) }
     var showContainerPicker by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf(false) }
-    var shortcutForMenu by remember { mutableStateOf<Shortcut?>(null) }
     var shortcutForClone by remember { mutableStateOf<Shortcut?>(null) }
     var showPropertiesFor by remember { mutableStateOf<Shortcut?>(null) }
     var shortcutForSteamInfo by remember { mutableStateOf<Shortcut?>(null) }
+
+    LaunchedEffect(shortcutForSteamInfo) {
+        onShowSteamInfo(shortcutForSteamInfo != null)
+    }
 
     // Собираем все шорткаты из всех контейнеров
     val shortcuts = remember(refreshKey, refreshKeyInternal) {
         manager.loadShortcuts()
     }
 
-    BackHandler(enabled = showContainerPicker || shortcutForMenu != null) {
+    BackHandler(enabled = showContainerPicker || shortcutForSteamInfo != null) {
         when {
-            shortcutForMenu != null -> shortcutForMenu = null
+            shortcutForSteamInfo != null -> shortcutForSteamInfo = null
             showContainerPicker -> showContainerPicker = false
         }
     }
@@ -155,7 +167,7 @@ Column(modifier = Modifier.fillMaxSize()) {
                     ShortcutLargeCard(
                         shortcut = shortcut,
                         onClick = { runShortcut(ctx, shortcut) },
-                        onLongClick = { shortcutForMenu = shortcut },
+                        onLongClick = { shortcutForSteamInfo = shortcut },
                     )
                 }
             }
@@ -170,7 +182,7 @@ Column(modifier = Modifier.fillMaxSize()) {
                     ShortcutCard(
                         shortcut = shortcut,
                         onClick = { runShortcut(ctx, shortcut) },
-                        onLongClick = { shortcutForMenu = shortcut },
+                        onLongClick = { shortcutForSteamInfo = shortcut },
                     )
                 }
             }
@@ -209,98 +221,7 @@ Column(modifier = Modifier.fillMaxSize()) {
         )
     }
 
-    // Контекстное меню шортката (6 пунктов как в старом PopupMenu)
-    shortcutForMenu?.let { s ->
-        AlertDialog(
-            onDismissRequest = { shortcutForMenu = null },
-            title = { Text(s.name) },
-            text = {
-                Column {
-                    // Запустить — работает
-                    Row(modifier = Modifier.fillMaxWidth().clickable { runShortcut(ctx, s); shortcutForMenu = null }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text(stringResource(R.string.run))
-                    }
-                    // Настройки — открывает ShortcutSettingsScreen (Compose overlay)
-                    Row(modifier = Modifier.fillMaxWidth().clickable {
-                        shortcutForMenu = null
-                        onOpenShortcutSettings(s)
-                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Settings, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text(stringResource(R.string.shortcut_settings))
-                    }
-                    // Добавить на главный экран — через ShortcutManager
-                    Row(modifier = Modifier.fillMaxWidth().clickable {
-                        shortcutForMenu = null
-                        if (s.getExtra("uuid").isEmpty()) s.genUUID()
-                        addShortcutToHomeScreen(ctx, s)
-                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.AddToHomeScreen, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text(stringResource(R.string.add_to_homescreen))
-                    }
-                    // Удалить — удаление файла + disableShortcutOnScreen
-                    Row(modifier = Modifier.fillMaxWidth().clickable {
-                        shortcutForMenu = null
-                        val ok = s.file?.delete() ?: false
-                        if (ok) {
-                            disableShortcutOnScreen(ctx, s)
-                            AppUtils.showToast(ctx, "Shortcut removed")
-                            refreshKeyInternal++
-                        } else {
-                            AppUtils.showToast(ctx, "Failed to remove")
-                        }
-                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text(stringResource(R.string.remove), color = MaterialTheme.colorScheme.error)
-                    }
-                    // Export for Frontend
-                    Row(modifier = Modifier.fillMaxWidth().clickable {
-                        shortcutForMenu = null
-                        exportShortcutToFrontend(ctx, s)
-                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.IosShare, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text("Export for Frontend")
-                    }
-                    // Clone to Another Container
-                    Row(modifier = Modifier.fillMaxWidth().clickable {
-                        shortcutForMenu = null
-                        shortcutForClone = s
-                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.ContentCopy, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text("Clone to Another Container")
-                    }
-                    // SteamDB Info
-                    Row(modifier = Modifier.fillMaxWidth().clickable {
-                        shortcutForMenu = null
-                        shortcutForSteamInfo = s
-                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Movie, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text(if (java.util.Locale.getDefault().language == "ru") "Информация Steam" else "Steam Info")
-                    }
-                    // Properties
-                    Row(modifier = Modifier.fillMaxWidth().clickable {
-                        shortcutForMenu = null
-                        showPropertiesFor = s
-                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Info, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text("Properties")
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { shortcutForMenu = null }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
-    }
+
 
     // Диалог выбора контейнера для клонирования
     shortcutForClone?.let { s ->
@@ -363,7 +284,20 @@ Column(modifier = Modifier.fillMaxSize()) {
     shortcutForSteamInfo?.let { s ->
         SteamInfoDialog(
             shortcut = s,
-            onDismiss = { shortcutForSteamInfo = null }
+            onDismiss = { shortcutForSteamInfo = null },
+            onOpenSettings = {
+                onOpenShortcutSettings(s)
+            },
+            onCloneClick = {
+                shortcutForSteamInfo = null
+                shortcutForClone = s
+            },
+            onPropertiesClick = {
+                showPropertiesFor = s
+            },
+            onRefresh = {
+                refreshKeyInternal++
+            }
         )
     }
 }
@@ -448,7 +382,18 @@ private fun ShortcutCard(
         }
     }
 
-    val icon = remember(shortcut) { shortcut.icon?.asImageBitmap() }
+    var icon by remember(shortcut) { mutableStateOf(shortcut.getDisplayIcon()?.asImageBitmap()) }
+
+    LaunchedEffect(shortcut, coverFile, icon) {
+        if (coverFile == null && icon == null) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val extracted = shortcut.extractAndSaveIcon()
+                if (extracted != null) {
+                    icon = extracted.asImageBitmap()
+                }
+            }
+        }
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -481,7 +426,7 @@ private fun ShortcutCard(
                     )
                 } else if (icon != null) {
                     androidx.compose.foundation.Image(
-                        bitmap = icon,
+                        bitmap = icon!!,
                         contentDescription = shortcut.name,
                         modifier = Modifier.fillMaxSize().padding(4.dp),
                         contentScale = ContentScale.Fit,
@@ -555,7 +500,18 @@ private fun ShortcutLargeCard(
         }
     }
 
-    val icon = remember(shortcut) { shortcut.icon?.asImageBitmap() }
+    var icon by remember(shortcut) { mutableStateOf(shortcut.getDisplayIcon()?.asImageBitmap()) }
+
+    LaunchedEffect(shortcut, coverFile, icon) {
+        if (coverFile == null && icon == null) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val extracted = shortcut.extractAndSaveIcon()
+                if (extracted != null) {
+                    icon = extracted.asImageBitmap()
+                }
+            }
+        }
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -579,7 +535,7 @@ private fun ShortcutLargeCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     androidx.compose.foundation.Image(
-                        bitmap = icon,
+                        bitmap = icon!!,
                         contentDescription = shortcut.name,
                         modifier = Modifier.size(80.dp),
                         contentScale = ContentScale.Fit,
@@ -702,6 +658,116 @@ class SteamGameInfo(
     val screenshots: List<String>,
     val trailerUrl: String?
 )
+
+fun SteamGameInfo.toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("appId", appId)
+    json.put("name", name)
+    json.put("description", description)
+    json.put("headerImage", headerImage)
+    json.put("releaseDate", releaseDate)
+    json.put("developers", org.json.JSONArray().apply { developers.forEach { put(it) } })
+    json.put("publishers", org.json.JSONArray().apply { publishers.forEach { put(it) } })
+    json.put("genres", org.json.JSONArray().apply { genres.forEach { put(it) } })
+    json.put("screenshots", org.json.JSONArray().apply { screenshots.forEach { put(it) } })
+    json.put("trailerUrl", trailerUrl ?: JSONObject.NULL)
+    return json
+}
+
+fun JSONObject.toSteamGameInfo(): SteamGameInfo {
+    val appId = optInt("appId")
+    val name = optString("name", "")
+    val description = optString("description", "")
+    val headerImage = optString("headerImage", "")
+    val releaseDate = optString("releaseDate", "")
+    
+    val developers = ArrayList<String>()
+    optJSONArray("developers")?.let { arr ->
+        for (i in 0 until arr.length()) {
+            developers.add(arr.optString(i))
+        }
+    }
+    
+    val publishers = ArrayList<String>()
+    optJSONArray("publishers")?.let { arr ->
+        for (i in 0 until arr.length()) {
+            publishers.add(arr.optString(i))
+        }
+    }
+    
+    val genres = ArrayList<String>()
+    optJSONArray("genres")?.let { arr ->
+        for (i in 0 until arr.length()) {
+            genres.add(arr.optString(i))
+        }
+    }
+    
+    val screenshots = ArrayList<String>()
+    optJSONArray("screenshots")?.let { arr ->
+        for (i in 0 until arr.length()) {
+            screenshots.add(arr.optString(i))
+        }
+    }
+    
+    val trailerUrl = if (has("trailerUrl") && !isNull("trailerUrl")) optString("trailerUrl") else null
+    
+    return SteamGameInfo(
+        appId = appId,
+        name = name,
+        description = description,
+        headerImage = headerImage,
+        releaseDate = releaseDate,
+        developers = developers,
+        publishers = publishers,
+        genres = genres,
+        screenshots = screenshots,
+        trailerUrl = trailerUrl
+    )
+}
+
+private fun getDiskCacheFile(context: Context, appId: Int): File {
+    val dir = File(context.cacheDir, "steam_info_cache")
+    if (!dir.exists()) dir.mkdirs()
+    return File(dir, "steam_info_${appId}.json")
+}
+
+private fun saveToDiskCache(context: Context, info: SteamGameInfo) {
+    try {
+        val file = getDiskCacheFile(context, info.appId)
+        val jsonStr = info.toJson().toString()
+        FileUtils.writeString(file, jsonStr)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+private fun loadFromDiskCache(context: Context, appId: Int): SteamGameInfo? {
+    try {
+        val file = getDiskCacheFile(context, appId)
+        if (file.exists() && file.isFile) {
+            val lines = FileUtils.readLines(file)
+            val jsonStr = lines.joinToString("\n")
+            if (jsonStr.isNotEmpty()) {
+                val json = JSONObject(jsonStr)
+                return json.toSteamGameInfo()
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+    return null
+}
+
+private fun getGameInfoFromCache(context: Context, appId: Int): SteamGameInfo? {
+    val memInfo = STEAM_GAME_INFO_CACHE[appId]
+    if (memInfo != null) return memInfo
+    val diskInfo = loadFromDiskCache(context, appId)
+    if (diskInfo != null) {
+        STEAM_GAME_INFO_CACHE[appId] = diskInfo
+        return diskInfo
+    }
+    return null
+}
 
 data class SteamSearchResult(
     val id: Int,
@@ -870,28 +936,48 @@ private fun fetchGameDetails(appId: Int, locale: String, callback: (SteamGameInf
 @Composable
 fun SteamInfoDialog(
     shortcut: Shortcut,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onCloneClick: () -> Unit,
+    onPropertiesClick: () -> Unit,
+    onRefresh: () -> Unit
 ) {
     val ctx = LocalContext.current
     val locale = java.util.Locale.getDefault().language
     val isRussian = locale == "ru"
 
-    var appIdState by remember { mutableStateOf<Int?>(null) }
-    var gameInfo by remember { mutableStateOf<SteamGameInfo?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    val initialAppId = remember(shortcut) {
+        shortcut.getExtra("steamAppId").toIntOrNull() ?: STEAM_NAME_TO_APP_ID_CACHE[shortcut.name]
+    }
+    val initialInfo = remember(initialAppId) {
+        initialAppId?.let { getGameInfoFromCache(ctx, it) }
+    }
+
+    var appIdState by remember(shortcut) { mutableStateOf<Int?>(initialAppId) }
+    var gameInfo by remember(shortcut) { mutableStateOf<SteamGameInfo?>(initialInfo) }
+    var isLoading by remember(shortcut) { mutableStateOf(initialInfo == null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var searchQuery by remember { mutableStateOf(shortcut.name) }
     var searchResults by remember { mutableStateOf<List<SteamSearchResult>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
 
-    var activeFullScreenScreenshot by remember { mutableStateOf<String?>(null) }
+    var activeFullScreenScreenshotIndex by remember { mutableStateOf<Int?>(null) }
 
     fun loadDetails(appId: Int) {
+        val cachedInfo = getGameInfoFromCache(ctx, appId)
+        if (cachedInfo != null) {
+            gameInfo = cachedInfo
+            isLoading = false
+            errorMessage = null
+            return
+        }
         isLoading = true
         errorMessage = null
         fetchGameDetails(appId, if (isRussian) "russian" else "english") { info ->
             if (info != null) {
+                STEAM_GAME_INFO_CACHE[appId] = info
+                saveToDiskCache(ctx, info)
                 gameInfo = info
                 isLoading = false
                 // Save appId to shortcut as cache
@@ -918,13 +1004,15 @@ fun SteamInfoDialog(
     }
 
     LaunchedEffect(shortcut) {
-        val cachedAppId = shortcut.getExtra("steamAppId").toIntOrNull()
+        if (gameInfo != null) return@LaunchedEffect
+        val cachedAppId = shortcut.getExtra("steamAppId").toIntOrNull() ?: STEAM_NAME_TO_APP_ID_CACHE[shortcut.name]
         if (cachedAppId != null && cachedAppId > 0) {
             appIdState = cachedAppId
             loadDetails(cachedAppId)
         } else {
             fetchAppIdByName(shortcut.name) { resolvedId ->
                 if (resolvedId != null && resolvedId > 0) {
+                    STEAM_NAME_TO_APP_ID_CACHE[shortcut.name] = resolvedId
                     appIdState = resolvedId
                     loadDetails(resolvedId)
                 } else {
@@ -935,19 +1023,11 @@ fun SteamInfoDialog(
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.92f),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.background,
-            tonalElevation = 8.dp
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -969,7 +1049,7 @@ fun SteamInfoDialog(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = gameInfo?.name ?: (if (isRussian) "Информация об игре" else "Game Information"),
+                            text = gameInfo?.name ?: shortcut.name,
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = Color.White,
                             maxLines = 1,
@@ -982,49 +1062,89 @@ fun SteamInfoDialog(
                     }
                 }
 
-                if (isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator()
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                if (isRussian) "Загрузка информации из Steam..." else "Loading information from Steam...",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                } else if (gameInfo != null) {
-                    val info = gameInfo!!
-                    Column(
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                )
+                            )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                        ) {
+                        if (gameInfo != null) {
+                            val heroUrl = remember(gameInfo) {
+                                "https://shared.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/library_hero.jpg"
+                            }
+                            var imageModel by remember(heroUrl) { mutableStateOf<Any>(heroUrl) }
                             coil.compose.AsyncImage(
-                                model = info.headerImage,
-                                contentDescription = info.name,
+                                model = imageModel,
+                                onError = {
+                                    if (imageModel == heroUrl) {
+                                        imageModel = gameInfo!!.headerImage
+                                    }
+                                },
+                                contentDescription = gameInfo!!.name,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
+                        } else {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                Color.Black.copy(alpha = 0.7f)
-                                            )
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                var displayIcon by remember(shortcut) { mutableStateOf(shortcut.getDisplayIcon()) }
+
+                                LaunchedEffect(shortcut, displayIcon) {
+                                    if (displayIcon == null) {
+                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                            val extracted = shortcut.extractAndSaveIcon()
+                                            if (extracted != null) {
+                                                displayIcon = extracted
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (displayIcon != null) {
+                                    coil.compose.AsyncImage(
+                                        model = displayIcon,
+                                        contentDescription = shortcut.name,
+                                        modifier = Modifier.size(80.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Filled.VideogameAsset,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.7f)
                                         )
                                     )
-                            )
+                                )
+                        )
+                        if (gameInfo != null) {
                             Text(
-                                text = "AppID: ${info.appId}",
+                                text = "AppID: ${gameInfo!!.appId}",
                                 color = Color.White.copy(alpha = 0.8f),
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier
@@ -1034,8 +1154,135 @@ fun SteamInfoDialog(
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
+                    }
 
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .navigationBarsPadding(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                onDismiss()
+                                runShortcut(ctx, shortcut)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF4CAF50),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = if (isRussian) "ИГРАТЬ" else "PLAY",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.2.sp
+                                )
+                            }
+                        }
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    ActionGridItem(
+                                        icon = Icons.Filled.Settings,
+                                        label = if (isRussian) "Настройки" else "Settings",
+                                        onClick = onOpenSettings,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ActionGridItem(
+                                        icon = Icons.Filled.AddToHomeScreen,
+                                        label = if (isRussian) "На экран" else "Add Shortcut",
+                                        onClick = {
+                                            if (shortcut.getExtra("uuid").isEmpty()) shortcut.genUUID()
+                                            addShortcutToHomeScreen(ctx, shortcut)
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ActionGridItem(
+                                        icon = Icons.Filled.ContentCopy,
+                                        label = if (isRussian) "Клон" else "Clone",
+                                        onClick = onCloneClick,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    ActionGridItem(
+                                        icon = Icons.Filled.IosShare,
+                                        label = if (isRussian) "Экспорт" else "Export",
+                                        onClick = { exportShortcutToFrontend(ctx, shortcut) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ActionGridItem(
+                                        icon = Icons.Filled.Info,
+                                        label = if (isRussian) "Свойства" else "Properties",
+                                        onClick = onPropertiesClick,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ActionGridItem(
+                                        icon = Icons.Filled.Delete,
+                                        label = if (isRussian) "Удалить" else "Delete",
+                                        iconTint = MaterialTheme.colorScheme.error,
+                                        onClick = {
+                                            val ok = shortcut.file?.delete() ?: false
+                                            if (ok) {
+                                                disableShortcutOnScreen(ctx, shortcut)
+                                                AppUtils.showToast(ctx, if (isRussian) "Ярлык удален" else "Shortcut removed")
+                                                onRefresh()
+                                                onDismiss()
+                                            } else {
+                                                AppUtils.showToast(ctx, if (isRussian) "Ошибка удаления" else "Failed to remove")
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (isLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        if (isRussian) "Загрузка информации из Steam..." else "Loading information from Steam...",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        } else if (gameInfo != null) {
+                            val info = gameInfo!!
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
@@ -1121,13 +1368,15 @@ fun SteamInfoDialog(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
+                                    var idx = 0
                                     items(info.screenshots) { ssUrl ->
+                                        val currentIndex = idx++
                                         Box(
                                             modifier = Modifier
                                                 .width(160.dp)
                                                 .height(90.dp)
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .clickable { activeFullScreenScreenshot = ssUrl }
+                                                .clickable { activeFullScreenScreenshotIndex = currentIndex }
                                         ) {
                                             coil.compose.AsyncImage(
                                                 model = ssUrl,
@@ -1172,131 +1421,180 @@ fun SteamInfoDialog(
                                     Text(if (isRussian) "Поиск" else "Search")
                                 }
                             }
-                        }
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = if (isRussian) "Поиск игры в Steam" else "Search game on Steam",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                            Spacer(modifier = Modifier.height(32.dp).navigationBarsPadding())
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    text = if (isRussian) "Поиск игры в Steam" else "Search game on Steam",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                label = { Text(if (isRussian) "Введите название" else "Enter name") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Button(
-                                onClick = { performSearch(searchQuery) },
-                                enabled = searchQuery.trim().isNotEmpty()
-                            ) {
-                                Text(if (isRussian) "Искать" else "Search")
-                            }
-                        }
-
-                        if (isSearching) {
-                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        } else if (searchResults.isNotEmpty()) {
-                            LazyColumn(
-                                modifier = Modifier.weight(1f).fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(searchResults) { res ->
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { 
-                                                appIdState = res.id
-                                                loadDetails(res.id) 
-                                            },
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        label = { Text(if (isRussian) "Введите название" else "Enter name") },
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Button(
+                                        onClick = { performSearch(searchQuery) },
+                                        enabled = searchQuery.trim().isNotEmpty()
                                     ) {
-                                        Row(
-                                            modifier = Modifier.padding(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(
+                                        Text(if (isRussian) "Искать" else "Search")
+                                    }
+                                }
+
+                                if (isSearching) {
+                                    Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
+                                } else if (searchResults.isNotEmpty()) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        searchResults.forEach { res ->
+                                            Card(
                                                 modifier = Modifier
-                                                    .size(60.dp, 30.dp)
-                                                    .clip(RoundedCornerShape(4.dp))
-                                                    .background(Color.DarkGray)
+                                                    .fillMaxWidth()
+                                                    .clickable { 
+                                                        appIdState = res.id
+                                                        loadDetails(res.id) 
+                                                    },
+                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                             ) {
-                                                if (res.tinyImage.isNotEmpty()) {
-                                                    coil.compose.AsyncImage(
-                                                        model = res.tinyImage,
-                                                        contentDescription = res.name,
-                                                        modifier = Modifier.fillMaxSize(),
-                                                        contentScale = ContentScale.Crop
-                                                    )
+                                                Row(
+                                                    modifier = Modifier.padding(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(60.dp, 30.dp)
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(Color.DarkGray)
+                                                    ) {
+                                                        if (res.tinyImage.isNotEmpty()) {
+                                                            coil.compose.AsyncImage(
+                                                                model = res.tinyImage,
+                                                                contentDescription = res.name,
+                                                                modifier = Modifier.fillMaxSize(),
+                                                                contentScale = ContentScale.Crop
+                                                            )
+                                                        }
+                                                    }
+                                                    Spacer(Modifier.width(12.dp))
+                                                    Column {
+                                                        Text(text = res.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                        Text(text = "AppID: ${res.id}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                                                    }
                                                 }
-                                            }
-                                            Spacer(Modifier.width(12.dp))
-                                            Column {
-                                                Text(text = res.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                Text(text = "AppID: ${res.id}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
                                             }
                                         }
                                     }
+                                } else {
+                                    Box(modifier = Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = errorMessage ?: (if (isRussian) "Игра не найдена в Steam. Вы можете настроить ярлык кнопками выше." else "Game details not found on Steam. You can manage the shortcut using actions above."),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
                                 }
-                            }
-                        } else {
-                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = errorMessage ?: (if (isRussian) "Поиск еще не выполнялся." else "No search performed yet."),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
                             }
                         }
                     }
                 }
             }
         }
-    }
 
-    activeFullScreenScreenshot?.let { ssUrl ->
+    activeFullScreenScreenshotIndex?.let { startIndex ->
+        val pagerState = rememberPagerState(
+            initialPage = startIndex,
+            pageCount = { gameInfo?.screenshots?.size ?: 0 }
+        )
         Dialog(
-            onDismissRequest = { activeFullScreenScreenshot = null },
+            onDismissRequest = { activeFullScreenScreenshotIndex = null },
             properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black)
-                    .clickable { activeFullScreenScreenshot = null },
+                    .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                coil.compose.AsyncImage(
-                    model = ssUrl,
-                    contentDescription = "screenshot_fullscreen",
-                    modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f),
-                    contentScale = ContentScale.Fit
-                )
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    val ssUrl = gameInfo?.screenshots?.getOrNull(page)
+                    if (ssUrl != null) {
+                        coil.compose.AsyncImage(
+                            model = ssUrl,
+                            contentDescription = "screenshot_fullscreen",
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+
                 IconButton(
-                    onClick = { activeFullScreenScreenshot = null },
+                    onClick = { activeFullScreenScreenshotIndex = null },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(16.dp)
                 ) {
                     Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(32.dp))
                 }
+
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${gameInfo?.screenshots?.size ?: 0}",
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun ActionGridItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    iconTint: Color = MaterialTheme.colorScheme.primary
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = iconTint,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
