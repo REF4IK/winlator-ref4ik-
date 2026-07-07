@@ -389,6 +389,47 @@ import java.nio.file.Files;
         }
 
         /**
+         * Resolves a Wine path (e.g., C:/Program Files/Game/game.exe) or an Android path to an Android File.
+         */
+        private File resolveWinePath(String winePath) {
+            try {
+                winePath = winePath.replace("\\", "/").trim();
+
+                // If it is already an absolute Android path, return it directly
+                if (winePath.startsWith("/")) {
+                    File candidate = new File(winePath);
+                    if (candidate.isFile()) return candidate;
+                }
+
+                if (winePath.length() >= 2 && winePath.charAt(1) == ':') {
+                    String driveLetter = winePath.substring(0, 2).toLowerCase();
+                    String rest = winePath.substring(2);
+                    if (rest.startsWith("/")) rest = rest.substring(1);
+
+                    // If C:, map to drive_c in container root directory
+                    if (driveLetter.equals("c:")) {
+                        File driveC = new File(container.getRootDir(), ".wine/drive_c");
+                        File candidate = new File(driveC, rest);
+                        if (candidate.isFile()) return candidate;
+                    } else {
+                        // Map other drive letters by checking container drives configurations
+                        String driveChar = driveLetter.substring(0, 1).toUpperCase();
+                        for (String[] driveInfo : container.drivesIterator()) {
+                            if (driveInfo[0].equalsIgnoreCase(driveChar)) {
+                                File driveDir = new File(driveInfo[1]);
+                                File candidate = new File(driveDir, rest);
+                                if (candidate.isFile()) return candidate;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("Shortcut", "Error resolving wine path: " + winePath, e);
+            }
+            return null;
+        }
+
+        /**
          * Resolve the EXE file on the Android filesystem from the .desktop Path line
          * and the shortcut's Wine path.
          */
@@ -399,16 +440,35 @@ import java.nio.file.Files;
                 for (String line : FileUtils.readLines(file)) {
                     line = line.trim();
                     if (line.startsWith("Path=")) {
-                        pathLine = line.substring(5);
+                        pathLine = line.substring(5).trim();
                     }
                     if (line.startsWith("Exec=")) {
-                        execLine = line.substring(5);
+                        execLine = line.substring(5).trim();
                     }
                 }
 
-                // Try using Path + executable filename
+                // 1. Try resolving using Exec line (most accurate)
+                if (execLine != null && !execLine.isEmpty()) {
+                    int wineIdx = execLine.lastIndexOf("wine ");
+                    if (wineIdx != -1) {
+                        String rawPath = execLine.substring(wineIdx + 5).trim();
+                        if (rawPath.startsWith("\"") && rawPath.endsWith("\"") && rawPath.length() > 2) {
+                            rawPath = rawPath.substring(1, rawPath.length() - 1);
+                        }
+                        rawPath = StringUtils.unescape(rawPath).trim();
+                        File resolved = resolveWinePath(rawPath);
+                        if (resolved != null && resolved.isFile()) return resolved;
+                    }
+                }
+
+                // 2. Try using Path + executable filename from this.path
                 if (pathLine != null && !pathLine.isEmpty()) {
-                    String exeName = this.path;
+                    String rootPath = container.getRootDir().getAbsolutePath();
+                    if (pathLine.contains("/home/xuser")) {
+                        pathLine = pathLine.replace("/home/xuser", rootPath);
+                    }
+
+                    String exeName = this.path != null ? this.path.trim() : "";
                     int lastSlash = exeName.lastIndexOf("/");
                     if (lastSlash >= 0) exeName = exeName.substring(lastSlash + 1);
                     int lastBackslash = exeName.lastIndexOf("\\");
@@ -418,28 +478,10 @@ import java.nio.file.Files;
                     if (candidate.isFile()) return candidate;
                 }
 
-                // Try resolving the full wine path through dosdevices
+                // 3. Fallback to parsing this.path directly
                 if (this.path != null && !this.path.isEmpty()) {
-                    String winePath = this.path.replace("\\", "/");
-                    // Extract drive letter (e.g., "C:" or "D:")
-                    if (winePath.length() >= 2 && winePath.charAt(1) == ':') {
-                        String driveLetter = winePath.substring(0, 2).toLowerCase();
-                        String rest = winePath.substring(2);
-                        if (rest.startsWith("/")) rest = rest.substring(1);
-
-                        // dosdevices path
-                        File dosdevicesDir = new File(container.getRootDir(),
-                            ".wine/dosdevices/" + driveLetter);
-                        File candidate = new File(dosdevicesDir, rest);
-                        if (candidate.isFile()) return candidate;
-
-                        // Also try drive_c directly for C:
-                        if (driveLetter.equals("c:")) {
-                            File driveC = new File(container.getRootDir(), ".wine/drive_c");
-                            candidate = new File(driveC, rest);
-                            if (candidate.isFile()) return candidate;
-                        }
-                    }
+                    File resolved = resolveWinePath(this.path);
+                    if (resolved != null && resolved.isFile()) return resolved;
                 }
             } catch (Exception e) {
                 Log.e("Shortcut", "Failed to resolve exe file", e);
@@ -454,10 +496,16 @@ import java.nio.file.Files;
         public Bitmap extractAndSaveIcon() {
             try {
                 File exeFile = resolveExeFile();
-                if (exeFile == null || !exeFile.isFile()) return null;
+                if (exeFile == null || !exeFile.isFile()) {
+                    Log.e("Shortcut", "Could not resolve executable file to extract icon");
+                    return null;
+                }
 
                 Bitmap extracted = com.winlator.cmod.win32.PEParser.extractIcon(exeFile);
-                if (extracted == null) return null;
+                if (extracted == null) {
+                    Log.e("Shortcut", "PEParser failed to extract icon from: " + exeFile.getAbsolutePath());
+                    return null;
+                }
 
                 // Save to icons dir so it loads next time
                 int randomNum = (int)(Math.random() * 10000);
@@ -467,8 +515,12 @@ import java.nio.file.Files;
                 File savedIconFile = new File(iconDir, iconName + ".png");
                 FileUtils.saveBitmapToFile(extracted, savedIconFile);
 
+                // Update the in-memory variables immediately so they are available instantly
+                this.customIcon = extracted;
+                this.customIconPath = savedIconFile.getPath();
+                putExtra("customIconPath", customIconPath);
+
                 // Update the .desktop file Icon= line
-                // Read existing content
                 StringBuilder newContent = new StringBuilder();
                 for (String line : FileUtils.readLines(file)) {
                     if (line.trim().startsWith("Icon=")) {
