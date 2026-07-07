@@ -1409,17 +1409,17 @@ fun SteamInfoDialog(
                             val info = gameInfo!!
                             
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 if (info.reviewScoreDesc.isNotEmpty() || info.totalReviews > 0) {
                                     Card(
-                                        modifier = Modifier.weight(1.2f),
+                                        modifier = Modifier.weight(1.2f).fillMaxHeight(),
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
                                         Column(
-                                            modifier = Modifier.padding(8.dp),
+                                            modifier = Modifier.fillMaxSize().padding(8.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Center
                                         ) {
@@ -1472,12 +1472,12 @@ fun SteamInfoDialog(
                                 }
 
                                 Card(
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Column(
-                                        modifier = Modifier.padding(8.dp),
+                                        modifier = Modifier.fillMaxSize().padding(8.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.Center
                                     ) {
@@ -1515,12 +1515,12 @@ fun SteamInfoDialog(
 
                                 if (info.metacriticScore > 0) {
                                     Card(
-                                        modifier = Modifier.weight(0.8f),
+                                        modifier = Modifier.weight(0.8f).fillMaxHeight(),
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
                                         Column(
-                                            modifier = Modifier.padding(8.dp),
+                                            modifier = Modifier.fillMaxSize().padding(8.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Center
                                         ) {
@@ -1570,16 +1570,6 @@ fun SteamInfoDialog(
                                     }
                                     if (info.genres.isNotEmpty()) {
                                         MetadataRow(label = if (isRussian) "Жанры" else "Genres", value = info.genres.joinToString(", "))
-                                    }
-                                    if (info.supportedLanguages.isNotEmpty()) {
-                                        val parsedLanguages = remember(info.supportedLanguages) {
-                                            try {
-                                                android.text.Html.fromHtml(info.supportedLanguages, android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim()
-                                            } catch (e: Throwable) {
-                                                info.supportedLanguages.replace("<[^>]*>".toRegex(), "").trim()
-                                            }
-                                        }
-                                        MetadataRow(label = if (isRussian) "Языки" else "Languages", value = parsedLanguages)
                                     }
                                 }
                             }
