@@ -88,6 +88,7 @@ public class InputControlsView extends View {
 
     private Handler timeoutHandler; // Reference to the activity's timeout handler
     private Runnable hideControlsRunnable; // Runnable to hide the controls
+    private final android.util.SparseArray<Bitmap> iconCache = new android.util.SparseArray<>();
 
     private SharedPreferences preferences;
 
@@ -394,6 +395,7 @@ public class InputControlsView extends View {
     }
 
     public synchronized void setProfile(ControlsProfile profile) {
+        iconCache.clear();
         if (profile != null) {
             this.profile = profile;
             deselectAllElements();
@@ -499,6 +501,7 @@ public class InputControlsView extends View {
     protected void onDetachedFromWindow() {
         if (mouseMoveTimer != null)
             mouseMoveTimer.cancel();
+        iconCache.clear();
         super.onDetachedFromWindow();
     }
 
@@ -909,17 +912,23 @@ public class InputControlsView extends View {
     }
 
     public Bitmap getIcon(int id) {
+        Bitmap cached = iconCache.get(id);
+        if (cached != null) return cached;
+
+        Bitmap icon = null;
         // Handle pack icons (ID >= 1000)
         if (IconPackManager.isPackIcon(id)) {
-            return iconPackManager.loadIconByGlobalId(id);
+            icon = iconPackManager.loadIconByGlobalId(id);
         }
         // Handle custom icons (ID >= 100)
-        if (CustomIconManager.isCustomIcon(id)) {
-            return customIconManager.loadIcon(id);
+        else if (CustomIconManager.isCustomIcon(id)) {
+            icon = customIconManager.loadIcon(id);
         }
 
-        // Return null for any non-custom icon requests
-        return null;
+        if (icon != null) {
+            iconCache.put(id, icon);
+        }
+        return icon;
     }
 
     private static class ElementSnapshot {

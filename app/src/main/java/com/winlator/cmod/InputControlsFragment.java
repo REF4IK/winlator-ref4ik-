@@ -98,8 +98,12 @@ public class InputControlsFragment extends Fragment {
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (requestCode == MainActivity.OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             try {
-                ControlsProfile importedProfile = manager.importProfile(new JSONObject(FileUtils.readString(getContext(), data.getData())));
-                if (importProfileCallback != null) importProfileCallback.call(importedProfile);
+                ControlsProfile importedProfile = manager.importProfileFromUri(getContext(), data.getData());
+                if (importedProfile != null) {
+                    if (importProfileCallback != null) importProfileCallback.call(importedProfile);
+                } else {
+                    AppUtils.showToast(getContext(), R.string.unable_to_import_profile);
+                }
             }
             catch (Exception e) {
                 AppUtils.showToast(getContext(), R.string.unable_to_import_profile);

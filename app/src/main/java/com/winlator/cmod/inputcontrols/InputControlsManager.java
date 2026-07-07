@@ -156,12 +156,19 @@ public class InputControlsManager {
 
     public ControlsProfile importProfile(JSONObject data) {
         try {
-            if (!data.has("id") || !data.has("name")) return null;
+            if (InputBridgeProfileParser.isInputBridgeProfile(data)) {
+                JSONObject converted = InputBridgeProfileParser.parseProfile(data, context);
+                if (converted != null) data = converted;
+            }
+
+            // IB profiles have "name" but no "id" after conversion — allow that
+            if (!data.has("name")) return null;
             int newId = ++maxProfileId;
             File newFile = ControlsProfile.getProfileFile(context, newId);
             data.put("id", newId);
             FileUtils.writeString(newFile, data.toString());
             ControlsProfile newProfile = loadProfile(context, newFile);
+            if (newProfile == null) return null;
 
             int foundIndex = -1;
             for (int i = 0; i < profiles.size(); i++) {
@@ -179,6 +186,20 @@ public class InputControlsManager {
             return newProfile;
         }
         catch (JSONException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Import a profile from a URI, supporting both Winlator .icp files and Input Bridge .ibp files.
+     * The .ibp JSON is the root InputConfigProfile object exported by Input Bridge.
+     */
+    public ControlsProfile importProfileFromUri(android.content.Context ctx, android.net.Uri uri) {
+        try {
+            String content = FileUtils.readString(ctx, uri);
+            if (content == null || content.isEmpty()) return null;
+            return importProfile(new org.json.JSONObject(content));
+        } catch (Exception e) {
             return null;
         }
     }

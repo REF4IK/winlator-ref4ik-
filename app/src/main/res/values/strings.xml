@@ -1595,6 +1595,7 @@
     <string name="theme_dark_desc">Dark background,\nlight text</string>
     <string name="start_using">Start using</string>
     <string name="can_change_in_settings">Can be changed anytime in Settings → Appearance</string>
+    <string name="add_ib_icon_pack">Import Input Bridge Icon Pack (.ipk)</string>
 </resources>
 
 

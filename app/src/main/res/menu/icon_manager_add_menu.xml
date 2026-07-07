@@ -8,4 +8,8 @@
         android:id="@+id/add_icon_pack_zip"
         android:title="@string/add_icon_pack_zip"
         android:icon="@drawable/icon_add" />
+    <item
+        android:id="@+id/add_ib_icon_pack"
+        android:title="@string/add_ib_icon_pack"
+        android:icon="@drawable/ic_add" />
 </menu>

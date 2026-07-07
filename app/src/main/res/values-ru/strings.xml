@@ -1582,6 +1582,7 @@
     <string name="display_renderer">Рендер дисплея</string>
     <string name="sf_compat_mode">Режим совместимости</string>
     <string name="sf_compat_mode_description">Конвертировать BGRA в RGBA. Некоторые драйверы поддерживают BGRA изначально; отключение может уменьшить лаги.</string>
+    <string name="add_ib_icon_pack">Импортировать пак иконок Input Bridge (.ipk)</string>
 </resources>
 
 

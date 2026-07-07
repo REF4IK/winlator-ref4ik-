@@ -258,6 +258,30 @@ public class CustomIconManager {
     }
     
     /**
+     * Imports a Bitmap directly as a custom icon (used during IB profile import).
+     * @param bitmap The bitmap to save
+     * @return The ID of the saved icon, or -1 on failure
+     */
+    public int importIconFromBitmap(Bitmap bitmap) {
+        if (bitmap == null) return -1;
+        try {
+            Bitmap resized = resizeBitmap(bitmap, MAX_ICON_SIZE);
+            int iconId = getNextAvailableId();
+            if (iconId == -1) { resized.recycle(); return -1; }
+            File outFile = new File(customIconsDir, ICON_PREFIX + iconId + ICON_EXTENSION);
+            try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                resized.compress(Bitmap.CompressFormat.PNG, QUALITY, fos);
+                fos.flush();
+            }
+            resized.recycle();
+            return iconId;
+        } catch (IOException e) {
+            Log.e(TAG, "importIconFromBitmap failed", e);
+            return -1;
+        }
+    }
+
+    /**
      * Finds the next available ID for a custom icon
      */
     private int getNextAvailableId() {

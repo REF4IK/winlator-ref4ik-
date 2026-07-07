@@ -167,6 +167,59 @@ public class IconPackManager {
     }
 
     /**
+     * Imports an icon pack from an Input Bridge (.ipk) serialized class file.
+     * Extracts all serialized Icon PNG bytes and saves them into a pack folder.
+     */
+    public IconPack importIconPackFromIpk(Uri ipkUri) {
+        try {
+            InputStream inputStream = context.getContentResolver().openInputStream(ipkUri);
+            if (inputStream == null) return null;
+
+            com.catfixture.inputbridge.core.iconmanager.IconPack ibPack;
+            try (java.io.ObjectInputStream ois = new java.io.ObjectInputStream(inputStream)) {
+                ibPack = (com.catfixture.inputbridge.core.iconmanager.IconPack) ois.readObject();
+            }
+
+            if (ibPack == null || ibPack.icons == null || ibPack.icons.isEmpty()) return null;
+
+            // Generate unique pack folder
+            String packName = ibPack.name != null && !ibPack.name.trim().isEmpty() ? ibPack.name.trim() : generateUniquePackName();
+            packName = packName.replaceAll("[\\\\/:*?\"<>|]", "_");
+            
+            File packFolder = new File(packsDir, packName);
+            int counter = 1;
+            while (packFolder.exists()) {
+                packFolder = new File(packsDir, packName + "_" + counter++);
+            }
+            packFolder.mkdirs();
+
+            boolean hasFiles = false;
+            for (com.catfixture.inputbridge.core.iconmanager.Icon ibIcon : ibPack.icons) {
+                if (ibIcon == null || ibIcon.bmpData == null || ibIcon.bmpData.binData == null) continue;
+                String iconName = ibIcon.name != null && !ibIcon.name.trim().isEmpty() ? ibIcon.name.trim() : "icon";
+                iconName = iconName.replaceAll("[\\\\/:*?\"<>|]", "_") + ICON_EXTENSION;
+
+                File outFile = new File(packFolder, iconName);
+                try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                    fos.write(ibIcon.bmpData.binData);
+                }
+                hasFiles = true;
+            }
+
+            if (!hasFiles) {
+                packFolder.delete();
+                return null;
+            }
+
+            return loadPackInfo(packFolder);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to import icon pack from IPK", e);
+            return null;
+        }
+    }
+
+
+    /**
      * Imports an icon pack from a folder of files (used for already-extracted packs)
      */
     public IconPack importIconPackFromFolder(File sourceFolder) {

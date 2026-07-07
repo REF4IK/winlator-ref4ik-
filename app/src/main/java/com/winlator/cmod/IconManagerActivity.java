@@ -241,6 +241,10 @@ public class IconManagerActivity extends AppCompatActivity {
                     openFilePicker("application/zip");
                     importCallback = this::importPackFromZip;
                     return true;
+                } else if (item.getItemId() == R.id.add_ib_icon_pack) {
+                    openFilePicker("*/*");
+                    importCallback = this::importPackFromIpk;
+                    return true;
                 }
                 return false;
             });
@@ -290,6 +294,17 @@ public class IconManagerActivity extends AppCompatActivity {
             AppUtils.showToast(this, R.string.failed_to_import_icon);
         }
     }
+
+    private void importPackFromIpk(Uri uri) {
+        IconPack pack = iconPackManager.importIconPackFromIpk(uri);
+        if (pack != null) {
+            AppUtils.showToast(this, R.string.icon_imported_successfully);
+            updateContent();
+        } else {
+            AppUtils.showToast(this, R.string.failed_to_import_icon);
+        }
+    }
+
 
     @Override
     protected void onResume() {

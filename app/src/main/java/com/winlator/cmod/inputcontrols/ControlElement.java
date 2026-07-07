@@ -90,6 +90,7 @@ public class ControlElement {
     private RangeScroller scroller;
     private CubicBezierInterpolator interpolator;
     private Object touchTime;
+    private float accumulatedDelta;
     private float iconScale = 1.0f; // Новое поле для размера иконки
     private float opacity = 0.5f; // Прозрачность кнопки (0.1 - 1.0)
 
@@ -653,6 +654,10 @@ public class ControlElement {
                 paint.setStyle(Paint.Style.STROKE);
                 paint.setColor(oldColor);
                 canvas.drawCircle(thumbstickX, thumbstickY, thumbRadius + strokeWidth * 0.5f, paint);
+
+                if (iconId > 0) {
+                    drawIcon(canvas, thumbstickX, thumbstickY, thumbRadius * 2, thumbRadius * 2, iconId);
+                }
                 break;
             }
 
@@ -665,6 +670,10 @@ public class ControlElement {
                 radius = (innerHeight / boundingBox.height()) * radius - (innerStrokeWidth * 0.5f + strokeWidth * 0.5f);
                 paint.setStrokeWidth(innerStrokeWidth);
                 canvas.drawRoundRect(boundingBox.left + offset, boundingBox.top + offset, boundingBox.right - offset, boundingBox.bottom - offset, radius, radius, paint);
+
+                if (iconId > 0) {
+                    drawIcon(canvas, boundingBox.centerX(), boundingBox.centerY(), boundingBox.width() - offset * 2, boundingBox.height() - offset * 2, iconId);
+                }
                 break;
             }
 
@@ -895,6 +904,8 @@ public class ControlElement {
                 if (type == Type.TRACKPAD) {
                     if (currentPosition == null) currentPosition = new PointF();
                     currentPosition.set(x, y);
+                    touchTime = System.currentTimeMillis();
+                    accumulatedDelta = 0;
                 }
                 else if (type == Type.STEERING_WHEEL) {
                     if (currentPosition == null) currentPosition = new PointF();
@@ -919,6 +930,7 @@ public class ControlElement {
                 float[] deltaPoint = touchpadView.computeDeltaPoint(currentPosition.x, currentPosition.y, x, y);
                 deltaX = deltaPoint[0];
                 deltaY = deltaPoint[1];
+                accumulatedDelta += Math.abs(deltaX) + Math.abs(deltaY);
                 currentPosition.set(x, y);
             }
             else {
@@ -1082,6 +1094,20 @@ public class ControlElement {
                 }
             }
             else if (type == Type.RANGE_BUTTON || type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD || type == Type.STEERING_WHEEL) {
+                if (type == Type.TRACKPAD) {
+                    if (touchTime != null) {
+                        long duration = System.currentTimeMillis() - (long) touchTime;
+                        if (duration < 200 && accumulatedDelta < 15) {
+                            Binding leftClick = Binding.MOUSE_LEFT_BUTTON;
+                            inputControlsView.handleInputEvent(leftClick, true);
+                            inputControlsView.postDelayed(() -> {
+                                inputControlsView.handleInputEvent(leftClick, false);
+                            }, 50);
+                        }
+                        touchTime = null;
+                    }
+                }
+
                 for (byte i = 0; i < states.length; i++) {
                     if (states[i]) inputControlsView.handleInputEvent(getBindingAt(i), false);
                     states[i] = false;

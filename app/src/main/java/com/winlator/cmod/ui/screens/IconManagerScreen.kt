@@ -1,5 +1,6 @@
 package com.winlator.cmod.ui.screens
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -7,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import com.winlator.cmod.IconPackDetailActivity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -36,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 import com.winlator.cmod.contentdialog.ContentDialog
 import com.winlator.cmod.core.AppUtils
+import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.inputcontrols.CustomIconManager
 import com.winlator.cmod.inputcontrols.IconPackManager
 import com.winlator.cmod.inputcontrols.IconPackManager.IconPack
@@ -77,11 +81,17 @@ fun IconManagerScreen(onBack: () -> Unit) {
         }
     }
 
-    val zipPickerLauncher = rememberLauncherForActivityResult(
+    val packPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            val pack = iconPackManager.importIconPackFromZip(uri)
+            val fileName = FileUtils.getUriFileName(ctx, uri) ?: ""
+            val pack = if (fileName.lowercase().endsWith(".ipk")) {
+                iconPackManager.importIconPackFromIpk(uri)
+            } else {
+                iconPackManager.importIconPackFromZip(uri)
+            }
+
             if (pack != null) {
                 AppUtils.showToast(ctx, R.string.icon_imported_successfully)
                 refreshKey++
@@ -128,7 +138,7 @@ fun IconManagerScreen(onBack: () -> Unit) {
                     Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete_all_custom_icons), tint = MaterialTheme.colorScheme.error)
                 }
             } else {
-                IconButton(onClick = { zipPickerLauncher.launch("application/zip") }) {
+                IconButton(onClick = { packPickerLauncher.launch("*/*") }) {
                     Icon(Icons.Filled.FolderZip, contentDescription = stringResource(R.string.add_icon_pack_zip))
                 }
             }
@@ -202,7 +212,15 @@ fun IconManagerScreen(onBack: () -> Unit) {
                     LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
                         items(iconPacks) { pack ->
                             Card(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable {
+                                        val intent = Intent(ctx, IconPackDetailActivity::class.java).apply {
+                                            putExtra(IconPackDetailActivity.EXTRA_PACK_NAME, pack.name)
+                                        }
+                                        ctx.startActivity(intent)
+                                    },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 Row(
