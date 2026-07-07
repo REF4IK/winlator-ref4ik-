@@ -168,7 +168,7 @@ public class InputBridgeProfileParser {
         // Reference resolution
         int refWidth  = DEFAULT_REF_W;
         int refHeight = DEFAULT_REF_H;
-        if (ibData.has("refResolution")) {
+        if (ibData.has("refResolution") && !ibData.isNull("refResolution")) {
             JSONObject res = ibData.getJSONObject("refResolution");
             int rx = res.optInt("x", -1);
             int ry = res.optInt("y", -1);
@@ -176,7 +176,7 @@ public class InputBridgeProfileParser {
         }
 
         JSONArray winElements = new JSONArray();
-        if (ibData.has("touchControlElements")) {
+        if (ibData.has("touchControlElements") && !ibData.isNull("touchControlElements")) {
             JSONArray ibElements = ibData.getJSONArray("touchControlElements");
             for (int i = 0; i < ibElements.length(); i++) {
                 JSONObject ibElem = ibElements.getJSONObject(i);
@@ -231,7 +231,7 @@ public class InputBridgeProfileParser {
         double halfH = 75.0 * winScale;
 
         double normX = 0.5, normY = 0.5;
-        if (ibElem.has("position")) {
+        if (ibElem.has("position") && !ibElem.isNull("position")) {
             JSONObject pos = ibElem.getJSONObject("position");
             double rawX = pos.optInt("x", refWidth / 2);
             double rawY = pos.optInt("y", refHeight / 2);
@@ -245,28 +245,34 @@ public class InputBridgeProfileParser {
         winElem.put("x", normX);
         winElem.put("y", normY);
 
-        // ── Toggle / border ───────────────────────────────────────────────────
+        // ── Toggle / border / Colors Mapping ──────────────────────────────────
         winElem.put("toggleSwitch", ibElem.optBoolean("useTriggerMode", false));
-        winElem.put("hideBorder",   false);
 
-        // ── Colors Mapping ───────────────────────────────────────────────────
+        boolean hideBorder = false;
         int winBorderColor = 0;
         int winFillColor = 0;
         int winTextColor = 0;
 
-        if (ibElem.has("shapeFineTuneData")) {
+        if (ibElem.has("shapeFineTuneData") && !ibElem.isNull("shapeFineTuneData")) {
             JSONObject shapeData = ibElem.getJSONObject("shapeFineTuneData");
-            if (shapeData.has("strokeColor")) {
+            double strokeWidth = shapeData.optDouble("strokeWidth", 1.0);
+            if (shapeData.has("strokeColor") && !shapeData.isNull("strokeColor")) {
                 winBorderColor = shapeData.getJSONObject("strokeColor").optInt("color", 0);
+                if (strokeWidth < 0.5 || (winBorderColor >>> 24) == 0) {
+                    hideBorder = true;
+                }
+            } else {
+                if (strokeWidth < 0.5) hideBorder = true;
             }
-            if (shapeData.has("fillColor")) {
+            if (shapeData.has("fillColor") && !shapeData.isNull("fillColor")) {
                 winFillColor = shapeData.getJSONObject("fillColor").optInt("color", 0);
             }
         }
+        winElem.put("hideBorder", hideBorder);
 
-        if (ibElem.has("textFineTuneData")) {
+        if (ibElem.has("textFineTuneData") && !ibElem.isNull("textFineTuneData")) {
             JSONObject textData = ibElem.getJSONObject("textFineTuneData");
-            if (textData.has("color")) {
+            if (textData.has("color") && !textData.isNull("color")) {
                 winTextColor = textData.getJSONObject("color").optInt("color", 0);
             }
         }
@@ -279,7 +285,7 @@ public class InputBridgeProfileParser {
         String label = ibElem.optString("customText", "").trim();
         int winIconId = 0;
 
-        if (ibElem.has("customIcon")) {
+        if (ibElem.has("customIcon") && !ibElem.isNull("customIcon")) {
             JSONObject iconObj = ibElem.getJSONObject("customIcon");
             String rawName = iconObj.optString("iconName", "").trim();
             if (!rawName.isEmpty()) {
@@ -292,9 +298,22 @@ public class InputBridgeProfileParser {
             }
         }
 
+        double iconScale = 1.0;
+        JSONObject iconObj = null;
+        if (ibElem.has("customIcon") && !ibElem.isNull("customIcon")) {
+            iconObj = ibElem.getJSONObject("customIcon");
+        } else if (ibElem.has("innerCircleIcon") && !ibElem.isNull("innerCircleIcon")) {
+            iconObj = ibElem.getJSONObject("innerCircleIcon");
+        }
+
+        if (iconObj != null && iconObj.has("iconFineTuneData") && !iconObj.isNull("iconFineTuneData")) {
+            JSONObject iconFT = iconObj.getJSONObject("iconFineTuneData");
+            iconScale = iconFT.optDouble("scale", 1.0);
+        }
+
         winElem.put("text",      label);
         winElem.put("iconId",    winIconId);
-        winElem.put("iconScale", 1.0);
+        winElem.put("iconScale", iconScale);
 
         // ── Opacity ───────────────────────────────────────────────────────────
         winElem.put("opacity",     ibElem.optDouble("alpha", 0.5));
@@ -323,7 +342,7 @@ public class InputBridgeProfileParser {
                     String b = mapVkToBindingName(mainVk);
                     if (!b.equals("NONE")) bindings.put(b);
                 }
-                if (ibElem.has("combinationCodes")) {
+                if (ibElem.has("combinationCodes") && !ibElem.isNull("combinationCodes")) {
                     JSONArray comboCodes = ibElem.getJSONArray("combinationCodes");
                     for (int j = 0; j < comboCodes.length(); j++) {
                         JSONObject comboObj = comboCodes.getJSONObject(j);
