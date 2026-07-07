@@ -132,7 +132,8 @@ fun AboutScreen() {
             append(link("K11MCH1 AdrenoTools", "https://github.com/K11MCH1/AdrenoToolsDrivers")); append("\n")
             append(link("MrPurple666 Purple Turnip", "https://github.com/MrPurple666/purple-turnip")); append("\n")
             append(link("Weab-chan Freedreno Turnip CI", "https://github.com/Weab-chan/freedreno_turnip-CI")); append("\n")
-            append(link("crueter GameHub 8Elite", "https://github.com/crueter/GameHub-8Elite-Drivers"))
+            append(link("crueter GameHub 8Elite", "https://github.com/crueter/GameHub-8Elite-Drivers")); append("\n")
+            append(link("StevenMXZ Adreno Drivers", "https://github.com/StevenMXZ/Adreno-Tools-Drivers"))
         })
 
         // Glibc

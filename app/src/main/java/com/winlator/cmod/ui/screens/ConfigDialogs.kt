@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -305,6 +307,7 @@ fun GraphicsDriverConfigDialogCompose(
                 )
 
                 var showDownloadListDialog by remember { mutableStateOf(false) }
+                var selectedRepo by remember { mutableStateOf<String?>(null) }
                 var downloadableDrivers by remember { mutableStateOf<List<DriverResolver.DriverInfo>>(emptyList()) }
                 var isLoadingRemote by remember { mutableStateOf(false) }
 
@@ -352,32 +355,79 @@ fun GraphicsDriverConfigDialogCompose(
                 // Dialog list of downloadable graphics drivers
                 if (showDownloadListDialog) {
                     val grouped = remember(downloadableDrivers) { downloadableDrivers.groupBy { it.repoName } }
+                    val resolver = remember(context) { DriverResolver(context) }
                     AlertDialog(
-                        onDismissRequest = { showDownloadListDialog = false },
-                        title = { Text(stringResource(R.string.download_graphics_driver)) },
+                        onDismissRequest = { 
+                            showDownloadListDialog = false
+                            selectedRepo = null
+                        },
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (selectedRepo != null) {
+                                    IconButton(onClick = { selectedRepo = null }) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Back"
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(
+                                    text = if (selectedRepo != null) {
+                                        resolver.getRepoDisplayName(selectedRepo)
+                                    } else {
+                                        stringResource(R.string.download_graphics_driver)
+                                    }
+                                )
+                            }
+                        },
                         text = {
                             Box(modifier = Modifier.fillMaxWidth().heightIn(max = 550.dp)) {
                                 val scrollState = rememberScrollState()
                                 Column(modifier = Modifier.verticalScroll(scrollState)) {
-                                    grouped.forEach { (repoName, drivers) ->
-                                        Text(
-                                            text = repoName,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(vertical = 8.dp)
-                                        )
+                                    if (selectedRepo == null) {
+                                        grouped.forEach { (repoName, drivers) ->
+                                            val displayName = resolver.getRepoDisplayName(repoName)
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable { selectedRepo = repoName }
+                                                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = displayName,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                    Text(
+                                                        text = "${drivers.size} drivers available",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                )
+                                            }
+                                            HorizontalDivider()
+                                        }
+                                    } else {
+                                        val drivers = grouped[selectedRepo] ?: emptyList()
                                         drivers.forEach { driver ->
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clickable {
                                                         showDownloadListDialog = false
+                                                        selectedRepo = null
                                                         showProgressDialog = true
                                                         progressMessage = context.getString(R.string.downloading_driver_message, driver.name)
                                                         progressPercent = 0
-
-                                                        val resolver = DriverResolver(context)
+ 
                                                         coroutineScope.launch(Dispatchers.IO) {
                                                             resolver.downloadDriver(driver, object : DriverResolver.DriverDownloadCallback {
                                                                 override fun onProgress(progress: Int) {
@@ -453,7 +503,10 @@ fun GraphicsDriverConfigDialogCompose(
                         },
                         confirmButton = {},
                         dismissButton = {
-                            TextButton(onClick = { showDownloadListDialog = false }) {
+                            TextButton(onClick = { 
+                                showDownloadListDialog = false
+                                selectedRepo = null
+                            }) {
                                 Text(stringResource(R.string.cancel))
                             }
                         }

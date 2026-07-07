@@ -44,7 +44,8 @@ public class DriverResolver {
         "MrPurple666/purple-turnip",
         "crueter/GameHub-8Elite-Drivers", 
         "K11MCH1/AdrenoToolsDrivers",
-        "Weab-chan/freedreno_turnip-CI"
+        "Weab-chan/freedreno_turnip-CI",
+        "StevenMXZ/Adreno-Tools-Drivers"
     };
     
     private static final String PREFS_NAME = "DriverResolverPrefs";
@@ -339,7 +340,7 @@ public class DriverResolver {
                networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
     }
     
-    private String getRepoDisplayName(String repo) {
+    public String getRepoDisplayName(String repo) {
         // Проверяем пользовательские имена
         String customName = getCustomRepositoryName(repo);
         if (customName != null && !customName.isEmpty()) {
@@ -356,6 +357,8 @@ public class DriverResolver {
                 return "KIMCHI Turnip";
             case "Weab-chan/freedreno_turnip-CI":
                 return "Weab-Chan Freedreno";
+            case "StevenMXZ/Adreno-Tools-Drivers":
+                return "StevenMXZ Adreno Drivers";
             default:
                 return repo;
         }
