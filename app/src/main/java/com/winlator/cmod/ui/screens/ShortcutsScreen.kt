@@ -905,9 +905,24 @@ private fun fetchGameDetails(appId: Int, locale: String, callback: (SteamGameInf
                     val moviesArr = data.optJSONArray("movies")
                     if (moviesArr != null && moviesArr.length() > 0) {
                         val firstMovie = moviesArr.getJSONObject(0)
-                        val mp4Obj = firstMovie.optJSONObject("mp4")
-                        val rawUrl = mp4Obj?.optString("max") ?: mp4Obj?.optString("480")
-                        trailerUrl = rawUrl?.replace("http://", "https://")
+                        
+                        var rawUrl = firstMovie.optString("hls_h264", "").ifEmpty {
+                            firstMovie.optString("dash_h264", "")
+                        }
+                        
+                        if (rawUrl.isEmpty()) {
+                            val mp4Obj = firstMovie.optJSONObject("mp4")
+                            rawUrl = mp4Obj?.optString("max", "")?.ifEmpty { mp4Obj?.optString("480", "") } ?: ""
+                        }
+                        
+                        if (rawUrl.isEmpty()) {
+                            val webmObj = firstMovie.optJSONObject("webm")
+                            rawUrl = webmObj?.optString("max", "")?.ifEmpty { webmObj?.optString("480", "") } ?: ""
+                        }
+                        
+                        if (rawUrl.isNotEmpty()) {
+                            trailerUrl = rawUrl.replace("http://", "https://")
+                        }
                     }
                     
                     callback(SteamGameInfo(
@@ -963,6 +978,7 @@ fun SteamInfoDialog(
     var isSearching by remember { mutableStateOf(false) }
 
     var activeFullScreenScreenshotIndex by remember { mutableStateOf<Int?>(null) }
+    var activeTrailerUrl by remember { mutableStateOf<String?>(null) }
 
     fun loadDetails(appId: Int) {
         val cachedInfo = getGameInfoFromCache(ctx, appId)
@@ -1028,40 +1044,6 @@ fun SteamInfoDialog(
         color = MaterialTheme.colorScheme.background
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.secondary
-                                )
-                            )
-                        )
-                        .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = gameInfo?.name ?: shortcut.name,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
-                        }
-                    }
-                }
-
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1070,7 +1052,7 @@ fun SteamInfoDialog(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp)
+                            .height(220.dp)
                             .background(
                                 Brush.verticalGradient(
                                     colors = listOf(
@@ -1154,23 +1136,32 @@ fun SteamInfoDialog(
                                 .background(
                                     Brush.verticalGradient(
                                         colors = listOf(
+                                            Color.Black.copy(alpha = 0.6f),
                                             Color.Transparent,
-                                            Color.Black.copy(alpha = 0.7f)
+                                            Color.Black.copy(alpha = 0.8f)
                                         )
                                     )
                                 )
                         )
-                        if (gameInfo != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .align(Alignment.TopCenter),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Text(
-                                text = "AppID: ${gameInfo!!.appId}",
-                                color = Color.White.copy(alpha = 0.8f),
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(8.dp)
-                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                text = gameInfo?.name ?: shortcut.name,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
+                            }
                         }
                     }
 
@@ -1343,41 +1334,9 @@ fun SteamInfoDialog(
                                 color = MaterialTheme.colorScheme.onBackground
                             )
 
-                            if (info.trailerUrl != null) {
+                            if (info.screenshots.isNotEmpty() || info.trailerUrl != null) {
                                 Text(
-                                    text = if (isRussian) "Видео / Трейлер" else "Video / Trailer",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(200.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color.Black),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    AndroidView(
-                                        modifier = Modifier.fillMaxSize(),
-                                        factory = { context ->
-                                            VideoView(context).apply {
-                                                setVideoPath(info.trailerUrl)
-                                                val mediaController = MediaController(context)
-                                                mediaController.setAnchorView(this)
-                                                setMediaController(mediaController)
-                                                setOnPreparedListener { 
-                                                    seekTo(100) 
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-
-                            if (info.screenshots.isNotEmpty()) {
-                                Text(
-                                    text = if (isRussian) "Скриншоты" else "Screenshots",
+                                    text = if (isRussian) "Скриншоты и видео" else "Screenshots & Video",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -1386,6 +1345,44 @@ fun SteamInfoDialog(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
+                                    if (info.trailerUrl != null) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(160.dp)
+                                                    .height(90.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .clickable { activeTrailerUrl = info.trailerUrl }
+                                            ) {
+                                                coil.compose.AsyncImage(
+                                                    model = info.headerImage,
+                                                    contentDescription = "Video preview",
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .background(Color.Black.copy(alpha = 0.4f))
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(percent = 50))
+                                                        .align(Alignment.Center),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        Icons.Filled.PlayArrow,
+                                                        contentDescription = "Play Video",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     var idx = 0
                                     items(info.screenshots) { ssUrl ->
                                         val currentIndex = idx++
@@ -1577,6 +1574,90 @@ fun SteamInfoDialog(
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+        }
+    }
+
+    activeTrailerUrl?.let { trailerUrl ->
+        Dialog(
+            onDismissRequest = { activeTrailerUrl = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                AndroidView(
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f),
+                    factory = { context ->
+                        android.webkit.WebView(context).apply {
+                            setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            settings.apply {
+                                javaScriptEnabled = true
+                                mediaPlaybackRequiresUserGesture = false
+                                domStorageEnabled = true
+                                useWideViewPort = true
+                                loadWithOverviewMode = true
+                            }
+                            webChromeClient = android.webkit.WebChromeClient()
+                            webViewClient = android.webkit.WebViewClient()
+                            
+                            val html = """
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                                    <style>
+                                        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: black; }
+                                        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+                                    </style>
+                                    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+                                </head>
+                                <body>
+                                    <video id="video" controls autoplay playsinline></video>
+                                    <script>
+                                        var video = document.getElementById('video');
+                                        var videoSrc = '$trailerUrl';
+                                        if (Hls.isSupported()) {
+                                            var hls = new Hls();
+                                            hls.loadSource(videoSrc);
+                                            hls.attachMedia(video);
+                                            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                                                video.play();
+                                            });
+                                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                                            video.src = videoSrc;
+                                            video.addEventListener('loadedmetadata', function() {
+                                                video.play();
+                                            });
+                                        }
+                                    </script>
+                                </body>
+                                </html>
+                            """.trimIndent()
+                            
+                            loadDataWithBaseURL("https://video.akamai.steamstatic.com/", html, "text/html", "UTF-8", null)
+                        }
+                    },
+                    onRelease = { webView ->
+                        webView.destroy()
+                    }
+                )
+
+                IconButton(
+                    onClick = { activeTrailerUrl = null },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(32.dp))
+                }
             }
         }
     }
