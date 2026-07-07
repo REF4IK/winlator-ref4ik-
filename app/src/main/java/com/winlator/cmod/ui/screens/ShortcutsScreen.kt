@@ -59,6 +59,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
@@ -656,7 +657,16 @@ class SteamGameInfo(
     val publishers: List<String>,
     val genres: List<String>,
     val screenshots: List<String>,
-    val trailerUrl: String?
+    val trailerUrl: String?,
+    val controllerSupport: String,
+    val minRequirements: String,
+    val recRequirements: String,
+    val supportedLanguages: String,
+    val metacriticScore: Int,
+    val metacriticUrl: String,
+    val reviewScoreDesc: String,
+    val positivePercent: Int,
+    val totalReviews: Int
 )
 
 fun SteamGameInfo.toJson(): JSONObject {
@@ -671,6 +681,15 @@ fun SteamGameInfo.toJson(): JSONObject {
     json.put("genres", org.json.JSONArray().apply { genres.forEach { put(it) } })
     json.put("screenshots", org.json.JSONArray().apply { screenshots.forEach { put(it) } })
     json.put("trailerUrl", trailerUrl ?: JSONObject.NULL)
+    json.put("controllerSupport", controllerSupport)
+    json.put("minRequirements", minRequirements)
+    json.put("recRequirements", recRequirements)
+    json.put("supportedLanguages", supportedLanguages)
+    json.put("metacriticScore", metacriticScore)
+    json.put("metacriticUrl", metacriticUrl)
+    json.put("reviewScoreDesc", reviewScoreDesc)
+    json.put("positivePercent", positivePercent)
+    json.put("totalReviews", totalReviews)
     return json
 }
 
@@ -710,6 +729,15 @@ fun JSONObject.toSteamGameInfo(): SteamGameInfo {
     }
     
     val trailerUrl = if (has("trailerUrl") && !isNull("trailerUrl")) optString("trailerUrl") else null
+    val controllerSupport = optString("controllerSupport", "")
+    val minRequirements = optString("minRequirements", "")
+    val recRequirements = optString("recRequirements", "")
+    val supportedLanguages = optString("supportedLanguages", "")
+    val metacriticScore = optInt("metacriticScore", 0)
+    val metacriticUrl = optString("metacriticUrl", "")
+    val reviewScoreDesc = optString("reviewScoreDesc", "")
+    val positivePercent = optInt("positivePercent", 0)
+    val totalReviews = optInt("totalReviews", 0)
     
     return SteamGameInfo(
         appId = appId,
@@ -721,7 +749,16 @@ fun JSONObject.toSteamGameInfo(): SteamGameInfo {
         publishers = publishers,
         genres = genres,
         screenshots = screenshots,
-        trailerUrl = trailerUrl
+        trailerUrl = trailerUrl,
+        controllerSupport = controllerSupport,
+        minRequirements = minRequirements,
+        recRequirements = recRequirements,
+        supportedLanguages = supportedLanguages,
+        metacriticScore = metacriticScore,
+        metacriticUrl = metacriticUrl,
+        reviewScoreDesc = reviewScoreDesc,
+        positivePercent = positivePercent,
+        totalReviews = totalReviews
     )
 }
 
@@ -925,18 +962,96 @@ private fun fetchGameDetails(appId: Int, locale: String, callback: (SteamGameInf
                         }
                     }
                     
-                    callback(SteamGameInfo(
-                        appId = appId,
-                        name = name,
-                        description = description,
-                        headerImage = headerImage,
-                        releaseDate = releaseDate,
-                        developers = developers,
-                        publishers = publishers,
-                        genres = genres,
-                        screenshots = screenshots,
-                        trailerUrl = trailerUrl
-                    ))
+                    var controllerSupport = ""
+                    val categories = data.optJSONArray("categories")
+                    if (categories != null) {
+                        for (i in 0 until categories.length()) {
+                            val cat = categories.getJSONObject(i)
+                            val catId = cat.optInt("id")
+                            if (catId == 28) {
+                                controllerSupport = "full"
+                            } else if (catId == 18 && controllerSupport != "full") {
+                                controllerSupport = "partial"
+                            }
+                        }
+                    }
+
+                    val pcReq = data.optJSONObject("pc_requirements")
+                    val minRequirements = pcReq?.optString("minimum", "") ?: ""
+                    val recRequirements = pcReq?.optString("recommended", "") ?: ""
+
+                    val supportedLanguages = data.optString("supported_languages", "")
+
+                    val metacriticObj = data.optJSONObject("metacritic")
+                    val metacriticScore = metacriticObj?.optInt("score", 0) ?: 0
+                    val metacriticUrl = metacriticObj?.optString("url", "") ?: ""
+
+                    val reviewsUrl = "https://store.steampowered.com/appreviews/$appId?json=1&language=all&purchase_type=all"
+                    val reviewsRequest = Request.Builder().url(reviewsUrl).build()
+                    DohOkHttp.get().newCall(reviewsRequest).enqueue(object : Callback {
+                        override fun onFailure(call: Call, e: IOException) {
+                            callback(SteamGameInfo(
+                                appId = appId,
+                                name = name,
+                                description = description,
+                                headerImage = headerImage,
+                                releaseDate = releaseDate,
+                                developers = developers,
+                                publishers = publishers,
+                                genres = genres,
+                                screenshots = screenshots,
+                                trailerUrl = trailerUrl,
+                                controllerSupport = controllerSupport,
+                                minRequirements = minRequirements,
+                                recRequirements = recRequirements,
+                                supportedLanguages = supportedLanguages,
+                                metacriticScore = metacriticScore,
+                                metacriticUrl = metacriticUrl,
+                                reviewScoreDesc = "",
+                                positivePercent = 0,
+                                totalReviews = 0
+                            ))
+                        }
+
+                        override fun onResponse(call: Call, response: Response) {
+                            var reviewScoreDesc = ""
+                            var positivePercent = 0
+                            var totalReviews = 0
+                            try {
+                                val body = response.body?.string() ?: ""
+                                val reviewsJson = JSONObject(body)
+                                val summary = reviewsJson.optJSONObject("query_summary")
+                                if (summary != null) {
+                                    reviewScoreDesc = summary.optString("review_score_desc", "")
+                                    val totalPositive = summary.optInt("total_positive", 0)
+                                    totalReviews = summary.optInt("total_reviews", 0)
+                                    positivePercent = if (totalReviews > 0) (totalPositive * 100 / totalReviews) else 0
+                                }
+                            } catch (e: Exception) {}
+
+                            callback(SteamGameInfo(
+                                appId = appId,
+                                name = name,
+                                description = description,
+                                headerImage = headerImage,
+                                releaseDate = releaseDate,
+                                developers = developers,
+                                publishers = publishers,
+                                genres = genres,
+                                screenshots = screenshots,
+                                trailerUrl = trailerUrl,
+                                controllerSupport = controllerSupport,
+                                minRequirements = minRequirements,
+                                recRequirements = recRequirements,
+                                supportedLanguages = supportedLanguages,
+                                metacriticScore = metacriticScore,
+                                metacriticUrl = metacriticUrl,
+                                reviewScoreDesc = reviewScoreDesc,
+                                positivePercent = positivePercent,
+                                totalReviews = totalReviews
+                            ))
+                        }
+                    })
                 } else {
                     callback(null)
                 }
@@ -1292,6 +1407,152 @@ fun SteamInfoDialog(
                             }
                         } else if (gameInfo != null) {
                             val info = gameInfo!!
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (info.reviewScoreDesc.isNotEmpty() || info.totalReviews > 0) {
+                                    Card(
+                                        modifier = Modifier.weight(1.2f),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(8.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.ThumbUp,
+                                                    contentDescription = "Rating",
+                                                    tint = Color(0xFF4CAF50),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(Modifier.width(6.dp))
+                                                Text(
+                                                    text = "${info.positivePercent}%",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF4CAF50)
+                                                )
+                                            }
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text = if (isRussian) {
+                                                    when (info.reviewScoreDesc.lowercase()) {
+                                                        "overwhelmingly positive" -> "Крайне положительные"
+                                                        "very positive" -> "Очень положительные"
+                                                        "positive" -> "Положительные"
+                                                        "mostly positive" -> "В основном положительные"
+                                                        "mixed" -> "Смешанные"
+                                                        "mostly negative" -> "В основном отрицательные"
+                                                        "negative" -> "Отрицательные"
+                                                        "very negative" -> "Очень отрицательные"
+                                                        "overwhelmingly negative" -> "Крайне отрицательные"
+                                                        else -> info.reviewScoreDesc
+                                                    }
+                                                } else info.reviewScoreDesc,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                textAlign = TextAlign.Center,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(Modifier.height(1.dp))
+                                            Text(
+                                                text = if (isRussian) "${java.text.NumberFormat.getInstance().format(info.totalReviews)} отзывов"
+                                                       else "${java.text.NumberFormat.getInstance().format(info.totalReviews)} reviews",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Card(
+                                    modifier = Modifier.weight(1f),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(8.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Filled.VideogameAsset,
+                                                contentDescription = "Controller",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                text = if (isRussian) "Геймпад" else "Controller",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = if (info.controllerSupport == "full") {
+                                                if (isRussian) "Полная" else "Full"
+                                            } else if (info.controllerSupport == "partial") {
+                                                if (isRussian) "Частичная" else "Partial"
+                                            } else {
+                                                if (isRussian) "Нет данных" else "No Data"
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (info.controllerSupport == "full") Color(0xFF4CAF50) else if (info.controllerSupport == "partial") Color(0xFFFF9800) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+
+                                if (info.metacriticScore > 0) {
+                                    Card(
+                                        modifier = Modifier.weight(0.8f),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(8.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = "Metacritic",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(
+                                                        color = if (info.metacriticScore >= 75) Color(0xFF66CC33)
+                                                                else if (info.metacriticScore >= 50) Color(0xFFFFCC33)
+                                                                else Color(0xFFFF3333),
+                                                        shape = RoundedCornerShape(6.dp)
+                                                    )
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = info.metacriticScore.toString(),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
@@ -1309,6 +1570,16 @@ fun SteamInfoDialog(
                                     }
                                     if (info.genres.isNotEmpty()) {
                                         MetadataRow(label = if (isRussian) "Жанры" else "Genres", value = info.genres.joinToString(", "))
+                                    }
+                                    if (info.supportedLanguages.isNotEmpty()) {
+                                        val parsedLanguages = remember(info.supportedLanguages) {
+                                            try {
+                                                android.text.Html.fromHtml(info.supportedLanguages, android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim()
+                                            } catch (e: Throwable) {
+                                                info.supportedLanguages.replace("<[^>]*>".toRegex(), "").trim()
+                                            }
+                                        }
+                                        MetadataRow(label = if (isRussian) "Языки" else "Languages", value = parsedLanguages)
                                     }
                                 }
                             }
@@ -1399,6 +1670,101 @@ fun SteamInfoDialog(
                                                 modifier = Modifier.fillMaxSize(),
                                                 contentScale = ContentScale.Crop
                                             )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (info.minRequirements.isNotEmpty() || info.recRequirements.isNotEmpty()) {
+                                var showRequirements by remember { mutableStateOf(false) }
+                                
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable { showRequirements = !showRequirements }
+                                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = if (isRussian) "Системные требования" else "System Requirements",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Icon(
+                                            imageVector = if (showRequirements) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                            contentDescription = "Toggle Requirements",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    
+                                    if (showRequirements) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            if (info.minRequirements.isNotEmpty()) {
+                                                val minText = remember(info.minRequirements) {
+                                                    try {
+                                                        android.text.Html.fromHtml(info.minRequirements, android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim()
+                                                    } catch (e: Throwable) {
+                                                        info.minRequirements.replace("<[^>]*>".toRegex(), "").trim()
+                                                    }
+                                                }
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Column(modifier = Modifier.padding(12.dp)) {
+                                                        Text(
+                                                            text = if (isRussian) "Минимальные требования:" else "Minimum Requirements:",
+                                                            style = MaterialTheme.typography.titleSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.secondary
+                                                        )
+                                                        Spacer(Modifier.height(4.dp))
+                                                        Text(
+                                                            text = minText,
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            
+                                            if (info.recRequirements.isNotEmpty()) {
+                                                val recText = remember(info.recRequirements) {
+                                                    try {
+                                                        android.text.Html.fromHtml(info.recRequirements, android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim()
+                                                    } catch (e: Throwable) {
+                                                        info.recRequirements.replace("<[^>]*>".toRegex(), "").trim()
+                                                    }
+                                                }
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Column(modifier = Modifier.padding(12.dp)) {
+                                                        Text(
+                                                            text = if (isRussian) "Рекомендуемые требования:" else "Recommended Requirements:",
+                                                            style = MaterialTheme.typography.titleSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.secondary
+                                                        )
+                                                        Spacer(Modifier.height(4.dp))
+                                                        Text(
+                                                            text = recText,
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
