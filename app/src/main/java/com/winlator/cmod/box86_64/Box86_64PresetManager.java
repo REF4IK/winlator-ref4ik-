@@ -241,6 +241,14 @@ public abstract class Box86_64PresetManager {
             }
         }
 
+        File dynarecCacheDir = new File(context.getCacheDir(), prefix.toLowerCase(Locale.ENGLISH) + "_cache");
+        if (!dynarecCacheDir.exists()) {
+            dynarecCacheDir.mkdirs();
+        }
+        envVars.put(ucPrefix + "_DYNAREC_SAVE", "1");
+        envVars.put(ucPrefix + "_DYNAREC_CACHE", "1");
+        envVars.put(ucPrefix + "_DYNAREC_CACHE_DIR", dynarecCacheDir.getAbsolutePath());
+
         return envVars;
     }
 
