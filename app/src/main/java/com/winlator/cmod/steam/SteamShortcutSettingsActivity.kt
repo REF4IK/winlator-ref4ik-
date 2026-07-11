@@ -384,6 +384,7 @@ private fun SteamShortcutSettingsScreen(
     var box64Preset by remember { mutableStateOf(shortcut.getExtra("box64Preset", container.box64Preset)) }
     var fexcoreVersion by remember { mutableStateOf(shortcut.getExtra("fexcoreVersion", container.getFEXCoreVersion())) }
     var fexcorePreset by remember { mutableStateOf(shortcut.getExtra("fexcorePreset", container.getFEXCorePreset())) }
+    var useUnixLibs by remember { mutableStateOf(shortcut.getExtra("useUnixLibs", if (container.isUseUnixLibs) "1" else "0") == "1") }
     LaunchedEffect(shortcutWineIsArm64EC) {
         if (!shortcutWineIsArm64EC && emulator.equals("fexcore", ignoreCase = true)) {
             emulator = "box64"
@@ -645,6 +646,7 @@ private fun SteamShortcutSettingsScreen(
                 box64Preset = box64Preset,
                 fexcoreVersion = fexcoreVersion,
                 fexcorePreset = fexcorePreset,
+                useUnixLibs = useUnixLibs,
             )
         }.onSuccess {
             onSaved()
@@ -829,6 +831,8 @@ private fun SteamShortcutSettingsScreen(
                     fexcorePreset = fexcorePreset,
                     onFexcorePresetChange = { fexcorePreset = it },
                     fexcorePresetOptions = fexcorePresetOptions,
+                    useUnixLibs = useUnixLibs,
+                    onUseUnixLibsChange = { useUnixLibs = it },
                     onAddFexcorePreset = addFexcorePreset,
                     onEditFexcorePreset = editFexcorePreset,
                     onDuplicateFexcorePreset = duplicateFexcorePreset,
@@ -1016,6 +1020,8 @@ private fun SteamSettingsContentPane(
     fexcorePreset: String,
     onFexcorePresetChange: (String) -> Unit,
     fexcorePresetOptions: List<SteamOption>,
+    useUnixLibs: Boolean,
+    onUseUnixLibsChange: (Boolean) -> Unit,
     onAddFexcorePreset: () -> Unit,
     onEditFexcorePreset: () -> Unit,
     onDuplicateFexcorePreset: () -> Unit,
@@ -1155,6 +1161,8 @@ private fun SteamSettingsContentPane(
                     fexcorePreset = fexcorePreset,
                     onFexcorePresetChange = onFexcorePresetChange,
                     fexcorePresetOptions = fexcorePresetOptions,
+                    useUnixLibs = useUnixLibs,
+                    onUseUnixLibsChange = onUseUnixLibsChange,
                     onAddFexcorePreset = onAddFexcorePreset,
                     onEditFexcorePreset = onEditFexcorePreset,
                     onDuplicateFexcorePreset = onDuplicateFexcorePreset,
@@ -1426,6 +1434,8 @@ private fun SteamAdvancedSection(
     fexcorePreset: String,
     onFexcorePresetChange: (String) -> Unit,
     fexcorePresetOptions: List<SteamOption>,
+    useUnixLibs: Boolean,
+    onUseUnixLibsChange: (Boolean) -> Unit,
     onAddFexcorePreset: () -> Unit,
     onEditFexcorePreset: () -> Unit,
     onDuplicateFexcorePreset: () -> Unit,
@@ -1475,6 +1485,11 @@ private fun SteamAdvancedSection(
                 SteamFieldAction(stringResource(R.string.action_export), onExportFexcorePreset),
                 SteamFieldAction(stringResource(R.string.action_import), onImportFexcorePreset),
             ),
+        )
+        SteamToggleField(
+            label = stringResource(R.string.use_unix_libs),
+            checked = useUnixLibs,
+            onCheckedChange = onUseUnixLibsChange,
         )
     } else {
         SteamSelectField(
@@ -2596,6 +2611,7 @@ private fun saveShortcutSettings(
     box64Preset: String,
     fexcoreVersion: String,
     fexcorePreset: String,
+    useUnixLibs: Boolean,
 ) {
     val resolvedScreenSize = resolveScreenSize(
         selectedValue = screenSize,
@@ -2654,6 +2670,7 @@ private fun saveShortcutSettings(
     shortcut.putExtra("box64Preset", if (box64Preset != container.box64Preset) box64Preset else null)
     shortcut.putExtra("fexcoreVersion", if (fexcoreVersion != container.getFEXCoreVersion()) fexcoreVersion else null)
     shortcut.putExtra("fexcorePreset", if (fexcorePreset != container.getFEXCorePreset()) fexcorePreset else null)
+    shortcut.putExtra("useUnixLibs", if (useUnixLibs != container.isUseUnixLibs) (if (useUnixLibs) "1" else "0") else null)
     shortcut.saveData()
 }
 

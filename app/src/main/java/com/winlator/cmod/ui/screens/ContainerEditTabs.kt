@@ -796,6 +796,7 @@ fun AdvancedTab(
     fexcoreVersion: String, onFexcoreVersionChange: (String) -> Unit,
     fexcoreVersions: List<String>,
     fexcorePreset: String, onFexcorePresetChange: (String) -> Unit,
+    useUnixLibs: Boolean, onUseUnixLibsChange: (Boolean) -> Unit,
     startupSelection: Int, onStartupSelectionChange: (Int) -> Unit,
     wow64Mode: Boolean, onWow64ModeChange: (Boolean) -> Unit,
     cpuList: String, onCpuListChange: (String) -> Unit,
@@ -883,6 +884,7 @@ fun AdvancedTab(
                     onSelected = { onFexcoreVersionChange(it) },
                     onDownloadClick = onFexcoreVersionDownload
                 )
+                SwitchRow(stringResource(R.string.use_unix_libs), useUnixLibs, onUseUnixLibsChange)
                 val fexcorePresets = remember(presetsRefreshKey) { FEXCorePresetManager.getPresets(ctx) }
                 val fexcorePresetNames = remember(fexcorePresets) { fexcorePresets.map { it.name } }
                 ContainerSpinnerRow(

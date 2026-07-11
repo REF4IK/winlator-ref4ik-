@@ -101,7 +101,7 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
     }
 
 
-    private void extractEmulatorsDlls() {;
+    private void extractEmulatorsDlls() {
         Context context = environment.getContext();
         File rootDir = environment.getImageFs().getRootDir();
         File system32dir = new File(rootDir + "/home/xuser/.wine/drive_c/windows/system32");
@@ -109,14 +109,17 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
 
         String wowbox64Version = container.getBox64Version();
         String fexcoreVersion = container.getFEXCoreVersion();
+        boolean unixLibsEnabled = container.isUseUnixLibs();
 
         if (shortcut != null) {
             wowbox64Version = shortcut.getExtra("box64Version", shortcut.container.getBox64Version());
             fexcoreVersion = shortcut.getExtra("fexcoreVersion", shortcut.container.getFEXCoreVersion());
+            unixLibsEnabled = "1".equals(shortcut.getExtra("useUnixLibs", unixLibsEnabled ? "1" : "0"));
         }
 
         Log.d("BionicProgramLauncherComponent", "box64Version in use: " + wowbox64Version);
         Log.d("BionicProgramLauncherComponent", "fexcoreVersion in use: " + fexcoreVersion);
+        Log.d("BionicProgramLauncherComponent", "useUnixLibs=" + unixLibsEnabled);
 
         if (!wowbox64Version.equals(container.getExtra("box64Version"))) {
             ContentProfile profile = contentsManager.getProfileByEntryName("wowbox64-" + wowbox64Version);
@@ -129,15 +132,81 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
         }
 
         if (!fexcoreVersion.equals(container.getExtra("fexcoreVersion"))) {
+            Log.d("BionicProgramLauncherComponent", "Loading FEXCore: version=" + fexcoreVersion);
             ContentProfile profile = contentsManager.getProfileByEntryName("fexcore-" + fexcoreVersion);
-            if (profile != null)
+            if (profile != null) {
                 contentsManager.applyContent(profile);
-            else
+            } else {
                 TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, environment.getContext(), "fexcore/fexcore-" + fexcoreVersion + ".tzst", system32dir);
+            }
             container.putExtra("fexcoreVersion", fexcoreVersion);
             containerDataChanged = true;
+        } else {
+            Log.d("BionicProgramLauncherComponent", "FEXCore already loaded for launch: version=" + fexcoreVersion);
         }
+
+        // Re-stamp the shared FEX unixlib .so slot to match the DLLs above.
+        // Done UNCONDITIONALLY so the shared slot always agrees with the effective
+        // FEXCore version and the user's toggle choice.
+        reconcileFexUnixlib(fexcoreVersion, unixLibsEnabled);
+
         if (containerDataChanged) container.saveData();
+    }
+
+    // The FEX unixlib .so names we own.
+    private static final String[] FEX_UNIXLIB_SO_NAMES = {
+            "libarm64ecfex.so", "libwow64fex.so"
+    };
+
+    /**
+     * Materialize the effective FEXCore version's native unixlib completely:
+     * the shared {@code <rootfs>/usr/lib/wine/aarch64-unix/} slot must equal
+     * that version's {@code .so}, or be EMPTY when the version is DLL-only
+     * or the user has disabled UnixLibs via the toggle.
+     *
+     * Done fresh each launch so the .dll (system32) and .so (shared slot) stay
+     * matched to a single FEXCore version and the user's preference.
+     */
+    private void reconcileFexUnixlib(String fexcoreVersion, boolean unixLibsEnabled) {
+        Context context = environment.getContext();
+        File rootDir = environment.getImageFs().getRootDir();
+        File soDir = new File(rootDir, "usr/lib/wine/aarch64-unix");
+        try {
+            if (!soDir.exists()) soDir.mkdirs();
+
+            // 1) Strip all FEX unixlibs first
+            for (String name : FEX_UNIXLIB_SO_NAMES) {
+                File stale = new File(soDir, name);
+                if (stale.exists()) stale.delete();
+            }
+
+            // 2) If the user enabled UnixLibs AND the effective version has .so, copy them in.
+            boolean copied = false;
+            if (unixLibsEnabled) {
+                ContentProfile profile = contentsManager.getProfileByEntryName("fexcore-" + fexcoreVersion);
+                if (profile != null && profile.fileList != null) {
+                    File installDir = ContentsManager.getInstallDir(context, profile);
+                    for (ContentProfile.ContentFile cf : profile.fileList) {
+                        String base = new File(cf.target).getName();
+                        if (base.equals("libarm64ecfex.so") || base.equals("libwow64fex.so")) {
+                            File src = new File(installDir, cf.source);
+                            if (src.exists()) {
+                                File dst = new File(soDir, base);
+                                FileUtils.copy(src, dst);
+                                FileUtils.chmod(dst, 0755);
+                                copied = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Log.d("BionicProgramLauncherComponent", "FEX unixlib reconcile: " + fexcoreVersion
+                    + " enabled=" + unixLibsEnabled
+                    + " -> " + (copied ? "copied .so" : "DLL-only, cleared"));
+        } catch (Exception e) {
+            Log.e("BionicProgramLauncherComponent", "FEX unixlib reconcile failed: " + e.getMessage());
+        }
     }
 
     public BionicProgramLauncherComponent(ContentsManager contentsManager, ContentProfile wineProfile, Shortcut shortcut) {

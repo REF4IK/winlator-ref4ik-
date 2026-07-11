@@ -137,6 +137,7 @@ fun ShortcutSettingsScreen(
     var execDelay by remember { mutableStateOf(shortcut.getExtra("execDelay", "0")) }
 
     var fullscreenStretched by remember { mutableStateOf(shortcut.getExtra("fullscreenStretched", "0") == "1") }
+    var useUnixLibs by remember { mutableStateOf(shortcut.getExtra("useUnixLibs", if (container.isUseUnixLibs) "1" else "0") == "1") }
     var startupSelection by remember { mutableStateOf(shortcut.getExtra("startupSelection", container.startupSelection.toString())) }
     var controlsProfileId by remember { mutableStateOf(shortcut.getExtra("controlsProfile", "0")) }
     var box64Version by remember { mutableStateOf(shortcut.getExtra("box64Version", container.box64Version)) }
@@ -376,6 +377,7 @@ fun ShortcutSettingsScreen(
                     }
 
                     shortcut.putExtra("fullscreenStretched", if (fullscreenStretched) "1" else null)
+                    shortcut.putExtra("useUnixLibs", if (useUnixLibs != container.isUseUnixLibs) (if (useUnixLibs) "1" else "0") else null)
                     shortcut.putExtra("disableXinput", if (disableXinput) "1" else null)
                     shortcut.putExtra("simTouchScreen", if (touchscreenMode) "1" else "0")
 
@@ -709,6 +711,8 @@ fun ShortcutSettingsScreen(
                                     onSelected = { fexcoreVersion = it },
                                     onDownloadClick = { showFexcoreDownload = true }
                                 )
+
+                                SwitchRow(stringResource(R.string.use_unix_libs), useUnixLibs) { useUnixLibs = it }
 
                                 val fexPresets = remember(presetsRefreshTrigger) { FEXCorePresetManager.getPresets(ctx) }
                                 val selectedPresetName = fexPresets.find { it.id == fexcorePreset }?.name ?: fexcorePreset

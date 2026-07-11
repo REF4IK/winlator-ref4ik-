@@ -61,6 +61,7 @@ public class Container {
     private String wineVersion = WineInfo.MAIN_WINE_VERSION.identifier();
     private boolean showFPS;
     private boolean fullscreenStretched;
+    private boolean useUnixLibs = true;
     private boolean wow64Mode = true;
     private byte startupSelection = STARTUP_SELECTION_ESSENTIAL;
     private String cpuList;
@@ -238,6 +239,10 @@ public class Container {
     }
 
     public boolean isFullscreenStretched() { return fullscreenStretched; }
+
+    public boolean isUseUnixLibs() { return useUnixLibs; }
+
+    public void setUseUnixLibs(boolean useUnixLibs) { this.useUnixLibs = useUnixLibs; }
 
     public boolean isShowFPS() {
         return showFPS;
@@ -461,6 +466,7 @@ public class Container {
             data.put("showFPS", showFPS);
             data.put("relativeMouseMovement", isRelativeMouseMovement);
             data.put("fullscreenStretched", fullscreenStretched);
+            data.put("useUnixLibs", useUnixLibs);
             data.put("inputType", inputType);
             data.put("wow64Mode", wow64Mode);
             data.put("startupSelection", startupSelection);
@@ -540,6 +546,9 @@ public class Container {
                     break;
                 case "fullscreenStretched" :
                     setFullscreenStretched(data.getBoolean(key));
+                    break;
+                case "useUnixLibs" :
+                    setUseUnixLibs(data.getBoolean(key));
                     break;
                 case "inputType" :
                     setInputType(data.getInt(key));

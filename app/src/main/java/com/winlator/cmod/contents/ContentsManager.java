@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class ContentsManager {
@@ -32,7 +33,8 @@ public class ContentsManager {
             "${syswow64}/d3d12core.dll", "${syswow64}/d3d12.dll"};
     public static final String[] BOX64_TRUST_FILES = {"${bindir}/box64"};
     public static final String[] WOWBOX64_TRUST_FILES = {"${system32}/wowbox64.dll"};
-    public static final String[] FEXCORE_TRUST_FILES = {"${system32}/libwow64fex.dll", "${system32}/libarm64ecfex.dll"};
+    public static final String[] FEXCORE_TRUST_FILES = {"${system32}/libwow64fex.dll", "${system32}/libarm64ecfex.dll",
+            "${libdir}/wine/aarch64-unix/libwow64fex.so", "${libdir}/wine/aarch64-unix/libarm64ecfex.so"};
     private Map<String, String> dirTemplateMap;
     private Map<ContentProfile.ContentType, List<String>> trustedFilesMap;
 
@@ -424,6 +426,16 @@ public class ContentsManager {
         // Теперь profile.type никогда не будет null
         List<ContentProfile> profiles = profilesMap.get(profile.type);
         if (profiles != null && profiles.contains(profile)) {
+            // A unixlib FEXCore drops a native .so into the SHARED aarch64-unix slot;
+            // deleting only the per-version install dir would leave that .so behind.
+            // Strip any .so this profile applied to the shared slot.
+            if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_FEXCORE && profile.fileList != null) {
+                for (ContentProfile.ContentFile contentFile : profile.fileList) {
+                    if (contentFile.target != null && contentFile.target.endsWith(".so"))
+                        new File(getPathFromTemplate(contentFile.target)).delete();
+                }
+            }
+            
             FileUtils.delete(getInstallDir(context, profile));
             profiles.remove(profile);
             syncContents();
@@ -471,6 +483,69 @@ public class ContentsManager {
         return null;
     }
 
+    public boolean profileHasUnixLibs(ContentProfile profile) {
+        if (profile == null) return false;
+        return dirContainsSharedObject(getInstallDir(context, profile));
+    }
+
+    public boolean fexcoreVersionHasUnixLibs(String fexcoreVersion) {
+        if (fexcoreVersion == null || fexcoreVersion.isEmpty()) return false;
+        return profileHasUnixLibs(getProfileByEntryName("fexcore-" + fexcoreVersion));
+    }
+
+    private static boolean dirContainsSharedObject(File dir) {
+        if (dir == null) return false;
+        File[] files = dir.listFiles();
+        if (files == null) return false;
+        for (File file : files) {
+            if (file.isDirectory()) {
+                if (dirContainsSharedObject(file)) return true;
+            } else if (isSharedObject(file.getName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isSharedObject(String name) {
+        String lower = name.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".so") || lower.contains(".so.");
+    }
+
+    public void removeAppliedUnixLibs(ContentProfile profile) {
+        if (profile == null || profile.fileList == null) return;
+        for (ContentProfile.ContentFile contentFile : profile.fileList) {
+            if (!isSharedObject(new File(contentFile.target).getName())) continue;
+            File targetFile = new File(getPathFromTemplate(contentFile.target));
+            if (targetFile.exists() && targetFile.delete()) {
+                Log.i("ContentsManager", "UnixLibs: removed " + targetFile.getName());
+            }
+        }
+    }
+
+    public void copyUnixLibsToDir(ContentProfile profile, File destDir) {
+        if (profile == null || profile.fileList == null) return;
+        for (ContentProfile.ContentFile contentFile : profile.fileList) {
+            String name = new File(contentFile.target).getName();
+            if (!isSharedObject(name)) continue;
+            File sourceFile = new File(getInstallDir(context, profile), contentFile.source);
+            if (!sourceFile.exists()) continue;
+            File destFile = new File(destDir, name);
+            FileUtils.copy(sourceFile, destFile);
+            FileUtils.chmod(destFile, 0771);
+        }
+    }
+
+    public void deleteUnixLibsFromDir(ContentProfile profile, File destDir) {
+        if (profile == null || profile.fileList == null) return;
+        for (ContentProfile.ContentFile contentFile : profile.fileList) {
+            String name = new File(contentFile.target).getName();
+            if (!isSharedObject(name)) continue;
+            File destFile = new File(destDir, name);
+            if (destFile.exists()) destFile.delete();
+        }
+    }
+
     public boolean applyContent(ContentProfile profile) {
         // Теперь profile.type никогда не будет null
         if (profile.type != ContentProfile.ContentType.CONTENT_TYPE_WINE) {
@@ -486,7 +561,8 @@ public class ContentsManager {
                 targetFile.delete();
                 FileUtils.copy(sourceFile, targetFile);
 
-                if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_BOX64) {
+                if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_BOX64
+                    || isSharedObject(targetFile.getName())) {
                     FileUtils.chmod(targetFile, 0771);
                 }
             }

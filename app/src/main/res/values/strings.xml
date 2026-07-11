@@ -354,6 +354,7 @@
     <string name="failed_to_import_icon">Failed to import icon</string>
     <string name="fexcore_config">FEXCore</string>
     <string name="fexcore_preset">FEXCore Preset</string>
+    <string name="use_unix_libs">Use UnixLibs</string>
     <string name="fexcore_multiblock">MultiBlock</string>
     <string name="fexcore_tso_preset">TSOMode</string>
     <string name="fexcore_version">FEXCore Version</string>

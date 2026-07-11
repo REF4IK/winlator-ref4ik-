@@ -109,6 +109,7 @@ fun ContainerEditScreen(
     var midiSoundFont by remember { mutableStateOf(container?.midiSoundFont ?: "") }
     var lcAll by remember { mutableStateOf(container?.getLC_ALL() ?: (Locale.getDefault().language + "_" + Locale.getDefault().country + ".UTF-8")) }
     var fullscreenStretched by remember { mutableStateOf(container?.isFullscreenStretched ?: false) }
+    var useUnixLibs by remember { mutableStateOf(container?.isUseUnixLibs ?: true) }
 
     // Wine Configuration (registry keys)
     var csmt by remember { mutableStateOf(3) }
@@ -284,6 +285,7 @@ fun ContainerEditScreen(
                     winComponents = winComponents,
                     drives = drives,
                     fullscreenStretched = fullscreenStretched,
+                    useUnixLibs = useUnixLibs,
                     cpuList = cpuList,
                     cpuListWoW64 = cpuListWoW64,
                     wow64Mode = wow64Mode,
@@ -367,6 +369,7 @@ fun ContainerEditScreen(
                     lines.add("Video memory: " + settings.optString("videoMemorySize", "-"))
                     lines.add("Mouse warp: " + settings.optString("mouseWarpOverride", "-"))
                     lines.add("Fullscreen stretched: " + (if (settings.optBoolean("fullscreenStretched", false)) ctx.getString(R.string.enabled) else ctx.getString(R.string.disabled)))
+                    lines.add("UnixLibs: " + (if (settings.optBoolean("useUnixLibs", true)) ctx.getString(R.string.enabled) else ctx.getString(R.string.disabled)))
                     lines.add("WoW64 mode: " + (if (settings.optBoolean("wow64Mode", true)) ctx.getString(R.string.enabled) else ctx.getString(R.string.disabled)))
                     lines.add("Input flags: " + settings.optInt("inputType", 0))
                     lines.add("RC file id: " + settings.optInt("rcfileId", 0))
@@ -411,6 +414,7 @@ fun ContainerEditScreen(
                         dxwrapper = dxwrapper, ddrawrapper = ddrawrapper, dxwrapperConfig = dxwrapperConfig,
                         audioDriver = audioDriver, audioDriverConfig = audioDriverConfig, emulator = emulator,
                         wincomponents = winComponents, drives = drives, fullscreenStretched = fullscreenStretched,
+                        useUnixLibs = useUnixLibs,
                         cpuList = cpuList, cpuListWoW64 = cpuListWoW64, wow64Mode = wow64Mode,
                         startupSelection = startupSelection, box64Version = box64Version, box64Preset = box64Preset,
                         fexcoreVersion = fexcoreVersion, fexcorePreset = fexcorePreset, desktopTheme = desktopTheme,
@@ -574,6 +578,7 @@ fun ContainerEditScreen(
                     fexcoreVersion = fexcoreVersion, onFexcoreVersionChange = { fexcoreVersion = it },
                     fexcoreVersions = fexcoreVersions,
                     fexcorePreset = fexcorePreset, onFexcorePresetChange = { fexcorePreset = it },
+                    useUnixLibs = useUnixLibs, onUseUnixLibsChange = { useUnixLibs = it },
                     startupSelection = startupSelection, onStartupSelectionChange = { startupSelection = it },
                     wow64Mode = wow64Mode, onWow64ModeChange = { wow64Mode = it },
                     cpuList = cpuList, onCpuListChange = { cpuList = it },
@@ -957,6 +962,7 @@ private fun saveContainer(
     dxwrapper: String, ddrawrapper: String, dxwrapperConfig: String,
     audioDriver: String, audioDriverConfig: String, emulator: String,
     wincomponents: String, drives: String, fullscreenStretched: Boolean,
+    useUnixLibs: Boolean,
     cpuList: String, cpuListWoW64: String, wow64Mode: Boolean,
     startupSelection: Int, box64Version: String, box64Preset: String,
     fexcoreVersion: String, fexcorePreset: String, desktopTheme: String,
@@ -1009,6 +1015,7 @@ private fun saveContainer(
         container.winComponents = wincomponents
         container.drives = drives
         container.isFullscreenStretched = fullscreenStretched
+        container.isUseUnixLibs = useUnixLibs
         container.inputType = finalInputType
         container.isWoW64Mode = wow64Mode
         container.startupSelection = startupSelection.toByte()
@@ -1048,6 +1055,7 @@ private fun saveContainer(
             data.put("wincomponents", wincomponents)
             data.put("drives", drives)
             data.put("fullscreenStretched", fullscreenStretched)
+            data.put("useUnixLibs", useUnixLibs)
             data.put("inputType", finalInputType)
             data.put("wow64Mode", wow64Mode)
             data.put("startupSelection", startupSelection)
@@ -1111,6 +1119,7 @@ private fun buildContainerProfileJsonCompose(
     dxwrapper: String, ddrawrapper: String, dxwrapperConfig: String,
     audioDriver: String, audioDriverConfig: String, emulator: String,
     winComponents: String, drives: String, fullscreenStretched: Boolean,
+    useUnixLibs: Boolean,
     cpuList: String, cpuListWoW64: String, wow64Mode: Boolean,
     startupSelection: Int, box64Version: String, box64Preset: String,
     fexcoreVersion: String, fexcorePreset: String, desktopTheme: String,
@@ -1143,6 +1152,7 @@ private fun buildContainerProfileJsonCompose(
     settings.put("wincomponents", winComponents)
     settings.put("drives", drives)
     settings.put("fullscreenStretched", fullscreenStretched)
+    settings.put("useUnixLibs", useUnixLibs)
     settings.put("wow64Mode", wow64Mode)
     settings.put("startupSelection", startupSelection)
     settings.put("box64Version", box64Version)
