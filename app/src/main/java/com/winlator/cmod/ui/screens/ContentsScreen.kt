@@ -52,6 +52,10 @@ private val URL_THE412BANNER = "https://raw.githubusercontent.com/The412Banner/w
 fun ContentsScreen(
     onBack: () -> Unit,
     onOpenInstalledComponents: () -> Unit,
+    showSourceDialog: Boolean,
+    onShowSourceDialogChange: (Boolean) -> Unit,
+    showInstallConfirm: Boolean,
+    onShowInstallConfirmChange: (Boolean) -> Unit,
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -81,9 +85,7 @@ fun ContentsScreen(
     // Диалоги
     var profileInfo by remember { mutableStateOf<ContentProfile?>(null) }
     var profileToRemove by remember { mutableStateOf<ContentProfile?>(null) }
-    var showSourceDialog by remember { mutableStateOf(false) }
     var showCustomUrlDialog by remember { mutableStateOf(false) }
-    var showInstallConfirm by remember { mutableStateOf(false) }
     var untrustedFiles by remember { mutableStateOf<List<ContentProfile.ContentFile>?>(null) }
     var untrustedProfile by remember { mutableStateOf<ContentProfile?>(null) }
 
@@ -251,108 +253,77 @@ fun ContentsScreen(
         reloadList()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.contents)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                actions = {
-                    // Установленные компоненты
-                    IconButton(onClick = onOpenInstalledComponents) {
-                        Icon(Icons.Filled.Inventory2, contentDescription = stringResource(R.string.installed_components))
-                    }
-                    // Настройки источника
-                    IconButton(onClick = { showSourceDialog = true }) {
-                        Icon(Icons.Filled.Source, contentDescription = stringResource(R.string.contents_source))
-                    }
-                    // Установить контент
-                    IconButton(onClick = { showInstallConfirm = true }) {
-                        Icon(Icons.Filled.FileDownload, contentDescription = stringResource(R.string.install))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding)
-        ) {
-            // Выпадающий список типов контента
-            Box {
-                OutlinedButton(
-                    onClick = { contentTypeExpanded = true },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(currentContentType.toString(), modifier = Modifier.weight(1f))
-                    Icon(if (contentTypeExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null)
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Выпадающий список типов контента
+        Box {
+            OutlinedButton(
+                onClick = { contentTypeExpanded = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(currentContentType.toString(), modifier = Modifier.weight(1f))
+                Icon(if (contentTypeExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null)
+            }
+            DropdownMenu(expanded = contentTypeExpanded, onDismissRequest = { contentTypeExpanded = false }) {
+                contentTypes.forEach { type ->
+                    DropdownMenuItem(
+                        text = { Text(type.toString()) },
+                        onClick = {
+                            currentContentType = type
+                            contentTypeExpanded = false
+                            reloadList()
+                        }
+                    )
                 }
-                DropdownMenu(expanded = contentTypeExpanded, onDismissRequest = { contentTypeExpanded = false }) {
-                    contentTypes.forEach { type ->
-                        DropdownMenuItem(
-                            text = { Text(type.toString()) },
-                            onClick = {
-                                currentContentType = type
-                                contentTypeExpanded = false
-                                reloadList()
-                            }
-                        )
+            }
+        }
+
+        when {
+            installing -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(16.dp))
+                        Text(installStatus, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
-
-            when {
-                installing -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator()
-                            Spacer(Modifier.height(16.dp))
-                            Text(installStatus, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
+            profiles.isEmpty() -> {
+                Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.no_content_found), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                profiles.isEmpty() -> {
-                    Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.no_content_found), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(profiles, key = { ContentsManager.getEntryName(it) }) { profile ->
-                            ContentItemCard(
-                                profile = profile,
-                                sizeText = when {
-                                    profile.remoteUrl != null -> {
-                                        val size = sizesMap[profile.remoteUrl]
-                                        when {
-                                            size == null -> ctx.getString(R.string.loading_size)
-                                            size > 0 -> ctx.getString(R.string.file_size, formatSize(size))
-                                            else -> ctx.getString(R.string.file_size, ctx.getString(R.string.unknown_size))
-                                        }
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(profiles, key = { ContentsManager.getEntryName(it) }) { profile ->
+                        ContentItemCard(
+                            profile = profile,
+                            sizeText = when {
+                                profile.remoteUrl != null -> {
+                                    val size = sizesMap[profile.remoteUrl]
+                                    when {
+                                        size == null -> ctx.getString(R.string.loading_size)
+                                        size > 0 -> ctx.getString(R.string.file_size, formatSize(size))
+                                        else -> ctx.getString(R.string.file_size, ctx.getString(R.string.unknown_size))
                                     }
-                                    else -> {
-                                        val dir = ContentsManager.getInstallDir(ctx, profile)
-                                        if (dir.exists()) ctx.getString(R.string.installed_size) + ": " + formatSize(getDirSize(dir))
-                                        else ""
-                                    }
-                                },
-                                isDownloading = downloadingUrl == profile.remoteUrl,
-                                downloadProgressText = downloadProgressText,
-                                onDownload = { downloadAndInstall(profile) },
-                                onInfo = { profileInfo = profile },
-                                onRemove = { profileToRemove = profile },
-                            )
-                        }
+                                }
+                                else -> {
+                                    val dir = ContentsManager.getInstallDir(ctx, profile)
+                                    if (dir.exists()) ctx.getString(R.string.installed_size) + ": " + formatSize(getDirSize(dir))
+                                    else ""
+                                }
+                            },
+                            isDownloading = downloadingUrl == profile.remoteUrl,
+                            downloadProgressText = downloadProgressText,
+                            onDownload = { downloadAndInstall(profile) },
+                            onInfo = { profileInfo = profile },
+                            onRemove = { profileToRemove = profile },
+                        )
                     }
                 }
             }
@@ -367,14 +338,14 @@ fun ContentsScreen(
         else if (currentUrl == URL_THE412BANNER) checkedItem = 1
         val presets = listOf("REF4IK", "The412Banner", ctx.getString(R.string.custom_profile))
         AlertDialog(
-            onDismissRequest = { showSourceDialog = false },
+            onDismissRequest = { onShowSourceDialogChange(false) },
             title = { Text(stringResource(R.string.contents_source)) },
             text = {
                 Column {
                     presets.forEachIndexed { index, label ->
                         Row(
                             Modifier.fillMaxWidth().clickable {
-                                showSourceDialog = false
+                                onShowSourceDialogChange(false)
                                 if (index < 2) {
                                     val url = if (index == 0) URL_REF4IK else URL_THE412BANNER
                                     sp.edit().putString("downloadable_contents_url", url).apply()
@@ -392,7 +363,7 @@ fun ContentsScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showSourceDialog = false }) { Text(stringResource(R.string.cancel)) } }
+            confirmButton = { TextButton(onClick = { onShowSourceDialogChange(false) }) { Text(stringResource(R.string.cancel)) } }
         )
     }
 
@@ -438,7 +409,7 @@ fun ContentsScreen(
     // Диалог подтверждения установки контента
     if (showInstallConfirm) {
         AlertDialog(
-            onDismissRequest = { showInstallConfirm = false },
+            onDismissRequest = { onShowInstallConfirmChange(false) },
             title = { Text(stringResource(R.string.install)) },
             text = {
                 Text(
@@ -450,12 +421,12 @@ fun ContentsScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    showInstallConfirm = false
+                    onShowInstallConfirmChange(false)
                     installContentLauncher.launch(arrayOf("*/*"))
                 }) { Text(stringResource(R.string.ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showInstallConfirm = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { onShowInstallConfirmChange(false) }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

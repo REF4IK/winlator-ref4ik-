@@ -103,6 +103,8 @@ fun WinlatorApp(
     var shortcutSettingsShortcut by remember { mutableStateOf<Shortcut?>(null) }
     var fileManagerContainerId by remember { mutableStateOf(-1) }
     var hideTopBarBySteamInfo by remember { mutableStateOf(false) }
+    var showContentsSourceDialog by remember { mutableStateOf(false) }
+    var showContentsInstallConfirm by remember { mutableStateOf(false) }
 
     // First launch dialog state
     var showFirstLaunchDialog by remember { mutableStateOf(false) }
@@ -349,6 +351,17 @@ fun WinlatorApp(
                                         Icon(Icons.Filled.Download, contentDescription = "Import Container")
                                     }
                                 }
+                                if (currentScreen == Screen.Contents) {
+                                    IconButton(onClick = { showInstalledComponents = true }) {
+                                        Icon(Icons.Filled.Inventory2, contentDescription = stringResource(R.string.installed_components))
+                                    }
+                                    IconButton(onClick = { showContentsSourceDialog = true }) {
+                                        Icon(Icons.Filled.Source, contentDescription = stringResource(R.string.contents_source))
+                                    }
+                                    IconButton(onClick = { showContentsInstallConfirm = true }) {
+                                        Icon(Icons.Filled.FileDownload, contentDescription = stringResource(R.string.install))
+                                    }
+                                }
                             },
                             colors = TopAppBarDefaults.topAppBarColors(
                                 containerColor = MaterialTheme.colorScheme.surface,
@@ -419,6 +432,10 @@ fun WinlatorApp(
                     Screen.Contents -> ContentsScreen(
                         onBack = { currentScreen = Screen.Containers },
                         onOpenInstalledComponents = { showInstalledComponents = true },
+                        showSourceDialog = showContentsSourceDialog,
+                        onShowSourceDialogChange = { showContentsSourceDialog = it },
+                        showInstallConfirm = showContentsInstallConfirm,
+                        onShowInstallConfirmChange = { showContentsInstallConfirm = it }
                     )
                     Screen.Adrenotools -> AdrenotoolsScreen(
                         refreshKey = adrenotoolsRefreshKey,
