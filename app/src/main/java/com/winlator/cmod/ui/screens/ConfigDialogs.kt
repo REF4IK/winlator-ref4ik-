@@ -31,6 +31,9 @@ import com.winlator.cmod.R
 import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.DriverResolver
 import com.winlator.cmod.core.GPUInformation
+import com.winlator.cmod.core.FileUtils
+import org.json.JSONArray
+import org.json.JSONObject
 import com.winlator.cmod.widget.SeekBar
 import android.util.Log
 import android.net.Uri
@@ -181,6 +184,17 @@ fun GraphicsDriverConfigDialogCompose(
     var adrenotoolsTurnip by remember { mutableStateOf(initial["adrenotoolsTurnip"] != "0") }
     var enableBlit by remember { mutableStateOf(initial["blit"] == "1") }
     var enableTurbo by remember { mutableStateOf(initial["turbo"] == "1") }
+    var selectedGpuName by remember { mutableStateOf(initial["gpuName"] ?: "Device") }
+    var gpuCustomName by remember { mutableStateOf(initial["gpuCustomName"] ?: "Custom GPU") }
+    var gpuCustomDeviceId by remember { mutableStateOf(initial["gpuCustomDeviceId"] ?: "10DE") }
+    var gpuCustomVendorId by remember { mutableStateOf(initial["gpuCustomVendorId"] ?: "13C2") }
+    val gpuNames = remember {
+        try {
+            val raw = FileUtils.readString(context, "gpu_cards.json")
+            val arr = JSONArray(raw)
+            listOf("Device", "Custom") + (0 until arr.length()).map { arr.getJSONObject(it).getString("name") }
+        } catch (e: Exception) { listOf("Device", "Custom") }
+    }
 
     // Исходный blacklist из конфига контейнера — нужен для восстановления при возврате к исходному драйверу
     val initialBlacklist = remember(initialConfig) { initial["blacklistedExtensions"] ?: "" }
@@ -297,6 +311,49 @@ fun GraphicsDriverConfigDialogCompose(
                     selectedIndex = vulkanVersionOptions.indexOf(vulkanVersion).coerceAtLeast(0),
                     onSelected = { vulkanVersion = vulkanVersionOptions[it] },
                 )
+
+                // GPU Name — подмена названия видеокарты
+                Text("GPU Name", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                ConfigSpinnerRow(
+                    items = gpuNames,
+                    selectedIndex = gpuNames.indexOf(selectedGpuName).coerceAtLeast(0),
+                    onSelected = { selectedGpuName = gpuNames[it] },
+                )
+
+                if (selectedGpuName == "Custom") {
+                    Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp)) {
+                        Text("Custom Device Name", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                        OutlinedTextField(
+                            value = gpuCustomName,
+                            onValueChange = { gpuCustomName = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Device ID", style = MaterialTheme.typography.bodySmall)
+                                OutlinedTextField(
+                                    value = gpuCustomDeviceId,
+                                    onValueChange = { gpuCustomDeviceId = it.take(8) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    placeholder = { Text("10DE") },
+                                )
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text("Vendor ID", style = MaterialTheme.typography.bodySmall)
+                                OutlinedTextField(
+                                    value = gpuCustomVendorId,
+                                    onValueChange = { gpuCustomVendorId = it.take(8) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    placeholder = { Text("13C2") },
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Version
                 Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -729,6 +786,12 @@ fun GraphicsDriverConfigDialogCompose(
                             append(";bcnEmulationCache=$bcnEmulationCache")
                             append(";blit=${if (enableBlit) "1" else "0"}")
                             append(";turbo=${if (enableTurbo) "1" else "0"}")
+                            append(";gpuName=$selectedGpuName")
+                            if (selectedGpuName == "Custom") {
+                                append(";gpuCustomName=$gpuCustomName")
+                                append(";gpuCustomDeviceId=$gpuCustomDeviceId")
+                                append(";gpuCustomVendorId=$gpuCustomVendorId")
+                            }
                         }
                         // Turbo Mode — применяется сразу через adrenotools
                         GPUInformation.setTurboMode(enableTurbo)

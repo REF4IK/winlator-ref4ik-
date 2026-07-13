@@ -3326,7 +3326,48 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             if (shortcut != null) envVars.putAll(shortcut.getExtra("envVars"));
 
-
+            // GPU Name spoofing
+            {
+                String gpuConfig = container.getGraphicsDriverConfig();
+                if (gpuConfig != null) {
+                    String gpuName = "";
+                    String customName = null, customDevId = null, customVenId = null;
+                    for (String pair : gpuConfig.split(";")) {
+                        String[] kv = pair.split("=", 2);
+                        if (kv.length == 2) {
+                            switch (kv[0]) {
+                                case "gpuName": gpuName = kv[1]; break;
+                                case "gpuCustomName": customName = kv[1]; break;
+                                case "gpuCustomDeviceId": customDevId = kv[1]; break;
+                                case "gpuCustomVendorId": customVenId = kv[1]; break;
+                            }
+                        }
+                    }
+                    if (!gpuName.isEmpty() && !gpuName.equals("Device")) {
+                        if (gpuName.equals("Custom") && customName != null && !customName.isEmpty()) {
+                            envVars.put("WRAPPER_DEVICE_NAME", customName);
+                            if (customDevId != null && !customDevId.isEmpty())
+                                envVars.put("WRAPPER_DEVICE_ID", customDevId);
+                            if (customVenId != null && !customVenId.isEmpty())
+                                envVars.put("WRAPPER_VENDOR_ID", customVenId);
+                        } else {
+                            envVars.put("WRAPPER_DEVICE_NAME", gpuName);
+                            try {
+                                String json = com.winlator.cmod.core.FileUtils.readString(XServerDisplayActivity.this, "gpu_cards.json");
+                                org.json.JSONArray arr = new org.json.JSONArray(json);
+                                for (int i = 0; i < arr.length(); i++) {
+                                    org.json.JSONObject obj = arr.getJSONObject(i);
+                                    if (gpuName.equals(obj.getString("name"))) {
+                                        envVars.put("WRAPPER_DEVICE_ID", String.valueOf(obj.getInt("deviceID")));
+                                        envVars.put("WRAPPER_VENDOR_ID", String.valueOf(obj.getInt("vendorID")));
+                                        break;
+                                    }
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }
 
             // If WINEESYNC is not defined, default to "1"
 
