@@ -5,6 +5,7 @@ import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Display;
@@ -21,6 +22,7 @@ import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.xserver.Keyboard;
 import com.winlator.cmod.xserver.Pointer;
 import com.winlator.cmod.xserver.XKeycode;
+import com.tencent.mmkv.MMKV;
 import com.winlator.cmod.xserver.XLock;
 import com.winlator.cmod.xserver.XServer;
 
@@ -54,6 +56,13 @@ public class XrActivity extends XServerDisplayActivity implements TextWatcher {
     private static float mouseSpeed = 1;
     private static final float[] smoothedMouse = new float[2];
     private static XrActivity instance;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        MMKV.initialize(this);
+        MMKV.defaultMMKV(MMKV.MULTI_PROCESS_MODE, null);
+        super.onCreate(savedInstanceState);
+    }
 
     @Override
     public synchronized void onPause() {

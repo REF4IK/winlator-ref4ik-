@@ -10,6 +10,7 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.PreloaderDialog;
+import com.tencent.mmkv.MMKV;
 import com.winlator.cmod.core.TarCompressorUtils;
 
 import java.io.File;
@@ -22,6 +23,8 @@ public class RestoreActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        MMKV.initialize(this);
+        MMKV.defaultMMKV(MMKV.MULTI_PROCESS_MODE, null);
         super.onCreate(savedInstanceState);
 
         preloaderDialog = new PreloaderDialog(this);

@@ -40,6 +40,7 @@ class PluviaApp : Application(), ImageLoaderFactory {
         instance = this
 
         MMKV.initialize(this)
+        MMKV.defaultMMKV(MMKV.MULTI_PROCESS_MODE, null)
 
         Security.removeProvider("BC")
         Security.addProvider(BouncyCastleProvider())
