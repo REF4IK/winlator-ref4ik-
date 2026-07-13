@@ -87,7 +87,7 @@ public class DriverResolver {
     public DriverResolver(Context context) {
         this.context = context;
         this.executor = Executors.newCachedThreadPool();
-        this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        this.prefs = new com.winlator.cmod.core.MmkvPreferences(PREFS_NAME);
     }
     
     public void searchDrivers(DriverSearchCallback callback) {

@@ -147,7 +147,7 @@ public class WinetricksFloatingView extends LinearLayout {
         });
 
         // (Optional) Load SharedPreferences if you want to store position
-        preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
 
         // Add the inflated content
         addView(contentView);

@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.res.stringResource
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.ui.theme.getColorSchemeFor
 
@@ -39,7 +40,7 @@ fun FirstLaunchDialog(
 ) {
     // Берём настройки темы один раз — диалог только для первого запуска
     val context = androidx.compose.ui.platform.LocalContext.current
-    val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+    val prefs = MmkvPreferences()
     val currentThemeId = prefs.getString("theme_id", "midnight") ?: "midnight"
     val currentCustomColor = prefs.getInt("custom_theme_color", 0xFF1A6C59.toInt())
 

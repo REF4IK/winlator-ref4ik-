@@ -60,7 +60,7 @@ public class GPUPerformanceDialog extends ContentDialog {
         sPerformanceMode.setAdapter(adapter);
         
         // Загружаем сохраненный режим
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+        SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
         String savedMode = prefs.getString(PREF_GPU_PERFORMANCE_MODE, "default");
         for (int i = 0; i < GPUPerformanceManager.PerformanceMode.values().length; i++) {
             if (GPUPerformanceManager.PerformanceMode.values()[i].getValue().equals(savedMode)) {
@@ -121,7 +121,7 @@ public class GPUPerformanceDialog extends ContentDialog {
         
         if (success) {
             // Сохраняем выбранный режим
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+            SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
             prefs.edit().putString(PREF_GPU_PERFORMANCE_MODE, mode.getValue()).apply();
             
             Toast.makeText(getContext(), 
@@ -142,7 +142,7 @@ public class GPUPerformanceDialog extends ContentDialog {
         
         if (success) {
             // Сбрасываем сохраненный режим
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+            SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
             prefs.edit().putString(PREF_GPU_PERFORMANCE_MODE, "default").apply();
             
             // Устанавливаем спиннер на "default"

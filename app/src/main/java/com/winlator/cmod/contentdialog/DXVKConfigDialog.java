@@ -394,7 +394,7 @@ public class DXVKConfigDialog extends ContentDialog {
         new Thread(() -> {
             try {
                 // Загружаем contents.json
-                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+                SharedPreferences sp = new com.winlator.cmod.core.MmkvPreferences();
                 String contentsURL = sp.getString("downloadable_contents_url", 
                     "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json");
                 String json = Downloader.downloadString(contentsURL);

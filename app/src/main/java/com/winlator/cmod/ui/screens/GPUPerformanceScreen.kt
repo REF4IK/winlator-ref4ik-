@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.core.GPUPerformanceManager
 import com.winlator.cmod.core.GPUInformation
@@ -33,7 +34,7 @@ fun GPUPerformanceScreen(
     onBack: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    val prefs = PreferenceManager.getDefaultSharedPreferences(ctx)
+    val prefs = MmkvPreferences()
     val gpuManager = remember { GPUPerformanceManager(ctx) }
 
     // Режимы производительности из enum PerformanceMode (порядок как в оригинале)

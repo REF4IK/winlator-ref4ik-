@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.winlator.cmod.contentdialog.DXVKConfigDialog
 import com.winlator.cmod.contentdialog.GraphicsDriverConfigDialog
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.core.AppUtils
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -57,7 +58,7 @@ fun ContainerEditScreen(
 ) {
     val ctx = LocalContext.current
     val contentsManager = remember { ContentsManager(ctx) }
-    val sp = remember { androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx) }
+    val sp = remember { MmkvPreferences() }
     val container = remember(isEditMode, containerId) {
         if (isEditMode) containerManager.getContainerById(containerId) else null
     }

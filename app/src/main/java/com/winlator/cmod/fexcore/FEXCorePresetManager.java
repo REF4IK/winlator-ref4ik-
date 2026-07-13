@@ -167,7 +167,7 @@ public class FEXCorePresetManager {
     }
 
     private static Iterable<String[]> customPresetsIterator(Context context) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         final String customPresetsStr = preferences.getString(KEY_CUSTOM_PRESETS, "");
         final String[] customPresets = customPresetsStr.split(",");
         final int[] index = {0};
@@ -197,7 +197,7 @@ public class FEXCorePresetManager {
     }
 
     public static void editPreset(Context context, String id, String name, EnvVars envVars) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         String customPresetsStr = preferences.getString(KEY_CUSTOM_PRESETS, "");
 
         if (id != null) {
@@ -246,7 +246,7 @@ public class FEXCorePresetManager {
     }
 
     public static void removePreset(Context context, String id) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         String oldCustomPresetsStr = preferences.getString(KEY_CUSTOM_PRESETS, "");
         String newCustomPresetsStr = "";
 
@@ -320,7 +320,7 @@ public class FEXCorePresetManager {
     }
 
     public static void importPreset(Context context, InputStream stream) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         String customPresetStr = preferences.getString(KEY_CUSTOM_PRESETS, "");
         ArrayList<String> lines = new ArrayList<>();
 

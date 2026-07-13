@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.ControlsEditorActivity
 import com.winlator.cmod.GamePadTestActivity
 import com.winlator.cmod.IconManagerActivity
@@ -53,7 +54,7 @@ fun InputControlsScreen(
 ) {
     val ctx = LocalContext.current
     val manager = remember { InputControlsManager(ctx) }
-    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(ctx) }
+    val prefs = remember { MmkvPreferences() }
     val density = LocalDensity.current
 
     var profiles by remember { mutableStateOf(manager.profiles ?: emptyList()) }

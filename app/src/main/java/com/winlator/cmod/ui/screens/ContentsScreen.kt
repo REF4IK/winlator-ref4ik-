@@ -32,6 +32,7 @@ import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.contents.ContentProfile
 import com.winlator.cmod.contents.ContentsManager
 import com.winlator.cmod.contents.Downloader
+import com.winlator.cmod.core.MmkvPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,8 +62,8 @@ fun ContentsScreen(
     val scope = rememberCoroutineScope()
 
     val contentsManager = remember { ContentsManager(ctx) }
-    val sp = remember { androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx) }
-    val fileSizeCache = remember { ctx.getSharedPreferences("file_size_cache", android.content.Context.MODE_PRIVATE) }
+    val sp = remember { MmkvPreferences() }
+    val fileSizeCache = remember { MmkvPreferences("file_size_cache") }
 
     // Текущий тип контента
     val contentTypes = remember { ContentProfile.ContentType.values().toList() }

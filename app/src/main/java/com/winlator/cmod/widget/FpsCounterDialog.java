@@ -58,7 +58,7 @@ public class FpsCounterDialog {
     }
 
     private void setupDialog(Context context) {
-        android.content.SharedPreferences prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context);
+        android.content.SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
         boolean isDarkTheme = prefs.getBoolean("dark_mode", false);
 
         Context themedContext = isDarkTheme

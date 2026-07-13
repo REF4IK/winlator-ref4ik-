@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.core.MmkvPreferences
 
 // Material 3 Light theme colors - mapped from existing XML colors
 private val LightColorScheme = lightColorScheme(
@@ -479,7 +480,7 @@ fun WinlatorTheme(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    val prefs = remember { MmkvPreferences() }
 
     val themeId by prefs.observeString("theme_id", "midnight")
     val customColor by prefs.observeInt("custom_theme_color", 0xFF1A6C59.toInt())

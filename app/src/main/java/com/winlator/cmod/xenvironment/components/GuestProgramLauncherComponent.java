@@ -181,7 +181,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         File tmpDir = environment.getTmpDir();
         String nativeLibraryDir = context.getApplicationInfo().nativeLibraryDir;
 
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         boolean enableBox86_64Logs = preferences.getBoolean("enable_box86_64_logs", false);
 
         EnvVars envVars = new EnvVars();
@@ -262,7 +262,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     private void extractBox86_64Files() {
         ImageFs imageFs = environment.getImageFs();
         Context context = environment.getContext();
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         String box86Version = preferences.getString("box86_version", DefaultVersion.BOX86);
         String box64Version = preferences.getString("box64_version", DefaultVersion.BOX64);
         String currentBox86Version = preferences.getString("current_box86_version", "");

@@ -87,7 +87,7 @@ public class SaveSettingsDialog extends ContentDialog {
     private void createContentView() {
         final Context context = getContext();
 
-        isDarkMode = PreferenceManager.getDefaultSharedPreferences(getContext())
+        isDarkMode = new com.winlator.cmod.core.MmkvPreferences()
                 .getBoolean("dark_mode", false);
 
         LinearLayout llContent = findViewById(R.id.LLContent);

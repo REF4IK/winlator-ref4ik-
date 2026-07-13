@@ -48,7 +48,7 @@ public class GamepadConfiguratorDialog {
         this.context = context;
         this.externalController = externalController;
         this.dialog = dialog;
-        this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        this.preferences = new com.winlator.cmod.core.MmkvPreferences();
     }
 
 //    public void show() {

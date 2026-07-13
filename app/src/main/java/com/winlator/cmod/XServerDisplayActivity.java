@@ -702,7 +702,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         final PreloaderDialog preloaderDialog = new PreloaderDialog(this);
 
-        preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
 
         fpsCounterConfig = new FpsCounterConfig(this);
 
@@ -956,7 +956,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             // Initialize playtime tracking
 
-            playtimePrefs = getSharedPreferences("playtime_stats", MODE_PRIVATE);
+            playtimePrefs = new com.winlator.cmod.core.MmkvPreferences("playtime_stats");
 
             shortcutName = getIntent().getStringExtra("shortcut_name");
 
@@ -5658,7 +5658,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                                            boolean isRelativeMouseMovementEnabled, int profileId) {
         inputControlsView.setShowTouchscreenControls(showTouchscreenControls);
 
-        SharedPreferences prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
         prefs.edit()
             .putBoolean("show_touchscreen_controls_enabled", showTouchscreenControls)
             .putBoolean("touchscreen_timeout_enabled", isTimeoutEnabled)

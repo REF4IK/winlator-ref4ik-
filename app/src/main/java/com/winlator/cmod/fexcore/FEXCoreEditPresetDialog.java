@@ -48,7 +48,7 @@ public class FEXCoreEditPresetDialog extends ContentDialog {
         setTitle(title != null ? title : "FEXCore preset");
         setIcon(R.drawable.icon_env_var);
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
 
         TextView environmentVariablesLabel = findViewById(R.id.TVEnvironmentVariables);

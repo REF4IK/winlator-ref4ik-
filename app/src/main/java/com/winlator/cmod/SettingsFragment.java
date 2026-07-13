@@ -213,7 +213,7 @@ public class SettingsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.settings_fragment, container, false);
         final Context context = getContext();
-        preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
 
         // Check for Dark Mode preference
         isDarkMode = preferences.getBoolean("dark_mode", false);
@@ -738,7 +738,7 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
     }
 
     public static void resetEmulatorsVersion(Context context) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         SharedPreferences.Editor editor = preferences.edit();
         editor.remove("current_box64_version");
         editor.remove("current_wowbox64_version");

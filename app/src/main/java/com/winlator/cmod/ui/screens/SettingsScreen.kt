@@ -2,6 +2,7 @@ package com.winlator.cmod.ui.screens
 
 import android.content.Intent
 import android.content.SharedPreferences
+import com.winlator.cmod.core.MmkvPreferences
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -47,7 +48,7 @@ fun SettingsScreen(
     onReinstallImageFs: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
-    val prefs = preferences ?: PreferenceManager.getDefaultSharedPreferences(ctx)
+    val prefs = preferences ?: MmkvPreferences()
 
     fun saveBool(key: String, value: Boolean) { prefs.edit().putBoolean(key, value).apply() }
     fun saveInt(key: String, value: Int) { prefs.edit().putInt(key, value).apply() }

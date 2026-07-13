@@ -42,7 +42,7 @@ public class AudioSettingsDialog extends PreferenceDialogFragmentCompat {
         Context context = getContext();
         if (context == null) return;
         
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         
         dialogView = View.inflate(context, R.layout.audio_settings_dialog, null);
         builder.setView(dialogView);

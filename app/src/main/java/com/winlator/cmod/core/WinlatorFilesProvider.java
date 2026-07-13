@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Objects;
+import com.tencent.mmkv.MMKV;
 
 public class WinlatorFilesProvider extends DocumentsProvider {
     private static final String ALL_MIME_TYPES = "*/*";
@@ -32,8 +33,9 @@ public class WinlatorFilesProvider extends DocumentsProvider {
     @Override
     public void attachInfo(Context context, ProviderInfo info) {
         super.attachInfo(context, info);
+        MMKV.initialize(context);
         BASE_DIR = context.getDataDir();
-        enabled = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("enable_file_provider", true);
+        enabled = new com.winlator.cmod.core.MmkvPreferences().getBoolean("enable_file_provider", true);
     }
 
     @Override

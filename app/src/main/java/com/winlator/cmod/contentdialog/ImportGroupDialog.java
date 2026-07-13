@@ -26,7 +26,7 @@ public class ImportGroupDialog extends ContentDialog {
 
         final Spinner sProfile = findViewById(R.id.SProfile);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(anchor.getContext());
+        SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
         boolean isDarkMode = prefs.getBoolean("dark_mode", false);
         sProfile.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
 

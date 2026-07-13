@@ -79,7 +79,7 @@ public class ContentsManager {
 
     public ContentsManager(Context context) {
         this.context = context;
-        this.preferences = context.getSharedPreferences("contents_manager_prefs", Context.MODE_PRIVATE);
+        this.preferences = new com.winlator.cmod.core.MmkvPreferences("contents_manager_prefs");
     }
 
     // Method to mark the graphics driver as installed

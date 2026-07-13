@@ -176,7 +176,7 @@ public class GlibcProgramLauncherComponent extends GuestProgramLauncherComponent
         ImageFs imageFs = environment.getImageFs();
         File rootDir = imageFs.getRootDir();
 
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         boolean enableBox86_64Logs = preferences.getBoolean("enable_box86_64_logs", false);
 
         EnvVars envVars = new EnvVars();
@@ -253,7 +253,7 @@ public class GlibcProgramLauncherComponent extends GuestProgramLauncherComponent
     private void extractBox86_64Files() {
         ImageFs imageFs = environment.getImageFs();
         Context context = environment.getContext();
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
 
 
         String box86Version = preferences.getString("box86_version", DefaultVersion.BOX86);

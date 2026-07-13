@@ -175,7 +175,7 @@ public class ShortcutsFragment extends Fragment {
         manager = new ContainerManager(getContext());
         
         // Load saved view mode preference
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+        SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
         isGridView = prefs.getBoolean("shortcuts_grid_view", true);
         
         // Setup RecyclerView after loading preferences
@@ -218,7 +218,7 @@ public class ShortcutsFragment extends Fragment {
             isGridView = !isGridView;
             
             // Save view mode preference
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+            SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
             prefs.edit().putBoolean("shortcuts_grid_view", isGridView).apply();
             
             updateViewModeIcon();
@@ -1273,7 +1273,7 @@ public class ShortcutsFragment extends Fragment {
         Context context = getContext();
         if (context == null) return;
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         String uriString = sharedPreferences.getString("frontend_export_uri", null);
 
         File frontendDir;
@@ -1383,7 +1383,7 @@ public class ShortcutsFragment extends Fragment {
         Context context = getContext();
         if (context == null) return;
 
-        SharedPreferences playtimePrefs = context.getSharedPreferences("playtime_stats", Context.MODE_PRIVATE);
+        SharedPreferences playtimePrefs = new com.winlator.cmod.core.MmkvPreferences("playtime_stats");
 
         String playtimeKey = shortcut.name + "_playtime";
         String playCountKey = shortcut.name + "_play_count";

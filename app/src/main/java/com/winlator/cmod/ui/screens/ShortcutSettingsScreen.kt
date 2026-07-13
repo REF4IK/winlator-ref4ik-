@@ -39,6 +39,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.StringUtils
 import com.winlator.cmod.core.WineInfo
@@ -69,7 +70,7 @@ fun ShortcutSettingsScreen(
     val manager = remember { ContainerManager(ctx) }
     val contentsManager = remember { ContentsManager(ctx) }
     val inputControlsManager = remember { InputControlsManager(ctx) }
-    val sp = remember { androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx) }
+    val sp = remember { MmkvPreferences() }
     val container = shortcut.container
     val isLegacyModeEnabled = remember { sp.getBoolean("legacy_mode_enabled", false) }
 

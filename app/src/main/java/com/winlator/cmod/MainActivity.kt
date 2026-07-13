@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.core.MmkvPreferences
 import com.google.android.material.appbar.MaterialToolbar
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.contentdialog.ContentDialog
@@ -89,7 +90,7 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(hiddenToolbar)
         supportActionBar?.hide()
 
-        preferences = PreferenceManager.getDefaultSharedPreferences(this)
+        preferences = MmkvPreferences()
         containerManager = ContainerManager(this)
 
         isDarkMode = preferences.getBoolean("dark_mode", false)

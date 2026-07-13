@@ -66,7 +66,7 @@ public class XrActivity extends XServerDisplayActivity implements TextWatcher {
     public synchronized void onResume() {
         super.onResume();
         instance = this;
-        mouseSpeed = PreferenceManager.getDefaultSharedPreferences(this).getFloat("cursor_speed", 1.0f);
+        mouseSpeed = new com.winlator.cmod.core.MmkvPreferences().getFloat("cursor_speed", 1.0f);
 
         EditText text = findViewById(R.id.XRTextInput);
         text.setVisibility(View.VISIBLE);
@@ -133,7 +133,7 @@ public class XrActivity extends XServerDisplayActivity implements TextWatcher {
 
     public static boolean isEnabled(Context context) {
         if (context != null) {
-            isEnabled = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("use_xr", true);
+            isEnabled = new com.winlator.cmod.core.MmkvPreferences().getBoolean("use_xr", true);
         }
         return isSupported() && isEnabled;
     }

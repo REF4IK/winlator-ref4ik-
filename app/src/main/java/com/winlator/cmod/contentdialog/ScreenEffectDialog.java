@@ -64,7 +64,7 @@ public class ScreenEffectDialog extends ContentDialog {
         super(activity, R.layout.screen_effect_dialog);
         this.activity = activity;
 
-        preferences = PreferenceManager.getDefaultSharedPreferences(activity);
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
         isDarkMode = preferences.getBoolean("dark_mode", false);
 
         TextView lblColorAdjustment = findViewById(R.id.LBLColorAdjustment);

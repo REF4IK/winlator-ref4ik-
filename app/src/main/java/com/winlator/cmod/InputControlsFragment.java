@@ -84,7 +84,7 @@ public class InputControlsFragment extends Fragment {
         setHasOptionsMenu(false);
         manager = new InputControlsManager(getContext());
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        SharedPreferences sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
     }
 
@@ -117,7 +117,7 @@ public class InputControlsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.input_controls_fragment, container, false);
         final Context context = getContext();
-        final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        final SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
 
         currentProfile = selectedProfileId > 0 ? manager.getProfile(selectedProfileId) : null;
 
@@ -465,7 +465,7 @@ public class InputControlsFragment extends Fragment {
 
     @Override
     public void onDestroy() {
-        final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        final SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         SharedPreferences.Editor editor = preferences.edit();
         
         if (rgTriggerType != null) {

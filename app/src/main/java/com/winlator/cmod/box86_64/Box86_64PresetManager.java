@@ -269,7 +269,7 @@ public abstract class Box86_64PresetManager {
     }
 
     private static Iterable<String[]> customPresetsIterator(String prefix, Context context) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         final String customPresetsStr = preferences.getString(prefix+"_custom_presets", "");
         final String[] customPresets = customPresetsStr.split(",");
         final int[] index = {0};
@@ -296,7 +296,7 @@ public abstract class Box86_64PresetManager {
 
     public static void editPreset(String prefix, Context context, String id, String name, EnvVars envVars) {
         String key = prefix+"_custom_presets";
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         String customPresetsStr = preferences.getString(key, "");
 
         if (id != null) {
@@ -346,7 +346,7 @@ public abstract class Box86_64PresetManager {
 
     public static void removePreset(String prefix, Context context, String id) {
         String key = prefix+"_custom_presets";
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         String oldCustomPresetsStr = preferences.getString(key, "");
         String newCustomPresetsStr = "";
 
@@ -445,7 +445,7 @@ public abstract class Box86_64PresetManager {
     public static void importPreset(String prefix, Context context, InputStream stream) {
         if (context == null || stream == null) return;
 
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         String customPresetStr = preferences.getString(prefix + "_custom_presets", "");
         ArrayList<String> lines = new ArrayList<>();
 

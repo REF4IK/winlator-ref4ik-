@@ -25,6 +25,9 @@ add_subdirectory(asurfacerenderer)
 set(LSFGVK_ANDROID_WINE ON CACHE BOOL "Build for Wine-on-Android" FORCE)
 add_subdirectory(lsfg-vk-android)
 
+# MMKV: high-performance key-value storage (built from Tencent/MMKV source)
+add_subdirectory(mmkv)
+
 # Add Winlator shared library
 add_library(winlator SHARED
         xr/engine.c

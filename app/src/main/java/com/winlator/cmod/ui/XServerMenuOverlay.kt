@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.ui.screens.FpsCounterSettingsDialog
@@ -87,7 +88,7 @@ fun XServerMenuOverlay(
     onDismiss: () -> Unit
 ) {
     val isDark = com.winlator.cmod.contentdialog.ContentDialog.shouldUseDarkDialog(activity)
-    val preferences = remember { androidx.preference.PreferenceManager.getDefaultSharedPreferences(activity) }
+    val preferences = remember { MmkvPreferences() }
     val enableLogs = remember {
         preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box86_64_logs", false)
     }

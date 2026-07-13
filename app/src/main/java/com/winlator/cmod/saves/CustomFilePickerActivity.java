@@ -30,7 +30,7 @@ public class CustomFilePickerActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         // Check dark mode setting from shared preferences or system
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         boolean isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
 
         // Apply the theme based on dark mode setting

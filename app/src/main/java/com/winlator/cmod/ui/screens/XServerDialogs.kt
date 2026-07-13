@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.core.KeyValueSet
@@ -289,7 +290,7 @@ fun ScreenEffectDialogCompose(
     onDismiss: () -> Unit
 ) {
     val ctx = LocalContext.current
-    val preferences = remember { androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx) }
+    val preferences = remember { MmkvPreferences() }
 
     var brightness by remember { mutableFloatStateOf(preferences.getFloat("effect_brightness", 0f)) }
     var contrast by remember { mutableFloatStateOf(preferences.getFloat("effect_contrast", 0f)) }
@@ -317,14 +318,14 @@ fun ScreenEffectDialogCompose(
     var profileList by remember {
         mutableStateOf(run {
             val list = mutableListOf("-- Default Profile --")
-            val profiles = preferences.getStringSet("screen_effect_profiles", emptySet()) ?: emptySet()
+            val profiles = preferences.getStringSet("screen_effect_profiles", mutableSetOf()) ?: emptySet()
             profiles.forEach { list.add(it.split(":")[0]) }
             list.toList()
         })
     }
 
     fun loadProfile(profileName: String) {
-        val profiles = preferences.getStringSet("screen_effect_profiles", emptySet()) ?: emptySet()
+        val profiles = preferences.getStringSet("screen_effect_profiles", mutableSetOf()) ?: emptySet()
         val found = profiles.firstOrNull { it.split(":")[0] == profileName }
         if (found != null && found.contains(":")) {
             val settings = KeyValueSet(found.split(":")[1])
@@ -374,7 +375,7 @@ fun ScreenEffectDialogCompose(
 
     fun saveProfile(profileName: String) {
         if (profileName.isNotEmpty() && profileName != "-- Default Profile --") {
-            val oldProfiles = preferences.getStringSet("screen_effect_profiles", emptySet()) ?: emptySet()
+            val oldProfiles = preferences.getStringSet("screen_effect_profiles", mutableSetOf()) ?: emptySet()
             val newProfiles = mutableSetOf<String>()
             val settings = KeyValueSet()
             settings.put("brightness", brightness)
@@ -612,7 +613,7 @@ fun ScreenEffectDialogCompose(
                             }
                             IconButton(onClick = {
                                 if (selectedProfile.isNotEmpty()) {
-                                    val oldProfiles = preferences.getStringSet("screen_effect_profiles", emptySet()) ?: emptySet()
+                                    val oldProfiles = preferences.getStringSet("screen_effect_profiles", mutableSetOf()) ?: emptySet()
                                     val newProfiles = oldProfiles.filter { it.split(":")[0] != selectedProfile }.toSet()
                                     preferences.edit().putStringSet("screen_effect_profiles", newProfiles).apply()
                                     profileList = profileList.filter { it != selectedProfile }
@@ -827,7 +828,7 @@ fun InputControlsDialogCompose(
 ) {
     val ctx = LocalContext.current
     val manager = remember { activity.inputControlsManager }
-    val preferences = remember { androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx) }
+    val preferences = remember { MmkvPreferences() }
 
     val profiles = remember { manager.getProfiles(true) ?: ArrayList<ControlsProfile>() }
     val profileItems = remember(profiles) {

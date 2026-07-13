@@ -66,14 +66,13 @@ public class ContentsFragment extends Fragment {
         setHasOptionsMenu(false);
         manager = new ContentsManager(getContext());
         manager.syncContents();
-        sp = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        sp = new com.winlator.cmod.core.MmkvPreferences();
         
         // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєСЌС€Р° СЂР°Р·РјРµСЂРѕРІ С„Р°Р№Р»РѕРІ
-        fileSizeCache = getContext().getSharedPreferences("file_size_cache", getContext().MODE_PRIVATE);
+        fileSizeCache = new com.winlator.cmod.core.MmkvPreferences("file_size_cache");
 
         // Initialize isDarkMode based on shared preferences or theme
-        isDarkMode = PreferenceManager.getDefaultSharedPreferences(getContext())
-                .getBoolean("dark_mode", false);
+        isDarkMode = sp.getBoolean("dark_mode", false);
     }
 
     @Override

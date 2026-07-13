@@ -79,7 +79,7 @@ public class TouchpadView extends View {
         setPointerIcon(PointerIcon.load(getResources(), R.drawable.hidden_pointer_arrow));
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight(), xServer.screenInfo.width, xServer.screenInfo.height);
         // Initialize SharedPreferences here
-        this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        this.preferences = new com.winlator.cmod.core.MmkvPreferences();
 
         this.timeoutHandler = timeoutHandler; // Store the reference to timeout handler
         this.hideControlsRunnable = hideControlsRunnable; // Store the reference to the hide controls runnable

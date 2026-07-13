@@ -85,7 +85,7 @@ public class ExternalController {
         this.context = context;
         loadPreferences();
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener);
     }
 
@@ -131,7 +131,7 @@ public class ExternalController {
 
     public void unregisterListener() {
         if (context != null) {
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+            SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
             prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener);
         }
     }
@@ -142,7 +142,7 @@ public class ExternalController {
             return;
         }
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
         SharedPreferences.Editor editor = prefs.edit();
         boolean migrated = false;
 

@@ -2,6 +2,7 @@ package com.winlator.cmod.widget;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import com.winlator.cmod.core.MmkvPreferences;
 
 public class FpsCounterConfig {
     private static final String PREFS_NAME = "fps_counter_config";
@@ -43,7 +44,7 @@ public class FpsCounterConfig {
     private final SharedPreferences prefs;
 
     public FpsCounterConfig(Context context) {
-        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs = new MmkvPreferences(PREFS_NAME);
         migrateDefaultBackgroundOpacity();
     }
 

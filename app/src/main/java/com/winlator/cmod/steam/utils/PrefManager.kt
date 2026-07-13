@@ -4,183 +4,205 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.tencent.mmkv.MMKV
 import timber.log.Timber
+import java.security.SecureRandom
 
 object PrefManager {
-    private var prefs: SharedPreferences? = null
+    private const val MMKV_ID = "PluviaPreferences"
+    private const val KEY_CRYPT_KEY = "mmkv_crypt_key"
+    private var mmkv: MMKV? = null
 
     fun init(context: Context) {
-        val legacyPrefs = context.getSharedPreferences("PluviaPreferences", Context.MODE_PRIVATE)
+        val cryptKey = getOrCreateCryptKey()
+        mmkv = MMKV.mmkvWithID(MMKV_ID, 0, cryptKey)
 
-        prefs = try {
+        migrateLegacyPrefsIfNeeded(context)
+    }
+
+    private fun getOrCreateCryptKey(): String {
+        val root = MMKV.defaultMMKV()
+        var key = root.decodeString(KEY_CRYPT_KEY)
+        if (key.isNullOrBlank()) {
+            val random = ByteArray(16)
+            SecureRandom().nextBytes(random)
+            key = random.joinToString("") { "%02x".format(it) }
+            root.encode(KEY_CRYPT_KEY, key)
+            root.sync()
+        }
+        return key
+    }
+
+    private fun migrateLegacyPrefsIfNeeded(context: Context) {
+        val current = mmkv ?: return
+
+        if (current.contains("migrated_from_encrypted")) return
+
+        val legacyPrefs = context.getSharedPreferences("PluviaPreferences", Context.MODE_PRIVATE)
+        migrateFromPrefs(legacyPrefs, current)
+        context.deleteSharedPreferences("PluviaPreferences")
+
+        try {
             val masterKey = MasterKey.Builder(context)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
-            EncryptedSharedPreferences.create(
+            val encryptedPrefs = EncryptedSharedPreferences.create(
                 context,
                 "PluviaPreferences_enc",
                 masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
             )
+            migrateFromPrefs(encryptedPrefs, current)
         } catch (e: Exception) {
-            Timber.e(e, "EncryptedSharedPreferences init failed")
-            throw RuntimeException("Failed to initialize secure storage", e)
+            Timber.d("No encrypted legacy prefs to migrate: ${e.message}")
         }
 
-        migrateLegacyPrefsIfNeeded(legacyPrefs, context)
+        current.encode("migrated_from_encrypted", true)
+        current.sync()
     }
 
-    private fun migrateLegacyPrefsIfNeeded(legacyPrefs: SharedPreferences, context: Context) {
-        val encryptedPrefs = prefs ?: return
-        val legacyEntries = legacyPrefs.all
-        if (legacyEntries.isEmpty()) return
-
-        if (encryptedPrefs.all.isEmpty()) {
-            val editor = encryptedPrefs.edit()
-            for ((key, value) in legacyEntries) {
-                when (value) {
-                    is String -> editor.putString(key, value)
-                    is Int -> editor.putInt(key, value)
-                    is Long -> editor.putLong(key, value)
-                    is Boolean -> editor.putBoolean(key, value)
-                    is Float -> editor.putFloat(key, value)
-                }
+    private fun migrateFromPrefs(old: SharedPreferences, new: MMKV) {
+        val entries = old.all
+        if (entries.isEmpty()) return
+        for ((key, value) in entries) {
+            when (value) {
+                is String -> new.encode(key, value)
+                is Int -> new.encode(key, value)
+                is Long -> new.encode(key, value)
+                is Boolean -> new.encode(key, value)
+                is Float -> new.encode(key, value)
             }
-            editor.apply()
-            Timber.i("Migrated legacy Steam preferences into encrypted storage")
         }
-
-        context.deleteSharedPreferences("PluviaPreferences")
+        new.sync()
+        Timber.i("Migrated ${entries.size} keys from legacy prefs to MMKV")
     }
 
-    private fun getString(key: String, defaultValue: String): String = prefs?.getString(key, defaultValue) ?: defaultValue
-    private fun setString(key: String, value: String) { prefs?.edit()?.putString(key, value)?.apply() }
-    
-    private fun getInt(key: String, defaultValue: Int): Int = prefs?.getInt(key, defaultValue) ?: defaultValue
-    private fun setInt(key: String, value: Int) { prefs?.edit()?.putInt(key, value)?.apply() }
-    
-    private fun getLong(key: String, defaultValue: Long): Long = prefs?.getLong(key, defaultValue) ?: defaultValue
-    private fun setLong(key: String, value: Long) { prefs?.edit()?.putLong(key, value)?.apply() }
-    
-    private fun getBoolean(key: String, defaultValue: Boolean): Boolean = prefs?.getBoolean(key, defaultValue) ?: defaultValue
-    private fun setBoolean(key: String, value: Boolean) { prefs?.edit()?.putBoolean(key, value)?.apply() }
+    private fun encode(key: String, value: String) { mmkv?.encode(key, value) }
+    private fun encode(key: String, value: Int) { mmkv?.encode(key, value) }
+    private fun encode(key: String, value: Long) { mmkv?.encode(key, value) }
+    private fun encode(key: String, value: Boolean) { mmkv?.encode(key, value) }
+
+    private fun decodeString(key: String, default: String): String = mmkv?.decodeString(key, default) ?: default
+    private fun decodeInt(key: String, default: Int): Int = mmkv?.decodeInt(key, default) ?: default
+    private fun decodeLong(key: String, default: Long): Long = mmkv?.decodeLong(key, default) ?: default
+    private fun decodeBool(key: String, default: Boolean): Boolean = mmkv?.decodeBool(key, default) ?: default
 
     var username: String
-        get() = getString("user_name", "")
-        set(value) { setString("user_name", value) }
+        get() = decodeString("user_name", "")
+        set(value) { encode("user_name", value) }
 
     var refreshToken: String
-        get() = getString("refresh_token", "")
-        set(value) { setString("refresh_token", value) }
+        get() = decodeString("refresh_token", "")
+        set(value) { encode("refresh_token", value) }
 
     var accessToken: String
-        get() = getString("access_token", "")
-        set(value) { setString("access_token", value) }
+        get() = decodeString("access_token", "")
+        set(value) { encode("access_token", value) }
 
     var steamUserSteamId64: Long
-        get() = getLong("steam_user_steam_id_64", 0L)
-        set(value) { setLong("steam_user_steam_id_64", value) }
+        get() = decodeLong("steam_user_steam_id_64", 0L)
+        set(value) { encode("steam_user_steam_id_64", value) }
 
     var steamUserAccountId: Int
-        get() = getInt("steam_user_account_id", 0)
-        set(value) { setInt("steam_user_account_id", value) }
+        get() = decodeInt("steam_user_account_id", 0)
+        set(value) { encode("steam_user_account_id", value) }
 
     var cellId: Int
-        get() = getInt("cell_id", 0)
-        set(value) { setInt("cell_id", value) }
+        get() = decodeInt("cell_id", 0)
+        set(value) { encode("cell_id", value) }
 
     var cellIdManuallySet: Boolean
-        get() = getBoolean("cell_id_manually_set", false)
-        set(value) { setBoolean("cell_id_manually_set", value) }
+        get() = decodeBool("cell_id_manually_set", false)
+        set(value) { encode("cell_id_manually_set", value) }
 
     var downloadOnWifiOnly: Boolean
-        get() = getBoolean("download_on_wifi_only", true)
-        set(value) { setBoolean("download_on_wifi_only", value) }
+        get() = decodeBool("download_on_wifi_only", true)
+        set(value) { encode("download_on_wifi_only", value) }
         
     var lastPICSChangeNumber: Int
-        get() = getInt("last_pics_change_number", 0)
-        set(value) { setInt("last_pics_change_number", value) }
+        get() = decodeInt("last_pics_change_number", 0)
+        set(value) { encode("last_pics_change_number", value) }
 
     var steamUserName: String
-        get() = getString("steam_user_name", "")
-        set(value) { setString("steam_user_name", value) }
+        get() = decodeString("steam_user_name", "")
+        set(value) { encode("steam_user_name", value) }
 
     var steamUserAvatarHash: String
-        get() = getString("steam_user_avatar_hash", "")
-        set(value) { setString("steam_user_avatar_hash", value) }
+        get() = decodeString("steam_user_avatar_hash", "")
+        set(value) { encode("steam_user_avatar_hash", value) }
 
     var personaState: Int
-        get() = getInt("persona_state", 0)
-        set(value) { setInt("persona_state", value) }
+        get() = decodeInt("persona_state", 0)
+        set(value) { encode("persona_state", value) }
 
     var externalStoragePath: String
-        get() = getString("external_storage_path", "")
-        set(value) { setString("external_storage_path", value) }
+        get() = decodeString("external_storage_path", "")
+        set(value) { encode("external_storage_path", value) }
 
     var useExternalStorage: Boolean
-        get() = getBoolean("use_external_storage", false)
-        set(value) { setBoolean("use_external_storage", value) }
+        get() = decodeBool("use_external_storage", false)
+        set(value) { encode("use_external_storage", value) }
         
     var containerLanguage: String
-        get() = getString("container_language", "english")
-        set(value) { setString("container_language", value) }
+        get() = decodeString("container_language", "english")
+        set(value) { encode("container_language", value) }
         
     var downloadSpeed: Int
-        get() = getInt("download_speed", 32)
-        set(value) { setInt("download_speed", value) }
+        get() = decodeInt("download_speed", 32)
+        set(value) { encode("download_speed", value) }
         
     var clientId: Long
-        get() = getLong("client_id", 0L)
-        set(value) { setLong("client_id", value) }
+        get() = decodeLong("client_id", 0L)
+        set(value) { encode("client_id", value) }
 
     var libraryLayoutMode: String
-        get() = getString("library_layout_mode", "GRID_4")
-        set(value) { setString("library_layout_mode", value) }
+        get() = decodeString("library_layout_mode", "GRID_4")
+        set(value) { encode("library_layout_mode", value) }
 
     var enableSteamLogs: Boolean
-        get() = getBoolean("enable_steam_logs", false)
-        set(value) { setBoolean("enable_steam_logs", value) }
+        get() = decodeBool("enable_steam_logs", false)
+        set(value) { encode("enable_steam_logs", value) }
 
     var useSingleDownloadFolder: Boolean
-        get() = getBoolean("use_single_download_folder", true)
-        set(value) { setBoolean("use_single_download_folder", value) }
+        get() = decodeBool("use_single_download_folder", true)
+        set(value) { encode("use_single_download_folder", value) }
 
     var defaultDownloadFolder: String
-        get() = getString("default_download_folder", "")
-        set(value) { setString("default_download_folder", value) }
+        get() = decodeString("default_download_folder", "")
+        set(value) { encode("default_download_folder", value) }
 
     var steamDownloadFolder: String
-        get() = getString("steam_download_folder", "")
-        set(value) { setString("steam_download_folder", value) }
+        get() = decodeString("steam_download_folder", "")
+        set(value) { encode("steam_download_folder", value) }
 
     var preferredSteamContainerId: Int
-        get() = getInt("preferred_steam_container_id", 0)
-        set(value) { setInt("preferred_steam_container_id", value) }
+        get() = decodeInt("preferred_steam_container_id", 0)
+        set(value) { encode("preferred_steam_container_id", value) }
 
     var epicDownloadFolder: String
-        get() = getString("epic_download_folder", "")
-        set(value) { setString("epic_download_folder", value) }
+        get() = decodeString("epic_download_folder", "")
+        set(value) { encode("epic_download_folder", value) }
 
     var gogDownloadFolder: String
-        get() = getString("gog_download_folder", "")
-        set(value) { setString("gog_download_folder", value) }
+        get() = decodeString("gog_download_folder", "")
+        set(value) { encode("gog_download_folder", value) }
 
     var amazonDownloadFolder: String
-        get() = getString("amazon_download_folder", "")
-        set(value) { setString("amazon_download_folder", value) }
+        get() = decodeString("amazon_download_folder", "")
+        set(value) { encode("amazon_download_folder", value) }
 
     var downloadQueueSize: Int
-        get() = getInt("download_queue_size", 1)
-        set(value) { setInt("download_queue_size", value) }
+        get() = decodeInt("download_queue_size", 1)
+        set(value) { encode("download_queue_size", value) }
 
     var steamOfflineMode: Boolean
-        get() = getBoolean("steam_offline_mode", false)
-        set(value) { setBoolean("steam_offline_mode", value) }
+        get() = decodeBool("steam_offline_mode", false)
+        set(value) { encode("steam_offline_mode", value) }
 
     private var pendingSteamCloudSyncAppsRaw: String
-        get() = getString("pending_steam_cloud_sync_apps", "")
-        set(value) { setString("pending_steam_cloud_sync_apps", value) }
+        get() = decodeString("pending_steam_cloud_sync_apps", "")
+        set(value) { encode("pending_steam_cloud_sync_apps", value) }
 
     fun getPendingSteamCloudSyncAppIds(): Set<Int> {
         return pendingSteamCloudSyncAppsRaw
@@ -210,22 +232,22 @@ object PrefManager {
 
     fun getSteamSelectedBranch(appId: Int, defaultBranch: String = "public"): String {
         if (appId <= 0) return defaultBranch
-        return getString("steam_selected_branch_$appId", defaultBranch).ifBlank { defaultBranch }
+        return decodeString("steam_selected_branch_$appId", defaultBranch).ifBlank { defaultBranch }
     }
 
     fun setSteamSelectedBranch(appId: Int, branch: String) {
         if (appId <= 0) return
-        setString("steam_selected_branch_$appId", branch.ifBlank { "public" })
+        encode("steam_selected_branch_$appId", branch.ifBlank { "public" })
     }
 
     fun clearSteamSelectedBranch(appId: Int) {
         if (appId <= 0) return
-        prefs?.edit()?.remove("steam_selected_branch_$appId")?.apply()
+        mmkv?.remove("steam_selected_branch_$appId")
     }
 
     fun getSteamWorkshopEnabledItemIds(appId: Int): Set<Long> {
         if (appId <= 0) return emptySet()
-        return getString("steam_workshop_enabled_items_$appId", "")
+        return decodeString("steam_workshop_enabled_items_$appId", "")
             .split(',')
             .mapNotNull { it.trim().toLongOrNull() }
             .filter { it > 0L }
@@ -238,7 +260,7 @@ object PrefManager {
             .filter { it > 0L }
             .sorted()
             .joinToString(",")
-        setString("steam_workshop_enabled_items_$appId", serialized)
+        encode("steam_workshop_enabled_items_$appId", serialized)
     }
 
     fun hasSteamWorkshopEnabledItems(appId: Int): Boolean {
@@ -246,25 +268,24 @@ object PrefManager {
     }
 
     fun clearAuthTokens() {
-        prefs?.edit()?.apply {
-            remove("user_name")
-            remove("refresh_token")
-            remove("access_token")
-            remove("steam_user_steam_id_64")
-            remove("steam_user_account_id")
-            remove("steam_user_name")
-            remove("steam_user_avatar_hash")
-            remove("persona_state")
-            commit()
-        }
+        val kv = mmkv ?: return
+        kv.remove("user_name")
+        kv.remove("refresh_token")
+        kv.remove("access_token")
+        kv.remove("steam_user_steam_id_64")
+        kv.remove("steam_user_account_id")
+        kv.remove("steam_user_name")
+        kv.remove("steam_user_avatar_hash")
+        kv.remove("persona_state")
+        kv.sync()
     }
 
     fun clearPreferences() {
-        prefs?.edit()?.clear()?.commit()
+        mmkv?.clearAll()
+        mmkv?.sync()
     }
     
-    // Legacy support for Winlator properties if needed
     var graphicsDriver: String
-        get() = getString("graphics_driver", "virgl")
-        set(value) { setString("graphics_driver", value) }
+        get() = decodeString("graphics_driver", "virgl")
+        set(value) { encode("graphics_driver", value) }
 }

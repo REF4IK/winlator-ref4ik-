@@ -76,7 +76,7 @@ public class Box86_64RCFragment extends Fragment {
         manager = new RCManager(getContext());
 
         // Initialize isDarkMode based on shared preferences or theme
-        isDarkMode = PreferenceManager.getDefaultSharedPreferences(getContext())
+        isDarkMode = new com.winlator.cmod.core.MmkvPreferences()
                 .getBoolean("dark_mode", false);
     }
 
@@ -464,7 +464,7 @@ public class Box86_64RCFragment extends Fragment {
             etGroupName = layout.findViewById(R.id.ETGroupName);
             etGroupName.setText(group.getGroupName());
 
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+            SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
             boolean isDarkMode = prefs.getBoolean("dark_mode", false);
             applyDarkThemeToEditText(etGroupName, isDarkMode);
 
@@ -722,7 +722,7 @@ public class Box86_64RCFragment extends Fragment {
                     LinearLayout layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.box86_64_rc_var, null);
                     etKey = layout.findViewById(R.id.ETKey);
 
-                    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+                    SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
                     boolean isDarkMode = prefs.getBoolean("dark_mode", false);
                     applyDarkThemeToEditText(etKey, isDarkMode);
 

@@ -48,7 +48,7 @@ public class Box86_64EditPresetDialog extends ContentDialog {
         setIcon(R.drawable.icon_env_var);
 
         // Load the user's preferred theme
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
 
         TextView environmentVariablesLabel = findViewById(R.id.TVEnvironmentVariables);

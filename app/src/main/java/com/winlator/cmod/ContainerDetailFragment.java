@@ -424,7 +424,7 @@ public class ContainerDetailFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup root, @Nullable Bundle savedInstanceState) {
         final Context context = getContext();
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         final View view = inflater.inflate(R.layout.container_detail_fragment, root, false);
         rootView = view;
 
@@ -2921,7 +2921,7 @@ public class ContainerDetailFragment extends Fragment {
         dialog.showOnUiThread(R.string.loading_component_versions);
 
         new Thread(() -> {
-            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+            SharedPreferences sp = new com.winlator.cmod.core.MmkvPreferences();
             String contentsURL = sp.getString("downloadable_contents_url", "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json");
             String json = Downloader.downloadString(contentsURL);
             dialog.closeOnUiThread();
@@ -3245,7 +3245,7 @@ public class ContainerDetailFragment extends Fragment {
 
         // РџРѕРґРіСЂСѓР¶Р°РµРј remote profiles (contents.json) РєР°Рє РІ ContentsFragment, С‡С‚РѕР±С‹ РІ СЃРїРёСЃРєРµ Wine
         // РѕС‚РѕР±СЂР°Р¶Р°Р»РёСЃСЊ РІРµСЂСЃРёРё РёР· ContentsManager (РІ С‚.С‡. РЅРµСЃРєР°С‡Р°РЅРЅС‹Рµ).
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences sp = new com.winlator.cmod.core.MmkvPreferences();
         new Thread(() -> {
             String contentsURL = sp.getString("downloadable_contents_url", "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json");
             String json = Downloader.downloadString(contentsURL);

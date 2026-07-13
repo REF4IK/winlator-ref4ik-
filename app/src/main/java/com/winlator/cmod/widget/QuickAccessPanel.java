@@ -45,7 +45,7 @@ public class QuickAccessPanel extends LinearLayout {
         setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         setOrientation(VERTICAL);
 
-        preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
 
         View contentView = LayoutInflater.from(getContext())
                 .inflate(R.layout.quick_access_panel, this, false);

@@ -322,7 +322,7 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
         ImageFs imageFs = environment.getImageFs();
         File rootDir = imageFs.getRootDir();
 
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         boolean enableBox86_64Logs = preferences.getBoolean("enable_box86_64_logs", false);
         boolean openWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
         boolean shareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);

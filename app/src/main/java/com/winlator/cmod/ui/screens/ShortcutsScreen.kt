@@ -69,6 +69,7 @@ import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
 import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.core.ShortcutCoverFetcher
 import java.io.File
 import java.io.FileWriter
@@ -244,7 +245,7 @@ Column(modifier = Modifier.fillMaxSize()) {
 
     // Диалог Properties
     showPropertiesFor?.let { s ->
-        val prefs = ctx.getSharedPreferences("playtime_stats", Context.MODE_PRIVATE)
+        val prefs = MmkvPreferences("playtime_stats")
         val playtimeKey = "${s.name}_playtime"
         val playCountKey = "${s.name}_play_count"
         val totalPlaytime = prefs.getLong(playtimeKey, 0)

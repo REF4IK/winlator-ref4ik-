@@ -170,7 +170,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         }
         llContent.setLayoutParams(contentLayoutParams);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences prefs = new com.winlator.cmod.core.MmkvPreferences();
         boolean isDarkMode = prefs.getBoolean("dark_mode", false) || steamStyledMode || steamComposeHostMode;
 
         applyDynamicStyles(findViewById(R.id.LLContent), isDarkMode);
@@ -182,7 +182,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         tvGraphicsDriverVersion = findViewById(R.id.TVGraphicsDriverVersion);
 
         // Get the shared preferences and check the legacy mode status
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
         boolean isLegacyModeEnabled = preferences.getBoolean("legacy_mode_enabled", false);
 
         final EditText etName = findViewById(R.id.ETName);
@@ -1852,7 +1852,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         dialog.showOnUiThread(R.string.loading_component_versions);
 
         new Thread(() -> {
-            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+            SharedPreferences sp = new com.winlator.cmod.core.MmkvPreferences();
             String contentsURL = sp.getString("downloadable_contents_url", "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json");
             String json = Downloader.downloadString(contentsURL);
             dialog.closeOnUiThread();

@@ -48,7 +48,7 @@ public class ContentDialog extends Dialog {
         contentView = LayoutInflater.from(getContext()).inflate(R.layout.content_dialog, null);
 
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         isDarkMode = forceDarkMode || shouldUseDarkDialog(context);
 
 //        contentView.setBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark: R.drawable.content_dialog_background);
@@ -85,7 +85,7 @@ public class ContentDialog extends Dialog {
     }
 
     public static boolean shouldUseDarkDialog(Context context) {
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         if (sharedPreferences.getBoolean("dark_mode", false)) {
             return true;
         }
@@ -226,7 +226,7 @@ public class ContentDialog extends Dialog {
 
         final EditText editText = dialog.findViewById(R.id.EditText);
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences sharedPreferences = new com.winlator.cmod.core.MmkvPreferences();
         boolean isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
         applyDarkThemeToEditText(editText, isDarkMode);
 

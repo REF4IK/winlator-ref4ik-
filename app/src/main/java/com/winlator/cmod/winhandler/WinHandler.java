@@ -189,7 +189,7 @@ public class WinHandler {
 
     public WinHandler(XServerDisplayActivity activity) {
         this.activity = activity;
-        preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
     }
     private boolean sendPacket(int port) {
         try {
@@ -401,7 +401,7 @@ public class WinHandler {
 
 
 
-                preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+                preferences = new com.winlator.cmod.core.MmkvPreferences();
 
                 gyroTriggerButton = preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
                 isToggleMode = preferences.getInt("gyro_mode", 0) == 1; // 1 is toggle mode, 0 is hold mode

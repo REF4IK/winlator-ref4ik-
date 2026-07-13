@@ -71,7 +71,7 @@ public class SavesFragment extends Fragment {
         containerManager = new ContainerManager(getContext());
 
         // Initialize isDarkMode based on shared preferences or theme
-        isDarkMode = PreferenceManager.getDefaultSharedPreferences(getContext())
+        isDarkMode = new com.winlator.cmod.core.MmkvPreferences()
                 .getBoolean("dark_mode", false);
     }
 

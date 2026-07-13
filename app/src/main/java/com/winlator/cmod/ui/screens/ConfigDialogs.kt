@@ -35,6 +35,7 @@ import com.winlator.cmod.widget.SeekBar
 import android.util.Log
 import android.net.Uri
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.contents.ContentsManager
 import com.winlator.cmod.contents.ContentProfile
 import com.winlator.cmod.contents.AdrenotoolsManager
@@ -805,7 +806,7 @@ fun DXVKConfigDialogCompose(
                         isLoadingRemote = true
                         coroutineScope.launch(Dispatchers.IO) {
                             try {
-                                val sp = PreferenceManager.getDefaultSharedPreferences(context)
+                                val sp = MmkvPreferences()
                                 val contentsURL = sp.getString("downloadable_contents_url",
                                     "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json")
                                 val json = Downloader.downloadString(contentsURL)
@@ -1450,7 +1451,7 @@ fun ContentDownloadDialogCompose(
                 // Ensure contentsManager syncContents is called
                 contentsManager.syncContents()
 
-                val sp = PreferenceManager.getDefaultSharedPreferences(context)
+                val sp = MmkvPreferences()
                 val contentsURL = sp.getString("downloadable_contents_url",
                     "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json")
                 val json = Downloader.downloadString(contentsURL)

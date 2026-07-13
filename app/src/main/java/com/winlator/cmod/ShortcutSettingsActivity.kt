@@ -7,6 +7,7 @@ import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
 import com.winlator.cmod.ui.screens.ShortcutSettingsScreen
+import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.ui.theme.WinlatorTheme
 import java.io.File
 
@@ -37,7 +38,7 @@ class ShortcutSettingsActivity : ComponentActivity() {
         val shortcut = Shortcut(container, shortcutFile)
 
         setContent {
-            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            val prefs = MmkvPreferences()
             val isDarkMode = prefs.getBoolean("dark_mode", false)
             WinlatorTheme(darkTheme = isDarkMode) {
                 ShortcutSettingsScreen(

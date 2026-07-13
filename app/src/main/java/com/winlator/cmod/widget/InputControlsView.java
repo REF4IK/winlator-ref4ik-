@@ -117,12 +117,11 @@ public class InputControlsView extends View {
         setBackgroundColor(0x00000000);
         setPointerIcon(PointerIcon.load(getResources(), R.drawable.hidden_pointer_arrow));
         setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
         customIconManager = new CustomIconManager(context);
         iconPackManager = new IconPackManager(context);
     }
 
-    @SuppressLint("ResourceType")
     public InputControlsView(Context context, Handler timeoutHandler, Runnable hideControlsRunnable) {
         super(context);
         this.timeoutHandler = timeoutHandler; // Store the reference to timeout handler
@@ -134,7 +133,7 @@ public class InputControlsView extends View {
         setBackgroundColor(0x00000000);
         setPointerIcon(PointerIcon.load(getResources(), R.drawable.hidden_pointer_arrow));
         setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
         customIconManager = new CustomIconManager(context);
         iconPackManager = new IconPackManager(context);
     }
@@ -155,7 +154,7 @@ public class InputControlsView extends View {
             setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
 
-        preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
+        preferences = new com.winlator.cmod.core.MmkvPreferences();
         customIconManager = new CustomIconManager(context);
         iconPackManager = new IconPackManager(context);
     }

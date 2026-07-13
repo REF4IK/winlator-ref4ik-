@@ -57,7 +57,7 @@ public class InputControlsManager {
             return;
         }
 
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = new com.winlator.cmod.core.MmkvPreferences();
 
         int newVersion = AppUtils.getVersionCode(context);
         int oldVersion = preferences.getInt("inputcontrols_app_version", 0);

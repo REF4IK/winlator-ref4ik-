@@ -20,6 +20,7 @@ import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import android.os.Build.VERSION.SDK_INT
+import com.tencent.mmkv.MMKV
 
 class PluviaApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
@@ -37,6 +38,8 @@ class PluviaApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        MMKV.initialize(this)
 
         Security.removeProvider("BC")
         Security.addProvider(BouncyCastleProvider())
