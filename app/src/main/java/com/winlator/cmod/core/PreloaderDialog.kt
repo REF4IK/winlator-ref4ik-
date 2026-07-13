@@ -9,33 +9,42 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
 import com.winlator.cmod.R
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 class PreloaderDialog(private val activity: Activity) {
     private var dialog: Dialog? = null
 
-    // Compose states
     private var isVisible by mutableStateOf(false)
     private var titleText by mutableStateOf<CharSequence?>(null)
     private var subtitleText by mutableStateOf<CharSequence?>(null)
     private var stageText by mutableStateOf<CharSequence?>(null)
     private var coverArtBitmap by mutableStateOf<Bitmap?>(null)
+
+    private var exitTriggered by mutableStateOf(false)
+    private var onFadeOutComplete: (() -> Unit)? = null
 
     private fun create() {
         if (dialog != null) return
@@ -48,7 +57,7 @@ class PreloaderDialog(private val activity: Activity) {
                 setContent {
                     val isDark = com.winlator.cmod.contentdialog.ContentDialog.shouldUseDarkDialog(activity)
                     com.winlator.cmod.ui.theme.WinlatorTheme(darkTheme = isDark) {
-                        PreloaderContent()
+                        SteamDeckBootScreen()
                     }
                 }
             }
@@ -59,7 +68,6 @@ class PreloaderDialog(private val activity: Activity) {
                 win.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
             }
 
-            // Set ViewTree owners via reflection
             try {
                 val viewClass = Class.forName("android.view.View")
                 val viewTreeLifecycleOwnerClass = Class.forName("androidx.lifecycle.ViewTreeLifecycleOwner")
@@ -84,27 +92,37 @@ class PreloaderDialog(private val activity: Activity) {
     }
 
     @Composable
-    private fun PreloaderContent() {
-        var dots by remember { mutableStateOf("") }
-        LaunchedEffect(stageText) {
-            var count = 0
-            while (true) {
-                dots = ".".repeat(count)
-                count = (count + 1) % 4
-                delay(400)
-            }
+    private fun SteamDeckBootScreen() {
+        var visible by remember { mutableStateOf(false) }
+        var stageAlpha by remember { mutableStateOf(1f) }
+        var prevStage by remember { mutableStateOf("") }
+
+        LaunchedEffect(Unit) {
+            visible = true
         }
+
+        LaunchedEffect(stageText) {
+            stageText?.let { prevStage = it.toString() }
+            stageAlpha = 0f
+            delay(50)
+            stageAlpha = 1f
+        }
+
+        val infiniteTransition = rememberInfiniteTransition()
+        val glowAlpha by infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 0.7f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2000, easing = EaseInOutCubic),
+                repeatMode = RepeatMode.Reverse
+            )
+        )
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color(0xFF16151A), Color(0xFF0C0B0E))
-                    )
-                )
+                .background(Color(0xFF0E1117))
         ) {
-            // Blurred cover art background
             coverArtBitmap?.let { bmp ->
                 Image(
                     bitmap = bmp.asImageBitmap(),
@@ -112,59 +130,163 @@ class PreloaderDialog(private val activity: Activity) {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .blur(20.dp)
-                        .alpha(0.35f)
+                        .alpha(0.15f)
+                        .graphicsLayer { alpha = 0.15f + glowAlpha * 0.08f }
                 )
             }
 
-            // Centered layout
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0x00000000),
+                                Color(0x80000000)
+                            ),
+                            radius = 1.2f
+                        )
+                    )
+            )
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(32.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(horizontal = 48.dp, vertical = 64.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                val displayTitle = titleText?.toString() ?: activity.getString(R.string.app_name)
-                Text(
-                    text = displayTitle,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    letterSpacing = 0.5.sp
-                )
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(800)) + scaleIn(initialScale = 0.92f, animationSpec = tween(800, easing = EaseOutCubic))
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        coverArtBitmap?.let { bmp ->
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(max = 400.dp)
+                                    .aspectRatio(16f / 9f)
+                                    .shadow(24.dp, RoundedCornerShape(12.dp), ambientColor = Color(0x4000A5FF), spotColor = Color(0x4000A5FF))
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF1A1D24))
+                            ) {
+                                Image(
+                                    bitmap = bmp.asImageBitmap(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
 
-                subtitleText?.toString()?.let { subtitle ->
-                    if (subtitle.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color(0x00FFFFFF),
+                                                    Color(0x00FFFFFF),
+                                                    Color(0x80000000)
+                                                )
+                                            )
+                                        )
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(32.dp))
+                        }
+
+                        val displayTitle = titleText?.toString() ?: activity.getString(R.string.app_name)
                         Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color.White.copy(alpha = 0.6f),
-                            letterSpacing = 1.sp
+                            text = displayTitle,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Light,
+                            color = Color.White,
+                            letterSpacing = 2.sp,
+                            textAlign = TextAlign.Center
                         )
+
+                        subtitleText?.toString()?.let { subtitle ->
+                            if (subtitle.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = subtitle,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFFA0A5B0),
+                                    letterSpacing = 1.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(48.dp))
 
-                LinearProgressIndicator(
-                    modifier = Modifier.width(240.dp).height(3.dp),
-                    color = Color(0xFF26C6BE),
-                    trackColor = Color.White.copy(alpha = 0.1f)
-                )
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(1500, delayMillis = 500))
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        LoadingBar()
 
-                val displayStage = stageText?.toString() ?: ""
-                if (displayStage.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = stripTrailingDots(displayStage) + dots,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.85f)
-                    )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val displayStage = stageText?.toString() ?: ""
+                        AnimatedContent(
+                            targetState = displayStage,
+                            transitionSpec = {
+                                fadeIn(tween(300)) togetherWith fadeOut(tween(200))
+                            }
+                        ) { stage ->
+                            if (stage.isNotEmpty()) {
+                                Text(
+                                    text = stage,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF6B7280),
+                                    letterSpacing = 0.5.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun LoadingBar() {
+        val infiniteTransition = rememberInfiniteTransition()
+        val offset by infiniteTransition.animateFloat(
+            initialValue = -200f,
+            targetValue = 200f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = EaseInOutCubic),
+                repeatMode = RepeatMode.Restart
+            )
+        )
+
+        Box(
+            modifier = Modifier
+                .width(160.dp)
+                .height(2.dp)
+                .background(Color(0xFF1E2230))
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(offset.roundToInt(), 0) }
+                    .width(60.dp)
+                    .height(2.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0x0000A5FF),
+                                Color(0xFF00A5FF),
+                                Color(0x0000A5FF)
+                            )
+                        )
+                    )
+            )
         }
     }
 
@@ -173,6 +295,7 @@ class PreloaderDialog(private val activity: Activity) {
         if (isShowing()) return
         close()
         if (dialog == null) create()
+        exitTriggered = false
         stageText = activity.getString(textResId)
         dialog?.show()
         isVisible = true
@@ -236,21 +359,13 @@ class PreloaderDialog(private val activity: Activity) {
     }
 
     fun closeOnUiThread() {
-        activity.runOnUiThread { close() }
+        activity.runOnUiThread {
+            exitTriggered = true
+            close()
+        }
     }
 
     fun isShowing(): Boolean {
         return dialog != null && dialog!!.isShowing
-    }
-
-    private fun stripTrailingDots(s: String?): String {
-        if (s == null) return ""
-        var end = s.length
-        while (end > 0) {
-            val c = s[end - 1]
-            if (c == '.' || c == '\u2026' || c == ' ') end--
-            else break
-        }
-        return s.substring(0, end)
     }
 }
