@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.IntOffset
 import com.winlator.cmod.R
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import coil.compose.AsyncImage
 
 class PreloaderDialog(private val activity: Activity) {
     private var dialog: Dialog? = null
@@ -42,6 +43,7 @@ class PreloaderDialog(private val activity: Activity) {
     private var subtitleText by mutableStateOf<CharSequence?>(null)
     private var stageText by mutableStateOf<CharSequence?>(null)
     private var coverArtBitmap by mutableStateOf<Bitmap?>(null)
+    private var _steamAppId by mutableStateOf<String?>(null)
 
     private var exitTriggered by mutableStateOf(false)
     private var onFadeOutComplete: (() -> Unit)? = null
@@ -121,112 +123,127 @@ class PreloaderDialog(private val activity: Activity) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0E1117))
+                .background(Color(0xFF0F1016))
         ) {
-            coverArtBitmap?.let { bmp ->
-                Image(
-                    bitmap = bmp.asImageBitmap(),
+            val appId = _steamAppId?.toIntOrNull()
+
+            // Full-screen background: Steam Hero Image or Local Cover Art
+            if (appId != null && appId > 0) {
+                val heroUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/library_hero.jpg"
+                val capsuleUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/capsule_616x353.jpg"
+                var backgroundModel by remember(appId) { mutableStateOf<Any>(heroUrl) }
+
+                AsyncImage(
+                    model = backgroundModel,
+                    onError = {
+                        if (backgroundModel == heroUrl) {
+                            backgroundModel = capsuleUrl
+                        }
+                    },
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .alpha(0.15f)
-                        .graphicsLayer { alpha = 0.15f + glowAlpha * 0.08f }
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                coverArtBitmap?.let { bmp ->
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
 
+            // Full-screen gradient overlay (transparent top → dark bottom)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.radialGradient(
+                        Brush.verticalGradient(
                             colors = listOf(
-                                Color(0x00000000),
-                                Color(0x80000000)
-                            ),
-                            radius = 1.2f
+                                Color.Black.copy(alpha = 0.05f),
+                                Color.Black.copy(alpha = 0.25f),
+                                Color.Black.copy(alpha = 0.65f),
+                                Color(0xDD0F1016)
+                            )
                         )
                     )
             )
 
+            // Game logo overlay (if Steam App ID is present)
+            if (appId != null && appId > 0) {
+                val logoUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/logo.png"
+                AsyncImage(
+                    model = logoUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .height(72.dp)
+                        .fillMaxWidth(0.5f)
+                        .align(Alignment.TopStart)
+                        .padding(start = 24.dp, top = 24.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            // Content Column (aligned to BottomStart for that premium Steam Deck overlay look)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 48.dp, vertical = 64.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .padding(horizontal = 32.dp, vertical = 48.dp),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.Bottom
             ) {
                 AnimatedVisibility(
                     visible = visible,
-                    enter = fadeIn(tween(800)) + scaleIn(initialScale = 0.92f, animationSpec = tween(800, easing = EaseOutCubic))
+                    enter = fadeIn(tween(800)) + scaleIn(initialScale = 0.95f, animationSpec = tween(800, easing = EaseOutCubic))
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        coverArtBitmap?.let { bmp ->
-                            Box(
-                                modifier = Modifier
-                                    .widthIn(max = 400.dp)
-                                    .aspectRatio(16f / 9f)
-                                    .shadow(24.dp, RoundedCornerShape(12.dp), ambientColor = Color(0x4000A5FF), spotColor = Color(0x4000A5FF))
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF1A1D24))
-                            ) {
-                                Image(
-                                    bitmap = bmp.asImageBitmap(),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color(0x00FFFFFF),
-                                                    Color(0x00FFFFFF),
-                                                    Color(0x80000000)
-                                                )
-                                            )
-                                        )
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(32.dp))
-                        }
-
+                    Column(
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         val displayTitle = titleText?.toString() ?: activity.getString(R.string.app_name)
-                        Text(
-                            text = displayTitle,
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Light,
-                            color = Color.White,
-                            letterSpacing = 2.sp,
-                            textAlign = TextAlign.Center
-                        )
+                        val displaySubtitle = subtitleText?.toString()
 
-                        subtitleText?.toString()?.let { subtitle ->
-                            if (subtitle.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = subtitle,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFFA0A5B0),
-                                    letterSpacing = 1.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                        // Only show title if we don't have a Steam logo (to avoid duplicate title display)
+                        if (appId == null || appId <= 0) {
+                            Text(
+                                text = displayTitle,
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    shadow = Shadow(
+                                        color = Color.Black.copy(alpha = 0.9f),
+                                        offset = Offset(2f, 4f),
+                                        blurRadius = 8f
+                                    )
+                                ),
+                                fontSize = 36.sp,
+                                color = Color.White,
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
                         }
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(48.dp))
+                        if (!displaySubtitle.isNullOrEmpty()) {
+                            Text(
+                                text = displaySubtitle,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    shadow = Shadow(
+                                        color = Color.Black.copy(alpha = 0.9f),
+                                        offset = Offset(1f, 2f),
+                                        blurRadius = 4f
+                                    )
+                                ),
+                                fontSize = 18.sp,
+                                color = Color(0xFFD3E0F6),
+                                letterSpacing = 0.3.sp
+                            )
+                        }
 
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = fadeIn(tween(1500, delayMillis = 500))
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(modifier = Modifier.height(40.dp))
+
+                        // Loading bar
                         LoadingBar()
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -241,10 +258,16 @@ class PreloaderDialog(private val activity: Activity) {
                             if (stage.isNotEmpty()) {
                                 Text(
                                     text = stage,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF6B7280),
-                                    letterSpacing = 0.5.sp,
-                                    textAlign = TextAlign.Center
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        shadow = Shadow(
+                                            color = Color.Black.copy(alpha = 0.9f),
+                                            offset = Offset(1f, 2f),
+                                            blurRadius = 4f
+                                        )
+                                    ),
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    letterSpacing = 0.5.sp
                                 )
                             }
                         }
@@ -308,6 +331,11 @@ class PreloaderDialog(private val activity: Activity) {
     @Synchronized
     fun setTitle(title: CharSequence?) {
         this.titleText = title
+    }
+
+    @Synchronized
+    fun setSteamAppId(steamAppId: String?) {
+        this._steamAppId = steamAppId
     }
 
     @Synchronized

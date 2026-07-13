@@ -1320,6 +1320,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         if (preloaderSubtitle != null) preloaderDialog.setSubtitle(preloaderSubtitle);
 
+        if (shortcut != null) {
+            preloaderDialog.setSteamAppId(shortcut.getExtra("steamAppId"));
+        }
+
         preloaderDialog.show(R.string.starting_up);
 
 
@@ -1334,30 +1338,41 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 Bitmap coverBitmap = null;
 
-                if (customCoverPath != null && !customCoverPath.isEmpty()) {
-
-                    coverBitmap = BitmapFactory.decodeFile(customCoverPath);
-
+                // 1. Landscape cover (grid card — 920x430)
+                if (coverBitmap == null && shortcutNameForCover != null) {
+                    java.io.File landscapeFile = new java.io.File(
+                            getFilesDir(), "coverArtCache/" + shortcutNameForCover + "_l.png");
+                    if (landscapeFile.exists()) {
+                        coverBitmap = BitmapFactory.decodeFile(landscapeFile.getAbsolutePath());
+                    }
                 }
 
+                // 2. Custom cover
+                if (coverBitmap == null && customCoverPath != null && !customCoverPath.isEmpty()) {
+                    coverBitmap = BitmapFactory.decodeFile(customCoverPath);
+                }
+
+                // 3. Portrait cover (game info card — 600x900)
                 if (coverBitmap == null && shortcutNameForCover != null) {
-
-                    java.io.File cacheFile = new java.io.File(
-
+                    java.io.File portraitFile = new java.io.File(
                             getFilesDir(), "coverArtCache/" + shortcutNameForCover + ".png");
-
-                    if (cacheFile.exists()) {
-
-                        coverBitmap = BitmapFactory.decodeFile(cacheFile.getAbsolutePath());
-
+                    if (portraitFile.exists()) {
+                        coverBitmap = BitmapFactory.decodeFile(portraitFile.getAbsolutePath());
                     }
+                }
 
+                // 4. Container cover arts directory
+                if (coverBitmap == null && shortcutNameForCover != null) {
+                    java.io.File containerCover = new java.io.File(
+                            shortcut.container.getRootDir(),
+                            "app_data/cover_arts/" + shortcutNameForCover + ".png");
+                    if (containerCover.exists()) {
+                        coverBitmap = BitmapFactory.decodeFile(containerCover.getAbsolutePath());
+                    }
                 }
 
                 if (coverBitmap != null) {
-
                     preloaderDialog.setCoverArtOnUiThread(coverBitmap);
-
                 }
 
             });
