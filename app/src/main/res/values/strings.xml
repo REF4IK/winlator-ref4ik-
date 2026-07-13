@@ -54,6 +54,8 @@
     <string name="app_language_russian">Russian</string>
     <string name="app_language_system">System default</string>
     <string name="app_language_chinese">Chinese</string>
+    <string name="app_language_portuguese">Portuguese</string>
+    <string name="app_language_portuguese_brazil">Portuguese (Brazil)</string>
     <string name="transition_animation">Transition Animation</string>
     <string name="terminal_command_hint">Enter command</string>
     <string name="terminal_execute">Execute</string>

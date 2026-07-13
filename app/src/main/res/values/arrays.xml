@@ -520,6 +520,8 @@
         <item>@string/app_language_english</item>
         <item>@string/app_language_russian</item>
         <item>@string/app_language_chinese</item>
+        <item>@string/app_language_portuguese</item>
+        <item>@string/app_language_portuguese_brazil</item>
     </string-array>
     
     <string-array name="app_languages_values">
@@ -527,6 +529,8 @@
         <item>en</item>
         <item>ru</item>
         <item>zh</item>
+        <item>pt</item>
+        <item>pt-rBR</item>
     </string-array>
     
     <string-array name="transition_animations">

@@ -1306,19 +1306,21 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
 
     private void applyLanguage(String languageCode) {
         if ("system".equals(languageCode)) {
-            // Reset to system default
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(androidx.core.os.LocaleListCompat.getEmptyLocaleList());
         } else if ("en".equals(languageCode)) {
-            // Set to English
             androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("en");
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
         } else if ("ru".equals(languageCode)) {
-            // Set to Russian
             androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("ru");
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
         } else if ("zh".equals(languageCode)) {
-            // Set to Chinese
             androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("zh");
+            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
+        } else if ("pt".equals(languageCode)) {
+            androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("pt");
+            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
+        } else if ("pt-rBR".equals(languageCode)) {
+            androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("pt-rBR");
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
         }
     }

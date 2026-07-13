@@ -53,6 +53,8 @@
     <string name="app_language_russian">Русский</string>
     <string name="app_language_chinese">Китайский</string>
     <string name="app_language_system">Системный по умолчанию</string>
+    <string name="app_language_portuguese">Португальский</string>
+    <string name="app_language_portuguese_brazil">Португальский (Бразилия)</string>
     <string name="transition_animation">Анимация переходов</string>
     <string name="terminal">&#x0422;&#x0435;&#x0440;&#x043C;&#x0438;&#x043D;&#x0430;&#x043B;</string>
     <string name="animation_slide_vertical">Вертикальное скольжение</string>

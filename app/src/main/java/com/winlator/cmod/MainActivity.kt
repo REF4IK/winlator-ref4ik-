@@ -253,6 +253,15 @@ class MainActivity : AppCompatActivity() {
             "ru" -> androidx.core.os.LocaleListCompat.forLanguageTags("ru").let {
                 androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
             }
+            "zh" -> androidx.core.os.LocaleListCompat.forLanguageTags("zh").let {
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
+            }
+            "pt" -> androidx.core.os.LocaleListCompat.forLanguageTags("pt").let {
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
+            }
+            "pt-rBR" -> androidx.core.os.LocaleListCompat.forLanguageTags("pt-rBR").let {
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
+            }
         }
     }
 
