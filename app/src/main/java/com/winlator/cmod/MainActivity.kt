@@ -259,7 +259,7 @@ class MainActivity : AppCompatActivity() {
             "pt" -> androidx.core.os.LocaleListCompat.forLanguageTags("pt").let {
                 androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
             }
-            "pt-rBR" -> androidx.core.os.LocaleListCompat.forLanguageTags("pt-rBR").let {
+            "pt-rBR" -> androidx.core.os.LocaleListCompat.forLanguageTags("pt-BR").let {
                 androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
             }
         }

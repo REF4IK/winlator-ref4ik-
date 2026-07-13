@@ -1585,6 +1585,41 @@
     <string name="sf_compat_mode">Режим совместимости</string>
     <string name="sf_compat_mode_description">Конвертировать BGRA в RGBA. Некоторые драйверы поддерживают BGRA изначально; отключение может уменьшить лаги.</string>
     <string name="add_ib_icon_pack">Импортировать пак иконок Input Bridge (.ipk)</string>
+<string name="dark_mode">Тёмная тема</string>
+    <string name="language">Язык</string>
+    <string name="gyro_settings">Гироскоп</string>
+    <string name="sound_audio">Звук</string>
+    <string name="gyro_mode">Режим гироскопа</string>
+    <string name="gyro_calibration">Калибровка гироскопа</string>
+    <string name="gyro_activation_button">Кнопка активации</string>
+    <string name="not_installed">Не установлен</string>
+    <string name="installed_at">Установлен: %1$s</string>
+    <string name="installed_bundled">Bundled</string>
+    <string name="turbo_unavailable">Turbo Mode недоступен (нет root)</string>
+    <string name="calibration_hint">Калибровка: откройте гироскоп в игре</string>
+    <string name="sticks_hint">Настройка стиков: используйте в Input Controls</string>
+    <string name="select_soundfont_hint">Выберите SoundFont в списке ниже</string>
+    <string name="remove_error">Ошибка удаления</string>
+    <string name="xr_mode">XR режим</string>
+    <string name="dri3">DRI3</string>
+    <string name="true_mouse_control">True Mouse Control (Cursor Lock)</string>
+    <string name="disable_xinput">Disable Xinput</string>
+    <string name="wine_debug">Wine Debug</string>
+    <string name="box86_64_logs">Box86/64 логи</string>
+    <string name="legacy_input_mode">Legacy Input Mode 7.1.2</string>
+    <string name="default_soundfont">Default</string>
+    <string name="frontend_export_path">Frontend Export Path</string>
+    <string name="lossless_scaling_dll">Lossless Scaling DLL</string>
+    <string name="max_gpu_frequency">Max GPU Frequency (Adreno)</string>
+    <string name="enable_gyroscope">Enable Gyroscope</string>
+    <string name="file_provider">File Provider</string>
+    <string name="open_with_browser">Open with Android Browser</string>
+    <string name="share_clipboard">Share Android Clipboard</string>
+    <string name="backup_data">Backup Data</string>
+    <string name="restore_data">Restore Data</string>
+    <string name="backup_completed">Backup completed</string>
+    <string name="backup_failed">Backup failed.</string>
+    <string name="adreno_turbo">Adreno Turbo</string>
+    <string name="xserver_section">XServer</string>
+    <string name="gpu_performance_section">GPU Performance</string>
 </resources>
-
-

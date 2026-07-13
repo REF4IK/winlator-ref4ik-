@@ -1599,6 +1599,41 @@
     <string name="start_using">Start using</string>
     <string name="can_change_in_settings">Can be changed anytime in Settings → Appearance</string>
     <string name="add_ib_icon_pack">Import Input Bridge Icon Pack (.ipk)</string>
+<string name="dark_mode">Dark Mode</string>
+    <string name="language">Language</string>
+    <string name="gyro_settings">Gyro Settings</string>
+    <string name="sound_audio">Sound</string>
+    <string name="gyro_mode">Gyro Mode</string>
+    <string name="gyro_calibration">Gyro Calibration</string>
+    <string name="gyro_activation_button">Activation Button</string>
+    <string name="not_installed">Not installed</string>
+    <string name="installed_at">Installed at</string>
+    <string name="installed_bundled">Bundled</string>
+    <string name="turbo_unavailable">Turbo Mode unavailable (no root)</string>
+    <string name="calibration_hint">Calibration: open gyro in game</string>
+    <string name="sticks_hint">Stick config: use Input Controls</string>
+    <string name="select_soundfont_hint">Select SoundFont from the list below</string>
+    <string name="remove_error">Remove error</string>
+    <string name="xr_mode">XR Mode</string>
+    <string name="dri3">DRI3</string>
+    <string name="true_mouse_control">True Mouse Control (Cursor Lock)</string>
+    <string name="disable_xinput">Disable Xinput</string>
+    <string name="wine_debug">Wine Debug</string>
+    <string name="box86_64_logs">Box86/64 Logs</string>
+    <string name="legacy_input_mode">Legacy Input Mode 7.1.2</string>
+    <string name="default_soundfont">Default</string>
+    <string name="frontend_export_path">Frontend Export Path</string>
+    <string name="lossless_scaling_dll">Lossless Scaling DLL</string>
+    <string name="max_gpu_frequency">Max GPU Frequency (Adreno)</string>
+    <string name="enable_gyroscope">Enable Gyroscope</string>
+    <string name="file_provider">File Provider</string>
+    <string name="open_with_browser">Open with Android Browser</string>
+    <string name="share_clipboard">Share Android Clipboard</string>
+    <string name="backup_data">Backup Data</string>
+    <string name="restore_data">Restore Data</string>
+    <string name="backup_completed">Backup completed</string>
+    <string name="backup_failed">Backup failed.</string>
+    <string name="adreno_turbo">Adreno Turbo</string>
+    <string name="xserver_section">XServer</string>
+    <string name="gpu_performance_section">GPU Performance</string>
 </resources>
-
-

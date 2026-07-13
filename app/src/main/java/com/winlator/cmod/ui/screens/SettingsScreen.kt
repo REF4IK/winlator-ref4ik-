@@ -169,7 +169,7 @@ fun SettingsScreen(
     }
 
     // ---- Списки для диалогов ----
-    val languageOptions = listOf("system" to "Системный", "en" to "English", "ru" to "Русский", "zh" to "中文")
+    val languageOptions = listOf("system" to ctx.getString(com.winlator.cmod.R.string.app_language_system), "en" to "English", "ru" to "Русский", "zh" to "中文", "pt" to "Português", "pt-rBR" to "Português (Brasil)")
     val animOptions = listOf("none" to "None", "slide_vertical" to "Slide Vertical", "slide_horizontal" to "Slide Horizontal", "fade" to "Fade", "zoom" to "Zoom")
     val triggerOptions = listOf(0 to "Is Button", 1 to "Is Axis", 2 to "Is Mixed")
     val gyroModeOptions = listOf(0 to "Hold Mode", 1 to "Toggle Mode")
@@ -182,7 +182,7 @@ fun SettingsScreen(
         android.view.KeyEvent.KEYCODE_BUTTON_THUMBR to "Right Stick",
     )
 
-    fun langLabel(v: String) = languageOptions.firstOrNull { it.first == v }?.second ?: "Системный"
+    fun langLabel(v: String) = languageOptions.firstOrNull { it.first == v }?.second ?: ctx.getString(com.winlator.cmod.R.string.app_language_system)
     fun animLabel(v: String) = animOptions.firstOrNull { it.first == v }?.second ?: "None"
     fun trigLabel(v: Int) = triggerOptions.firstOrNull { it.first == v }?.second ?: "Is Axis"
     fun gyroModeLabel(v: Int) = gyroModeOptions.firstOrNull { it.first == v }?.second ?: "Hold Mode"
@@ -195,11 +195,11 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // 2. Тема
-            SectionHeader("Тема", Icons.Filled.Palette)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.theme), Icons.Filled.Palette)
             SettingsCard {
                 SettingsCheckRow(
                     icon = Icons.Filled.DarkMode,
-                    title = "Тёмная тема",
+                    title = stringResource(com.winlator.cmod.R.string.dark_mode),
                     checked = darkMode,
                     onCheckedChange = {
                         darkMode = it
@@ -210,7 +210,7 @@ fun SettingsScreen(
                 SettingsDivider()
                 SettingsClickRow(
                     icon = Icons.Filled.Language,
-                    title = "Язык",
+                    title = stringResource(com.winlator.cmod.R.string.language),
                     subtitle = langLabel(appLanguage),
                     onClick = { showLanguageDialog = true }
                 )
@@ -305,28 +305,28 @@ fun SettingsScreen(
             }
 
             // 3. Shortcuts
-            SectionHeader("Shortcut Settings", Icons.Filled.Shortcut)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.shortcut_settings), Icons.Filled.Shortcut)
             SettingsCard {
                 SettingsClickRow(
                     icon = Icons.Filled.Folder,
-                    title = "Frontend Export Path",
+                    title = stringResource(com.winlator.cmod.R.string.frontend_export_path),
                     subtitle = prefs.getString("frontend_export_uri", null) ?: "Downloads/Winlator/Frontend",
                     onClick = { frontendPathLauncher.launch(null) }
                 )
             }
 
             // 4. Frame Generation
-            SectionHeader("Frame Generation", Icons.Filled.Speed)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.frame_generation), Icons.Filled.Speed)
             SettingsCard {
                 SettingsClickRow(
                     icon = Icons.Filled.Memory,
-                    title = "Lossless Scaling DLL",
+                    title = stringResource(com.winlator.cmod.R.string.lossless_scaling_dll),
                     subtitle = run {
                         val dllPath = try { com.winlator.cmod.core.LsfgVkManager.globalDllPath(ctx) } catch (_: Exception) { null }
                         when {
-                            dllPath != null -> "Установлен: $dllPath"
-                            try { com.winlator.cmod.core.LsfgVkManager.isBundledDllAvailable(ctx) } catch (_: Exception) { false } -> "Bundled"
-                            else -> "Не установлен"
+                            dllPath != null -> stringResource(com.winlator.cmod.R.string.installed_at, dllPath)
+                            try { com.winlator.cmod.core.LsfgVkManager.isBundledDllAvailable(ctx) } catch (_: Exception) { false } -> stringResource(com.winlator.cmod.R.string.installed_bundled)
+                            else -> stringResource(com.winlator.cmod.R.string.not_installed)
                         }
                     },
                     onClick = { losslessDllLauncher.launch(arrayOf("*/*")) }
@@ -334,11 +334,11 @@ fun SettingsScreen(
             }
 
             // 5. XServer
-            SectionHeader("XServer", Icons.Filled.DesktopWindows)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.xserver_section), Icons.Filled.DesktopWindows)
             SettingsCard {
                 SettingsClickRow(
                     icon = Icons.Filled.Mouse,
-                    title = "Скорость курсора",
+                    title = stringResource(com.winlator.cmod.R.string.cursor_speed),
                     subtitle = "${(cursorSpeed * 100).toInt()}%",
                     onClick = {
                         cursorSpeedSlider = (cursorSpeed * 100).toInt()
@@ -348,35 +348,35 @@ fun SettingsScreen(
                 SettingsDivider()
                 SettingsCheckRow(
                     icon = Icons.Filled.Bolt,
-                    title = "DRI3",
+                    title = stringResource(com.winlator.cmod.R.string.dri3),
                     checked = useDri3,
                     onCheckedChange = { useDri3 = it; saveBool("use_dri3", it) }
                 )
                 SettingsDivider()
                 SettingsCheckRow(
                     icon = Icons.Filled.ViewInAr,
-                    title = "XR режим",
+                    title = stringResource(com.winlator.cmod.R.string.xr_mode),
                     checked = useXr,
                     onCheckedChange = { useXr = it; saveBool("use_xr", it) }
                 )
                 SettingsDivider()
                 SettingsCheckRow(
                     icon = Icons.Filled.Lock,
-                    title = "True Mouse Control (Cursor Lock)",
+                    title = stringResource(com.winlator.cmod.R.string.true_mouse_control),
                     checked = cursorLock,
                     onCheckedChange = { cursorLock = it; saveBool("cursor_lock", it) }
                 )
                 SettingsDivider()
                 SettingsCheckRow(
                     icon = Icons.Filled.TouchApp,
-                    title = "Disable Xinput",
+                    title = stringResource(com.winlator.cmod.R.string.disable_xinput),
                     checked = xinputToggle,
                     onCheckedChange = { xinputToggle = it; saveBool("xinput_toggle", it) }
                 )
             }
 
             // 6. GPU Performance
-            SectionHeader("GPU Performance", Icons.Filled.Memory)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.gpu_performance_section), Icons.Filled.Memory)
             SettingsCard {
                 SettingsButtonRow(
                     icon = Icons.Filled.Speed,
@@ -386,11 +386,11 @@ fun SettingsScreen(
             }
 
             // 7. Adreno Turbo
-            SectionHeader("Adreno Turbo", Icons.Filled.FlashOn)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.adreno_turbo), Icons.Filled.FlashOn)
             SettingsCard {
                 SettingsCheckRow(
                     icon = Icons.Filled.FlashOn,
-                    title = "Max GPU Frequency (Adreno)",
+                    title = stringResource(com.winlator.cmod.R.string.max_gpu_frequency),
                     checked = adrenoTurbo,
                     onCheckedChange = {
                         try {
@@ -400,7 +400,7 @@ fun SettingsScreen(
                                 saveBool("adreno_turbo_mode", it)
                                 toast(ctx.getString(if (it) com.winlator.cmod.R.string.adreno_turbo_enabled else com.winlator.cmod.R.string.adreno_turbo_disabled))
                             } else {
-                                toast("Turbo Mode недоступен (нет root)")
+                                toast(com.winlator.cmod.R.string.turbo_unavailable)
                             }
                         } catch (e: Exception) {
                             toast("Turbo: ${e.message}")
@@ -410,86 +410,86 @@ fun SettingsScreen(
             }
 
             // 8. Gyro
-            SectionHeader("Gyro Settings", Icons.Filled.RotateRight)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.gyro_settings), Icons.Filled.RotateRight)
             SettingsCard {
                 SettingsCheckRow(
                     icon = Icons.Filled.GpsFixed,
-                    title = "Enable Gyroscope",
+                    title = stringResource(com.winlator.cmod.R.string.enable_gyroscope),
                     checked = gyroEnabled,
                     onCheckedChange = { gyroEnabled = it; saveBool("gyro_enabled", it) }
                 )
                 SettingsDivider()
                 SettingsClickRow(
                     icon = Icons.Filled.Gamepad,
-                    title = "Кнопка активации",
+                    title = stringResource(com.winlator.cmod.R.string.gyro_activation_button),
                     subtitle = gyroButtonLabel(gyroTriggerButton),
                     onClick = { showGyroButtonDialog = true }
                 )
                 SettingsDivider()
                 SettingsClickRow(
                     icon = Icons.Filled.ToggleOn,
-                    title = "Режим",
+                    title = stringResource(com.winlator.cmod.R.string.gyro_mode),
                     subtitle = gyroModeLabel(gyroMode),
                     onClick = { showGyroModeDialog = true }
                 )
                 SettingsDivider()
                 SettingsButtonRow(
                     icon = Icons.Filled.Tune,
-                    title = "Калибровка гироскопа",
-                    onClick = { toast("Калибровка: откройте гироскоп в игре") }
+                    title = stringResource(com.winlator.cmod.R.string.gyro_calibration),
+                    onClick = { toast(com.winlator.cmod.R.string.calibration_hint) }
                 )
             }
 
             // 9. Логи
-            SectionHeader("Логи", Icons.Filled.BugReport)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.logs), Icons.Filled.BugReport)
             SettingsCard {
                 SettingsCheckRow(
                     icon = Icons.Filled.Code,
-                    title = "Wine Debug",
+                    title = stringResource(com.winlator.cmod.R.string.wine_debug),
                     checked = enableWineDebug,
                     onCheckedChange = { enableWineDebug = it; saveBool("enable_wine_debug", it) }
                 )
                 SettingsDivider()
                 SettingsCheckRow(
                     icon = Icons.Filled.Description,
-                    title = "Box86/64 логи",
+                    title = stringResource(com.winlator.cmod.R.string.box86_64_logs),
                     checked = enableBoxLogs,
                     onCheckedChange = { enableBoxLogs = it; saveBool("enable_box86_64_logs", it) }
                 )
             }
 
             // 10. Game Controller
-            SectionHeader("Game Controller", Icons.Filled.Gamepad)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.game_controller), Icons.Filled.Gamepad)
             SettingsCard {
                 SettingsClickRow(
                     icon = Icons.Filled.Tune,
-                    title = "Тип триггера",
+                    title = stringResource(com.winlator.cmod.R.string.trigger_type),
                     subtitle = trigLabel(triggerType),
                     onClick = { showTriggerDialog = true }
                 )
                 SettingsDivider()
                 SettingsCheckRow(
                     icon = Icons.Filled.History,
-                    title = "Legacy Input Mode 7.1.2",
+                    title = stringResource(com.winlator.cmod.R.string.legacy_input_mode),
                     checked = legacyMode,
                     onCheckedChange = { legacyMode = it; saveBool("legacy_mode_enabled", it) }
                 )
                 SettingsDivider()
                 SettingsButtonRow(
                     icon = Icons.Filled.Tune,
-                    title = "Настроить аналоговые стики",
-                    onClick = { toast("Настройка стиков: используйте в Input Controls") }
+                    title = stringResource(com.winlator.cmod.R.string.configure_analog_sticks),
+                    onClick = { toast(com.winlator.cmod.R.string.sticks_hint) }
                 )
             }
 
             // Звук (после Game Controller)
-            SectionHeader("Звук", Icons.Filled.MusicNote)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.sound_audio), Icons.Filled.MusicNote)
             SettingsCard {
                 SettingsClickRow(
                     icon = Icons.Filled.LibraryMusic,
-                    title = "MIDI SoundFont",
-                    subtitle = "Default",
-                    onClick = { toast("Выберите SoundFont в списке ниже") }
+                    title = stringResource(com.winlator.cmod.R.string.midi_soundfont),
+                    subtitle = stringResource(com.winlator.cmod.R.string.default_soundfont),
+                    onClick = { toast(com.winlator.cmod.R.string.select_soundfont_hint) }
                 )
                 SettingsDivider()
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -498,17 +498,17 @@ fun SettingsScreen(
                         try {
                             val removed = com.winlator.cmod.midi.MidiManager.removeSF2File(ctx, "Default")
                             toast(if (removed) com.winlator.cmod.R.string.sound_font_removed_success else com.winlator.cmod.R.string.sound_font_removed_failed)
-                        } catch (e: Exception) { toast("Ошибка удаления") }
+                        } catch (e: Exception) { toast(com.winlator.cmod.R.string.remove_error) }
                     }, Modifier.weight(1f)) { Text("Удалить") }
                 }
             }
 
             // 11. Experimental
-            SectionHeader("Экспериментальное", Icons.Filled.Science)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.experimental), Icons.Filled.Science)
             SettingsCard {
                 SettingsCheckRow(
                     icon = Icons.Filled.FolderShared,
-                    title = "File Provider",
+                    title = stringResource(com.winlator.cmod.R.string.file_provider),
                     checked = enableFileProvider,
                     onCheckedChange = {
                         enableFileProvider = it
@@ -519,37 +519,37 @@ fun SettingsScreen(
                 SettingsDivider()
                 SettingsCheckRow(
                     icon = Icons.Filled.OpenInBrowser,
-                    title = "Open with Android Browser",
+                    title = stringResource(com.winlator.cmod.R.string.open_with_browser),
                     checked = openWithBrowser,
                     onCheckedChange = { openWithBrowser = it; saveBool("open_with_android_browser", it) }
                 )
                 SettingsDivider()
                 SettingsCheckRow(
                     icon = Icons.Filled.ContentPaste,
-                    title = "Share Android Clipboard",
+                    title = stringResource(com.winlator.cmod.R.string.share_clipboard),
                     checked = shareClipboard,
                     onCheckedChange = { shareClipboard = it; saveBool("share_android_clipboard", it) }
                 )
             }
 
             // 12. ImageFs
-            SectionHeader("ImageFs", Icons.Filled.Storage)
+            SectionHeader(stringResource(com.winlator.cmod.R.string.imagefs), Icons.Filled.Storage)
             SettingsCard {
                 SettingsButtonRow(
                     icon = Icons.Filled.Build,
-                    title = "Переустановить ImageFs",
+                    title = stringResource(com.winlator.cmod.R.string.reinstall_imagefs),
                     onClick = { showReinstallConfirm = true }
                 )
                 SettingsDivider()
                 SettingsButtonRow(
                     icon = Icons.Filled.CloudUpload,
-                    title = "Backup Data",
+                    title = stringResource(com.winlator.cmod.R.string.backup_data),
                     onClick = { showBackupConfirm = true }
                 )
                 SettingsDivider()
                 SettingsButtonRow(
                     icon = Icons.Filled.Restore,
-                    title = "Restore Data",
+                    title = stringResource(com.winlator.cmod.R.string.restore_data),
                     onClick = { restoreLauncher.launch(arrayOf("*/*")) }
                 )
             }
@@ -647,7 +647,7 @@ fun SettingsScreen(
 
     if (showLanguageDialog) {
         ChoiceDialog(
-            title = "Язык",
+            title = stringResource(com.winlator.cmod.R.string.language),
             options = languageOptions,
             selected = appLanguage,
             onDismiss = { showLanguageDialog = false },
@@ -661,7 +661,7 @@ fun SettingsScreen(
     }
     if (showAnimDialog) {
         ChoiceDialog(
-            title = "Анимация перехода",
+            title = stringResource(com.winlator.cmod.R.string.transition_animation),
             options = animOptions,
             selected = transitionAnim,
             onDismiss = { showAnimDialog = false },
@@ -675,7 +675,7 @@ fun SettingsScreen(
     }
     if (showTriggerDialog) {
         ChoiceDialog(
-            title = "Тип триггера",
+            title = stringResource(com.winlator.cmod.R.string.trigger_type),
             options = triggerOptions,
             selected = triggerType,
             onDismiss = { showTriggerDialog = false },

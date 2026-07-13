@@ -1320,7 +1320,7 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
             androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("pt");
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
         } else if ("pt-rBR".equals(languageCode)) {
-            androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("pt-rBR");
+            androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("pt-BR");
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
         }
     }

@@ -1599,6 +1599,41 @@
     <string name="start_using">Iniciar using</string>
     <string name="can_change_in_settings">Can be changed anytime in Configuraçõesurações → Appearance</string>
     <string name="add_ib_icon_pack">Importar Entrada Bridge Ícone Pack (.ipk)</string>
+<string name="dark_mode">Modo escuro</string>
+    <string name="language">Idioma</string>
+    <string name="gyro_settings">Giroscópio</string>
+    <string name="sound_audio">Som</string>
+    <string name="gyro_mode">Modo do giroscópio</string>
+    <string name="gyro_calibration">Calibração do giroscópio</string>
+    <string name="gyro_activation_button">Botão de ativação</string>
+    <string name="not_installed">Não instalado</string>
+    <string name="installed_at">Instalado em: %1$s</string>
+    <string name="installed_bundled">Incluído</string>
+    <string name="turbo_unavailable">Modo Turbo indisponível (sem root)</string>
+    <string name="calibration_hint">Calibração: abra o giroscópio no jogo</string>
+    <string name="sticks_hint">Configuração dos sticks: use Input Controls</string>
+    <string name="select_soundfont_hint">Selecione um SoundFont na lista abaixo</string>
+    <string name="remove_error">Erro ao remover</string>
+    <string name="xr_mode">Modo XR</string>
+    <string name="dri3">DRI3</string>
+    <string name="true_mouse_control">True Mouse Control (Cursor Lock)</string>
+    <string name="disable_xinput">Desativar Xinput</string>
+    <string name="wine_debug">Depuração do Wine</string>
+    <string name="box86_64_logs">Registos Box86/64</string>
+    <string name="legacy_input_mode">Modo de entrada legado 7.1.2</string>
+    <string name="default_soundfont">Padrão</string>
+    <string name="frontend_export_path">Caminho de exportação do Frontend</string>
+    <string name="lossless_scaling_dll">DLL do Lossless Scaling</string>
+    <string name="max_gpu_frequency">Frequência máxima da GPU (Adreno)</string>
+    <string name="enable_gyroscope">Ativar giroscópio</string>
+    <string name="file_provider">Provedor de arquivos</string>
+    <string name="open_with_browser">Abrir com navegador Android</string>
+    <string name="share_clipboard">Compartilhar área de transferência</string>
+    <string name="backup_data">Fazer backup dos dados</string>
+    <string name="restore_data">Restaurar dados</string>
+    <string name="backup_completed">Backup concluído</string>
+    <string name="backup_failed">Falha no backup.</string>
+    <string name="adreno_turbo">Adreno Turbo</string>
+    <string name="xserver_section">XServer</string>
+    <string name="gpu_performance_section">Desempenho da GPU</string>
 </resources>
-
-
