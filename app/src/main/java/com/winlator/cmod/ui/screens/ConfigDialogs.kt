@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.CheckCircle
 
 // =====================================================================
 // Audio Driver Config Dialog (Compose)
@@ -316,6 +317,38 @@ fun GraphicsDriverConfigDialogCompose(
                 var progressPercent by remember { mutableStateOf(0) }
                 var progressMessage by remember { mutableStateOf("") }
 
+                val adrenotoolsManager = remember { AdrenotoolsManager(context) }
+                var installedDriverNames by remember { mutableStateOf<Set<String>>(emptySet()) }
+                var installedDriverUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+                fun refreshInstalledDrivers() {
+                    val names = mutableSetOf<String>()
+                    val urls = mutableSetOf<String>()
+                    try {
+                        for (id in adrenotoolsManager.enumarateInstalledDrivers()) {
+                            names.add(id)
+                            val n = adrenotoolsManager.getDriverName(id)
+                            if (n.isNotEmpty()) names.add(n)
+
+                            val storeInfo = adrenotoolsManager.getStoreInfo(id)
+                            if (storeInfo != null) {
+                                val url = storeInfo.optString("downloadUrl")
+                                if (url.isNotEmpty()) urls.add(url)
+                                val sName = storeInfo.optString("storeName")
+                                if (sName.isNotEmpty()) names.add(sName)
+                            }
+                        }
+                    } catch (_: Exception) { }
+                    installedDriverNames = names
+                    installedDriverUrls = urls
+                }
+
+                LaunchedEffect(showDownloadListDialog) {
+                    if (showDownloadListDialog) {
+                        refreshInstalledDrivers()
+                    }
+                }
+
                 // Download button (реальное скачивание Turnip/драйверов через Compose-диалоги)
                 Button(
                     onClick = {
@@ -419,10 +452,13 @@ fun GraphicsDriverConfigDialogCompose(
                                     } else {
                                         val drivers = grouped[selectedRepo] ?: emptyList()
                                         drivers.forEach { driver ->
+                                            val isInstalled = installedDriverUrls.contains(driver.downloadUrl) || installedDriverNames.any { inst ->
+                                                isDriverMatching(inst, driver.name)
+                                            }
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .clickable {
+                                                    .clickable(enabled = !isInstalled) {
                                                         showDownloadListDialog = false
                                                         selectedRepo = null
                                                         showProgressDialog = true
@@ -444,6 +480,9 @@ fun GraphicsDriverConfigDialogCompose(
                                                                         try {
                                                                             val adrenotools = AdrenotoolsManager(context)
                                                                             val installedDriverId = adrenotools.installDriver(driverUri)
+                                                                            if (!installedDriverId.isNullOrEmpty()) {
+                                                                                adrenotools.writeStoreInfo(installedDriverId, driver.name, driver.version, driver.downloadUrl)
+                                                                            }
                                                                             coroutineScope.launch(Dispatchers.Main) {
                                                                                 showProgressDialog = false
                                                                                 if (!installedDriverId.isNullOrEmpty()) {
@@ -453,6 +492,7 @@ fun GraphicsDriverConfigDialogCompose(
                                                                                     versions = (context.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).toList() +
                                                                                                  AdrenotoolsManager(context).enumarateInstalledDrivers()).distinct()
                                                                                     selectedVersion = installedDriverId
+                                                                                    refreshInstalledDrivers()
                                                                                 } else {
                                                                                     AppUtils.showToast(context, context.getString(R.string.driver_installation_failed))
                                                                                 }
@@ -489,12 +529,29 @@ fun GraphicsDriverConfigDialogCompose(
                                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                                     )
                                                 }
-                                                Icon(
-                                                    imageVector = Icons.Filled.Download,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
+                                                if (isInstalled) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            imageVector = Icons.Filled.CheckCircle,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = stringResource(R.string.installed),
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    }
+                                                } else {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.Download,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(24.dp)
+                                                     )
+                                                }
                                             }
                                             HorizontalDivider()
                                         }
@@ -1665,4 +1722,26 @@ fun ContentDownloadDialogCompose(
             }
         }
     }
+}
+
+private fun isDriverMatching(installedName: String, storeName: String): Boolean {
+    val clean = { s: String ->
+        s.lowercase()
+         .replace("gmem", "")
+         .replace("sysmem", "")
+         .replace(Regex("[^a-z0-9]"), "")
+    }
+    
+    val cleanInst = clean(installedName)
+    val cleanStore = clean(storeName)
+    
+    if (cleanInst.isEmpty() || cleanStore.isEmpty()) return false
+    
+    if (cleanInst == cleanStore || cleanStore.contains(cleanInst) || cleanInst.contains(cleanStore)) {
+        return true
+    }
+    
+    val cleanInstNoV = cleanInst.replace("v", "")
+    val cleanStoreNoV = cleanStore.replace("v", "")
+    return cleanInstNoV.contains(cleanStoreNoV) || cleanStoreNoV.contains(cleanInstNoV)
 }

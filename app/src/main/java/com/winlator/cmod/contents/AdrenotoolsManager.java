@@ -320,4 +320,32 @@ public class AdrenotoolsManager {
             }
         }
     }
- }
+
+    public void writeStoreInfo(String driverId, String storeName, String version, String downloadUrl) {
+        File driverPath = new File(adrenotoolsContentDir, driverId);
+        if (driverPath.exists() && driverPath.isDirectory()) {
+            try {
+                JSONObject json = new JSONObject();
+                json.put("storeName", storeName);
+                json.put("version", version);
+                json.put("downloadUrl", downloadUrl);
+                FileUtils.writeString(new File(driverPath, "store_info.json"), json.toString());
+            } catch (Exception e) {
+                Log.e("AdrenotoolsManager", "Failed to write store_info.json", e);
+            }
+        }
+    }
+
+    public JSONObject getStoreInfo(String driverId) {
+        File driverPath = new File(adrenotoolsContentDir, driverId);
+        File storeInfoFile = new File(driverPath, "store_info.json");
+        if (storeInfoFile.exists() && storeInfoFile.isFile()) {
+            try {
+                return new JSONObject(FileUtils.readString(storeInfoFile));
+            } catch (Exception e) {
+                Log.e("AdrenotoolsManager", "Failed to read store_info.json", e);
+            }
+        }
+        return null;
+    }
+}

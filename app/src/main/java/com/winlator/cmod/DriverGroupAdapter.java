@@ -24,6 +24,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import com.winlator.cmod.contents.AdrenotoolsManager;
 
 public class DriverGroupAdapter extends RecyclerView.Adapter<DriverGroupAdapter.GroupViewHolder> {
     private static final String TAG = "DriverGroupAdapter";
@@ -31,6 +34,9 @@ public class DriverGroupAdapter extends RecyclerView.Adapter<DriverGroupAdapter.
     private final Context context;
     private final List<DriverGroup> driverGroups;
     private final DriverDownloadListener downloadListener;
+    private final AdrenotoolsManager adrenotoolsManager;
+    private final Set<String> installedDriverNames = new HashSet<>();
+    private final Set<String> installedDriverUrls = new HashSet<>();
     
     public interface DriverDownloadListener {
         void onDownloadDriver(DriverResolver.DriverInfo driverInfo);
@@ -52,9 +58,62 @@ public class DriverGroupAdapter extends RecyclerView.Adapter<DriverGroupAdapter.
         this.context = context;
         this.downloadListener = downloadListener;
         this.driverGroups = new ArrayList<>();
+        this.adrenotoolsManager = new AdrenotoolsManager(context);
+    }
+
+    private void refreshInstalledDrivers() {
+        installedDriverNames.clear();
+        installedDriverUrls.clear();
+        try {
+            for (String id : adrenotoolsManager.enumarateInstalledDrivers()) {
+                installedDriverNames.add(id);
+                String n = adrenotoolsManager.getDriverName(id);
+                if (n != null && !n.isEmpty()) installedDriverNames.add(n);
+
+                org.json.JSONObject storeInfo = adrenotoolsManager.getStoreInfo(id);
+                if (storeInfo != null) {
+                    String url = storeInfo.optString("downloadUrl");
+                    if (url != null && !url.isEmpty()) installedDriverUrls.add(url);
+                    String sName = storeInfo.optString("storeName");
+                    if (sName != null && !sName.isEmpty()) installedDriverNames.add(sName);
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    private boolean isAnyDriverMatching(String storeName) {
+        String cleanStore = cleanString(storeName);
+        if (cleanStore.isEmpty()) return false;
+
+        String cleanStoreNoV = cleanStore.replace("v", "");
+
+        for (String inst : installedDriverNames) {
+            String cleanInst = cleanString(inst);
+            if (cleanInst.isEmpty()) continue;
+
+            if (cleanInst.equals(cleanStore) || cleanStore.contains(cleanInst) || cleanInst.contains(cleanStore)) {
+                return true;
+            }
+
+            String cleanInstNoV = cleanInst.replace("v", "");
+            if (cleanInstNoV.contains(cleanStoreNoV) || cleanStoreNoV.contains(cleanInstNoV)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String cleanString(String s) {
+        return s.toLowerCase(Locale.ENGLISH)
+                .replace("gmem", "")
+                .replace("sysmem", "")
+                .replaceAll("[^a-z0-9]", "");
     }
     
     public void setDriverGroups(Map<String, List<DriverResolver.DriverInfo>> groupedDrivers) {
+        refreshInstalledDrivers();
         driverGroups.clear();
         
         for (Map.Entry<String, List<DriverResolver.DriverInfo>> entry : groupedDrivers.entrySet()) {
@@ -265,11 +324,22 @@ public class DriverGroupAdapter extends RecyclerView.Adapter<DriverGroupAdapter.
                 // Описание скрыто для экономии места
                 driverDescriptionText.setVisibility(View.GONE);
                 
-                downloadButton.setOnClickListener(v -> {
-                    if (downloadListener != null) {
-                        downloadListener.onDownloadDriver(driverInfo);
-                    }
-                });
+                boolean isInstalled = installedDriverUrls.contains(driverInfo.downloadUrl) || 
+                                      isAnyDriverMatching(driverInfo.name);
+
+                if (isInstalled) {
+                    downloadButton.setText(R.string.installed);
+                    downloadButton.setEnabled(false);
+                    downloadButton.setOnClickListener(null);
+                } else {
+                    downloadButton.setText(R.string.download);
+                    downloadButton.setEnabled(true);
+                    downloadButton.setOnClickListener(v -> {
+                        if (downloadListener != null) {
+                            downloadListener.onDownloadDriver(driverInfo);
+                        }
+                    });
+                }
             }
             
             private String formatDate(String isoDate) {

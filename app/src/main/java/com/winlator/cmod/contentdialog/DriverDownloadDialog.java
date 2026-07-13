@@ -228,7 +228,7 @@ public class DriverDownloadDialog extends ContentDialog {
                     if (progressDialog.isShowing()) {
                         progressDialog.dismiss();
                     }
-                    installDriver(context, driverUri, driverInfo.name);
+                    installDriver(context, driverUri, driverInfo);
                 });
             }
             
@@ -248,7 +248,8 @@ public class DriverDownloadDialog extends ContentDialog {
         });
     }
     
-    private void installDriver(Context context, Uri driverUri, String driverName) {
+    private void installDriver(Context context, Uri driverUri, DriverResolver.DriverInfo driverInfo) {
+        String driverName = driverInfo.name;
         Log.d(TAG, "Начинаем установку драйвера: " + driverName);
         
         try {
@@ -264,6 +265,7 @@ public class DriverDownloadDialog extends ContentDialog {
             
             if (!installedDriverId.isEmpty()) {
                 Log.d(TAG, "Драйвер успешно установлен: " + installedDriverId);
+                adrenotoolsManager.writeStoreInfo(installedDriverId, driverInfo.name, driverInfo.version, driverInfo.downloadUrl);
                 
                 mainHandler.post(() -> {
                     Toast.makeText(context, 

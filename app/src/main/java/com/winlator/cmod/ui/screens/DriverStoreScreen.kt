@@ -82,17 +82,28 @@ fun DriverStoreScreen(
 
     // Имена уже установленных драйверов (для отметки в магазине)
     var installedDriverNames by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var installedDriverUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
     // Обновляем множество имён установленных драйверов
     fun refreshInstalledDrivers() {
         val names = mutableSetOf<String>()
+        val urls = mutableSetOf<String>()
         try {
             for (id in adrenotoolsManager.enumarateInstalledDrivers()) {
                 names.add(id)
                 val n = adrenotoolsManager.getDriverName(id)
                 if (n.isNotEmpty()) names.add(n)
+
+                val storeInfo = adrenotoolsManager.getStoreInfo(id)
+                if (storeInfo != null) {
+                    val url = storeInfo.optString("downloadUrl")
+                    if (url.isNotEmpty()) urls.add(url)
+                    val sName = storeInfo.optString("storeName")
+                    if (sName.isNotEmpty()) names.add(sName)
+                }
             }
         } catch (_: Exception) { }
         installedDriverNames = names
+        installedDriverUrls = urls
     }
     // Первичная загрузка списка установленных
     LaunchedEffect(Unit) { refreshInstalledDrivers() }
@@ -134,13 +145,16 @@ fun DriverStoreScreen(
     LaunchedEffect(Unit) { loadDrivers() }
 
     // Установка драйвера после загрузки
-    fun installDownloadedDriver(uri: Uri, driverName: String) {
+    fun installDownloadedDriver(uri: Uri, driverInfo: DriverResolver.DriverInfo) {
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val installedId = adrenotoolsManager.installDriver(uri)
+                if (installedId.isNotEmpty()) {
+                    adrenotoolsManager.writeStoreInfo(installedId, driverInfo.name, driverInfo.version, driverInfo.downloadUrl)
+                }
                 withContext(Dispatchers.Main) {
                     if (installedId.isNotEmpty()) {
-                        Toast.makeText(ctx, ctx.getString(R.string.driver_installed_successfully, driverName), Toast.LENGTH_LONG).show()
+                        Toast.makeText(ctx, ctx.getString(R.string.driver_installed_successfully, driverInfo.name), Toast.LENGTH_LONG).show()
                         // Обновляем отметку установленных и остаёмся в магазине (на списке драйверов)
                         refreshInstalledDrivers()
                         onDriverInstalled()
@@ -165,7 +179,7 @@ fun DriverStoreScreen(
             override fun onComplete(driverUri: Uri) {
                 coroutineScope.launch(Dispatchers.Main) {
                     downloadingDriver = null
-                    installDownloadedDriver(driverUri, driverInfo.name)
+                    installDownloadedDriver(driverUri, driverInfo)
                 }
             }
             override fun onError(error: String) {
@@ -289,7 +303,7 @@ fun DriverStoreScreen(
                                     driver = driver,
                                     isDownloading = downloadingDriver == driver,
                                     downloadProgress = downloadProgress,
-                                    isInstalled = installedDriverNames.any { inst ->
+                                    isInstalled = installedDriverUrls.contains(driver.downloadUrl) || installedDriverNames.any { inst ->
                                         isDriverMatching(inst, driver.name)
                                     },
                                     onDownload = { downloadAndInstall(driver) }
