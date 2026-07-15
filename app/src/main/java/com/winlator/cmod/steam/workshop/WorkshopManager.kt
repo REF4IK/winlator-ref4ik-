@@ -30,6 +30,7 @@ object WorkshopManager {
     private const val MAX_PAGES = 50
     private const val PAGE_SIZE = 100
     private const val COMPLETE_MARKER = ".workshop_complete"
+    private const val META_FILE = ".workshop_meta.json"
     private val httpClient = OkHttpClient.Builder().followRedirects(true).followSslRedirects(true).build()
 
     suspend fun getSubscribedItems(
@@ -37,10 +38,14 @@ object WorkshopManager {
         steamClient: SteamClient,
         steamId: SteamID,
     ): WorkshopFetchResult {
-        val unifiedMessages = steamClient.getHandler<SteamUnifiedMessages>() ?: return WorkshopFetchResult(
-            items = emptyList(),
-            succeeded = false,
-        )
+        Timber.tag(TAG).i("Fetching workshop subscriptions for appId=$appId")
+
+        val unifiedMessages = steamClient.getHandler<SteamUnifiedMessages>()
+        if (unifiedMessages == null) {
+            Timber.tag(TAG).w("getSubscribedItems: SteamUnifiedMessages handler is null for appId=$appId")
+            return WorkshopFetchResult(items = emptyList(), succeeded = false)
+        }
+
         val publishedFile = unifiedMessages.createService(PublishedFile::class.java)
 
         val allItems = mutableListOf<WorkshopItem>()
@@ -54,7 +59,35 @@ object WorkshopManager {
                 appId = appId,
                 steamId = steamId,
                 page = page,
-            ) ?: break
+            )
+
+            if (result == null) {
+                Timber.tag(TAG).w("getSubscribedItems: page $page returned null (timeout or error) for appId=$appId")
+                if (page == 1) {
+                    // If first page fails, wait 2s and retry once
+                    kotlinx.coroutines.delay(2000L)
+                    val retryResult = fetchSubscribedFilesViaRPC(
+                        publishedFile = publishedFile,
+                        appId = appId,
+                        steamId = steamId,
+                        page = page,
+                    )
+                    if (retryResult != null) {
+                        Timber.tag(TAG).i("getSubscribedItems: retry succeeded for page $page")
+                        fetchedAtLeastOnePage = true
+                        allItems.addAll(retryResult.items.map { item ->
+                            if (item.appId == 0) item.copy(appId = appId) else item
+                        })
+                        if (retryResult.items.isEmpty() || allItems.size >= retryResult.totalResults) {
+                            allPagesSucceeded = true
+                            break
+                        }
+                        page++
+                        continue
+                    }
+                }
+                break
+            }
 
             fetchedAtLeastOnePage = true
             allItems.addAll(result.items.map { item ->
@@ -68,6 +101,7 @@ object WorkshopManager {
             page++
         }
 
+        Timber.tag(TAG).i("Workshop fetch complete for appId=$appId: ${allItems.size} items, succeeded=$fetchedAtLeastOnePage")
         return WorkshopFetchResult(
             items = allItems.sortedBy { it.title.lowercase() },
             succeeded = fetchedAtLeastOnePage,
@@ -79,6 +113,11 @@ object WorkshopManager {
         (idsString ?: "").split(",").mapNotNull { it.trim().toLongOrNull() }.filter { it > 0L }.toSet()
 
     fun getWorkshopContentDir(containerRootPath: String, appId: Int): File {
+        // Stage workshop outside container for persistence across container rebuilds
+        val ctx = SteamService.instance?.applicationContext
+        if (ctx != null) {
+            return File(ctx.filesDir, "workshop/$appId")
+        }
         return File(
             containerRootPath,
             ".wine/drive_c/Program Files (x86)/Steam/steamapps/workshop/content/$appId",
@@ -177,6 +216,8 @@ object WorkshopManager {
                 if (item.fileUrl.isNotBlank()) {
                     // Download via HTTP (most common)
                     downloadWorkshopItem(item, workshopContentDir)
+                    // Download preview image
+                    downloadWorkshopPreview(item, workshopContentDir)
                     syncedCount++
                 } else if (item.manifestId != 0L) {
                     // Try depot-based download via SteamService
@@ -203,6 +244,7 @@ object WorkshopManager {
         }
 
         updateMarkerTimestamps(enabledItems, workshopContentDir)
+        cacheWorkshopMetadata(appId, enabledItems, workshopContentDir)
 
         WorkshopSyncResult(
             syncedCount = syncedCount,
@@ -312,11 +354,18 @@ object WorkshopManager {
                 filetype = 0xFFFFFFFF.toInt()
             }.build()
 
-            val response = withTimeoutOrNull(30_000L) {
+            val response = withTimeoutOrNull(60_000L) {
                 publishedFile.getUserFiles(request).toFuture().await()
-            } ?: return@withContext null
+            }
 
+            if (response == null) {
+                Timber.tag(TAG).w("Workshop page $page timed out (60s) for appId=$appId")
+                return@withContext null
+            }
+
+            Timber.tag(TAG).i("Workshop page $page result=${response.result} for appId=$appId")
             if (response.result != EResult.OK) {
+                Timber.tag(TAG).w("Workshop page $page failed with EResult=${response.result} for appId=$appId")
                 return@withContext null
             }
 
@@ -335,6 +384,7 @@ object WorkshopManager {
                 )
             }
 
+            Timber.tag(TAG).i("Workshop page $page: ${items.size} items of ${body.total} total for appId=$appId")
             SubscribedFilesPage(
                 items = items,
                 totalResults = body.total,
@@ -379,6 +429,31 @@ object WorkshopManager {
         onStatus("$title (${index + 1}/$total)")
     }
 
+    private fun downloadWorkshopPreview(item: WorkshopItem, workshopContentDir: File) {
+        if (item.previewUrl.isBlank()) return
+        val itemDir = File(workshopContentDir, item.publishedFileId.toString())
+        val previewFile = File(itemDir, "preview.jpg")
+        if (previewFile.exists()) {
+            // Re-download if item was updated
+            if (item.timeUpdated <= previewFile.lastModified() / 1000) return
+            previewFile.delete()
+        }
+        try {
+            val request = Request.Builder().url(item.previewUrl).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    response.body?.byteStream()?.use { input ->
+                        previewFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Failed to download preview for workshop item ${item.publishedFileId}")
+        }
+    }
+
     private fun downloadWorkshopItem(item: WorkshopItem, workshopContentDir: File) {
         val itemDir = File(workshopContentDir, item.publishedFileId.toString())
         val partialDir = File(workshopContentDir, "${item.publishedFileId}.partial")
@@ -417,30 +492,53 @@ object WorkshopManager {
         if (!steamSettingsDir.exists()) steamSettingsDir.mkdirs()
 
         val modsDir = File(steamSettingsDir, "mods")
-        if (modsDir.exists()) {
-            modsDir.deleteRecursively()
-        }
+        if (modsDir.exists()) modsDir.deleteRecursively()
         modsDir.mkdirs()
 
         val enabledIds = PrefManager.getSteamWorkshopEnabledItemIds(appId)
         val workshopContentDir = getWorkshopContentDir(containerRootPath, appId)
-        
+
+        // Load cached metadata
+        val metaFile = File(workshopContentDir, META_FILE)
+        val cachedMeta = if (metaFile.exists()) {
+            try {
+                JSONObject(metaFile.readText())
+            } catch (e: Exception) {
+                JSONObject()
+            }
+        } else {
+            JSONObject()
+        }
+
         val jsonArray = JSONArray()
 
         for (id in enabledIds) {
-            val sourceDir = File(workshopContentDir, id.toString())
+            val idStr = id.toString()
+            val sourceDir = File(workshopContentDir, idStr)
             if (sourceDir.exists() && sourceDir.isDirectory) {
-                val targetDir = File(modsDir, id.toString())
-                
+                val targetDir = File(modsDir, idStr)
+
                 try {
                     Os.symlink(sourceDir.absolutePath, targetDir.absolutePath)
                 } catch (e: Exception) {
                     sourceDir.copyRecursively(targetDir, overwrite = true)
                 }
 
+                // Build rich metadata
                 val modObj = JSONObject().apply {
-                    put("id", id.toString())
-                    put("title", "Workshop Item $id")
+                    put("id", idStr)
+                    val meta = cachedMeta.optJSONObject(idStr)
+                    if (meta != null) {
+                        put("title", meta.optString("title", "Workshop Item $idStr"))
+                        if (meta.has("description")) put("description", meta.getString("description"))
+                        if (meta.has("preview_url")) put("preview_url", meta.getString("preview_url"))
+                        if (meta.has("preview_file")) put("preview_file", meta.getString("preview_file"))
+                        if (meta.has("file_size")) put("file_size", meta.getLong("file_size"))
+                        if (meta.has("time_updated")) put("time_updated", meta.getLong("time_updated"))
+                        if (meta.has("author")) put("author", meta.getString("author"))
+                    } else {
+                        put("title", "Workshop Item $idStr")
+                    }
                 }
                 jsonArray.put(modObj)
             }
@@ -450,9 +548,30 @@ object WorkshopManager {
         if (jsonArray.length() > 0) {
             modsJsonFile.writeText(jsonArray.toString(2))
         } else {
-            if (modsJsonFile.exists()) {
-                modsJsonFile.delete()
-            }
+            if (modsJsonFile.exists()) modsJsonFile.delete()
         }
+    }
+
+    /**
+     * Cache workshop item metadata for later use in mods.json generation.
+     */
+    fun cacheWorkshopMetadata(appId: Int, items: List<WorkshopItem>, workshopContentDir: File) {
+        val metaFile = File(workshopContentDir, META_FILE)
+        val meta = JSONObject()
+        for (item in items) {
+            val idStr = item.publishedFileId.toString()
+            val obj = JSONObject().apply {
+                put("title", item.title.ifEmpty { idStr })
+                put("file_size", item.fileSizeBytes)
+                put("time_updated", item.timeUpdated)
+                put("preview_url", item.previewUrl)
+                if (item.previewUrl.isNotBlank()) put("preview_file", "preview.jpg")
+                if (item.fileName.isNotBlank()) put("file_name", item.fileName)
+            }
+            meta.put(idStr, obj)
+        }
+        workshopContentDir.mkdirs()
+        metaFile.writeText(meta.toString(2))
+        Timber.tag(TAG).i("Cached metadata for ${items.size} workshop items (appId=$appId)")
     }
 }

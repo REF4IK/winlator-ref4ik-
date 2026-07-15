@@ -62,6 +62,12 @@ interface SteamAppDao {
     )
     suspend fun findHiddenDLCApps(appId: Int): List<SteamApp>?
 
+    @Query("SELECT * FROM steam_app AS app WHERE dlc_for_app_id = :appId AND depots <> '{}'")
+    suspend fun findDownloadableDLCAppsNoLicense(appId: Int): List<SteamApp>?
+
+    @Query("SELECT * FROM steam_app AS app WHERE dlc_for_app_id = :appId AND depots = '{}'")
+    suspend fun findHiddenDLCAppsNoLicense(appId: Int): List<SteamApp>?
+
     @Query("DELETE from steam_app")
     suspend fun deleteAll()
 

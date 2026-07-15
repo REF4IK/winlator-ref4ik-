@@ -193,12 +193,20 @@ object PrefManager {
         set(value) { encode("amazon_download_folder", value) }
 
     var downloadQueueSize: Int
-        get() = decodeInt("download_queue_size", 1)
+        get() = decodeInt("download_queue_size", 3)
         set(value) { encode("download_queue_size", value) }
 
     var steamOfflineMode: Boolean
         get() = decodeBool("steam_offline_mode", false)
         set(value) { encode("steam_offline_mode", value) }
+
+    var autoUpdateEnabled: Boolean
+        get() = decodeBool("auto_update_enabled", false)
+        set(value) { encode("auto_update_enabled", value) }
+
+    var autoUpdateWifiOnly: Boolean
+        get() = decodeBool("auto_update_wifi_only", true)
+        set(value) { encode("auto_update_wifi_only", value) }
 
     private var pendingSteamCloudSyncAppsRaw: String
         get() = decodeString("pending_steam_cloud_sync_apps", "")

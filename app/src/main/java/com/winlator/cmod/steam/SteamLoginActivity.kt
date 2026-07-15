@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -186,29 +187,25 @@ class SteamLoginActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Compact header
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(bottom = 14.dp),
-                ) {
+                // Steam logo header
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(bottom = 20.dp)) {
+                    // Steam icon
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(11.dp))
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(Accent.copy(alpha = 0.12f))
-                            .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(11.dp)),
+                            .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Filled.Gamepad, null, tint = Accent, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Filled.Gamepad, null, tint = Accent, modifier = Modifier.size(32.dp))
                     }
-                    Column {
-                        Text(stringResource(R.string.stores_accounts_steam_integration_title), color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(stringResource(R.string.steam_login_sign_in_to_your_account), color = TextSecondary, fontSize = 11.sp)
-                            if (!state.isSteamConnected) {
-                                CircularProgressIndicator(modifier = Modifier.size(10.dp), color = Accent, strokeWidth = 1.5.dp)
-                            }
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.stores_accounts_steam_integration_title), color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+                        Text(stringResource(R.string.steam_login_sign_in_to_your_account), color = TextSecondary, fontSize = 12.sp)
+                        if (!state.isSteamConnected) {
+                            CircularProgressIndicator(modifier = Modifier.size(10.dp), color = Accent, strokeWidth = 1.5.dp)
                         }
                     }
                 }
@@ -368,25 +365,26 @@ class SteamLoginActivity : ComponentActivity() {
                 when {
                     state.qrCode != null -> {
                         Box(
-                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).padding(6.dp),
+                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).padding(8.dp),
                         ) {
                             QrCodeImage(content = state.qrCode!!, size = if (isLandscape) 130.dp else 190.dp)
                         }
-                        Text(
-                            stringResource(R.string.steam_login_open_steam_app_qr_hint),
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                            textAlign = TextAlign.Center,
-                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("1. Open the Steam app on your phone", color = TextSecondary, fontSize = 12.sp)
+                        Text("2. Go to Settings → Sign in with QR code", color = TextSecondary, fontSize = 12.sp)
+                        Text("3. Scan this code", color = TextSecondary, fontSize = 12.sp)
                     }
                     state.isQrFailed -> {
                         Spacer(Modifier.height(4.dp))
+                        Icon(Icons.Filled.Warning, contentDescription = null, tint = DangerRed, modifier = Modifier.size(32.dp))
+                        Spacer(Modifier.height(8.dp))
                         Text(stringResource(R.string.steam_login_failed_to_load_qr_code), color = DangerRed, fontSize = 13.sp)
                         Spacer(Modifier.height(4.dp))
                         SmallActionButton(stringResource(R.string.steam_login_retry), Accent) { viewModel.onQrRetry() }
                     }
                     else -> {
                         CircularProgressIndicator(modifier = Modifier.size(28.dp), color = Accent, strokeWidth = 2.dp)
+                        Spacer(Modifier.height(8.dp))
                         Text(stringResource(R.string.steam_login_generating_code), color = TextSecondary, fontSize = 12.sp)
                     }
                 }

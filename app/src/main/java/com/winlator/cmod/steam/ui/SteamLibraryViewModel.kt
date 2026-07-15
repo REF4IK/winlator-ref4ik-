@@ -45,6 +45,7 @@ data class SteamProfileUi(
     val status: String = "",
     val statusMode: String = SteamPresenceStatus.OFFLINE.name,
     val currentGame: String? = null,
+    val isOnline: Boolean = false,
 )
 
 data class SteamLibraryGameUi(
@@ -396,14 +397,15 @@ class SteamLibraryViewModel : ViewModel() {
         _uiState.update { current ->
             current.copy(
                 isOfflineMode = offlineMode,
-                profile = SteamProfileUi(
-                    name = persona?.name?.ifBlank { PrefManager.steamUserName.ifBlank { "Steam" } }
-                        ?: PrefManager.steamUserName.ifBlank { "Steam" },
-                    avatarUrl = (persona?.avatarHash ?: PrefManager.steamUserAvatarHash).getAvatarURL(),
-                    status = statusLabel,
-                    statusMode = statusMode.name,
-                    currentGame = persona?.gameName?.takeIf { it.isNotBlank() },
-                ),
+                    profile = SteamProfileUi(
+                        name = persona?.name?.ifBlank { PrefManager.steamUserName.ifBlank { "Steam" } }
+                            ?: PrefManager.steamUserName.ifBlank { "Steam" },
+                        avatarUrl = (persona?.avatarHash ?: PrefManager.steamUserAvatarHash).getAvatarURL(),
+                        status = statusLabel,
+                        statusMode = statusMode.name,
+                        currentGame = persona?.gameName?.takeIf { it.isNotBlank() },
+                        isOnline = persona?.isOnline == true && !offlineMode,
+                    ),
             )
         }
     }

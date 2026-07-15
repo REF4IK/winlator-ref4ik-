@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +26,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -41,14 +44,20 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.ViewCompact
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
@@ -65,6 +74,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -88,6 +99,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
@@ -105,6 +117,9 @@ import com.winlator.cmod.steam.enums.SaveLocation
 import com.winlator.cmod.steam.enums.SyncResult
 import com.winlator.cmod.steam.service.SteamService
 import com.winlator.cmod.steam.ui.SteamContainerOption
+import androidx.compose.material3.HorizontalDivider
+import com.winlator.cmod.steam.ui.AchievementsSheet
+import com.winlator.cmod.steam.ui.SteamFriendsScreen
 import com.winlator.cmod.steam.ui.SteamGameDetailUi
 import com.winlator.cmod.steam.ui.SteamLibraryGameUi
 import com.winlator.cmod.steam.ui.SteamLibraryUiState
@@ -120,6 +135,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+enum class SteamViewMode { GRID, LIST, COMPACT }
 
 private val SteamColors: ColorScheme = darkColorScheme(
     primary = Color(0xFF18C5BE),
@@ -391,6 +408,9 @@ private fun SteamLibraryScreen(
     var loginPlaceholderUnlocked by rememberSaveable { mutableStateOf(false) }
     var searchVisible by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var showFriends by remember { mutableStateOf(false) }
+    var showAchievements by remember { mutableStateOf<Int?>(null) }
+    var viewMode by rememberSaveable { mutableStateOf(SteamViewMode.GRID) }
 
     val tabGames = when (tab) {
         SteamTab.DOWNLOADS -> state.games.filter { it.isDownloading || it.installed }
@@ -448,6 +468,7 @@ private fun SteamLibraryScreen(
                 isLoggedIn = state.isLoggedIn,
                 steamCount = filteredSteamCount,
                 canSearch = state.isLoggedIn || hasOfflineLibrary,
+                viewMode = viewMode,
                 onBack = onBack,
                 onRefresh = onRefresh,
                 onSelectTab = { tab = it },
@@ -458,6 +479,7 @@ private fun SteamLibraryScreen(
                     }
                 },
                 onMenuClick = { menuExpanded = true },
+                onViewModeChange = { viewMode = it },
             )
 
             if (searchVisible) {
@@ -523,6 +545,37 @@ private fun SteamLibraryScreen(
                         },
                     )
                 }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.steam_library_autoupdate_title)) },
+                    trailingIcon = {
+                        var autoUpdateEnabled by remember { mutableStateOf(PrefManager.autoUpdateEnabled) }
+                        Switch(
+                            checked = autoUpdateEnabled,
+                            onCheckedChange = {
+                                autoUpdateEnabled = it
+                                PrefManager.autoUpdateEnabled = it
+                            },
+                        )
+                    },
+                    onClick = {},
+                )
+                if (PrefManager.autoUpdateEnabled) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.steam_library_autoupdate_wifi_only)) },
+                        trailingIcon = {
+                            var wifiOnly by remember { mutableStateOf(PrefManager.autoUpdateWifiOnly) }
+                            Switch(
+                                checked = wifiOnly,
+                                onCheckedChange = {
+                                    wifiOnly = it
+                                    PrefManager.autoUpdateWifiOnly = it
+                                },
+                            )
+                        },
+                        onClick = {},
+                    )
+                }
                 if (state.isLoggedIn || hasStoredSession) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.steam_library_logout_action)) },
@@ -555,28 +608,65 @@ private fun SteamLibraryScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(
-                            modifier = Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF171D28)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (state.profile.avatarUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = state.profile.avatarUrl,
-                                    contentDescription = profileName,
-                                    modifier = Modifier.fillMaxSize().clip(CircleShape),
-                                    contentScale = ContentScale.Crop,
+                        Box(modifier = Modifier.size(28.dp)) {
+                            Box(
+                                modifier = Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF171D28)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (state.profile.avatarUrl.isNotBlank()) {
+                                    AsyncImage(
+                                        model = state.profile.avatarUrl,
+                                        contentDescription = profileName,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                } else {
+                                    Icon(Icons.Filled.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            // Online indicator dot
+                            if (state.isLoggedIn) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .size(9.dp)
+                                        .clip(CircleShape)
+                                        .background(if (state.profile.isOnline) Color(0xFF4CAF50) else Color(0xFF888888))
+                                        .border(1.5.dp, Color(0xFF0F1016), CircleShape),
                                 )
-                            } else {
-                                Icon(Icons.Filled.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             }
                         }
-                        Text(
-                            text = stringResource(R.string.steam_library_connected_as, profileName),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
+                        Column {
+                            Text(
+                                text = stringResource(R.string.steam_library_connected_as, profileName),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                            if (state.isLoggedIn && state.profile.isOnline && state.profile.currentGame?.isNotBlank() == true) {
+                                    Text(
+                                        text = "Playing ${state.profile.currentGame ?: ""}",
+                                        color = Color(0xFF66C0F4),
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                            }
+                        }
+                    }
+                    if (state.isLoggedIn) {
+                        val onlineCount = SteamService.friendsList.value.count { it.isOnline }
+                        IconButton(onClick = { showFriends = true }, modifier = Modifier.size(28.dp)) {
+                            Box {
+                                Icon(Icons.Filled.Person, contentDescription = stringResource(R.string.steam_friends_title), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                                if (onlineCount > 0) {
+                                    Badge(modifier = Modifier.align(Alignment.TopEnd).size(14.dp), containerColor = Color(0xFF4CAF50)) {
+                                        Text(text = onlineCount.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
                     }
                     if (state.isRefreshing) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -616,21 +706,59 @@ private fun SteamLibraryScreen(
                     body = stringResource(R.string.steam_library_empty_filtered),
                 )
                 else -> Box(modifier = Modifier.fillMaxSize()) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(152.dp),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        items(visibleGames, key = { it.appId }) { game ->
-                            SteamGameCard(
-                                game = game,
-                                onClick = {
-                                    selectedOverlayGameId = game.appId
-                                    onSelectGame(game.appId)
-                                },
-                            )
+                    when (viewMode) {
+                        SteamViewMode.GRID -> {
+                            LazyVerticalGrid(
+                                columns = GridCells.Adaptive(152.dp),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                items(visibleGames, key = { it.appId }) { game ->
+                                    SteamGameCard(
+                                        game = game,
+                                        onClick = {
+                                            selectedOverlayGameId = game.appId
+                                            onSelectGame(game.appId)
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                        SteamViewMode.LIST -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(visibleGames, key = { it.appId }) { game ->
+                                    SteamGameListCard(
+                                        game = game,
+                                        onClick = {
+                                            selectedOverlayGameId = game.appId
+                                            onSelectGame(game.appId)
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                        SteamViewMode.COMPACT -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                items(visibleGames, key = { it.appId }) { game ->
+                                    SteamGameCompactCard(
+                                        game = game,
+                                        onClick = {
+                                            selectedOverlayGameId = game.appId
+                                            onSelectGame(game.appId)
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -666,6 +794,10 @@ private fun SteamLibraryScreen(
                 isOfflineMode = state.isOfflineMode,
             )
         }
+
+        if (showFriends) {
+            SteamFriendsScreen(onBack = { showFriends = false })
+        }
     }
 }
 
@@ -675,11 +807,13 @@ private fun SteamTopBar(
     isLoggedIn: Boolean,
     steamCount: Int,
     canSearch: Boolean,
+    viewMode: SteamViewMode,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onSelectTab: (SteamTab) -> Unit,
     onSearchClick: () -> Unit,
     onMenuClick: () -> Unit,
+    onViewModeChange: (SteamViewMode) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -716,7 +850,25 @@ private fun SteamTopBar(
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            // View mode toggle
+            if (tab == SteamTab.STEAM) {
+                SteamViewButton(
+                    icon = Icons.Filled.GridView,
+                    selected = viewMode == SteamViewMode.GRID,
+                    onClick = { onViewModeChange(SteamViewMode.GRID) },
+                )
+                SteamViewButton(
+                    icon = Icons.Filled.FormatListBulleted,
+                    selected = viewMode == SteamViewMode.LIST,
+                    onClick = { onViewModeChange(SteamViewMode.LIST) },
+                )
+                SteamViewButton(
+                    icon = Icons.Filled.ViewCompact,
+                    selected = viewMode == SteamViewMode.COMPACT,
+                    onClick = { onViewModeChange(SteamViewMode.COMPACT) },
+                )
+            }
             RoundActionButton(Icons.Filled.Search, onSearchClick, enabled = canSearch)
             RoundActionButton(Icons.Filled.Tune, onMenuClick)
         }
@@ -763,6 +915,20 @@ private fun SteamTabButton(label: String, selected: Boolean, onClick: () -> Unit
                     style = MaterialTheme.typography.titleSmall,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
         )
+    }
+}
+
+@Composable
+private fun SteamViewButton(icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) Color(0xFF0C1420) else Color.Transparent)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = if (selected) Color(0xFF0FA6FF) else Color(0xFF92A2BC), modifier = Modifier.size(20.dp))
     }
 }
 
@@ -872,6 +1038,89 @@ private fun SteamGameCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
     }
 }
 
+@Composable
+private fun SteamGameListCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val capsuleRequest = remember(game.appId, game.capsuleUrl) {
+        ImageRequest.Builder(context)
+            .data(game.capsuleUrl)
+            .crossfade(false)
+            .memoryCacheKey("steam-list-${game.appId}")
+            .diskCacheKey(game.capsuleUrl)
+            .size(240, 112)
+            .build()
+    }
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF12141A)),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth().height(72.dp)) {
+            Box(modifier = Modifier.width(128.dp).fillMaxHeight().background(Color(0xFF131722))) {
+                AsyncImage(
+                    model = capsuleRequest,
+                    contentDescription = game.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(game.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (game.subtitle.isNotBlank()) {
+                    Text(game.subtitle, color = Color(0xFF888888), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (game.isDownloading) {
+                    Spacer(Modifier.height(4.dp))
+                    LinearProgressIndicator(progress = { game.downloadProgress }, modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape), color = MaterialTheme.colorScheme.primary, trackColor = Color(0xFF2D3443))
+                }
+            }
+            if (game.installed) {
+                Box(modifier = Modifier.padding(8.dp).align(Alignment.CenterVertically)) {
+                    StatusBadge(text = stringResource(R.string.steam_library_installed_badge))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SteamGameCompactCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF131722)), contentAlignment = Alignment.Center) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(game.capsuleUrl)
+                    .crossfade(false)
+                    .memoryCacheKey("steam-compact-${game.appId}")
+                    .size(80, 80)
+                    .build(),
+                contentDescription = game.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(game.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (game.subtitle.isNotBlank()) {
+                Text(game.subtitle, color = Color(0xFF888888), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        if (game.installed) {
+            Text(stringResource(R.string.steam_library_installed_badge), color = Color(0xFF4CAF50), fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp))
+        }
+        if (game.isDownloading) {
+            Text(game.statusLine, color = Color(0xFF0FA6FF), fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp))
+        }
+    }
+}
+
 private fun SteamLibraryGameUi.matchesContentFilter(filter: SteamContentFilter): Boolean {
     return when (filter) {
         SteamContentFilter.GAMES -> appType == AppType.game || appType == AppType.demo
@@ -921,6 +1170,7 @@ private fun SteamGameOverlay(
     var showContentManager by remember(game?.appId) { mutableStateOf(false) }
     var showWorkshopManager by remember(game?.appId) { mutableStateOf(false) }
     var showBranchPicker by remember(game?.appId) { mutableStateOf(false) }
+    var showAchievements by remember(game?.appId) { mutableStateOf(false) }
     var workshopRefreshToken by remember(game?.appId) { mutableStateOf(0) }
     val appInfo = remember(game?.appId) { game?.let { SteamService.getAppInfoOf(it.appId) } }
     var selectedBranch by remember(game?.appId) {
@@ -1379,6 +1629,12 @@ private fun SteamGameOverlay(
                                     onClick = { showWorkshopManager = true },
                                     modifier = Modifier.weight(1f),
                                 )
+                                SteamActionTile(
+                                    icon = Icons.Filled.Star,
+                                    text = stringResource(R.string.steam_library_achievements),
+                                    onClick = { showAchievements = true },
+                                    modifier = Modifier.weight(1f),
+                                )
                             }
 
                             Row(
@@ -1472,14 +1728,32 @@ private fun SteamGameOverlay(
                                 )
                             }
 
-                            SteamActionTile(
-                                icon = Icons.Filled.Delete,
-                                text = stringResource(R.string.steam_library_uninstall),
-                                onClick = { onDelete(game.appId) },
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                containerColor = Color(0x9934161D),
-                                contentColor = Color(0xFFFF8CA4),
-                            )
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                SteamActionTile(
+                                    icon = Icons.Filled.PhotoLibrary,
+                                    text = stringResource(R.string.steam_library_screenshots),
+                                    onClick = {
+                                        val steamId64 = SteamService.userSteamId?.convertToUInt64()
+                                            ?: PrefManager.steamUserSteamId64
+                                        if (steamId64 != 0L) {
+                                            val url = "https://steamcommunity.com/profiles/$steamId64/screenshots/?appid=${game.appId}"
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                )
+                                SteamActionTile(
+                                    icon = Icons.Filled.Delete,
+                                    text = stringResource(R.string.steam_library_uninstall),
+                                    onClick = { onDelete(game.appId) },
+                                    modifier = Modifier.weight(1f),
+                                    containerColor = Color(0x9934161D),
+                                    contentColor = Color(0xFFFF8CA4),
+                                )
+                            }
                         } else {
                             if (game.isDownloading) {
                                 GradientButton(
@@ -1611,9 +1885,14 @@ private fun SteamGameOverlay(
             )
         }
 
+        if (showAchievements && game != null) {
+            AchievementsSheet(appId = game.appId, onDismiss = { showAchievements = false })
+        }
+
         if (game != null && isLaunchingGame) {
             SteamLaunchOverlay(game = game)
         }
+
     }
 }
 }

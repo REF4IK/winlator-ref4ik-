@@ -166,6 +166,16 @@ object SteamGameLauncher {
             }
             shortcut = preparedShortcut
 
+            // Notify Steam that we're launching a game
+            if (!offlineLaunch) {
+                withContext(Dispatchers.IO) {
+                    SteamService.notifyGameRunningFromWineProcesses(
+                        appId = app.id,
+                        shortcutName = app.name,
+                    )
+                }
+            }
+
             val intent = Intent(context, XServerDisplayActivity::class.java).apply {
                 putExtra("container_id", shortcut!!.container.id)
                 putExtra("shortcut_path", shortcut!!.file.path)
@@ -272,7 +282,7 @@ object SteamGameLauncher {
         SteamUtils.skipFirstTimeSteamSetup(container.rootDir)
         SteamUtils.updateOrModifyLocalConfig(imageFs, container, app.id.toString(), steamUserDataId)
         SteamUtils.setupLightweightSteamConfig(imageFs, steamId64)
-        SteamUtils.writeCompleteSettingsDir(steamDir, app.id, isOffline = isOffline, ticketBase64 = ticketBase64)
+        SteamUtils.writeCompleteSettingsDir(steamDir, app.id, isOffline = isOffline, forceDlc = true, ticketBase64 = ticketBase64)
         SteamUtils.enrichSteamSettings(context, app.id, File(steamDir, "steam_settings"))
         writeGameSteamSettings(context, app.id, gameDir, ticketBase64, isOffline)
         SteamUtils.writeColdClientIni(app.id, container)

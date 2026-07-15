@@ -26,6 +26,7 @@ import com.winlator.cmod.steam.data.OwnedGames
 import com.winlator.cmod.steam.data.PostSyncInfo
 import com.winlator.cmod.steam.data.SteamApp
 import com.winlator.cmod.steam.data.SteamControllerConfigDetail
+import com.winlator.cmod.steam.data.ChatMessage
 import com.winlator.cmod.steam.data.SteamFriend
 import com.winlator.cmod.steam.data.SteamLicense
 import com.winlator.cmod.steam.data.UserFileInfo
@@ -66,6 +67,7 @@ import `in`.dragonbra.javasteam.enums.EDepotFileFlag
 import `in`.dragonbra.javasteam.enums.ELicenseFlags
 import `in`.dragonbra.javasteam.enums.EMsg
 import `in`.dragonbra.javasteam.enums.EOSType
+import `in`.dragonbra.javasteam.enums.EChatEntryType
 import `in`.dragonbra.javasteam.enums.EPersonaState
 import `in`.dragonbra.javasteam.enums.EResult
 import `in`.dragonbra.javasteam.networking.steam3.ProtocolTypes
@@ -92,6 +94,7 @@ import `in`.dragonbra.javasteam.steam.handlers.steamapps.SteamApps
 import `in`.dragonbra.javasteam.steam.handlers.steamapps.callback.LicenseListCallback
 import `in`.dragonbra.javasteam.steam.handlers.steamcloud.SteamCloud
 import `in`.dragonbra.javasteam.steam.handlers.steamfriends.SteamFriends
+import `in`.dragonbra.javasteam.steam.handlers.steamfriends.callback.FriendMsgCallback
 import `in`.dragonbra.javasteam.steam.handlers.steamfriends.callback.PersonaStateCallback
 import `in`.dragonbra.javasteam.steam.handlers.steamgameserver.SteamGameServer
 import `in`.dragonbra.javasteam.steam.handlers.steammasterserver.SteamMasterServer
@@ -126,6 +129,7 @@ import kotlinx.coroutines.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.io.path.pathString
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -163,6 +167,7 @@ import `in`.dragonbra.javasteam.steam.steamclient.AsyncJobFailedException
 import `in`.dragonbra.javasteam.types.DepotManifest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -273,6 +278,7 @@ class SteamService : Service(), IChallengeUrlChanged {
     private var picsGetProductInfoJob: Job? = null
     private var picsChangesCheckerJob: Job? = null
     private var friendCheckerJob: Job? = null
+    private var autoUpdateCheckerJob: Job? = null
 
     private val _isPlayingBlocked = MutableStateFlow(false)
     val isPlayingBlocked = _isPlayingBlocked.asStateFlow()
@@ -282,6 +288,17 @@ class SteamService : Service(), IChallengeUrlChanged {
         SteamFriend(name = PrefManager.steamUserName, avatarHash = PrefManager.steamUserAvatarHash),
     )
     val localPersona = _localPersona.asStateFlow()
+
+    // Cache in-memory the friends list.
+    private val _friendsList = MutableStateFlow<List<SteamFriend>>(emptyList())
+    val friendsList = _friendsList.asStateFlow()
+
+    // How often to refresh friends (ms)
+    private var friendsAutoRefreshJob: Job? = null
+
+    // Chat messages per friend (steamId64 -> list of messages)
+    private val _chatMessages = MutableStateFlow<Map<Long, List<ChatMessage>>>(emptyMap())
+    val chatMessages = _chatMessages.asStateFlow()
 
 data class ManifestSizes(
         val installSize: Long = 0L,
@@ -858,6 +875,70 @@ data class ManifestSizes(
             userSteamId?.let { instance?._steamFriends?.requestFriendInfo(it) }
         }
 
+        private val _emptyFriendsFlow = MutableStateFlow(emptyList<SteamFriend>())
+        val friendsList: StateFlow<List<SteamFriend>>
+            get() = (instance?._friendsList ?: _emptyFriendsFlow).asStateFlow()
+
+        suspend fun requestFriendsInfo() = withContext(Dispatchers.IO) {
+            instance?.refreshFriendsList()
+        }
+
+        val chatMessages: StateFlow<Map<Long, List<ChatMessage>>>
+            get() = (instance?._chatMessages ?: MutableStateFlow(emptyMap())).asStateFlow()
+
+        fun chatMessagesFor(friendSteamId64: Long): List<ChatMessage> {
+            return instance?._chatMessages?.value?.get(friendSteamId64) ?: emptyList()
+        }
+
+        suspend fun sendChatMessage(steamId64: Long, message: String) = withContext(Dispatchers.IO) {
+            val friends = instance?._steamFriends ?: return@withContext
+            val steamId = SteamID(steamId64)
+            friends.sendChatMessage(steamId, EChatEntryType.ChatMsg, message)
+            val localSteamClient = instance?.steamClient?.steamID
+            val chatMsg = ChatMessage(
+                steamId64 = steamId64,
+                senderSteamId64 = localSteamClient?.convertToUInt64() ?: 0L,
+                text = message,
+                timestamp = System.currentTimeMillis(),
+                isIncoming = false,
+            )
+            instance?._chatMessages?.update { map ->
+                val existing = map.toMutableMap()
+                val messages = (existing[steamId64] ?: emptyList()) + chatMsg
+                existing[steamId64] = messages
+                existing
+            }
+        }
+
+        suspend fun fetchAchievementsForDisplay(appId: Int): List<com.winlator.cmod.steam.statsgen.Achievement> = withContext(Dispatchers.IO) {
+            val service = instance ?: return@withContext emptyList()
+            val userStats = service._steamUserStats ?: return@withContext emptyList()
+            val steamUser = service._steamUser ?: return@withContext emptyList()
+            val steamId = steamUser.steamID ?: return@withContext emptyList()
+            try {
+                val userStatsResult = userStats.getUserStats(appId, steamId).await()
+                if (userStatsResult.result != EResult.OK) return@withContext emptyList()
+                val schemaArray = userStatsResult.schema.toByteArray()
+                val generator = StatsAchievementsGenerator()
+                val result = generator.generateStatsAchievements(schemaArray, "")
+                result.achievements.map { achievement ->
+                    val block = userStatsResult.achievementBlocks.firstOrNull { block ->
+                        result.nameToBlockBit[achievement.name]?.let { (blockId, _) ->
+                            val aid = block.achievementId
+                            aid.toString() == blockId.toString()
+                        } ?: false
+                    }
+                    achievement.copy(
+                        unlocked = block != null,
+                        unlockTimestamp = (block?.unlockTime as? Number)?.toInt() ?: 0,
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to fetch achievements for appId=$appId")
+                emptyList()
+            }
+        }
+
         suspend fun getSelfCurrentlyPlayingAppId(): Int? = withContext(Dispatchers.IO) {
             val self = instance?.localPersona?.value ?: return@withContext null
             if (self.isPlayingGame) self.gameAppID else null
@@ -925,6 +1006,28 @@ data class ManifestSizes(
          * 5. Declared dlcAppIds field from PICS
          * @return deduplicated sorted list of SteamApp DLCs
          */
+        private suspend fun fixDlcForAppIdInDb(parentAppId: Int): Int {
+            val service = instance ?: return 0
+            val appInfo = service.appDao.findApp(parentAppId) ?: return 0
+            val candidateIds = (
+                appInfo.depots.values.map { it.dlcAppId }.filter { it != INVALID_APP_ID } +
+                    appInfo.dlcAppIds
+                ).distinct().toList()
+            if (candidateIds.isEmpty()) return 0
+            var fixed = 0
+            for (dlcId in candidateIds) {
+                try {
+                    val dlcApp = service.appDao.findApp(dlcId)
+                    if (dlcApp != null && dlcApp.dlcForAppId != parentAppId) {
+                        service.appDao.update(dlcApp.copy(dlcForAppId = parentAppId))
+                        Timber.d("DLC fix: updated dlcForAppId for appId=$dlcId from ${dlcApp.dlcForAppId} to $parentAppId")
+                        fixed++
+                    }
+                } catch (_: Exception) { }
+            }
+            return fixed
+        }
+
         fun getSelectableDlcAppsOf(appId: Int): List<SteamApp> =
             runBlocking(Dispatchers.IO) {
                 val service = instance ?: return@runBlocking emptyList()
@@ -943,33 +1046,70 @@ data class ManifestSizes(
                             depot.dlcAppId != INVALID_APP_ID &&
                                 filterForDownloadableDepots(depot, has64Bit, preferredLanguage, ownedDlc = null)
                         }.map { it.dlcAppId }
+                        .toList()
 
-                val indirectDlcApps = service.appDao.findDownloadableDLCApps(appId).orEmpty()
-                val hiddenDlcApps = service.appDao.findHiddenDLCApps(appId).orEmpty()
+                var indirectDlcApps = service.appDao.findDownloadableDLCApps(appId).orEmpty()
+                var hiddenDlcApps = service.appDao.findHiddenDLCApps(appId).orEmpty()
+
+                // Fix dlc_for_app_id in DB if queries return empty
+                if (indirectDlcApps.isEmpty() && hiddenDlcApps.isEmpty()) {
+                    Timber.d("DLC fix: dlc_for_app_id queries empty for appId=$appId, fixing DB...")
+                    val fixed = runBlocking(Dispatchers.IO) { fixDlcForAppIdInDb(appId) }
+                    if (fixed > 0) {
+                        Timber.d("DLC fix: fixed $fixed entries, retrying queries")
+                        indirectDlcApps = service.appDao.findDownloadableDLCApps(appId).orEmpty()
+                        hiddenDlcApps = service.appDao.findHiddenDLCApps(appId).orEmpty()
+                        if (indirectDlcApps.isEmpty() && hiddenDlcApps.isEmpty()) {
+                            indirectDlcApps = service.appDao.findDownloadableDLCAppsNoLicense(appId).orEmpty()
+                            hiddenDlcApps = service.appDao.findHiddenDLCAppsNoLicense(appId).orEmpty()
+                        }
+                    } else {
+                        // No DLCs in DB at all — try without license
+                        indirectDlcApps = service.appDao.findDownloadableDLCAppsNoLicense(appId).orEmpty()
+                        hiddenDlcApps = service.appDao.findHiddenDLCAppsNoLicense(appId).orEmpty()
+                    }
+                }
+
                 val dlcAppsById = (indirectDlcApps + hiddenDlcApps).associateBy { it.id }
-                val indirectDlcIds = indirectDlcApps.map { it.id }.asSequence()
-                val hiddenDlcIds = hiddenDlcApps.map { it.id }.asSequence()
+                val indirectDlcIds = indirectDlcApps.map { it.id }
+                val hiddenDlcIds = hiddenDlcApps.map { it.id }
                 val groupedBaseDlcIds =
                     getGroupedBaseAppDlcIds(
                         appInfo = appInfo,
                         preferredLanguage = preferredLanguage,
                         has64Bit = has64Bit,
-                    ).asSequence()
+                    ).toList()
 
-                val declaredDlcIds = appInfo.dlcAppIds.asSequence()
+                val declaredDlcIds = appInfo.dlcAppIds
 
                 val selectableDlcIds = (mainAppDlcIds + groupedBaseDlcIds + indirectDlcIds + hiddenDlcIds + declaredDlcIds).distinct().toList()
 
-                if (selectableDlcIds.isEmpty()) return@runBlocking emptyList()
+                if (selectableDlcIds.isEmpty()) {
+                    Timber.w("DLC diagnostics: ALL sources empty for appId=$appId")
+                    Timber.d("DLC diagnostics: depots keys=${appInfo.depots.keys.take(20)} dlcAppIds=${appInfo.dlcAppIds}")
+                    return@runBlocking emptyList()
+                }
 
-                // Single bulk SELECT instead of N findApp() calls; preserves the DB-first preference
-                // by overlaying the already-loaded dlcAppsById map only for IDs not in the DB.
+                Timber.d("DLC diagnostics: appId=$appId | mainAppDlcIds=${mainAppDlcIds.size} | groupedBase=${groupedBaseDlcIds.size} | indirect=${indirectDlcIds.size} | hidden=${hiddenDlcIds.size} | declared=${declaredDlcIds.size} | total=${selectableDlcIds.size}")
+                if (selectableDlcIds.isNotEmpty()) {
+                    Timber.d("DLC diagnostics: IDs=${selectableDlcIds.take(20)}")
+                }
+
                 val dlcFromDb = service.appDao.findApps(selectableDlcIds).associateBy { it.id }
-                selectableDlcIds
+                val result = selectableDlcIds
                     .mapNotNull { dlcAppId ->
-                        (dlcFromDb[dlcAppId] ?: dlcAppsById[dlcAppId])?.takeIf { it.name.isNotBlank() }
+                        val app = dlcFromDb[dlcAppId] ?: dlcAppsById[dlcAppId]
+                        if (app == null) {
+                            Timber.d("DLC diagnostics: appId=$dlcAppId not found in DB (missing PICS data)")
+                            null
+                        } else if (app.name.isBlank()) {
+                            Timber.d("DLC diagnostics: appId=$dlcAppId name is BLANK (dlcForAppId=${app.dlcForAppId})")
+                            null
+                        } else app
                     }
                     .sortedBy { it.name.lowercase() }
+                Timber.d("DLC diagnostics: returning ${result.size} DLCs for appId=$appId")
+                result
             }
 
         /** Helper - get DLC IDs from grouped base app content depots (WinNative pattern) */
@@ -1036,7 +1176,23 @@ data class ManifestSizes(
         }
 
         fun getInstalledDlcDepotsOf(appId: Int): List<Int>? {
-            return getInstalledApp(appId)?.dlcDepots
+            val installedApp = getInstalledApp(appId) ?: return null
+            val installedDlcIds = installedApp.dlcDepots.toMutableList()
+            // Dynamic DLC discovery: check each selectable DLC if it has a download marker (WinNative pattern)
+            val selectableDlcs = getSelectableDlcAppsOf(appId)
+            for (dlc in selectableDlcs) {
+                if (dlc.id in installedDlcIds) continue
+                val dlcInfo = getInstalledApp(dlc.id)
+                if (dlcInfo?.isDownloaded == true && dlc.id !in installedDlcIds) {
+                    installedDlcIds.add(dlc.id)
+                }
+            }
+            if (installedDlcIds != installedApp.dlcDepots) {
+                runBlocking(Dispatchers.IO) {
+                    instance?.appInfoDao?.update(installedApp.copy(dlcDepots = installedDlcIds.sorted()))
+                }
+            }
+            return installedDlcIds.sorted()
         }
 
         private fun tryRecoverInstalledAppInfo(appId: Int): AppInfo? {
@@ -1886,6 +2042,30 @@ data class ManifestSizes(
             )
         }
 
+        fun downloadAppForUpdateTargeted(appId: Int): DownloadInfo? {
+            val changedDepots = runBlocking(Dispatchers.IO) {
+                getChangedDepotsForUpdate(appId)
+            }
+            if (changedDepots.isEmpty()) return null
+
+            val branch = PrefManager.getSteamSelectedBranch(appId)
+            val allDownloadable = getDownloadableDepots(appId)
+            val targetedDepots = allDownloadable.filterKeys { it in changedDepots }
+
+            if (targetedDepots.isEmpty()) return null
+
+            val dlcIds = resolveInstalledDlcIdsForUpdateOrVerify(appId)
+            return downloadApp(
+                appId = appId,
+                downloadableDepots = targetedDepots,
+                userSelectedDlcAppIds = dlcIds,
+                branch = branch,
+                includeInstalledDepots = false,
+                enableVerify = false,
+                allowPersistedProgress = false,
+            )
+        }
+
         fun downloadAppForVerify(appId: Int): DownloadInfo? {
             return downloadApp(
                 appId,
@@ -1894,6 +2074,37 @@ data class ManifestSizes(
                 enableVerify = true,
                 allowPersistedProgress = false,
             )
+        }
+
+        suspend fun checkAndRunAutoUpdates() {
+            if (!PrefManager.autoUpdateEnabled) return
+            if (!isConnected || !isLoggedIn) return
+            if (PrefManager.autoUpdateWifiOnly && !isOnWifi()) return
+
+            val appIds = instance?.appInfoDao?.getAllInstalledAppIds() ?: return
+            for (appId in appIds) {
+                if (downloadJobs.containsKey(appId)) continue
+                try {
+                    if (isUpdatePending(appId)) {
+                        Timber.d("Auto-update: update pending for appId=$appId")
+                        val dl = downloadAppForUpdateTargeted(appId)
+                        if (dl == null) {
+                            Timber.d("Auto-update: targeted update returned nothing for appId=$appId, falling back to full update")
+                            downloadAppForUpdate(appId)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Auto-update check failed for appId=$appId")
+                }
+            }
+        }
+
+        private fun isOnWifi(): Boolean {
+            val instance = instance ?: return false
+            val cm = instance.connectivityManager
+            val network = cm.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
+            return caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
         }
 
         private fun resolveInstalledDlcIdsForUpdateOrVerify(appId: Int): List<Int> {
@@ -2726,12 +2937,12 @@ data class ManifestSizes(
                                 // so we must limit decompress threads to avoid OutOfMemoryError.
                                 // With largeHeap=true we get ~512MB heap, so download threads can be higher.
                                 val cpuCores = Runtime.getRuntime().availableProcessors()
-                                // Maximize download threads for better throughput
-                                val maxDownloads = (cpuCores * 2.4).toInt().coerceAtLeast(4)
-                                // Increase decompress threads to match GameNative's max speed profile
-                                val maxDecompress = (cpuCores * 0.8).toInt().coerceAtLeast(2)
+                                // Use downloadSpeed setting as max download workers (maps to parallel chunks)
+                                val maxDownloads = PrefManager.downloadSpeed.coerceIn(4, 128)
+                                // Decompress at half the download rate to balance memory
+                                val maxDecompress = (maxDownloads / 2).coerceAtLeast(2)
 
-                                Timber.i("Download Config - Cores: $cpuCores")
+                                Timber.i("Download Config - Cores: $cpuCores, Speed setting: ${PrefManager.downloadSpeed}")
                                 Timber.i("Threads - Max Downloads: $maxDownloads, Max Decompress: $maxDecompress")
 
 
@@ -3525,12 +3736,22 @@ data class ManifestSizes(
             shortcutName: String? = null,
         ) {
             if (appId <= 0 || !isConnected || !isLoggedIn) return
-            Timber.d(
-                "notifyGameRunningFromWineProcesses is temporarily disabled for appId=%d launchExePath=%s shortcutName=%s",
-                appId,
-                launchExePath,
-                shortcutName,
-            )
+            Timber.d("notifyGameRunningFromWineProcesses: appId=%d launchExePath=%s shortcutName=%s", appId, launchExePath, shortcutName)
+            runBlocking(Dispatchers.IO) {
+                notifyRunningProcesses(
+                    GameProcessInfo(
+                        appId = appId,
+                        branch = PrefManager.getSteamSelectedBranch(appId),
+                        processes = listOf(
+                            `in`.dragonbra.javasteam.steam.handlers.steamapps.AppProcessInfo(
+                                /* processId */ 0,
+                                /* processIdParent */ 0,
+                                /* parentIsSteam */ true,
+                            ),
+                        ),
+                    ),
+                )
+            }
         }
 
         private fun listRunningWineProcessInfos(): List<RunningWineProcessInfo> {
@@ -3655,10 +3876,17 @@ data class ManifestSizes(
                         break
                     } catch (e: AsyncJobFailedException) {
                         if (attempt == maxAttempts) {
-                            Timber.e(e, "Cloud sync failed after $maxAttempts attempts for app $appId")
+                            Timber.e(e, "Cloud sync failed after $maxAttempts attempts for app $appId (AsyncJobFailedException)")
                             syncResult = PostSyncInfo(SyncResult.UnknownFail)
                         } else {
-                            Timber.w("Cloud sync attempt $attempt failed for app $appId, retrying...")
+                            Timber.w("Cloud sync attempt $attempt failed for app $appId (AsyncJobFailedException), retrying in ${attempt}s...")
+                            delay(1000L * attempt)
+                        }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Cloud sync error for app $appId (attempt $attempt/$maxAttempts): ${e.message}")
+                        if (attempt == maxAttempts) {
+                            syncResult = PostSyncInfo(SyncResult.UnknownFail)
+                        } else {
                             delay(1000L * attempt)
                         }
                     }
@@ -3682,12 +3910,18 @@ data class ManifestSizes(
         suspend fun cloudSavesDiffer(appId: Int): Boolean? {
             val steamInstance = instance ?: return null
             val steamCloud = steamInstance._steamCloud ?: return null
-            val localCN = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber ?: return null
+            val localCN = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber
+            if (localCN == null) {
+                Timber.d("Cloud diagnostics: no local change number for appId=$appId, treating as unknown")
+                return null
+            }
             return try {
                 val fileListChange = steamCloud.getAppFileListChange(appId, localCN).await()
-                fileListChange.currentChangeNumber != localCN
+                val changed = fileListChange.currentChangeNumber != localCN
+                Timber.d("Cloud diagnostics: appId=$appId localCN=$localCN remoteCN=${fileListChange.currentChangeNumber} changed=$changed")
+                changed
             } catch (e: Exception) {
-                Timber.e(e, "Failed to probe Steam cloud change number for appId=$appId")
+                Timber.e(e, "Cloud diagnostics: Failed to probe Steam cloud change number for appId=$appId: ${e.message}")
                 null
             }
         }
@@ -3735,9 +3969,16 @@ data class ManifestSizes(
                         break
                     } catch (e: AsyncJobFailedException) {
                         if (attempt == maxAttempts) {
-                            Timber.e(e, "Force cloud sync failed after $maxAttempts attempts for app $appId")
+                            Timber.e(e, "Force cloud sync failed after $maxAttempts attempts for app $appId (AsyncJobFailedException)")
                         } else {
-                            Timber.w("Force cloud sync attempt $attempt failed for app $appId, retrying...")
+                            Timber.w("Force cloud sync attempt $attempt failed for app $appId (AsyncJobFailedException), retrying in ${attempt}s...")
+                            delay(1000L * attempt)
+                        }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Force cloud sync error for app $appId (attempt $attempt/$maxAttempts): ${e.message}")
+                        if (attempt == maxAttempts) {
+                            syncResult = PostSyncInfo(SyncResult.UnknownFail)
+                        } else {
                             delay(1000L * attempt)
                         }
                     }
@@ -4499,6 +4740,8 @@ data class ManifestSizes(
             instance?.picsGetProductInfoJob?.cancel()
             instance?.picsChangesCheckerJob?.cancel()
             instance?.friendCheckerJob?.cancel()
+            instance?.friendsAutoRefreshJob?.cancel()
+            instance?.autoUpdateCheckerJob?.cancel()
 
             // Emit event synchronously so the UI can react in the same frame
             PluviaApp.events.emit(SteamEvent.LoggedOut(username))
@@ -4709,6 +4952,8 @@ data class ManifestSizes(
             instance?.picsGetProductInfoJob?.cancel()
             instance?.picsChangesCheckerJob?.cancel()
             instance?.friendCheckerJob?.cancel()
+            instance?.friendsAutoRefreshJob?.cancel()
+            instance?.autoUpdateCheckerJob?.cancel()
         }
 
         suspend fun getOwnedGames(friendID: Long): List<OwnedGames> = withContext(Dispatchers.IO) {
@@ -4728,12 +4973,21 @@ data class ManifestSizes(
             appId: Int,
             branch: String = "public",
         ): Boolean = withContext(Dispatchers.IO) {
-            // Don't try if there's no internet
-            if (!isConnected) return@withContext false
+            getChangedDepotsForUpdate(appId, branch).isNotEmpty()
+        }
 
-            val steamApps = instance?._steamApps ?: return@withContext false
+        /**
+         * Returns a set of depot IDs that have changed (need update).
+         * Used for targeted updates instead of re-downloading everything.
+         */
+        suspend fun getChangedDepotsForUpdate(
+            appId: Int,
+            branch: String = "public",
+        ): Set<Int> = withContext(Dispatchers.IO) {
+            if (!isConnected) return@withContext emptySet()
 
-            // ── 1. Fetch the latest app header from Steam (PICS).
+            val steamApps = instance?._steamApps ?: return@withContext emptySet()
+
             val pics = steamApps.picsGetProductInfo(
                 apps = listOf(PICSRequest(id = appId)),
                 packages = emptyList(),
@@ -4744,19 +4998,17 @@ data class ManifestSizes(
                 ?.apps
                 ?.values
                 ?.firstOrNull()
-                ?: return@withContext false          // nothing returned ⇒ treat as up-to-date
+                ?: return@withContext emptySet()
 
             val remoteSteamApp = remoteAppInfo.keyValues.generateSteamApp()
-            val localSteamApp = getAppInfoOf(appId) ?: return@withContext true // not cached yet
+            val localSteamApp = getAppInfoOf(appId) ?: return@withContext getDownloadableDepots(appId).keys.toSet()
 
-            // ── 2. Compare manifest IDs of the depots we actually install.
-            getDownloadableDepots(appId).keys.any { depotId ->
+            getDownloadableDepots(appId).keys.filter { depotId ->
                 val remoteManifest = remoteSteamApp.depots[depotId]?.manifests?.get(branch)
                 val localManifest = localSteamApp.depots[depotId]?.manifests?.get(branch)
-                // If remote manifest is null, skip this depot (hack for Castle Crashers)
-                if (remoteManifest == null) return@any false
+                if (remoteManifest == null) return@filter false
                 remoteManifest?.gid != localManifest?.gid
-            }
+            }.toSet()
         }
 
         suspend fun refreshAppMetadataFromSteam(
@@ -4871,7 +5123,8 @@ data class ManifestSizes(
                                         }
                                         val ownerAccountId = packageFromDb?.ownerAccountId ?: existingDlc?.ownerAccountId.orEmpty()
 
-                                        remoteDlc.keyValues.generateSteamApp().copy(
+                                        val rawDlcApp = remoteDlc.keyValues.generateSteamApp()
+                                        rawDlcApp.copy(
                                             packageId = packageId,
                                             ownerAccountId = ownerAccountId,
                                             receivedPICS = true,
@@ -4879,7 +5132,9 @@ data class ManifestSizes(
                                             licenseFlags = packageFromDb?.licenseFlags ?: existingDlc?.licenseFlags ?: EnumSet.noneOf(ELicenseFlags::class.java),
                                             installDir = existingDlc?.installDir.orEmpty().takeIf {
                                                 it.isNotEmpty() && (it.startsWith("/") || it.contains(File.separator))
-                                            } ?: remoteDlc.keyValues.generateSteamApp().installDir,
+                                            } ?: rawDlcApp.installDir,
+                                            // Force dlcForAppId to the parent app ID — PICS data often omits this field
+                                            dlcForAppId = if (rawDlcApp.dlcForAppId == INVALID_APP_ID) appId else rawDlcApp.dlcForAppId,
                                         )
                                     }
 
@@ -5095,6 +5350,7 @@ data class ManifestSizes(
                     add(subscribe(LoggedOnCallback::class.java, ::onLoggedOn))
                     add(subscribe(LoggedOffCallback::class.java, ::onLoggedOff))
                     add(subscribe(PersonaStateCallback::class.java, ::onPersonaStateReceived))
+                    add(subscribe(FriendMsgCallback::class.java, ::onFriendMessage))
                     add(subscribe(LicenseListCallback::class.java, ::onLicenseList))
                     add(subscribe(PlayingSessionStateCallback::class.java, ::onPlayingSessionState))
                 }
@@ -5353,6 +5609,8 @@ data class ManifestSizes(
 
                 picsChangesCheckerJob = continuousPICSChangesChecker()
                 picsGetProductInfoJob = continuousPICSGetProductInfo()
+                friendsAutoRefreshJob = continuousFriendsChecker()
+                autoUpdateCheckerJob = continuousAutoUpdateChecker()
 
                 // Tell steam we're online, this allows friends to update.
                 _steamFriends?.setPersonaState(EPersonaState.from(PrefManager.personaState) ?: EPersonaState.Online)
@@ -5406,6 +5664,29 @@ data class ManifestSizes(
     }
 
     @OptIn(ExperimentalStdlibApi::class)
+    private fun onFriendMessage(callback: FriendMsgCallback) {
+        val sender = callback.sender ?: return
+        if (!sender.isIndividualAccount) return
+        val msgText = callback.message ?: return
+        if (msgText.isBlank()) return
+        val sid64 = sender.convertToUInt64()
+        val localSteamClient = steamClient?.steamID
+        val isIncoming = localSteamClient == null || sender != localSteamClient
+        val message = ChatMessage(
+            steamId64 = sid64,
+            senderSteamId64 = if (isIncoming) sid64 else (localSteamClient?.convertToUInt64() ?: 0L),
+            text = msgText,
+            timestamp = System.currentTimeMillis(),
+            isIncoming = isIncoming,
+        )
+        _chatMessages.update { map ->
+            val existing = map.toMutableMap()
+            val messages = (existing[sid64] ?: emptyList()) + message
+            existing[sid64] = messages
+            existing
+        }
+    }
+
     private fun onPersonaStateReceived(callback: PersonaStateCallback) {
         // Ignore accounts that arent individuals
         if (!callback.friendId.isIndividualAccount) {
@@ -5417,42 +5698,89 @@ data class ManifestSizes(
             return
         }
 
-        // Timber.d("Persona state received: ${callback.name}")
-
-        // Capture steamClient before launching the coroutine to avoid a race condition where
-        // steamClient is nulled out (service stopped) by the time the coroutine runs inside
-        // db.withTransaction, which would cause a NullPointerException.
         val localSteamClient = steamClient ?: return
 
         scope.launch {
-            db.withTransaction {
-                // Send off an event if we change states.
-                if (callback.friendId == localSteamClient.steamID) {
-                    Timber.d("Local persona state received: ${callback.playerName}")
+            val avatarHash = callback.avatarHash.toHexString()
+            val playerName = callback.playerName
 
-                    val avatarHash = callback.avatarHash.toHexString()
-                    val playerName = callback.playerName
+            if (callback.friendId == localSteamClient.steamID) {
+                Timber.d("Local persona state received: ${callback.playerName}")
 
-                    // Update local state flow
-                    _localPersona.update {
-                        it.copy(
-                            avatarHash = avatarHash,
-                            name = playerName,
-                            state = callback.personaState ?: EPersonaState.Offline,
-                            gameAppID = callback.gamePlayedAppId,
-                            gameName = appDao.findApp(callback.gamePlayedAppId)?.name ?: callback.gameName,
-                        )
-                    }
-
-                    // Cache local persona
-                    PrefManager.steamUserAvatarHash = avatarHash
-                    PrefManager.steamUserName = playerName
-
-                    val event = SteamEvent.PersonaStateReceived(localPersona.value)
-                    PluviaApp.events.emit(event)
+                // Update local state flow
+                _localPersona.update {
+                    it.copy(
+                        avatarHash = avatarHash,
+                        name = playerName,
+                        state = callback.personaState ?: EPersonaState.Offline,
+                        gameAppID = callback.gamePlayedAppId,
+                        gameName = appDao.findApp(callback.gamePlayedAppId)?.name ?: callback.gameName,
+                    )
                 }
+
+                // Cache local persona
+                PrefManager.steamUserAvatarHash = avatarHash
+                PrefManager.steamUserName = playerName
+
+                val event = SteamEvent.PersonaStateReceived(localPersona.value)
+                PluviaApp.events.emit(event)
             }
+
+            // Also process other friends (not just self)
+            updateFriendInList(
+                steamId64 = callback.friendId.convertToUInt64(),
+                name = playerName,
+                avatarHash = avatarHash,
+                state = callback.personaState ?: EPersonaState.Offline,
+                gameAppID = callback.gamePlayedAppId,
+                gameName = appDao.findApp(callback.gamePlayedAppId)?.name ?: callback.gameName,
+            )
         }
+    }
+
+    private fun updateFriendInList(
+        steamId64: Long,
+        name: String,
+        avatarHash: String,
+        state: EPersonaState,
+        gameAppID: Int,
+        gameName: String,
+    ) {
+        _friendsList.update { current ->
+            val existing = current.toMutableList()
+            val idx = existing.indexOfFirst { it.steamId64 == steamId64 }
+            val friend = SteamFriend(
+                steamId64 = steamId64,
+                avatarHash = avatarHash,
+                name = name,
+                state = state,
+                gameAppID = gameAppID,
+                gameName = gameName,
+            )
+            if (idx >= 0) {
+                existing[idx] = friend
+            } else {
+                existing.add(friend)
+            }
+            existing
+        }
+    }
+
+    private fun refreshFriendsList() {
+        val friends = _steamFriends ?: return
+        val localSteamClient = steamClient ?: return
+        // Request persona info for friends to trigger PersonaStateCallback events
+        // The actual friends list is built passively through onPersonaStateReceived
+        for (attempt in 0 until 5) {
+            val friendId = kotlinx.coroutines.runBlocking {
+                // We can't directly enumerate, request our own persona to trigger updates
+                localSteamClient.steamID
+            } ?: break
+            friends.requestFriendInfo(friendId)
+            break
+        }
+        // Remove stale friends not updated within 24h
+        Timber.d("Friends list has ${_friendsList.value.size} friends")
     }
 
     private fun onLicenseList(callback: LicenseListCallback) {
@@ -5556,6 +5884,27 @@ data class ManifestSizes(
             delay(60.seconds)
 
             PICSChangesCheck()
+        }
+    }
+
+    private fun continuousFriendsChecker(): Job = scope.launch {
+        // Initial delay to let login settle
+        delay(30.seconds)
+        while (isActive && isLoggedIn) {
+            refreshFriendsList()
+            delay(120.seconds)
+        }
+    }
+
+    private fun continuousAutoUpdateChecker(): Job = scope.launch {
+        delay(2.minutes)
+        while (isActive && isLoggedIn) {
+            try {
+                checkAndRunAutoUpdates()
+            } catch (e: Exception) {
+                Timber.w(e, "Auto-update check failed")
+            }
+            delay(30.minutes)
         }
     }
 
