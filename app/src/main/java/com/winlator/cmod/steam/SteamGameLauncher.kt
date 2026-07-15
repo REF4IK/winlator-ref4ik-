@@ -176,6 +176,21 @@ object SteamGameLauncher {
                 }
             }
 
+            // Ensure controls profile is set for virtual gamepad to work
+            if (shortcut!!.getExtra("controlsProfile").isNullOrBlank()) {
+                val prefs = android.preference.PreferenceManager.getDefaultSharedPreferences(context)
+                val savedProfileIndex = prefs.getInt("selected_profile_index", -1)
+                val controlManager = com.winlator.cmod.inputcontrols.InputControlsManager(context)
+                val profiles = controlManager.getProfiles()
+                if (savedProfileIndex in profiles.indices) {
+                    shortcut!!.putExtra("controlsProfile", profiles[savedProfileIndex].id.toString())
+                } else if (profiles.isNotEmpty()) {
+                    // Pick first profile as fallback
+                    shortcut!!.putExtra("controlsProfile", profiles[0].id.toString())
+                }
+                shortcut!!.saveData()
+            }
+
             val intent = Intent(context, XServerDisplayActivity::class.java).apply {
                 putExtra("container_id", shortcut!!.container.id)
                 putExtra("shortcut_path", shortcut!!.file.path)

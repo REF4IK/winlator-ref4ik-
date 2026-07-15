@@ -117,7 +117,7 @@ object PrefManager {
         set(value) { encode("cell_id_manually_set", value) }
 
     var downloadOnWifiOnly: Boolean
-        get() = decodeBool("download_on_wifi_only", true)
+        get() = decodeBool("download_on_wifi_only", false)
         set(value) { encode("download_on_wifi_only", value) }
         
     var lastPICSChangeNumber: Int
@@ -149,7 +149,7 @@ object PrefManager {
         set(value) { encode("container_language", value) }
         
     var downloadSpeed: Int
-        get() = decodeInt("download_speed", 32)
+        get() = decodeInt("download_speed", 128)
         set(value) { encode("download_speed", value) }
         
     var clientId: Long
