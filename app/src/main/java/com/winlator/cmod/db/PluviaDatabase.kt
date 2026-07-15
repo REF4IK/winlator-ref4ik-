@@ -10,6 +10,7 @@ import com.winlator.cmod.steam.data.ChangeNumbers
 import com.winlator.cmod.steam.data.DownloadingAppInfo
 import com.winlator.cmod.steam.data.EncryptedAppTicket
 import com.winlator.cmod.steam.data.FileChangeLists
+import com.winlator.cmod.steam.data.ChatMessageEntity
 import com.winlator.cmod.steam.data.SteamApp
 import com.winlator.cmod.steam.data.SteamLicense
 import com.winlator.cmod.steam.db.converters.AppConverter
@@ -20,6 +21,7 @@ import com.winlator.cmod.steam.db.converters.PathTypeConverter
 import com.winlator.cmod.steam.db.converters.UserFileInfoListConverter
 import com.winlator.cmod.steam.db.dao.AppInfoDao
 import com.winlator.cmod.steam.db.dao.CachedLicenseDao
+import com.winlator.cmod.steam.db.dao.ChatMessageDao
 import com.winlator.cmod.steam.db.dao.ChangeNumbersDao
 import com.winlator.cmod.steam.db.dao.DownloadingAppInfoDao
 import com.winlator.cmod.steam.db.dao.EncryptedAppTicketDao
@@ -34,13 +36,14 @@ const val DATABASE_NAME = "pluvia_database"
         AppInfo::class,
         CachedLicense::class,
         ChangeNumbers::class,
+        ChatMessageEntity::class,
         DownloadingAppInfo::class,
         EncryptedAppTicket::class,
         FileChangeLists::class,
         SteamApp::class,
         SteamLicense::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(
@@ -67,6 +70,8 @@ abstract class PluviaDatabase : RoomDatabase() {
     abstract fun encryptedAppTicketDao(): EncryptedAppTicketDao
 
     abstract fun downloadingAppInfoDao(): DownloadingAppInfoDao
+
+    abstract fun chatMessageDao(): ChatMessageDao
 
     companion object {
         @Volatile

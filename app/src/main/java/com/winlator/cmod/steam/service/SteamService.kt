@@ -27,6 +27,7 @@ import com.winlator.cmod.steam.data.PostSyncInfo
 import com.winlator.cmod.steam.data.SteamApp
 import com.winlator.cmod.steam.data.SteamControllerConfigDetail
 import com.winlator.cmod.steam.data.ChatMessage
+import com.winlator.cmod.steam.data.ChatMessageEntity
 import com.winlator.cmod.steam.data.SteamFriend
 import com.winlator.cmod.steam.data.SteamLicense
 import com.winlator.cmod.steam.data.UserFileInfo
@@ -222,6 +223,7 @@ class SteamService : Service(), IChallengeUrlChanged {
     lateinit var encryptedAppTicketDao: EncryptedAppTicketDao
 
     lateinit var downloadingAppInfoDao: DownloadingAppInfoDao
+    lateinit var chatMessageDao: com.winlator.cmod.steam.db.dao.ChatMessageDao
 
     private lateinit var notificationHelper: NotificationHelper
 
@@ -907,6 +909,41 @@ data class ManifestSizes(
                 val messages = (existing[steamId64] ?: emptyList()) + chatMsg
                 existing[steamId64] = messages
                 existing
+            }
+            // Persist to DB
+            try {
+                instance?.chatMessageDao?.insert(
+                    ChatMessageEntity(
+                        friendSteamId64 = steamId64,
+                        senderSteamId64 = chatMsg.senderSteamId64,
+                        text = chatMsg.text,
+                        timestamp = chatMsg.timestamp,
+                        isIncoming = false,
+                    )
+                )
+                instance?.chatMessageDao?.deleteOldMessages(steamId64)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to persist sent chat message")
+            }
+        }
+
+        fun getChatMessagesFromDb(friendSteamId64: Long): List<ChatMessage> {
+            val entities = try {
+                runBlocking(Dispatchers.IO) {
+                    instance?.chatMessageDao?.getMessages(friendSteamId64) ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to load chat history")
+                emptyList()
+            }
+            return entities.reversed().map { entity ->
+                ChatMessage(
+                    steamId64 = entity.friendSteamId64,
+                    senderSteamId64 = entity.senderSteamId64,
+                    text = entity.text,
+                    timestamp = entity.timestamp,
+                    isIncoming = entity.isIncoming,
+                )
             }
         }
 
@@ -5231,6 +5268,7 @@ data class ManifestSizes(
         cachedLicenseDao = database.cachedLicenseDao()
         encryptedAppTicketDao = database.encryptedAppTicketDao()
         downloadingAppInfoDao = database.downloadingAppInfoDao()
+        chatMessageDao = database.chatMessageDao()
     }
 
     override fun onCreate() {
@@ -5684,6 +5722,23 @@ data class ManifestSizes(
             val messages = (existing[sid64] ?: emptyList()) + message
             existing[sid64] = messages
             existing
+        }
+        // Persist to DB
+        scope.launch {
+            try {
+                chatMessageDao.insert(
+                    ChatMessageEntity(
+                        friendSteamId64 = sid64,
+                        senderSteamId64 = message.senderSteamId64,
+                        text = message.text,
+                        timestamp = message.timestamp,
+                        isIncoming = message.isIncoming,
+                    )
+                )
+                chatMessageDao.deleteOldMessages(sid64)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to persist chat message")
+            }
         }
     }
 

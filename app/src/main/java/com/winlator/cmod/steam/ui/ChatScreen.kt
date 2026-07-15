@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,14 +50,23 @@ fun ChatScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val allMessages by SteamService.chatMessages.collectAsState(emptyMap())
-    val messages = allMessages[friend.steamId64] ?: emptyList()
+    val liveMessages = allMessages[friend.steamId64] ?: emptyList()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    var historyMessages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
+    var historyLoaded by remember { mutableStateOf(false) }
+
+    val messages = remember(liveMessages, historyMessages) {
+        (historyMessages + liveMessages).sortedBy { it.timestamp }
+    }
 
     val avatarUrl = friend.avatarHash.getAvatarURL()
 
     LaunchedEffect(friend.steamId64) {
-        // no-op, messages update via StateFlow
+        historyMessages = withContext(Dispatchers.IO) {
+            SteamService.getChatMessagesFromDb(friend.steamId64)
+        }
+        historyLoaded = true
     }
 
     LaunchedEffect(messages.size) {
