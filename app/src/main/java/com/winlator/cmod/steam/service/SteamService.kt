@@ -281,6 +281,7 @@ class SteamService : Service(), IChallengeUrlChanged {
     private var picsChangesCheckerJob: Job? = null
     private var friendCheckerJob: Job? = null
     private var autoUpdateCheckerJob: Job? = null
+    private var keepaliveJob: Job? = null
 
     private val _isPlayingBlocked = MutableStateFlow(false)
     val isPlayingBlocked = _isPlayingBlocked.asStateFlow()
@@ -336,7 +337,7 @@ data class ManifestSizes(
          */
         var responseTimeout = 120.seconds
 
-        private val PROTOCOL_TYPES = EnumSet.of(ProtocolTypes.WEB_SOCKET)
+        private val PROTOCOL_TYPES = EnumSet.of(ProtocolTypes.TCP, ProtocolTypes.WEB_SOCKET)
 
         internal var instance: SteamService? = null
 
@@ -2733,7 +2734,9 @@ data class ManifestSizes(
                     Timber.i("selectedDepots is empty before snapshot filtering - App already installed.")
                     
                     // Instead of returning null, create a completed/verifying job so it shows in UI
-                    val info = DownloadInfo(1, appId, CopyOnWriteArrayList(listOf(appId)))
+                    val info = DownloadInfo(1, appId, getAppInfoOf(appId)?.name ?: "Game", CopyOnWriteArrayList(listOf(appId)), { name, prog, down, tot, speed ->
+                        instance?.notificationHelper?.notifyProgress(name, prog, down, tot, speed)
+                    })
                     info.updateStatus(DownloadPhase.COMPLETE)
                     info.setProgress(1f)
                     downloadJobs[appId] = info
@@ -2852,7 +2855,10 @@ data class ManifestSizes(
 
             if (activeCount >= maxParallel) {
                 Timber.i("Download limit reached ($maxParallel), queuing appId: $appId")
-                val info = DownloadInfo(selectedDepots.size, appId, downloadingAppIds).also { di ->
+                val queueNotify: (String, Float, String, String, String) -> Unit = { name, prog, down, tot, speed ->
+                    instance?.notificationHelper?.notifyProgress(name, prog, down, tot, speed)
+                }
+                val info = DownloadInfo(selectedDepots.size, appId, getAppInfoOf(appId)?.name ?: "Game", downloadingAppIds, queueNotify).also { di ->
                     di.setPersistencePath(appDirPath)
                     di.updateStatus(DownloadPhase.QUEUED, "Queued...")
                     di.setActive(false)
@@ -2862,7 +2868,9 @@ data class ManifestSizes(
                 return info
             }
 
-            val info = DownloadInfo(selectedDepots.size, appId, downloadingAppIds).also { di ->
+            val info = DownloadInfo(selectedDepots.size, appId, getAppInfoOf(appId)?.name ?: "Game", downloadingAppIds, { name, prog, down, tot, speed ->
+                instance?.notificationHelper?.notifyProgress(name, prog, down, tot, speed)
+            }).also { di ->
                 di.setPersistencePath(appDirPath)
 
                 // Set weights for each depot based on manifest sizes
@@ -3278,7 +3286,9 @@ data class ManifestSizes(
                 downloadingAppIds.add(appId)
             }
 
-            val info = DownloadInfo(1, appId, downloadingAppIds)
+            val info = DownloadInfo(1, appId, getAppInfoOf(appId)?.name ?: "Game", downloadingAppIds, { name, prog, down, tot, speed ->
+                instance?.notificationHelper?.notifyProgress(name, prog, down, tot, speed)
+            })
             info.setPersistencePath(appDirPath)
             info.updateStatus(DownloadPhase.COMPLETE)
             info.setProgress(1f)
@@ -4779,6 +4789,7 @@ data class ManifestSizes(
             instance?.friendCheckerJob?.cancel()
             instance?.friendsAutoRefreshJob?.cancel()
             instance?.autoUpdateCheckerJob?.cancel()
+            instance?.keepaliveJob?.cancel()
 
             // Emit event synchronously so the UI can react in the same frame
             PluviaApp.events.emit(SteamEvent.LoggedOut(username))
@@ -4991,6 +5002,7 @@ data class ManifestSizes(
             instance?.friendCheckerJob?.cancel()
             instance?.friendsAutoRefreshJob?.cancel()
             instance?.autoUpdateCheckerJob?.cancel()
+            instance?.keepaliveJob?.cancel()
         }
 
         suspend fun getOwnedGames(friendID: Long): List<OwnedGames> = withContext(Dispatchers.IO) {
@@ -5564,13 +5576,19 @@ data class ManifestSizes(
         if (!isStopping && retryAttempt < MAX_RETRY_ATTEMPTS) {
             retryAttempt++
 
-            Timber.w("Attempting to reconnect (retry $retryAttempt)")
+            // Exponential backoff: 5s, 10s, 30s, 60s, 120s, 180s... capped at 300s
+            val backoffSeconds = listOf(5, 10, 30, 60, 120, 180, 240, 300).getOrElse(retryAttempt - 1) { 300 }
+            Timber.w("Disconnected, reconnecting in ${backoffSeconds}s (retry $retryAttempt/$MAX_RETRY_ATTEMPTS)")
 
-            // isLoggingOut = false
             val event = SteamEvent.RemotelyDisconnected
             PluviaApp.events.emit(event)
 
-            connectToSteam()
+            scope.launch {
+                delay(backoffSeconds.seconds)
+                if (!isStopping) {
+                    connectToSteam()
+                }
+            }
         } else {
             val event = SteamEvent.Disconnected
             PluviaApp.events.emit(event)
@@ -5649,12 +5667,31 @@ data class ManifestSizes(
                 picsGetProductInfoJob = continuousPICSGetProductInfo()
                 friendsAutoRefreshJob = continuousFriendsChecker()
                 autoUpdateCheckerJob = continuousAutoUpdateChecker()
+                keepaliveJob = continuousKeepalive()
+                continuousCacheCleanup()
 
                 // Tell steam we're online, this allows friends to update.
                 _steamFriends?.setPersonaState(EPersonaState.from(PrefManager.personaState) ?: EPersonaState.Online)
 
                 notificationHelper.notify("Connected")
                 processPendingCloudSyncQueue(applicationContext)
+
+                // Resume any partial downloads from previous sessions
+                try {
+                    val pendingAppIds = runBlocking(Dispatchers.IO) {
+                        instance?.appInfoDao?.getAllInstalledAppIds() ?: emptyList()
+                    }
+                    for (appId in pendingAppIds) {
+                        val dirPath = getAppDirPath(appId)
+                        if (MarkerUtils.hasMarker(dirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER) ||
+                            hasPartialDownloadFiles(dirPath)) {
+                            Timber.d("Resuming partial download for appId=$appId")
+                            downloadApp(appId)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to scan for partial downloads on startup")
+                }
 
                 _loginResult = LoginResult.Success
             }
@@ -5824,17 +5861,25 @@ data class ManifestSizes(
     private fun refreshFriendsList() {
         val friends = _steamFriends ?: return
         val localSteamClient = steamClient ?: return
-        // Request persona info for friends to trigger PersonaStateCallback events
-        // The actual friends list is built passively through onPersonaStateReceived
-        for (attempt in 0 until 5) {
-            val friendId = kotlinx.coroutines.runBlocking {
-                // We can't directly enumerate, request our own persona to trigger updates
-                localSteamClient.steamID
-            } ?: break
-            friends.requestFriendInfo(friendId)
-            break
+        val localSteamId = localSteamClient.steamID
+        try {
+            val count = friends.getFriendCount()
+            Timber.d("Friends list: $count friends total")
+            val requestBatch = mutableListOf<SteamID>()
+            for (i in 0 until count.coerceAtMost(250)) {
+                val friendId = friends.getFriendByIndex(i) ?: continue
+                if (friendId == localSteamId) continue
+                if (!friendId.isIndividualAccount) continue
+                requestBatch.add(friendId)
+            }
+            // Request persona info for all friends in batch
+            if (requestBatch.isNotEmpty()) {
+                friends.requestFriendInfo(requestBatch)
+                Timber.d("Requested persona info for ${requestBatch.size} friends")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to refresh friends list")
         }
-        // Remove stale friends not updated within 24h
         Timber.d("Friends list has ${_friendsList.value.size} friends")
     }
 
@@ -5960,6 +6005,43 @@ data class ManifestSizes(
                 Timber.w(e, "Auto-update check failed")
             }
             delay(30.minutes)
+        }
+    }
+
+    /** Send periodic keepalive to prevent NAT/network idle disconnects */
+    private fun continuousKeepalive(): Job = scope.launch {
+        delay(45.seconds)
+        while (isActive && isLoggedIn) {
+            try {
+                _steamApps?.picsGetChangesSince(lastChangeNumber = PrefManager.lastPICSChangeNumber)
+                Timber.v("Keepalive ping sent")
+            } catch (e: Exception) {
+                Timber.w("Keepalive failed: ${e.message}")
+            }
+            delay(45.seconds)
+        }
+    }
+
+    /** Periodic cache cleanup - runs weekly to remove stale PICS data without `received_pics` flag */
+    private fun continuousCacheCleanup(): Job = scope.launch {
+        delay(10.minutes)
+        while (isActive && isLoggedIn) {
+            try {
+                val staleCount = runBlocking(Dispatchers.IO) {
+                    val service = instance ?: return@runBlocking 0
+                    val allApps = service.appDao.getAllAsList()
+                    val stale = allApps.filter { !it.receivedPICS && System.currentTimeMillis() - it.lastChangeNumber * 1000L > 7 * 24 * 3600 * 1000L }
+                    if (stale.isNotEmpty()) {
+                        Timber.d("Cache cleanup: removing ${stale.size} stale PICS entries")
+                        stale.forEach { service.appDao.update(it.copy(receivedPICS = true)) }
+                    }
+                    stale.size
+                }
+                if (staleCount > 0) Timber.d("Cache cleanup: refreshed $staleCount stale entries")
+            } catch (e: Exception) {
+                Timber.w("Cache cleanup failed: ${e.message}")
+            }
+            delay(7 * 24 * 3600 * 1000L) // Run weekly
         }
     }
 

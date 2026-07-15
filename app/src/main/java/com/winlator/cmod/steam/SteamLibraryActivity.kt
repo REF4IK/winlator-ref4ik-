@@ -576,6 +576,30 @@ private fun SteamLibraryScreen(
                         onClick = {},
                     )
                 }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                DropdownMenuItem(
+                    text = { Text("Download speed: ${PrefManager.downloadSpeed}") },
+                    trailingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            IconButton(onClick = {
+                                val speeds = listOf(4, 8, 16, 24, 32, 48, 64, 96, 128)
+                                val idx = speeds.indexOf(PrefManager.downloadSpeed)
+                                if (idx > 0) PrefManager.downloadSpeed = speeds[idx - 1]
+                            }, modifier = Modifier.size(24.dp)) {
+                                Text("-", color = Color.White, fontSize = 16.sp)
+                            }
+                            Text("${PrefManager.downloadSpeed}", color = Color(0xFF66C0F4), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            IconButton(onClick = {
+                                val speeds = listOf(4, 8, 16, 24, 32, 48, 64, 96, 128)
+                                val idx = speeds.indexOf(PrefManager.downloadSpeed)
+                                if (idx < speeds.size - 1) PrefManager.downloadSpeed = speeds[idx + 1]
+                            }, modifier = Modifier.size(24.dp)) {
+                                Text("+", color = Color.White, fontSize = 16.sp)
+                            }
+                        }
+                    },
+                    onClick = {},
+                )
                 if (state.isLoggedIn || hasStoredSession) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.steam_library_logout_action)) },

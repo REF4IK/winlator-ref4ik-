@@ -4,6 +4,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.winlator.cmod.steam.data.AppInfo
 import com.winlator.cmod.steam.data.CachedLicense
 import com.winlator.cmod.steam.data.ChangeNumbers
@@ -43,7 +45,7 @@ const val DATABASE_NAME = "pluvia_database"
         SteamApp::class,
         SteamLicense::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(
@@ -77,13 +79,28 @@ abstract class PluviaDatabase : RoomDatabase() {
         @Volatile
         private var instance: PluviaDatabase? = null
 
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `chat_message` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `friend_steam_id64` INTEGER NOT NULL, `sender_steam_id64` INTEGER NOT NULL, `text` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `is_incoming` INTEGER NOT NULL)")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_steam_app_dlc_for_app_id ON steam_app (dlc_for_app_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_steam_app_package_id ON steam_app (package_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_steam_app_type ON steam_app (type)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_chat_message_friend_steam_id64 ON chat_message (friend_steam_id64)")
+            }
+        }
+
         fun init(context: android.content.Context): PluviaDatabase {
             return instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     PluviaDatabase::class.java,
                     DATABASE_NAME,
-                ).fallbackToDestructiveMigration()
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { instance = it }
             }

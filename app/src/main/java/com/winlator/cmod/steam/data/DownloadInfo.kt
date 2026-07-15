@@ -22,7 +22,9 @@ class DownloadFailedException(message: String) : CancellationException(message)
 class DownloadInfo(
     val jobCount: Int = 1,
     val gameId: Int,
+    val gameName: String = "",
     var downloadingAppIds: CopyOnWriteArrayList<Int>,
+    val onProgressUpdate: ((String, Float, String, String, String) -> Unit)? = null,
 ) {
     @Volatile var isDeleting: Boolean = false
     @Volatile var isCancelling: Boolean = false
@@ -196,6 +198,35 @@ class DownloadInfo(
         if (timestampMs - lastSpeedSampleMs >= SPEED_SAMPLE_INTERVAL_MS) {
             lastSpeedSampleMs = timestampMs
             addSpeedSample(timestampMs, currentBytes.coerceAtLeast(0L))
+        }
+        // Update notification periodically
+        val progress = getProgress()
+        if (progress > 0f && progress < 1f && timestampMs - lastSpeedSampleMs < 2000L) {
+            onProgressUpdate?.invoke(
+                gameName,
+                progress,
+                formatBytes(bytesDownloaded.get()),
+                formatBytes(totalExpectedBytes.get()),
+                formatSpeed(etaEmaSpeedBytesPerSec),
+            )
+        }
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        return when {
+            bytes < 1024L -> "$bytes B"
+            bytes < 1024L * 1024L -> "${bytes / 1024} KB"
+            bytes < 1024L * 1024L * 1024L -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
+            else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+        }
+    }
+
+    private fun formatSpeed(speed: Double): String {
+        return when {
+            speed <= 0.0 -> ""
+            speed < 1024.0 -> String.format("%.0f B/s", speed)
+            speed < 1024.0 * 1024.0 -> String.format("%.0f KB/s", speed / 1024.0)
+            else -> String.format("%.1f MB/s", speed / (1024.0 * 1024.0))
         }
     }
 

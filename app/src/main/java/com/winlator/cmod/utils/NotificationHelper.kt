@@ -48,6 +48,28 @@ class NotificationHelper(private val context: Context) {
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
+    fun notifyProgress(appName: String, progress: Float, downloaded: String, total: String, speed: String) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val stopIntent = Intent(context, SteamService::class.java).apply { action = ACTION_EXIT }
+        val stopPendingIntent = PendingIntent.getForegroundService(context, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE)
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(appName)
+            .setContentText("$downloaded / $total — $speed")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .addAction(0, context.getString(android.R.string.cancel), stopPendingIntent)
+            .setProgress(100, (progress * 100).toInt(), false)
+            .build()
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+
     fun cancel() {
         notificationManager.cancel(NOTIFICATION_ID)
     }
