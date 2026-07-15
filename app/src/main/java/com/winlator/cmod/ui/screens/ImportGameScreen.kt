@@ -2,6 +2,7 @@ package com.winlator.cmod.ui.screens
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Environment
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.MainActivity
 import com.winlator.cmod.R
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
@@ -36,6 +38,7 @@ import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.win32.PEParser
 import java.io.File
+import java.util.Locale
 
 /**
  * Compose-версия GameImportConfirmActivity.
@@ -215,15 +218,64 @@ fun ImportGameScreen(
                             return@Button
                         }
                         try {
+                            val absolutePath = exePath
+                            val exeFile = File(absolutePath)
+                            val fileName = exeFile.name
+                            val externalStoragePath = Environment.getExternalStorageDirectory().absolutePath
+                            val relativePath = absolutePath.lowercase(Locale.ENGLISH)
+
+                            var driveLetter = "D:"
+                            when {
+                                relativePath.contains(externalStoragePath.lowercase(Locale.ENGLISH)) -> driveLetter = "D:"
+                                absolutePath.contains("/imagefs/") -> driveLetter = "Z:"
+                                absolutePath.contains("/.wine/drive_c/") -> driveLetter = "C:"
+                            }
+
+                            var pathWOutPrefix = absolutePath
+                            when (driveLetter) {
+                                "D:" -> {
+                                    pathWOutPrefix = pathWOutPrefix.removePrefix(externalStoragePath).trimStart('/')
+                                    if (pathWOutPrefix.lowercase(Locale.ENGLISH).startsWith("download/")) {
+                                        pathWOutPrefix = pathWOutPrefix.substring(9)
+                                    }
+                                }
+                                "Z:" -> {
+                                    val idx = pathWOutPrefix.indexOf("/imagefs/")
+                                    if (idx != -1) pathWOutPrefix = pathWOutPrefix.substring(idx + 9)
+                                }
+                                "C:" -> {
+                                    val idx = pathWOutPrefix.indexOf("/.wine/drive_c/")
+                                    if (idx != -1) pathWOutPrefix = pathWOutPrefix.substring(idx + 15)
+                                }
+                            }
+
+                            val execPath = pathWOutPrefix
+                            val lastSlash = pathWOutPrefix.lastIndexOf("/")
+                            val pathDir = if (lastSlash > 0) pathWOutPrefix.substring(0, lastSlash) else ""
+
+                            val randomNum = (Math.random() * 10000).toInt()
+                            val iconName = "${randomNum}_$name.0"
+
+                            val exeIcon = try { PEParser.extractIcon(exeFile) } catch (_: Throwable) { null }
+                            if (exeIcon != null) {
+                                val iconDir = selectedContainer.getIconsDir(64)
+                                if (!iconDir.exists()) iconDir.mkdirs()
+                                FileUtils.saveBitmapToFile(exeIcon, File(iconDir, "$iconName.png"))
+                            }
+
                             val desktopDir = selectedContainer.desktopDir
                             if (!desktopDir.exists()) desktopDir.mkdirs()
                             val file = File(desktopDir, "$name.desktop")
                             val content = buildString {
                                 append("[Desktop Entry]\n")
                                 append("Name=$name\n")
-                                append("Exec=wine \"$exePath\"\n")
+                                append("Exec=env WINEPREFIX=\"/data/user/0/${MainActivity.PACKAGE_NAME}/files/imagefs/home/xuser/.wine/dosdevices/z:/home/xuser/.wine\" wine $driveLetter/$execPath\n")
                                 if (description.isNotEmpty()) append("Comment=$description\n")
                                 append("Type=Application\n")
+                                append("StartupNotify=true\n")
+                                append("Path=/data/user/0/${MainActivity.PACKAGE_NAME}/files/imagefs/home/xuser/.wine/dosdevices/${driveLetter.lowercase(Locale.ENGLISH)}/$pathDir\n")
+                                append("Icon=$iconName\n")
+                                append("StartupWMClass=${fileName.lowercase(Locale.ENGLISH)}\n")
                                 append("container_id:${selectedContainer.id}\n")
                             }
                             FileUtils.writeString(file, content)
