@@ -29,7 +29,7 @@ import java.nio.file.Files;
         public final File file;
         public final File iconFile;
         public final String wmClass;
-        private final JSONObject extraData = new JSONObject();
+        private JSONObject extraData = new JSONObject();
         private Bitmap coverArt; // Changed to private to use getter method
         private String customCoverArtPath; // Path to custom cover art
         private Bitmap customIcon;
@@ -214,6 +214,24 @@ import java.nio.file.Files;
                 else extraData.remove(name);
             }
             catch (JSONException e) {}
+        }
+
+        public java.util.Iterator<String> getExtraKeys() {
+            if (extraData == null) return null;
+            return extraData.keys();
+        }
+
+        public void loadExtraData(JSONObject data) {
+            extraData = new JSONObject();
+            if (data != null) {
+                java.util.Iterator<String> keys = data.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    try {
+                        this.putExtra(key, data.getString(key));
+                    } catch (Exception e) {}
+                }
+            }
         }
 
         public void saveData() {

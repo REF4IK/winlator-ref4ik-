@@ -123,7 +123,6 @@ class MainActivity : AppCompatActivity() {
                                 darkMode = enabled
                                 isDarkMode = enabled
                                 preferences.edit().putBoolean("dark_mode", enabled).apply()
-                                recreate()
                             },
                             onLanguageChange = { lang ->
                                 applyLanguage(lang)

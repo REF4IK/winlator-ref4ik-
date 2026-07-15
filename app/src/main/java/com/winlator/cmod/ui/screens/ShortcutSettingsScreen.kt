@@ -51,12 +51,15 @@ import com.winlator.cmod.box86_64.Box86_64Preset
 import com.winlator.cmod.box86_64.Box86_64PresetManager
 import com.winlator.cmod.fexcore.FEXCorePreset
 import com.winlator.cmod.fexcore.FEXCorePresetManager
+import com.winlator.cmod.core.gameconfig.GameConfigManager
+import com.winlator.cmod.core.gameconfig.CloudConfigRepo
 import com.winlator.cmod.fexcore.FEXCoreManager
 import com.winlator.cmod.winhandler.WinHandler
 import com.winlator.cmod.box86_64.rc.RCManager
 import com.winlator.cmod.box86_64.rc.RCFile
 import com.winlator.cmod.midi.MidiManager
 import com.winlator.cmod.contentdialog.ShortcutSettingsDialog
+import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
 
@@ -114,6 +117,10 @@ fun ShortcutSettingsScreen(
         val raw = shortcut.getExtra("emulator", container.emulator) ?: ""
         mutableStateOf(if (raw.lowercase() == "box64") "Box64" else "FEXCore")
     }
+    var showPublishDialog by remember { mutableStateOf(false) }
+    var publishDescription by remember { mutableStateOf("") }
+    var isPublishing by remember { mutableStateOf(false) }
+    var publishStatus by remember { mutableStateOf("") }
     var showBox64Download by remember { mutableStateOf(false) }
     var showFexcoreDownload by remember { mutableStateOf(false) }
 
@@ -277,6 +284,51 @@ fun ShortcutSettingsScreen(
 
     BackHandler { onBack() }
 
+    if (showPublishDialog) {
+        AlertDialog(
+            onDismissRequest = { showPublishDialog = false },
+            title = { Text(stringResource(R.string.publish_config)) },
+            text = {
+                Column {
+                    if (publishStatus.isNotEmpty()) {
+                        Text(publishStatus, color = if (publishStatus.contains("Error") || publishStatus.contains("Failed")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = publishDescription,
+                        onValueChange = { publishDescription = it },
+                        label = { Text(stringResource(R.string.config_description_hint)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (!isPublishing) {
+                            isPublishing = true
+                            publishStatus = "Publishing..."
+                            kotlinx.coroutines.MainScope().launch {
+                                val config = GameConfigManager.buildGameConfig(container, shortcut, publishDescription)
+                                CloudConfigRepo.uploadConfig(config, object : CloudConfigRepo.UploadCallback {
+                                    override fun onComplete(success: Boolean, message: String) {
+                                        isPublishing = false
+                                        publishStatus = if (success) "Published!" else "Failed: $message"
+                                    }
+                                })
+                            }
+                        }
+                    },
+                    enabled = !isPublishing
+                ) { Text(if (isPublishing) "Uploading..." else stringResource(R.string.publish)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPublishDialog = false; publishStatus = "" }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -293,10 +345,17 @@ fun ShortcutSettingsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    // Rename if needed (inline, matching old ShortcutSettingsDialog.renameShortcut via reflection)
-                    val newName = name.trim()
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SmallFloatingActionButton(
+                    onClick = { showPublishDialog = true },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Icon(Icons.Filled.CloudUpload, contentDescription = stringResource(R.string.publish_config), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                }
+                FloatingActionButton(
+                    onClick = {
+                        // Rename if needed (inline, matching old ShortcutSettingsDialog.renameShortcut via reflection)
+                        val newName = name.trim()
                     if (newName.isNotEmpty() && newName != shortcut.name) {
                         val parent = shortcut.file.parentFile
                         val oldDesktopFile = shortcut.file
@@ -415,7 +474,8 @@ fun ShortcutSettingsScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
             ) {
                 Icon(Icons.Filled.Save, contentDescription = stringResource(R.string.save), tint = MaterialTheme.colorScheme.onPrimary)
-            }
+                    }
+                }
         },
     ) { padding ->
         Column(

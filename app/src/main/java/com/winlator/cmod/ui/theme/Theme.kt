@@ -458,6 +458,23 @@ fun SharedPreferences.observeString(key: String, defaultValue: String): State<St
 }
 
 @Composable
+fun SharedPreferences.observeBoolean(key: String, defaultValue: Boolean): State<Boolean> {
+    val state = remember { mutableStateOf(getBoolean(key, defaultValue)) }
+    DisposableEffect(this, key) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+            if (k == key) {
+                state.value = getBoolean(key, defaultValue)
+            }
+        }
+        registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+    return state
+}
+
+@Composable
 fun SharedPreferences.observeInt(key: String, defaultValue: Int): State<Int> {
     val state = remember { mutableStateOf(getInt(key, defaultValue)) }
     DisposableEffect(this, key) {
@@ -484,9 +501,12 @@ fun WinlatorTheme(
 
     val themeId by prefs.observeString("theme_id", "midnight")
     val customColor by prefs.observeInt("custom_theme_color", 0xFF1A6C59.toInt())
+    val observeDark by prefs.observeBoolean("dark_mode", isSystemInDarkTheme())
 
-    val colorScheme = remember(themeId, darkTheme, customColor) {
-        getColorSchemeFor(themeId, darkTheme, customColor)
+    val effectiveDark = if (prefs.contains("dark_mode")) observeDark else darkTheme
+
+    val colorScheme = remember(themeId, effectiveDark, customColor) {
+        getColorSchemeFor(themeId, effectiveDark, customColor)
     }
 
     val view = LocalView.current
@@ -494,7 +514,7 @@ fun WinlatorTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.surface.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !effectiveDark
         }
     }
 

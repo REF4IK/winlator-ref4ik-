@@ -71,6 +71,8 @@ import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.core.ShortcutCoverFetcher
+import com.winlator.cmod.core.gameconfig.GameConfigManager
+import com.winlator.cmod.core.gameconfig.CloudConfigRepoV2
 import java.io.File
 import java.io.FileWriter
 
@@ -115,6 +117,10 @@ fun ShortcutsScreen(
     var showContainerPicker by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf(false) }
     var shortcutForClone by remember { mutableStateOf<Shortcut?>(null) }
+    var showCommunityConfigs by remember { mutableStateOf(false) }
+    var showPublishDialog by remember { mutableStateOf<Shortcut?>(null) }
+    var isPublishing by remember { mutableStateOf(false) }
+    var contextShortcut by remember { mutableStateOf<Shortcut?>(null) }
     var showPropertiesFor by remember { mutableStateOf<Shortcut?>(null) }
     var shortcutForSteamInfo by remember { mutableStateOf<Shortcut?>(null) }
 
@@ -127,13 +133,17 @@ fun ShortcutsScreen(
         manager.loadShortcuts()
     }
 
-    BackHandler(enabled = showContainerPicker || shortcutForSteamInfo != null) {
+    BackHandler(enabled = showContainerPicker || shortcutForSteamInfo != null || showCommunityConfigs) {
         when {
+            showCommunityConfigs -> showCommunityConfigs = false
             shortcutForSteamInfo != null -> shortcutForSteamInfo = null
             showContainerPicker -> showContainerPicker = false
         }
     }
 
+    if (showCommunityConfigs) {
+        CommunityConfigsScreen(onBack = { showCommunityConfigs = false }, contextShortcut = contextShortcut)
+    } else {
 Column(modifier = Modifier.fillMaxSize()) {
     Box(modifier = Modifier.fillMaxSize().weight(1f)) {
         if (shortcuts.isEmpty()) {
@@ -299,9 +309,57 @@ Column(modifier = Modifier.fillMaxSize()) {
             },
             onRefresh = {
                 refreshKeyInternal++
+            },
+            onSearchConfigs = {
+                showCommunityConfigs = true
+                shortcutForSteamInfo = null
             }
         )
     }
+
+    // Publish dialog
+    showPublishDialog?.let { s ->
+        var pubDesc by remember(s) { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showPublishDialog = null },
+            title = { Text(stringResource(R.string.publish_config)) },
+            text = {
+                Column {
+                    Text(s.name, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = pubDesc,
+                        onValueChange = { pubDesc = it },
+                        label = { Text(stringResource(R.string.config_description_hint)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (!isPublishing) {
+                            isPublishing = true
+                            val config = GameConfigManager.buildGameConfig(s.container, s, pubDesc)
+                            CloudConfigRepoV2.uploadConfig(config, object : CloudConfigRepoV2.UploadCallback {
+                                override fun onComplete(success: Boolean, sha: String, uploadToken: String, error: String?) {
+                                    isPublishing = false
+                                    showPublishDialog = null
+                                    AppUtils.showToast(ctx, if (success) ctx.getString(R.string.config_published_success) else "Error: $error")
+                                }
+                            })
+                        }
+                    },
+                    enabled = !isPublishing
+                ) { Text(if (isPublishing) "..." else stringResource(R.string.publish)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPublishDialog = null }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+    } // else block for showCommunityConfigs
 }
 
 // ---- Вспомогательные функции для popup-меню ----
@@ -1071,7 +1129,8 @@ fun SteamInfoDialog(
     onOpenSettings: () -> Unit,
     onCloneClick: () -> Unit,
     onPropertiesClick: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onSearchConfigs: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val locale = java.util.Locale.getDefault().language
@@ -1357,6 +1416,15 @@ fun SteamInfoDialog(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceEvenly
                                 ) {
+                                    ActionGridItem(
+                                        icon = Icons.Filled.Cloud,
+                                        label = if (isRussian) "Конфиги" else "Configs",
+                                        onClick = {
+                                            onDismiss()
+                                            onSearchConfigs()
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
                                     ActionGridItem(
                                         icon = Icons.Filled.IosShare,
                                         label = if (isRussian) "Экспорт" else "Export",
