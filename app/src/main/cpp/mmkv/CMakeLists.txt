@@ -13,4 +13,4 @@ set_target_properties(mmkv PROPERTIES
 
 find_library(log-lib log)
 
-target_link_libraries(mmkv ${log-lib} core android)
+target_link_libraries(mmkv ${log-lib} core android c++_shared)

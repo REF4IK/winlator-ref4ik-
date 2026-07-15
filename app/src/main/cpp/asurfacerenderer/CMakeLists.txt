@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project(asurface_renderer)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -41,6 +39,7 @@ target_link_libraries(asurface_renderer
         atomic
         EGL
         GLESv3
+        c++_shared
 )
 
 enable_16kb_pages(asurface_renderer)

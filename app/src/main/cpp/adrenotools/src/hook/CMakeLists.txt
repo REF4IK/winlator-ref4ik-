@@ -1,7 +1,7 @@
 add_library(hook_impl SHARED hook_impl.cpp hook_impl.h hook_impl_params.h)
 
 target_compile_options(hook_impl PRIVATE -Wall -Wextra)
-target_link_libraries(hook_impl linkernsbypass log)
+target_link_libraries(hook_impl linkernsbypass log c++_shared)
 target_include_directories(hook_impl PRIVATE ../../include)
 set_target_properties(hook_impl PROPERTIES CXX_VISIBILITY_PRESET hidden)
 

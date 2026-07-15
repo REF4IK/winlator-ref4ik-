@@ -4,8 +4,6 @@ if(NOT ${CMAKE_ANDROID_ARCH_ABI} STREQUAL arm64-v8a)
 	message(FATAL_ERROR "Unsupported target architecture: ${CMAKE_ANDROID_ARCH_ABI}. Please make an issue on the repo!")
 endif()
 
-project(adrenotools LANGUAGES CXX C)
-
 set(GEN_INSTALL_TARGET OFF CACHE BOOL "")
 
 add_subdirectory(lib/linkernsbypass)

@@ -61,8 +61,9 @@ __attribute__((visibility("default"))) void *hook_android_dlopen_ext(const char 
         return fallback();
     }
 
-    // We depend on libandroid which is unlikely to be in the supplied driver namespace so we have to link it over
+    // We depend on libandroid & libc++_shared which are unlikely to be in the supplied driver namespace so we have to link them over
     android_link_namespaces(driverNs, nullptr, "libandroid.so");
+    android_link_namespaces(driverNs, nullptr, "libc++_shared.so");
 
     // Preload ourself, a new instance will be created since we have different linker ancestory
     // If we don't preload we get a weird issue where despite being in NEEDED of the hook lib the hook's symbols will overwrite ours and cause an infinite loop

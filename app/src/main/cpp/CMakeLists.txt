@@ -16,6 +16,17 @@ message(STATUS "Using glslangValidator: ${GLSLANG_VALIDATOR}")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration")
 
+# Windows + c++_shared workaround: pre-copy libc++_shared.so during configure
+# to avoid parallel Ninja copy conflicts (AccessDeniedException)
+if(WIN32 AND CMAKE_ANDROID_NDK)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
+        ERROR_QUIET)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/${CMAKE_ANDROID_ARCH_ABI}/libc++_shared.so"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libc++_shared.so"
+        ERROR_QUIET)
+endif()
+
 add_subdirectory(OpenXR-SDK)
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
@@ -54,9 +65,9 @@ target_link_libraries(winlator
         EGL
         GLESv2
         GLESv3
-        c++_shared
         adrenotools
         dl
+        c++_shared
 )
 
 # Vulkan renderer shader compilation
@@ -133,4 +144,5 @@ target_link_libraries(vulkan_renderer
         adrenotools
         dl
         atomic
+        c++_shared
 )
