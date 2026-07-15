@@ -248,6 +248,8 @@ fun WinlatorApp(
             showImportGame -> { showImportGame = false; containersRefreshKey++ }
             showShortcutSettings -> { showShortcutSettings = false }
             drawerState.isOpen -> scope.launch { drawerState.close() }
+            currentScreen == Screen.IconManager -> currentScreen = Screen.InputControls
+            currentScreen == Screen.GamepadTest -> currentScreen = Screen.InputControls
             currentScreen != Screen.Containers -> currentScreen = Screen.Containers
         }
     }
