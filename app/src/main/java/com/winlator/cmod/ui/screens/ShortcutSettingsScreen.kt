@@ -120,6 +120,7 @@ fun ShortcutSettingsScreen(
     var showPublishDialog by remember { mutableStateOf(false) }
     var publishDescription by remember { mutableStateOf("") }
     var isPublishing by remember { mutableStateOf(false) }
+    var publishWithComponents by remember { mutableStateOf(false) }
     var publishStatus by remember { mutableStateOf("") }
     var showBox64Download by remember { mutableStateOf(false) }
     var showFexcoreDownload by remember { mutableStateOf(false) }
@@ -301,6 +302,12 @@ fun ShortcutSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                     )
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = publishWithComponents, onCheckedChange = { publishWithComponents = it })
+                        Spacer(Modifier.width(4.dp))
+                        Text("Include components (DXVK, VKD3D, Box64, GPU)", fontSize = 13.sp)
+                    }
                 }
             },
             confirmButton = {
@@ -309,14 +316,35 @@ fun ShortcutSettingsScreen(
                         if (!isPublishing) {
                             isPublishing = true
                             publishStatus = "Publishing..."
-                            kotlinx.coroutines.MainScope().launch {
-                                val config = GameConfigManager.buildGameConfig(container, shortcut, publishDescription)
-                                CloudConfigRepo.uploadConfig(config, object : CloudConfigRepo.UploadCallback {
-                                    override fun onComplete(success: Boolean, message: String) {
+                            val config = GameConfigManager.buildGameConfig(container, shortcut, publishDescription)
+                            if (publishWithComponents) {
+                                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    try {
+                                        val bundler = com.winlator.cmod.core.gameconfig.GameConfigBundler(ctx)
+                                        val result = bundler.buildBundle(config.containerSettings, ctx.cacheDir)
+                                        com.winlator.cmod.core.gameconfig.BundleRepoClient.uploadBundle(
+                                            result.zipFile, config.toJson().toString(), config.gameName, publishDescription,
+                                            object : com.winlator.cmod.core.gameconfig.BundleRepoClient.BundleUploadCallback {
+                                                override fun onComplete(success: Boolean, sha: String, bundleUrl: String, error: String?) {
+                                                    result.zipFile.delete()
+                                                    isPublishing = false
+                                                    publishStatus = if (success) "Bundle published! ($sha)" else "Failed: $error"
+                                                }
+                                            })
+                                    } catch (e: Exception) {
                                         isPublishing = false
-                                        publishStatus = if (success) "Published!" else "Failed: $message"
+                                        publishStatus = "Error: ${e.message}"
                                     }
-                                })
+                                }
+                            } else {
+                                kotlinx.coroutines.MainScope().launch {
+                                    CloudConfigRepo.uploadConfig(config, object : CloudConfigRepo.UploadCallback {
+                                        override fun onComplete(success: Boolean, message: String) {
+                                            isPublishing = false
+                                            publishStatus = if (success) "Published!" else "Failed: $message"
+                                        }
+                                    })
+                                }
                             }
                         }
                     },

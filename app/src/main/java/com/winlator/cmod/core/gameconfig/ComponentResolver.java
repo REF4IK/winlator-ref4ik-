@@ -109,25 +109,49 @@ public class ComponentResolver {
     private void checkVersion(ArrayList<ComponentStatus> result, String version,
                                ContentProfile.ContentType type, String label) {
         ComponentStatus status = new ComponentStatus(label, version, false);
-        List<ContentProfile> profiles = contentsManager.getProfiles(type);
-        if (profiles != null) {
-            for (ContentProfile p : profiles) {
-                if (p.remoteUrl == null) {
-                    status.installed = true;
-                    break;
+        status.installed = isInstalledByContentDir(type);
+        if (!status.installed) status.installed = isInstalledByProfile(type);
+        if (!status.installed) findDownloadableProfile(status, type, version);
+        result.add(status);
+    }
+
+    private boolean isInstalledByContentDir(ContentProfile.ContentType type) {
+        try {
+            String dirName = type.toString();
+            File contentsDir = new File(context.getFilesDir(), "imagefs/contents/" + dirName);
+            if (contentsDir.isDirectory()) {
+                File[] subdirs = contentsDir.listFiles(f -> f.isDirectory());
+                return subdirs != null && subdirs.length > 0;
+            }
+        } catch (Exception e) {}
+        return false;
+    }
+
+    private boolean isInstalledByProfile(ContentProfile.ContentType type) {
+        try {
+            List<ContentProfile> profiles = contentsManager.getProfiles(type);
+            if (profiles != null) {
+                for (ContentProfile p : profiles) {
+                    if (p.remoteUrl == null) return true;
                 }
             }
-            if (!status.installed) {
+        } catch (Exception e) {}
+        return false;
+    }
+
+    private void findDownloadableProfile(ComponentStatus status, ContentProfile.ContentType type, String version) {
+        try {
+            List<ContentProfile> profiles = contentsManager.getProfiles(type);
+            if (profiles != null) {
                 for (ContentProfile p : profiles) {
                     if (p.remoteUrl != null && p.verName != null && matches(p.verName, version)) {
                         status.downloadable = true;
                         status.downloadUrl = p.remoteUrl;
-                        break;
+                        return;
                     }
                 }
             }
-        }
-        result.add(status);
+        } catch (Exception e) {}
     }
 
     private void checkGpuDriver(ArrayList<ComponentStatus> result, String version) {
@@ -148,7 +172,9 @@ public class ComponentResolver {
             }
         }
 
-        status.downloadable = true;
+        if (!status.installed) {
+            status.downloadable = true;
+        }
         result.add(status);
     }
 
@@ -214,7 +240,7 @@ public class ComponentResolver {
             }
         });
 
-        latch.await(120, TimeUnit.SECONDS);
+        latch.await(60, TimeUnit.SECONDS);
         tempFile.delete();
         callback.onComplete(success[0], errorMsg[0]);
     }
@@ -244,7 +270,7 @@ public class ComponentResolver {
             }
         });
 
-        searchLatch.await(60, TimeUnit.SECONDS);
+        searchLatch.await(20, TimeUnit.SECONDS);
         if (foundDriver.get() == null) {
             callback.onComplete(false, "No matching GPU driver found");
             return;
@@ -259,7 +285,7 @@ public class ComponentResolver {
             @Override public void onError(String error) { downloadLatch.countDown(); }
         });
 
-        downloadLatch.await(180, TimeUnit.SECONDS);
+        downloadLatch.await(60, TimeUnit.SECONDS);
         if (downloadedUri.get() == null) {
             callback.onComplete(false, "Download failed");
             return;

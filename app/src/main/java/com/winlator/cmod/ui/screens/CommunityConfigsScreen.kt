@@ -556,73 +556,111 @@ private fun ConfigDetailDialog(
 
                     // Components
                     Text("Components", fontWeight = FontWeight.Medium)
-                    val resolver = remember { ComponentResolver(ctx) }
-                    var components by remember { mutableStateOf<List<ComponentResolver.ComponentStatus>>(emptyList()) }
-                    var componentsLoaded by remember { mutableStateOf(false) }
-                    LaunchedEffect(config.containerSettings) {
-                        withContext(Dispatchers.IO) {
-                            resolver.resolve(config.containerSettings) { result ->
-                                components = result; componentsLoaded = true
+                    if (entry.bundleUrl.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.tertiary, shape = RoundedCornerShape(4.dp)) {
+                                Text("Bundle includes all components", fontSize = 11.sp, color = MaterialTheme.colorScheme.onTertiary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                             }
-                        }
-                    }
-                    if (!componentsLoaded) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Text("Checking...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            val missingCnt = components.count { !it.installed && it.downloadable }
-                            var installStats by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-                            var curDl by remember { mutableStateOf<String?>(null) }
+                            var bundleApplying by remember { mutableStateOf(false) }
                             var dlMsg by remember { mutableStateOf<String?>(null) }
-
-                            components.forEach { comp ->
-                                val res = installStats[comp.label]
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(
-                                        when { comp.installed || res == "ok" -> "✅"; res == "fail" -> "❌"; else -> "⬇️" },
-                                        fontSize = 13.sp
-                                    )
-                                    Text("${comp.label} ${comp.version}", fontSize = 13.sp,
-                                        color = when { comp.installed || res == "ok" -> MaterialTheme.colorScheme.primary; else -> MaterialTheme.colorScheme.onSurface },
-                                        modifier = Modifier.weight(1f))
-                                    if (res != null) Text(if (res == "ok") "OK" else "Fail", fontSize = 10.sp,
-                                        color = if (res == "ok") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                                    if (curDl?.startsWith(comp.label) == true) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                                }
-                            }
-
                             if (dlMsg != null) Text(dlMsg!!, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                            if (missingCnt > 0 && installStats.isEmpty()) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(onClick = {
-                                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-                                            val st = mutableMapOf<String, String>()
-                                            val todo = components.filter { !it.installed && it.downloadable }
-                                            for ((i, comp) in todo.withIndex()) {
-                                                withContext(Dispatchers.Main) { curDl = comp.label; dlMsg = "Downloading ${i+1}/${todo.size}: ${comp.label}..." }
-                                                val latch = java.util.concurrent.CountDownLatch(1)
-                                                ComponentResolver.installComponent(comp, ctx, object : ComponentResolver.InstallCallback {
-                                                    override fun onComplete(success: Boolean, message: String?) {
-                                                        st[comp.label] = if (success) "ok" else "fail"
-                                                        latch.countDown()
-                                                    }
-                                                })
-                                                latch.await(180, java.util.concurrent.TimeUnit.SECONDS)
-                                            }
-                                            withContext(Dispatchers.Main) {
-                                                installStats = st; curDl = null
-                                                val ok = st.count { it.value == "ok" }
-                                                val fail = st.count { it.value == "fail" }
-                                                dlMsg = "$ok installed, $fail failed"
-                                                if (fail == 0) { dlMsg = null; onApply() }
+                            Button(onClick = {
+                                bundleApplying = true
+                                dlMsg = "Downloading bundle..."
+                                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                                    val applier = BundledConfigApplier(ctx)
+                                    applier.applyFromUrl(entry.bundleUrl, null, null, object : BundledConfigApplier.ApplyCallback {
+                                        override fun onProgress(status: String) {
+                                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) { dlMsg = status }
+                                        }
+                                        override fun onComplete(success: Boolean, message: String, config: GameConfig?) {
+                                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) {
+                                                if (success) { dlMsg = null; onApply() }
+                                                else { dlMsg = "Bundle failed: $message"; bundleApplying = false }
                                             }
                                         }
-                                    }) { Text("Download All ($missingCnt)") }
-                                    TextButton(onClick = { onApply() }) { Text("Skip") }
+                                    })
+                                }
+                            }, enabled = !bundleApplying) {
+                                if (bundleApplying) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                else Text("Apply Bundle")
+                            }
+                        }
+                    } else {
+                        val resolver = remember { ComponentResolver(ctx) }
+                        var components by remember { mutableStateOf<List<ComponentResolver.ComponentStatus>>(emptyList()) }
+                        var componentsLoaded by remember { mutableStateOf(false) }
+                        LaunchedEffect(config.containerSettings) {
+                            withContext(Dispatchers.IO) {
+                                resolver.resolve(config.containerSettings) { result ->
+                                    components = result; componentsLoaded = true
+                                }
+                            }
+                        }
+                        if (!componentsLoaded) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Text("Checking...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                val missingCnt = components.count { !it.installed && it.downloadable }
+                                var installStats by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+                                var curDl by remember { mutableStateOf<String?>(null) }
+                                var dlMsg by remember { mutableStateOf<String?>(null) }
+
+                                components.forEach { comp ->
+                                    val res = installStats[comp.label]
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(
+                                            when { comp.installed || res == "ok" -> "✅"; res == "fail" -> "❌"; else -> "⬇️" },
+                                            fontSize = 13.sp
+                                        )
+                                        Text("${comp.label} ${comp.version}", fontSize = 13.sp,
+                                            color = when { comp.installed || res == "ok" -> MaterialTheme.colorScheme.primary; else -> MaterialTheme.colorScheme.onSurface },
+                                            modifier = Modifier.weight(1f))
+                                        if (res != null) Text(if (res == "ok") "OK" else "Fail", fontSize = 10.sp,
+                                            color = if (res == "ok") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                        if (curDl?.startsWith(comp.label) == true) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+                                    }
+                                }
+
+                                if (dlMsg != null) Text(dlMsg!!, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                                if (missingCnt > 0 && installStats.isEmpty()) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(onClick = {
+                                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                                                val st = mutableMapOf<String, String>()
+                                                val todo = components.filter { !it.installed && it.downloadable }
+                                                for ((i, comp) in todo.withIndex()) {
+                                                    withContext(Dispatchers.Main) { curDl = comp.label; dlMsg = "Downloading ${i+1}/${todo.size}: ${comp.label}..." }
+                                                    val latch = java.util.concurrent.CountDownLatch(1)
+                                                    try {
+                                                        ComponentResolver.installComponent(comp, ctx, object : ComponentResolver.InstallCallback {
+                                                            override fun onComplete(success: Boolean, message: String?) {
+                                                                st[comp.label] = if (success) "ok" else "fail"
+                                                                latch.countDown()
+                                                            }
+                                                        })
+                                                    } catch (e: Exception) {
+                                                        st[comp.label] = "fail"
+                                                        latch.countDown()
+                                                    }
+                                                    latch.await(60, java.util.concurrent.TimeUnit.SECONDS)
+                                                }
+                                                withContext(Dispatchers.Main) {
+                                                    installStats = st; curDl = null
+                                                    val ok = st.count { it.value == "ok" }
+                                                    val fail = st.count { it.value == "fail" }
+                                                    dlMsg = "$ok installed, $fail failed"
+                                                    if (fail == 0) { dlMsg = null; onApply() }
+                                                }
+                                            }
+                                        }) { Text("Download All ($missingCnt)") }
+                                        TextButton(onClick = { onApply() }) { Text("Skip") }
+                                    }
                                 }
                             }
                         }
@@ -755,6 +793,7 @@ private data class ConfigFileEntry(
     val device: String = "",
     val soc: String = "",
     val timestamp: Long = 0,
+    val bundleUrl: String = "",
 )
 
 private fun parseVersion(configStr: String, key: String): String? {
@@ -768,28 +807,54 @@ private fun parseVersion(configStr: String, key: String): String? {
 
 private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>) -> Unit) {
     val RAW_BASE = "https://raw.githubusercontent.com"
-    CloudConfigRepoV2.fetchConfigsForGame(gameName) { configFiles ->
-        val list = mutableListOf<ConfigFileEntry>()
-        if (configFiles != null) {
-            for (i in 0 until configFiles.length()) {
-                try {
-                    val obj = configFiles.getJSONObject(i)
-                        val filename = obj.optString("filename", "")
-                        val sha = obj.optString("sha", "")
-                        val device = obj.optString("device", "")
-                        val soc = obj.optString("soc", "")
-                        val votesUp = obj.optInt("votes_up", 0)
-                        val votesDown = obj.optInt("votes_down", 0)
-                        val dateStr = obj.optString("date", "")
-                        val ts = try { java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).parse(dateStr)?.time ?: 0 } catch (_: Exception) { 0 }
-                        if (filename.isNotEmpty()) {
-                            val url = "$RAW_BASE/REF4IK/winlator-ref4ik-configs/main/configs/" +
-                                gameName.replace(Regex("[^a-zA-Z0-9_]"), "_") + "/$filename"
-                            list.add(ConfigFileEntry(filename, url, sha, votesUp, votesDown, device, soc, ts))
+
+    BundleRepoClient.fetchBundles(gameName) { bundles ->
+        CloudConfigRepoV2.fetchConfigsForGame(gameName) { configFiles ->
+            val list = mutableListOf<ConfigFileEntry>()
+
+            if (bundles != null) {
+                for (i in 0 until bundles.length()) {
+                    try {
+                        val b = bundles.getJSONObject(i)
+                        val sha = b.optString("sha", "")
+                        val configUrl = b.optString("configUrl", "")
+                        val zipUrl = b.optString("zipUrl", "")
+                        val desc = b.optString("description", "")
+                        if (configUrl.isNotEmpty()) {
+                            list.add(ConfigFileEntry(
+                                name = "Bundle-${sha.take(8)}",
+                                downloadUrl = configUrl,
+                                sha = sha,
+                                device = "",
+                                soc = "",
+                                bundleUrl = zipUrl,
+                            ))
                         }
-                } catch (_: Exception) {}
+                    } catch (_: Exception) {}
+                }
             }
+
+            if (configFiles != null) {
+                for (i in 0 until configFiles.length()) {
+                    try {
+                        val obj = configFiles.getJSONObject(i)
+                            val filename = obj.optString("filename", "")
+                            val sha = obj.optString("sha", "")
+                            val device = obj.optString("device", "")
+                            val soc = obj.optString("soc", "")
+                            val votesUp = obj.optInt("votes_up", 0)
+                            val votesDown = obj.optInt("votes_down", 0)
+                            val dateStr = obj.optString("date", "")
+                            val ts = try { java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).parse(dateStr)?.time ?: 0 } catch (_: Exception) { 0 }
+                            if (filename.isNotEmpty()) {
+                                val url = "$RAW_BASE/REF4IK/winlator-ref4ik-configs/main/configs/" +
+                                    gameName.replace(Regex("[^a-zA-Z0-9_]"), "_") + "/$filename"
+                                list.add(ConfigFileEntry(filename, url, sha, votesUp, votesDown, device, soc, ts))
+                            }
+                    } catch (_: Exception) {}
+                }
+            }
+            callback(list)
         }
-        callback(list)
     }
 }
