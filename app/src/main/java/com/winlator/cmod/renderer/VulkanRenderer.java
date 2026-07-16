@@ -489,6 +489,8 @@ public class VulkanRenderer implements XServerRenderer,
                             nativeScanoutSetBuffer(nativeHandle, ahbPtr,
                                 rx, ry, pixmap.width, pixmap.height, fence);
                             g.lock();
+                            java.nio.ByteBuffer lockedVd = g.getVirtualData();
+                            if (lockedVd != null) pixmap.setData(lockedVd);
                         } else {
                             long contentId = did(window.getContent());
                             nativeUpdateWindowContentAHB(nativeHandle, contentId, ahbPtr,
@@ -537,6 +539,8 @@ public class VulkanRenderer implements XServerRenderer,
                             nativeScanoutSetBuffer(nativeHandle, ahbPtr,
                                 rx, ry, drawable.width, drawable.height, fence);
                             g.lock();
+                            java.nio.ByteBuffer lockedVd = g.getVirtualData();
+                            if (lockedVd != null) drawable.setData(lockedVd);
                             boolean delivered = nativeIsGameFrameDelivered(nativeHandle);
 
                             if (!xRenderingPausedForScanout && !wasDelivered && delivered) {

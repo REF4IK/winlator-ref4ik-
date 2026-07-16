@@ -5,7 +5,29 @@ import com.tencent.mmkv.MMKV
 
 class MmkvPreferences(name: String? = null) : SharedPreferences {
     private val mmkv: MMKV = if (name != null) MMKV.mmkvWithID(name) else MMKV.defaultMMKV()
-    private val listeners = mutableSetOf<SharedPreferences.OnSharedPreferenceChangeListener>()
+
+    companion object {
+        private val globalListeners = mutableSetOf<SharedPreferences.OnSharedPreferenceChangeListener>()
+        private val listenerLock = Any()
+
+        fun registerGlobalListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+            synchronized(listenerLock) { globalListeners.add(listener) }
+        }
+
+        fun unregisterGlobalListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+            synchronized(listenerLock) { globalListeners.remove(listener) }
+        }
+
+        fun notifyGlobalListeners(prefs: SharedPreferences, keys: Set<String>) {
+            val snapshot: List<SharedPreferences.OnSharedPreferenceChangeListener>
+            synchronized(listenerLock) { snapshot = globalListeners.toList() }
+            for (key in keys) {
+                for (listener in snapshot) {
+                    listener.onSharedPreferenceChanged(prefs, key)
+                }
+            }
+        }
+    }
 
     override fun getString(key: String, defValue: String?): String? = mmkv.decodeString(key, defValue)
     override fun getInt(key: String, defValue: Int): Int = mmkv.decodeInt(key, defValue)
@@ -19,18 +41,17 @@ class MmkvPreferences(name: String? = null) : SharedPreferences {
     override fun contains(key: String): Boolean = mmkv.contains(key)
     override fun getAll(): Map<String, *> = throw UnsupportedOperationException("getAll is not supported by MmkvPreferences")
     override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
-        listeners.add(listener)
+        registerGlobalListener(listener)
     }
+
     override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
-        listeners.remove(listener)
+        unregisterGlobalListener(listener)
     }
 
-    override fun edit(): SharedPreferences.Editor = EditorM(this, mmkv, listeners)
-
+    override fun edit(): SharedPreferences.Editor = EditorM(this, mmkv)
     private class EditorM(
         private val prefs: MmkvPreferences,
         private val mmkv: MMKV,
-        private val listeners: MutableSet<SharedPreferences.OnSharedPreferenceChangeListener>,
     ) : SharedPreferences.Editor {
         private val pending = linkedMapOf<String, Any?>()
 
@@ -71,11 +92,7 @@ class MmkvPreferences(name: String? = null) : SharedPreferences {
             mmkv.sync()
             pending.clear()
             if (changedKeys.isNotEmpty()) {
-                for (listener in listeners) {
-                    for (key in changedKeys) {
-                        listener.onSharedPreferenceChanged(prefs, key)
-                    }
-                }
+                notifyGlobalListeners(prefs, changedKeys)
             }
         }
     }

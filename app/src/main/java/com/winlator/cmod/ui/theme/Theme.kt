@@ -501,9 +501,8 @@ fun WinlatorTheme(
 
     val themeId by prefs.observeString("theme_id", "midnight")
     val customColor by prefs.observeInt("custom_theme_color", 0xFF1A6C59.toInt())
-    val observeDark by prefs.observeBoolean("dark_mode", isSystemInDarkTheme())
 
-    val effectiveDark = if (prefs.contains("dark_mode")) observeDark else darkTheme
+    val effectiveDark = darkTheme
 
     val colorScheme = remember(themeId, effectiveDark, customColor) {
         getColorSchemeFor(themeId, effectiveDark, customColor)
