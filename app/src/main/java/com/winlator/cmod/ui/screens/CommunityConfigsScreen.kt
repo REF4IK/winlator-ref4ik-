@@ -529,6 +529,7 @@ private fun ConfigDetailDialog(
                             val gpuVer = parseVersion(gpuRaw, "version")
                             if (gpuVer != null) row("GPU", gpuVer)
                             else if (gpuRaw.isNotBlank()) row("GPU", gpuRaw)
+                            if (cs.has("graphicsDriver") && cs.optString("graphicsDriver").isNotBlank()) row("Wrapper", cs.optString("graphicsDriver"))
                             if (cs.has("audioDriver") && cs.optString("audioDriver").isNotBlank()) row("Audio", cs.optString("audioDriver"))
                             if (cs.has("displayRenderer") && cs.optString("displayRenderer").isNotBlank()) row("Render", cs.optString("displayRenderer"))
                             if (cs.has("emulator") && cs.optString("emulator").isNotBlank()) row("Translator", cs.optString("emulator"))
@@ -538,6 +539,16 @@ private fun ConfigDetailDialog(
                             val fex = if (cs.has("fexcoreVersion")) cs.optString("fexcoreVersion") else ""
                             val fexp = if (cs.has("fexcorePreset")) cs.optString("fexcorePreset") else ""
                             if (fex.isNotBlank() || fexp.isNotBlank()) row("FEX", listOfNotNull(fex.ifBlank { null }, fexp.ifBlank { null }).joinToString(" · "))
+                            if (cs.has("envVars") && cs.optString("envVars").isNotBlank()) {
+                                val envStr = cs.optString("envVars")
+                                val clean = envStr.substringBefore(";").substringBefore(",").trim()
+                                if (clean.isNotBlank()) {
+                                    Text("Env vars", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    clean.split(" ").filter { it.isNotBlank() }.forEach { env ->
+                                        Text("  $env", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    }
+                                }
+                            }
                         }
                     }
 
