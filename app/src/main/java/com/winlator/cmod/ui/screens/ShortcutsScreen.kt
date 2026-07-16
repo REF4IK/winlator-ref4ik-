@@ -117,10 +117,10 @@ fun ShortcutsScreen(
     var showContainerPicker by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf(false) }
     var shortcutForClone by remember { mutableStateOf<Shortcut?>(null) }
-    var showCommunityConfigs by remember { mutableStateOf(false) }
     var showPublishDialog by remember { mutableStateOf<Shortcut?>(null) }
     var isPublishing by remember { mutableStateOf(false) }
-    var contextShortcut by remember { mutableStateOf<Shortcut?>(null) }
+    var showCommunityConfigs by remember { mutableStateOf(false) }
+    var communityConfigsShortcut by remember { mutableStateOf<Shortcut?>(null) }
     var showPropertiesFor by remember { mutableStateOf<Shortcut?>(null) }
     var shortcutForSteamInfo by remember { mutableStateOf<Shortcut?>(null) }
 
@@ -142,7 +142,7 @@ fun ShortcutsScreen(
     }
 
     if (showCommunityConfigs) {
-        CommunityConfigsScreen(onBack = { showCommunityConfigs = false }, contextShortcut = contextShortcut)
+        CommunityConfigsScreen(onBack = { showCommunityConfigs = false; communityConfigsShortcut = null }, contextShortcut = communityConfigsShortcut)
     } else {
 Column(modifier = Modifier.fillMaxSize()) {
     Box(modifier = Modifier.fillMaxSize().weight(1f)) {
@@ -310,8 +310,8 @@ Column(modifier = Modifier.fillMaxSize()) {
             onRefresh = {
                 refreshKeyInternal++
             },
-            onSearchConfigs = {
-                contextShortcut = shortcutForSteamInfo
+            onSearchConfigs = { shortcut ->
+                communityConfigsShortcut = shortcut
                 showCommunityConfigs = true
                 shortcutForSteamInfo = null
             }
@@ -1131,7 +1131,7 @@ fun SteamInfoDialog(
     onCloneClick: () -> Unit,
     onPropertiesClick: () -> Unit,
     onRefresh: () -> Unit,
-    onSearchConfigs: () -> Unit = {},
+    onSearchConfigs: (Shortcut) -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val locale = java.util.Locale.getDefault().language
@@ -1421,8 +1421,7 @@ fun SteamInfoDialog(
                                         icon = Icons.Filled.Cloud,
                                         label = if (isRussian) "Конфиги" else "Configs",
                                         onClick = {
-                                            onDismiss()
-                                            onSearchConfigs()
+                                            onSearchConfigs(shortcut)
                                         },
                                         modifier = Modifier.weight(1f)
                                     )

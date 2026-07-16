@@ -60,54 +60,77 @@ public class GameConfigManager {
     }
 
     public static void applyGameConfig(GameConfig config, Container container, Shortcut shortcut) {
-        if (shortcut != null && config.shortcutExtraData != null) {
+        if (config.containerSettings == null) return;
+
+        try {
+            if (shortcut != null) {
+                applyToShortcut(config, shortcut);
+            } else {
+                applyToContainer(config, container);
+            }
+        } catch (JSONException e) {
+        }
+    }
+
+    private static void applyToShortcut(GameConfig config, Shortcut shortcut) throws JSONException {
+        JSONObject cs = config.containerSettings;
+
+        putShortcutIf(shortcut, "dxwrapper", cs, "dxwrapper");
+        putShortcutIf(shortcut, "dxwrapperConfig", cs, "dxwrapperConfig");
+        putShortcutIf(shortcut, "graphicsDriver", cs, "graphicsDriver");
+        putShortcutIf(shortcut, "graphicsDriverConfig", cs, "graphicsDriverConfig");
+        putShortcutIf(shortcut, "displayRenderer", cs, "displayRenderer");
+        putShortcutIf(shortcut, "audioDriver", cs, "audioDriver");
+        putShortcutIf(shortcut, "audioDriverConfig", cs, "audioDriverConfig");
+        putShortcutIf(shortcut, "box64Version", cs, "box64Version");
+        putShortcutIf(shortcut, "box64Preset", cs, "box64Preset");
+        putShortcutIf(shortcut, "fexcoreVersion", cs, "fexcoreVersion");
+        putShortcutIf(shortcut, "fexcorePreset", cs, "fexcorePreset");
+        putShortcutIf(shortcut, "emulator", cs, "emulator");
+        putShortcutIf(shortcut, "wineVersion", cs, "wineVersion");
+        putShortcutIf(shortcut, "screenSize", cs, "screenSize");
+        putShortcutIf(shortcut, "envVars", cs, "envVars");
+        shortcut.putExtra("cpuList", Container.getFallbackCPUList());
+        shortcut.putExtra("cpuListWoW64", Container.getFallbackCPUListWoW64());
+
+        // Apply original shortcutExtraData
+        if (config.shortcutExtraData != null) {
             java.util.Iterator<String> keys = config.shortcutExtraData.keys();
             while (keys.hasNext()) {
                 String key = keys.next();
-                try {
-                    String value = config.shortcutExtraData.getString(key);
-                    shortcut.putExtra(key, value);
-                } catch (JSONException e) {
-                }
+                String value = config.shortcutExtraData.getString(key);
+                shortcut.putExtra(key, value);
             }
-            shortcut.saveData();
-        } else if (shortcut == null && config.containerSettings != null) {
-            try {
-                if (config.containerSettings.has("dxwrapper"))
-                    container.setDXWrapper(config.containerSettings.getString("dxwrapper"));
-                if (config.containerSettings.has("dxwrapperConfig"))
-                    container.setDXWrapperConfig(config.containerSettings.getString("dxwrapperConfig"));
-                if (config.containerSettings.has("graphicsDriver"))
-                    container.setGraphicsDriver(config.containerSettings.getString("graphicsDriver"));
-                if (config.containerSettings.has("graphicsDriverConfig"))
-                    container.setGraphicsDriverConfig(config.containerSettings.getString("graphicsDriverConfig"));
-                if (config.containerSettings.has("displayRenderer"))
-                    container.setDisplayRenderer(config.containerSettings.getString("displayRenderer"));
-                if (config.containerSettings.has("audioDriver"))
-                    container.setAudioDriver(config.containerSettings.getString("audioDriver"));
-                if (config.containerSettings.has("audioDriverConfig"))
-                    container.setAudioDriverConfig(config.containerSettings.getString("audioDriverConfig"));
-                if (config.containerSettings.has("box64Version"))
-                    container.setBox64Version(config.containerSettings.getString("box64Version"));
-                if (config.containerSettings.has("box64Preset"))
-                    container.setBox64Preset(config.containerSettings.getString("box64Preset"));
-                if (config.containerSettings.has("fexcoreVersion"))
-                    container.setFEXCoreVersion(config.containerSettings.getString("fexcoreVersion"));
-                if (config.containerSettings.has("fexcorePreset"))
-                    container.setFEXCorePreset(config.containerSettings.getString("fexcorePreset"));
-                if (config.containerSettings.has("emulator"))
-                    container.setEmulator(config.containerSettings.getString("emulator"));
-                if (config.containerSettings.has("wineVersion"))
-                    container.setWineVersion(config.containerSettings.getString("wineVersion"));
-                if (config.containerSettings.has("screenSize"))
-                    container.setScreenSize(config.containerSettings.getString("screenSize"));
-                if (config.containerSettings.has("envVars"))
-                    container.setEnvVars(config.containerSettings.getString("envVars"));
-                container.setCPUList(Container.getFallbackCPUList());
-                container.setCPUListWoW64(Container.getFallbackCPUListWoW64());
-                container.saveData();
-            } catch (JSONException e) {
-            }
+        }
+        shortcut.saveData();
+    }
+
+    private static void applyToContainer(GameConfig config, Container container) throws JSONException {
+        JSONObject cs = config.containerSettings;
+
+        if (cs.has("dxwrapper")) container.setDXWrapper(cs.getString("dxwrapper"));
+        if (cs.has("dxwrapperConfig")) container.setDXWrapperConfig(cs.getString("dxwrapperConfig"));
+        if (cs.has("graphicsDriver")) container.setGraphicsDriver(cs.getString("graphicsDriver"));
+        if (cs.has("graphicsDriverConfig")) container.setGraphicsDriverConfig(cs.getString("graphicsDriverConfig"));
+        if (cs.has("displayRenderer")) container.setDisplayRenderer(cs.getString("displayRenderer"));
+        if (cs.has("audioDriver")) container.setAudioDriver(cs.getString("audioDriver"));
+        if (cs.has("audioDriverConfig")) container.setAudioDriverConfig(cs.getString("audioDriverConfig"));
+        if (cs.has("box64Version")) container.setBox64Version(cs.getString("box64Version"));
+        if (cs.has("box64Preset")) container.setBox64Preset(cs.getString("box64Preset"));
+        if (cs.has("fexcoreVersion")) container.setFEXCoreVersion(cs.getString("fexcoreVersion"));
+        if (cs.has("fexcorePreset")) container.setFEXCorePreset(cs.getString("fexcorePreset"));
+        if (cs.has("emulator")) container.setEmulator(cs.getString("emulator"));
+        if (cs.has("wineVersion")) container.setWineVersion(cs.getString("wineVersion"));
+        if (cs.has("screenSize")) container.setScreenSize(cs.getString("screenSize"));
+        if (cs.has("envVars")) container.setEnvVars(cs.getString("envVars"));
+        container.setCPUList(Container.getFallbackCPUList());
+        container.setCPUListWoW64(Container.getFallbackCPUListWoW64());
+        container.saveData();
+    }
+
+    private static void putShortcutIf(Shortcut shortcut, String key, JSONObject source, String sourceKey) throws JSONException {
+        if (source.has(sourceKey)) {
+            shortcut.putExtra(key, source.getString(sourceKey));
         }
     }
 }
