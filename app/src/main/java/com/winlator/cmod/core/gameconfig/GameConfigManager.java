@@ -98,8 +98,7 @@ public class GameConfigManager {
             java.util.Iterator<String> keys = config.shortcutExtraData.keys();
             while (keys.hasNext()) {
                 String key = keys.next();
-                String value = config.shortcutExtraData.getString(key);
-                shortcut.putExtra(key, value);
+                shortcut.putExtra(key, config.shortcutExtraData.optString(key));
             }
         }
         shortcut.saveData();
@@ -130,7 +129,7 @@ public class GameConfigManager {
 
     private static void putShortcutIf(Shortcut shortcut, String key, JSONObject source, String sourceKey) throws JSONException {
         if (source.has(sourceKey)) {
-            shortcut.putExtra(key, source.getString(sourceKey));
+            shortcut.putExtra(key, source.optString(sourceKey));
         }
     }
 }

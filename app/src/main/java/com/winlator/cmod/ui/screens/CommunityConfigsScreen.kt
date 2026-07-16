@@ -554,6 +554,82 @@ private fun ConfigDetailDialog(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
+                    // Components
+                    Text("Components", fontWeight = FontWeight.Medium)
+                    val resolver = remember { ComponentResolver(ctx) }
+                    var components by remember { mutableStateOf<List<ComponentResolver.ComponentStatus>>(emptyList()) }
+                    var componentsLoaded by remember { mutableStateOf(false) }
+                    LaunchedEffect(config.containerSettings) {
+                        withContext(Dispatchers.IO) {
+                            resolver.resolve(config.containerSettings) { result ->
+                                components = result; componentsLoaded = true
+                            }
+                        }
+                    }
+                    if (!componentsLoaded) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Text("Checking...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            val missingCnt = components.count { !it.installed && it.downloadable }
+                            var installStats by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+                            var curDl by remember { mutableStateOf<String?>(null) }
+                            var dlMsg by remember { mutableStateOf<String?>(null) }
+
+                            components.forEach { comp ->
+                                val res = installStats[comp.label]
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        when { comp.installed || res == "ok" -> "✅"; res == "fail" -> "❌"; else -> "⬇️" },
+                                        fontSize = 13.sp
+                                    )
+                                    Text("${comp.label} ${comp.version}", fontSize = 13.sp,
+                                        color = when { comp.installed || res == "ok" -> MaterialTheme.colorScheme.primary; else -> MaterialTheme.colorScheme.onSurface },
+                                        modifier = Modifier.weight(1f))
+                                    if (res != null) Text(if (res == "ok") "OK" else "Fail", fontSize = 10.sp,
+                                        color = if (res == "ok") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                    if (curDl?.startsWith(comp.label) == true) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+                                }
+                            }
+
+                            if (dlMsg != null) Text(dlMsg!!, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                            if (missingCnt > 0 && installStats.isEmpty()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(onClick = {
+                                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                                            val st = mutableMapOf<String, String>()
+                                            val todo = components.filter { !it.installed && it.downloadable }
+                                            for ((i, comp) in todo.withIndex()) {
+                                                withContext(Dispatchers.Main) { curDl = comp.label; dlMsg = "Downloading ${i+1}/${todo.size}: ${comp.label}..." }
+                                                val latch = java.util.concurrent.CountDownLatch(1)
+                                                ComponentResolver.installComponent(comp, ctx, object : ComponentResolver.InstallCallback {
+                                                    override fun onComplete(success: Boolean, message: String?) {
+                                                        st[comp.label] = if (success) "ok" else "fail"
+                                                        latch.countDown()
+                                                    }
+                                                })
+                                                latch.await(180, java.util.concurrent.TimeUnit.SECONDS)
+                                            }
+                                            withContext(Dispatchers.Main) {
+                                                installStats = st; curDl = null
+                                                val ok = st.count { it.value == "ok" }
+                                                val fail = st.count { it.value == "fail" }
+                                                dlMsg = "$ok installed, $fail failed"
+                                                if (fail == 0) { dlMsg = null; onApply() }
+                                            }
+                                        }
+                                    }) { Text("Download All ($missingCnt)") }
+                                    TextButton(onClick = { onApply() }) { Text("Skip") }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
                     // Social
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(stringResource(R.string.community_votes, votesUp), fontSize = 13.sp, fontWeight = FontWeight.Medium)
