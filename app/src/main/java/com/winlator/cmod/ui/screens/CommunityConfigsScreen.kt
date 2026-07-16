@@ -493,19 +493,17 @@ private fun ConfigDetailDialog(
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     // Provenance
-                    Text(config.gameName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        if (config.device.isNotBlank()) Text("Device: ${config.device}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (config.gpu.isNotBlank()) Text("GPU: ${config.gpu}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (dateStr.isNotBlank()) Text("Uploaded: $dateStr", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (config.description.isNotBlank()) Text("\"${config.description}\"", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Text(config.gameName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    val hw = listOfNotNull(config.device.ifBlank { null }, config.gpu.ifBlank { null }).joinToString(" · ")
+                    if (hw.isNotEmpty()) Text(hw, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (dateStr.isNotEmpty()) Text(dateStr, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (config.description.isNotBlank()) Text(config.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (matchResult.score > 0) {
                         Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(6.dp)) {
-                            Text("✅ MATCHES YOUR DEVICE", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                            Text(stringResource(R.string.community_matches_device), fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
                         }
                     }
 
@@ -514,23 +512,38 @@ private fun ConfigDetailDialog(
                     // What this config sets
                     Text(stringResource(R.string.community_what_sets), fontWeight = FontWeight.Medium)
                     config.containerSettings?.let { cs ->
-                        val lines = mutableListOf<String>()
-                        parseVersion(cs.optString("dxwrapperConfig", ""), "version")?.let { lines.add("DXVK $it") }
-                        parseVersion(cs.optString("dxwrapperConfig", ""), "vkd3dVersion")?.let { lines.add("VKD3D $it") }
-                        parseVersion(cs.optString("graphicsDriverConfig", ""), "version")?.let { lines.add("GPU $it") }
-                        if (lines.isEmpty()) {
-                            Text(stringResource(R.string.community_no_settings), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                        } else {
-                            lines.forEach { Text("· $it", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            @Composable fun row(label: String, value: String) {
+                                Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                                    Text("$label  ", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
+                                    Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+                            if (cs.has("wineVersion") && cs.optString("wineVersion").isNotBlank()) row("Wine", cs.optString("wineVersion"))
+                            if (cs.has("screenSize") && cs.optString("screenSize").isNotBlank()) row("Screen", cs.optString("screenSize"))
+                            parseVersion(cs.optString("dxwrapperConfig", ""), "version")?.let { row("DXVK", it) }
+                            parseVersion(cs.optString("dxwrapperConfig", ""), "vkd3dVersion")?.let { row("VKD3D", it) }
+                            parseVersion(cs.optString("graphicsDriverConfig", ""), "version")?.let { r -> row("GPU", r) }
+                            if (cs.has("graphicsDriver") && cs.optString("graphicsDriver").isNotBlank()) row("Wrapper", cs.optString("graphicsDriver"))
+                            if (cs.has("audioDriver") && cs.optString("audioDriver").isNotBlank()) row("Audio", cs.optString("audioDriver"))
+                            if (cs.has("displayRenderer") && cs.optString("displayRenderer").isNotBlank()) row("Render", cs.optString("displayRenderer"))
+                            if (cs.has("emulator") && cs.optString("emulator").isNotBlank()) row("Translator", cs.optString("emulator"))
+                            val b64 = if (cs.has("box64Version")) cs.optString("box64Version") else ""
+                            val b64p = if (cs.has("box64Preset")) cs.optString("box64Preset") else ""
+                            if (b64.isNotBlank() || b64p.isNotBlank()) row("Box64", listOfNotNull(b64.ifBlank { null }, b64p.ifBlank { null }).joinToString(" · "))
+                            val fex = if (cs.has("fexcoreVersion")) cs.optString("fexcoreVersion") else ""
+                            val fexp = if (cs.has("fexcorePreset")) cs.optString("fexcorePreset") else ""
+                            if (fex.isNotBlank() || fexp.isNotBlank()) row("FEX", listOfNotNull(fex.ifBlank { null }, fexp.ifBlank { null }).joinToString(" · "))
+                            if (cs.has("envVars") && cs.optString("envVars").isNotBlank()) row("Env vars", "included")
                         }
                     }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     // Social
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("★ $votesUp", fontWeight = FontWeight.Medium)
-                        Text("↓ $votesDown", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.community_votes, votesUp), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.community_downloads, votesDown), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     // Vote buttons
@@ -548,7 +561,7 @@ private fun ConfigDetailDialog(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         ) {
                             if (voting) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            else Text(if (voted) "Voted ✓" else "👍 Upvote")
+                            else Text(if (voted) stringResource(R.string.community_voted) else stringResource(R.string.community_upvote))
                         }
                         OutlinedButton(
                             onClick = {
@@ -563,7 +576,7 @@ private fun ConfigDetailDialog(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         ) {
-                            Text("👎 Downvote")
+                            Text(stringResource(R.string.community_downvote))
                         }
                     }
 
@@ -609,7 +622,7 @@ private fun ConfigDetailDialog(
                                     }
                                 },
                                 enabled = commentText.isNotBlank() && !commenting,
-                            ) { Text(if (commenting) stringResource(R.string.community_sending) else "Send") }
+                            ) { Text(if (commenting) stringResource(R.string.community_sending) else stringResource(R.string.community_send)) }
                         }
                     }
                 }
@@ -618,7 +631,7 @@ private fun ConfigDetailDialog(
                 Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = onApply, enabled = config != null) { Text("Apply Config") }
+                    Button(onClick = onApply, enabled = config != null) { Text(stringResource(R.string.config_apply)) }
                 }
             }
         }

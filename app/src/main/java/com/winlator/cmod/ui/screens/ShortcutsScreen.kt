@@ -311,6 +311,7 @@ Column(modifier = Modifier.fillMaxSize()) {
                 refreshKeyInternal++
             },
             onSearchConfigs = {
+                contextShortcut = shortcutForSteamInfo
                 showCommunityConfigs = true
                 shortcutForSteamInfo = null
             }
