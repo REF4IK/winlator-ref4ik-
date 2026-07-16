@@ -819,14 +819,16 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                         val sha = b.optString("sha", "")
                         val configUrl = b.optString("configUrl", "")
                         val zipUrl = b.optString("zipUrl", "")
-                        val desc = b.optString("description", "")
+                        val device = b.optString("device", "")
+                        val gpu = b.optString("gpu", "")
                         if (configUrl.isNotEmpty()) {
+                            val displayName = device.ifEmpty { "Bundle-${sha.take(8)}" }
                             list.add(ConfigFileEntry(
-                                name = "Bundle-${sha.take(8)}",
+                                name = displayName,
                                 downloadUrl = configUrl,
                                 sha = sha,
-                                device = "",
-                                soc = "",
+                                device = device,
+                                soc = gpu,
                                 bundleUrl = zipUrl,
                             ))
                         }
