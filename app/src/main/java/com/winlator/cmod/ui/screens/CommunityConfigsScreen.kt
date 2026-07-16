@@ -514,17 +514,21 @@ private fun ConfigDetailDialog(
                     config.containerSettings?.let { cs ->
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             @Composable fun row(label: String, value: String) {
+                                val clean = value.substringBefore(";").substringBefore(",").trim()
+                                if (clean.isBlank()) return
                                 Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
                                     Text("$label  ", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
-                                    Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(clean, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                                 }
                             }
                             if (cs.has("wineVersion") && cs.optString("wineVersion").isNotBlank()) row("Wine", cs.optString("wineVersion"))
                             if (cs.has("screenSize") && cs.optString("screenSize").isNotBlank()) row("Screen", cs.optString("screenSize"))
                             parseVersion(cs.optString("dxwrapperConfig", ""), "version")?.let { row("DXVK", it) }
                             parseVersion(cs.optString("dxwrapperConfig", ""), "vkd3dVersion")?.let { row("VKD3D", it) }
-                            parseVersion(cs.optString("graphicsDriverConfig", ""), "version")?.let { r -> row("GPU", r) }
-                            if (cs.has("graphicsDriver") && cs.optString("graphicsDriver").isNotBlank()) row("Wrapper", cs.optString("graphicsDriver"))
+                            val gpuRaw = cs.optString("graphicsDriverConfig", "")
+                            val gpuVer = parseVersion(gpuRaw, "version")
+                            if (gpuVer != null) row("GPU", gpuVer)
+                            else if (gpuRaw.isNotBlank()) row("GPU", gpuRaw)
                             if (cs.has("audioDriver") && cs.optString("audioDriver").isNotBlank()) row("Audio", cs.optString("audioDriver"))
                             if (cs.has("displayRenderer") && cs.optString("displayRenderer").isNotBlank()) row("Render", cs.optString("displayRenderer"))
                             if (cs.has("emulator") && cs.optString("emulator").isNotBlank()) row("Translator", cs.optString("emulator"))
@@ -534,7 +538,6 @@ private fun ConfigDetailDialog(
                             val fex = if (cs.has("fexcoreVersion")) cs.optString("fexcoreVersion") else ""
                             val fexp = if (cs.has("fexcorePreset")) cs.optString("fexcorePreset") else ""
                             if (fex.isNotBlank() || fexp.isNotBlank()) row("FEX", listOfNotNull(fex.ifBlank { null }, fexp.ifBlank { null }).joinToString(" · "))
-                            if (cs.has("envVars") && cs.optString("envVars").isNotBlank()) row("Env vars", "included")
                         }
                     }
 
