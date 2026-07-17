@@ -20,11 +20,37 @@ import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import android.os.Build.VERSION.SDK_INT
+import java.io.File
 import com.tencent.mmkv.MMKV
 
 class PluviaApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
+        val cacheDir = File(filesDir, "steam_image_cache")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+
         return ImageLoader.Builder(this)
+            .okHttpClient {
+                com.winlator.cmod.core.DohOkHttp.get().newBuilder()
+                    .cache(okhttp3.Cache(cacheDir, 512L * 1024 * 1024))
+                    .addNetworkInterceptor { chain ->
+                        val response = chain.proceed(chain.request())
+                        val cacheControl = response.header("Cache-Control")
+                        if (cacheControl != null && (cacheControl.contains("no-store") || cacheControl.contains("no-cache") || cacheControl.contains("max-age=0"))) {
+                            response.newBuilder()
+                                .removeHeader("Cache-Control")
+                                .removeHeader("Pragma")
+                                .header("Cache-Control", "public, max-age=604800, stale-while-revalidate=2592000")
+                                .build()
+                        } else if (cacheControl == null) {
+                            response.newBuilder()
+                                .header("Cache-Control", "public, max-age=604800, stale-while-revalidate=2592000")
+                                .build()
+                        } else {
+                            response
+                        }
+                    }
+                    .build()
+            }
             .components {
                 if (SDK_INT >= 28) {
                     add(ImageDecoderDecoder.Factory())
@@ -32,6 +58,7 @@ class PluviaApp : Application(), ImageLoaderFactory {
                     add(GifDecoder.Factory())
                 }
             }
+            .crossfade(true)
             .build()
     }
 

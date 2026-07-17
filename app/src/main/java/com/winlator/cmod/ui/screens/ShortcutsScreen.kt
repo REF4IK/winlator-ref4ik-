@@ -71,6 +71,7 @@ import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.core.ShortcutCoverFetcher
+import com.winlator.cmod.core.SteamImageCache
 import com.winlator.cmod.core.gameconfig.GameConfigManager
 import com.winlator.cmod.core.gameconfig.CloudConfigRepoV2
 import kotlinx.coroutines.GlobalScope
@@ -81,6 +82,35 @@ import java.io.FileWriter
 
 private val STEAM_GAME_INFO_CACHE = ConcurrentHashMap<Int, SteamGameInfo>()
 private val STEAM_NAME_TO_APP_ID_CACHE = ConcurrentHashMap<String, Int>()
+
+@Composable
+private fun rememberCachedSteamImage(url: String, fallbackUrl: String? = null): Any? {
+    val ctx = LocalContext.current
+    var file by remember(url) { mutableStateOf(SteamImageCache.getCachedFile(ctx, url)) }
+
+    LaunchedEffect(url, fallbackUrl) {
+        android.util.Log.d("SteamImg", "rememberCached: url=$url cached=${file != null}")
+        if (file == null) {
+            android.util.Log.d("SteamImg", "Downloading: $url")
+            val f = SteamImageCache.downloadIfNeeded(ctx, url)
+            if (f != null) {
+                android.util.Log.d("SteamImg", "Downloaded OK: ${f.absolutePath} size=${f.length()}")
+                file = f
+            } else if (fallbackUrl != null) {
+                android.util.Log.d("SteamImg", "Trying fallback: $fallbackUrl")
+                val f2 = SteamImageCache.downloadIfNeeded(ctx, fallbackUrl)
+                if (f2 != null) {
+                    android.util.Log.d("SteamImg", "Fallback OK: ${f2.absolutePath}")
+                    file = f2
+                } else {
+                    android.util.Log.w("SteamImg", "Both failed for $url")
+                }
+            }
+        }
+    }
+
+    return file
+}
 
 /**
  * Compose-версия ShortcutsFragment.
@@ -839,7 +869,7 @@ fun JSONObject.toSteamGameInfo(): SteamGameInfo {
 }
 
 private fun getDiskCacheFile(context: Context, appId: Int): File {
-    val dir = File(context.cacheDir, "steam_info_cache")
+    val dir = File(context.filesDir, "steam_info_cache")
     if (!dir.exists()) dir.mkdirs()
     return File(dir, "steam_info_${appId}.json")
 }
@@ -1258,27 +1288,27 @@ fun SteamInfoDialog(
                             val heroUrl = remember(gameInfo) {
                                 "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/library_hero.jpg"
                             }
-                            var backgroundModel by remember(heroUrl) { mutableStateOf<Any>(heroUrl) }
+                            val capsuleUrl = remember(gameInfo) {
+                                "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/capsule_616x353.jpg"
+                            }
+                            val heroFile = rememberCachedSteamImage(heroUrl, capsuleUrl)
+                            val logoUrl = remember(gameInfo) {
+                                "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/logo.png"
+                            }
+                            val logoFile = rememberCachedSteamImage(logoUrl)
                             
                             Box(modifier = Modifier.fillMaxSize()) {
-                                coil.compose.AsyncImage(
-                                    model = backgroundModel,
-                                    onError = {
-                                        if (backgroundModel == heroUrl) {
-                                            backgroundModel = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/capsule_616x353.jpg"
-                                        }
-                                    },
-                                    contentDescription = gameInfo!!.name,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                                
-                                if (backgroundModel == heroUrl) {
-                                    val logoUrl = remember(gameInfo) {
-                                        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${gameInfo!!.appId}/logo.png"
-                                    }
+                                if (heroFile != null) {
                                     coil.compose.AsyncImage(
-                                        model = logoUrl,
+                                        model = heroFile,
+                                        contentDescription = gameInfo!!.name,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                if (logoFile != null) {
+                                    coil.compose.AsyncImage(
+                                        model = logoFile,
                                         contentDescription = null,
                                         modifier = Modifier
                                             .align(Alignment.Center)
@@ -1701,7 +1731,7 @@ fun SteamInfoDialog(
                                                     .clickable { activeTrailerUrl = info.trailerUrl }
                                             ) {
                                                 coil.compose.AsyncImage(
-                                                    model = info.headerImage,
+                                                    model = rememberCachedSteamImage(info.headerImage),
                                                     contentDescription = "Video preview",
                                                     modifier = Modifier.fillMaxSize(),
                                                     contentScale = ContentScale.Crop
@@ -1740,7 +1770,7 @@ fun SteamInfoDialog(
                                                 .clickable { activeFullScreenScreenshotIndex = currentIndex }
                                         ) {
                                             coil.compose.AsyncImage(
-                                                model = ssUrl,
+                                                model = rememberCachedSteamImage(ssUrl),
                                                 contentDescription = "screenshot",
                                                 modifier = Modifier.fillMaxSize(),
                                                 contentScale = ContentScale.Crop
@@ -1934,7 +1964,7 @@ fun SteamInfoDialog(
                                                     ) {
                                                         if (res.tinyImage.isNotEmpty()) {
                                                             coil.compose.AsyncImage(
-                                                                model = res.tinyImage,
+                                                                model = rememberCachedSteamImage(res.tinyImage),
                                                                 contentDescription = res.name,
                                                                 modifier = Modifier.fillMaxSize(),
                                                                 contentScale = ContentScale.Crop
@@ -1988,7 +2018,7 @@ fun SteamInfoDialog(
                     val ssUrl = gameInfo?.screenshots?.getOrNull(page)
                     if (ssUrl != null) {
                         coil.compose.AsyncImage(
-                            model = ssUrl,
+                            model = rememberCachedSteamImage(ssUrl),
                             contentDescription = "screenshot_fullscreen",
                             modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f),
                             contentScale = ContentScale.Fit

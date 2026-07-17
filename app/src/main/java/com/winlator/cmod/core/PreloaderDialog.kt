@@ -131,19 +131,25 @@ class PreloaderDialog(private val activity: Activity) {
             if (appId != null && appId > 0) {
                 val heroUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/library_hero.jpg"
                 val capsuleUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/capsule_616x353.jpg"
-                var backgroundModel by remember(appId) { mutableStateOf<Any>(heroUrl) }
+                var heroFile by remember(appId) { mutableStateOf<java.io.File?>(SteamImageCache.getCachedFile(activity, heroUrl)) }
 
-                AsyncImage(
-                    model = backgroundModel,
-                    onError = {
-                        if (backgroundModel == heroUrl) {
-                            backgroundModel = capsuleUrl
+                LaunchedEffect(appId) {
+                    if (heroFile == null) {
+                        heroFile = SteamImageCache.downloadIfNeeded(activity, heroUrl)
+                        if (heroFile == null) {
+                            heroFile = SteamImageCache.downloadIfNeeded(activity, capsuleUrl)
                         }
-                    },
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+                    }
+                }
+
+                heroFile?.let { file ->
+                    AsyncImage(
+                        model = file,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             } else {
                 coverArtBitmap?.let { bmp ->
                     Image(
@@ -174,16 +180,26 @@ class PreloaderDialog(private val activity: Activity) {
             // Game logo overlay (if Steam App ID is present)
             if (appId != null && appId > 0) {
                 val logoUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/logo.png"
-                AsyncImage(
-                    model = logoUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .height(72.dp)
-                        .fillMaxWidth(0.5f)
-                        .align(Alignment.TopStart)
-                        .padding(start = 24.dp, top = 24.dp),
-                    contentScale = ContentScale.Fit
-                )
+                var logoFile by remember(appId) { mutableStateOf<java.io.File?>(SteamImageCache.getCachedFile(activity, logoUrl)) }
+
+                LaunchedEffect(appId) {
+                    if (logoFile == null) {
+                        logoFile = SteamImageCache.downloadIfNeeded(activity, logoUrl)
+                    }
+                }
+
+                logoFile?.let { file ->
+                    AsyncImage(
+                        model = file,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .height(72.dp)
+                            .fillMaxWidth(0.5f)
+                            .align(Alignment.TopStart)
+                            .padding(start = 24.dp, top = 24.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
             }
 
             // Content Column (aligned to BottomStart for that premium Steam Deck overlay look)
