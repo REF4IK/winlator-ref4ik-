@@ -66,6 +66,9 @@ public class BundledConfigApplier {
                     FileUtils.copy(adrenotoolsExtracted, adrenotoolsRoot);
                 }
 
+                ContentsManager cm = new ContentsManager(context);
+                cm.syncContents();
+
                 callback.onProgress("Applying config...");
 
                 File configFile = new File(extractDir, "config.json");

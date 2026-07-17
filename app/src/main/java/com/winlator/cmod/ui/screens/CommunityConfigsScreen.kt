@@ -143,6 +143,24 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                 if (shortcut != null) {
                     scope.launch(Dispatchers.IO) {
                         try {
+                            val bundleUrl = detailEntry?.bundleUrl
+                            if (!bundleUrl.isNullOrEmpty()) {
+                                val applier = BundledConfigApplier(ctx)
+                                val latch = java.util.concurrent.CountDownLatch(1)
+                                var applyError: String? = null
+                                applier.applyFromUrl(bundleUrl, null, null, object : BundledConfigApplier.ApplyCallback {
+                                    override fun onProgress(status: String) {}
+                                    override fun onComplete(success: Boolean, message: String, config: GameConfig?) {
+                                        if (!success) applyError = message
+                                        latch.countDown()
+                                    }
+                                })
+                                latch.await(120, java.util.concurrent.TimeUnit.SECONDS)
+                                if (applyError != null) {
+                                    withContext(Dispatchers.Main) { statusMessage = "Error: $applyError" }
+                                    return@launch
+                                }
+                            }
                             GameConfigManager.applyGameConfig(detailConfig!!, shortcut.container, shortcut)
                             withContext(Dispatchers.Main) {
                                 statusMessage = "Applied to ${shortcut.name}"
@@ -558,27 +576,9 @@ private fun ConfigDetailDialog(
                     // Components
                     Text(stringResource(R.string.components), fontWeight = FontWeight.Medium)
                     if (entry.bundleUrl.isNotEmpty()) {
-                        var bundleState by remember { mutableStateOf(ctx.getString(R.string.bundle_downloading)) }
-                        var bundleError by remember { mutableStateOf(false) }
-                        LaunchedEffect(entry.bundleUrl) {
-                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-                                val applier = BundledConfigApplier(ctx)
-                                applier.applyFromUrl(entry.bundleUrl, null, null, object : BundledConfigApplier.ApplyCallback {
-                                    override fun onProgress(status: String) {
-                                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) { bundleState = status }
-                                    }
-                                    override fun onComplete(success: Boolean, message: String, config: GameConfig?) {
-                                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) {
-                                            if (success) { bundleState = ctx.getString(R.string.bundle_applied); onApply() }
-                                            else { bundleState = ctx.getString(R.string.bundle_failed, message); bundleError = true }
-                                        }
-                                    }
-                                })
-                            }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (!bundleError) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Text(bundleState, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Surface(color = MaterialTheme.colorScheme.tertiary, shape = RoundedCornerShape(4.dp)) {
+                            Text(stringResource(R.string.config_preview), fontSize = 11.sp, color = MaterialTheme.colorScheme.onTertiary,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                         }
                     } else {
                         val resolver = remember { ComponentResolver(ctx) }
