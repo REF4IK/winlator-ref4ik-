@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.R
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.core.gameconfig.*
@@ -64,6 +65,7 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
 
     var configEntries by remember { mutableStateOf<List<ConfigFileEntry>>(emptyList()) }
     var configsLoading by remember { mutableStateOf(false) }
+    var configRefreshTrigger by remember { mutableStateOf(0) }
 
     var detailConfig by remember { mutableStateOf<GameConfig?>(null) }
     var detailEntry by remember { mutableStateOf<ConfigFileEntry?>(null) }
@@ -202,6 +204,20 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                                 put("envVars", s.optString("envVars"))
                             }
                             shortcut.saveData()
+                            // Асинхронно увеличиваем счётчик скачиваний
+                            val dlSha = detailEntry?.sha
+                            if (dlSha != null) {
+                                try {
+                                    val dlBody = org.json.JSONObject().apply { put("sha", dlSha) }
+                                    val conn = java.net.URL(BuildConfig.CLOUDFLARE_WORKER_URL + "/api/download").openConnection() as java.net.HttpURLConnection
+                                    conn.requestMethod = "POST"
+                                    conn.setRequestProperty("Content-Type", "application/json")
+                                    conn.doOutput = true
+                                    conn.outputStream.write(dlBody.toString().toByteArray())
+                                    conn.responseCode
+                                    conn.disconnect()
+                                } catch (_: Exception) {}
+                            }
                             withContext(Dispatchers.Main) {
                                 showApplyProgress = false
                                 statusMessage = "Applied to ${shortcut.name}"
@@ -280,6 +296,15 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                                 configIndex.refreshIndex(ctx.filesDir) { idx ->
                                     catalog = idx
                                     refreshingState = false
+                                }
+                                // Также обновляем список конфигов если выбрана игра
+                                if (selectedGameName.isNotEmpty()) {
+                                    configsLoading = true
+                                    configRefreshTrigger++
+                                    fetchGameConfigs(selectedGameName) { files ->
+                                        configEntries = files
+                                        configsLoading = false
+                                    }
                                 }
                             }
                         },
@@ -485,6 +510,7 @@ private fun DevicePanel(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("★ ${entry.votesUp}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                                 Text("↓ ${entry.votesDown}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (entry.downloads > 0) Text("⬇ ${entry.downloads}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 if (match.score > 0) {
                                     Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(4.dp)) {
                                         Text(stringResource(R.string.community_match_badge), fontSize = 9.sp, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
@@ -534,7 +560,7 @@ private fun ConfigDetailDialog(
 
     LaunchedEffect(entry.sha) {
         withContext(Dispatchers.IO) {
-            social.getComments(gameName, entry.name) { c -> comments = c }
+            social.getComments(entry.sha) { c -> comments = c }
         }
     }
 
@@ -779,11 +805,11 @@ private fun ConfigDetailDialog(
                                     if (text.isEmpty() || commenting) return@TextButton
                                     commenting = true
                                     val nick = Build.MANUFACTURER + "_" + Build.MODEL
-                                    social.postComment(gameName, entry.name, text, nick) { success, err ->
+                                    social.postComment(entry.sha, text, nick) { success, err ->
                                         commenting = false
                                         if (success) {
                                             commentText = ""
-                                            social.getComments(gameName, entry.name) { c -> comments = c }
+                                            social.getComments(entry.sha) { c -> comments = c }
                                         }
                                     }
                                 },
@@ -828,6 +854,7 @@ private data class ConfigFileEntry(
     val sha: String = "",
     val votesUp: Int = 0,
     val votesDown: Int = 0,
+    val downloads: Int = 0,
     val device: String = "",
     val soc: String = "",
     val timestamp: Long = 0,
@@ -859,6 +886,9 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                         val zipUrl = b.optString("zipUrl", "")
                         val device = b.optString("device", "")
                         val gpu = b.optString("gpu", "")
+                        val voteUp = b.optInt("votes_up", 0)
+                        val voteDown = b.optInt("votes_down", 0)
+                        val dlCount = b.optInt("downloads", 0)
                         val createdAt = b.optString("createdAt", "")
                         val ts = try { java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).parse(createdAt)?.time ?: 0 } catch (_: Exception) { 0 }
                         if (configUrl.isNotEmpty()) {
@@ -867,6 +897,9 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                                 name = displayName,
                                 downloadUrl = configUrl,
                                 sha = sha,
+                                votesUp = voteUp,
+                                votesDown = voteDown,
+                                downloads = dlCount,
                                 device = device,
                                 soc = gpu,
                                 timestamp = ts,
@@ -892,7 +925,7 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                             if (filename.isNotEmpty()) {
                                 val url = "$RAW_BASE/REF4IK/winlator-ref4ik-configs/main/configs/" +
                                     gameName.replace(Regex("[^a-zA-Z0-9_]"), "_") + "/$filename"
-                                list.add(ConfigFileEntry(filename, url, sha, votesUp, votesDown, device, soc, ts))
+                                list.add(ConfigFileEntry(filename, url, sha, votesUp, votesDown, device = device, soc = soc, timestamp = ts))
                             }
                     } catch (_: Exception) {}
                 }

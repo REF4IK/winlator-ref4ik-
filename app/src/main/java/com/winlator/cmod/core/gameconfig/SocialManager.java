@@ -42,11 +42,11 @@ public class SocialManager {
         });
     }
 
-    public void postComment(String game, String filename, String text, String nickname, CloudConfigRepoV2.CommentCallback callback) {
-        CloudConfigRepoV2.postComment(game, filename, text, nickname, callback);
+    public void postComment(String sha, String text, String nickname, CloudConfigRepoV2.CommentCallback callback) {
+        CloudConfigRepoV2.postComment(sha, text, nickname, callback);
     }
 
-    public void getComments(String game, String filename, CommentsCallback callback) {
-        CloudConfigRepoV2.fetchComments(game, filename, callback::onResult);
+    public void getComments(String sha, CommentsCallback callback) {
+        CloudConfigRepoV2.fetchComments(sha, callback::onResult);
     }
 }

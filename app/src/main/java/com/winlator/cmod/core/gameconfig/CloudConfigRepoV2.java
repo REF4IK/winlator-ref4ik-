@@ -115,12 +115,11 @@ public class CloudConfigRepoV2 {
         });
     }
 
-    public static void postComment(String game, String filename, String text, String nickname, CommentCallback callback) {
+    public static void postComment(String sha, String text, String nickname, CommentCallback callback) {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
                 JSONObject body = new JSONObject();
-                body.put("game", game);
-                body.put("filename", filename);
+                body.put("sha", sha);
                 body.put("text", text);
                 body.put("nickname", nickname != null ? nickname : "Anonymous");
                 String url = WORKER_URL + "/api/comment";
@@ -133,12 +132,10 @@ public class CloudConfigRepoV2 {
         });
     }
 
-    public static void fetchComments(String game, String filename, Callback<JSONArray> callback) {
+    public static void fetchComments(String sha, Callback<JSONArray> callback) {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                String url = WORKER_URL + "/api/comments?game=" +
-                    URLEncoder.encode(game, "UTF-8") + "&file=" +
-                    URLEncoder.encode(filename, "UTF-8");
+                String url = WORKER_URL + "/api/comments?sha=" + URLEncoder.encode(sha, "UTF-8");
                 String response = downloadString(url);
                 callback.call(new JSONArray(response));
             } catch (Exception e) {

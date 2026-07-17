@@ -30,10 +30,10 @@ public final class DohOkHttp {
             if (local != null) return local;
 
             OkHttpClient bootstrap = new OkHttpClient.Builder()
-                    .connectTimeout(15, TimeUnit.SECONDS)
+                    .connectTimeout(30, TimeUnit.SECONDS)
                     // Large images on weak networks can easily exceed 30-40s
-                    .readTimeout(3, TimeUnit.MINUTES)
-                    .writeTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.MINUTES)
+                    .writeTimeout(60, TimeUnit.SECONDS)
                     // Don't abort the call while streaming a large body
                     .callTimeout(0, TimeUnit.SECONDS)
                     .followRedirects(true)
