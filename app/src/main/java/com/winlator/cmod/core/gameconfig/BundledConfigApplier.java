@@ -2,12 +2,8 @@ package com.winlator.cmod.core.gameconfig;
 
 import android.content.Context;
 
-import com.winlator.cmod.container.Container;
-import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.FileUtils;
-
-import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,7 +25,7 @@ public class BundledConfigApplier {
         void onComplete(boolean success, String message, GameConfig config);
     }
 
-    public void applyFromUrl(final String bundleUrl, final Container container, final Shortcut shortcut, final ApplyCallback callback) {
+    public void applyFromUrl(final String bundleUrl, final ApplyCallback callback) {
         new Thread(() -> {
             try {
                 callback.onProgress("Downloading bundle...");
@@ -69,25 +65,9 @@ public class BundledConfigApplier {
                 ContentsManager cm = new ContentsManager(context);
                 cm.syncContents();
 
-                callback.onProgress("Applying config...");
-
-                File configFile = new File(extractDir, "config.json");
-                if (configFile.exists()) {
-                    String json = new String(java.nio.file.Files.readAllBytes(configFile.toPath()));
-                    GameConfig config = GameConfig.fromJsonString(json);
-                    tempZip.delete();
-                    FileUtils.delete(extractDir);
-                    if (config != null) {
-                        callback.onComplete(true, "Components installed", config);
-                    } else {
-                        callback.onComplete(false, "Invalid config.json", null);
-                    }
-                    return;
-                }
-
                 tempZip.delete();
                 FileUtils.delete(extractDir);
-                callback.onComplete(false, "Invalid bundle: config.json missing", null);
+                callback.onComplete(true, "Components installed", null);
 
             } catch (Exception e) {
                 callback.onComplete(false, "Error: " + e.getMessage(), null);
