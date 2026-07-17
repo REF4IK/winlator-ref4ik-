@@ -476,8 +476,11 @@ private fun DevicePanel(
                                     color = if (match.score > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 )
-                                val sub = if (entry.timestamp > 0) dateFmt.format(Date(entry.timestamp)) else ""
-                                if (sub.isNotEmpty()) Text(sub, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                val pieces = mutableListOf<String>()
+                                if (entry.soc.isNotEmpty()) pieces.add(entry.soc)
+                                if (entry.timestamp > 0) pieces.add(dateFmt.format(Date(entry.timestamp)))
+                                val sub = pieces.joinToString(" · ")
+                                if (sub.isNotEmpty()) Text(sub, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("★ ${entry.votesUp}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
@@ -558,7 +561,7 @@ private fun ConfigDetailDialog(
                     Text(config.gameName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     val hw = config.device.ifBlank { "" }
                     if (hw.isNotEmpty()) Text(hw, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (dateStr.isNotEmpty()) Text(dateStr, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (dateStr.isNotEmpty()) Text(dateStr, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (config.description.isNotBlank()) Text(config.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (matchResult.score > 0) {
                         Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(6.dp)) {
@@ -856,6 +859,8 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                         val zipUrl = b.optString("zipUrl", "")
                         val device = b.optString("device", "")
                         val gpu = b.optString("gpu", "")
+                        val createdAt = b.optString("createdAt", "")
+                        val ts = try { java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).parse(createdAt)?.time ?: 0 } catch (_: Exception) { 0 }
                         if (configUrl.isNotEmpty()) {
                             val displayName = device.ifEmpty { "Bundle-${sha.take(8)}" }
                             list.add(ConfigFileEntry(
@@ -864,6 +869,7 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                                 sha = sha,
                                 device = device,
                                 soc = gpu,
+                                timestamp = ts,
                                 bundleUrl = zipUrl,
                             ))
                         }

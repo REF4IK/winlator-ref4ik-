@@ -15,8 +15,22 @@ public class GameConfigManager {
         config.gameName = shortcut.name;
         config.description = description != null ? description : "";
         config.device = Build.MANUFACTURER + " " + Build.MODEL;
-        config.gpu = android.opengl.GLES20.glGetString(android.opengl.GLES20.GL_RENDERER);
-        config.gpu = config.gpu != null ? config.gpu : "Unknown";
+        try {
+            config.gpu = com.winlator.cmod.core.GPUInformation.getRenderer();
+        } catch (Throwable ignored) {}
+        if (config.gpu == null) {
+            config.gpu = android.opengl.GLES20.glGetString(android.opengl.GLES20.GL_RENDERER);
+        }
+        if (config.gpu == null && Build.VERSION.SDK_INT >= 31) {
+            config.gpu = Build.SOC_MODEL;
+        }
+        if (config.gpu == null || config.gpu.isEmpty()) {
+            config.gpu = "Unknown";
+        }
+        if (config.gpu != null && !config.gpu.equals("Unknown")) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("adreno[^0-9]*([0-9]{3})", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(config.gpu);
+            if (m.find()) config.gpu = "Adreno " + m.group(1);
+        }
         config.exportedAt = System.currentTimeMillis();
 
         try {
