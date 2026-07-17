@@ -256,15 +256,15 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
         )
     }
 
-    Dialog(onDismissRequest = onBack, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = onBack, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.92f),
-            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxHeight().fillMaxWidth(0.96f),
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {
-            Column {
+            Column(Modifier.fillMaxSize().systemBarsPadding()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (selectedGame != null) {
@@ -318,7 +318,7 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                 BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    val wide = maxWidth >= 600.dp
+                    val wide = false
                     when {
                         loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                         selectedGame != null -> DevicePanel(
@@ -374,8 +374,8 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                }
             }
+        }
         }
     }
 }
@@ -509,7 +509,7 @@ private fun CatalogPanel(
         }
     } else {
         Column(Modifier.fillMaxSize()) {
-            Controls(Modifier.padding(12.dp))
+            Controls(Modifier.padding(horizontal = 12.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             GameList(Modifier.fillMaxSize())
         }
@@ -635,7 +635,7 @@ private fun DevicePanel(
             ConfigList(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(12.dp))
         }
     } else {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Header()
             ConfigList(Modifier.fillMaxWidth())
         }
@@ -670,14 +670,14 @@ private fun ConfigDetailDialog(
     val matchResult = deviceMatcher.match(entry.device, entry.soc)
     val dateStr = if (config.exportedAt > 0) SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(config.exportedAt)) else ""
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.92f),
-            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxHeight().fillMaxWidth(0.96f),
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {
-            Column {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.fillMaxSize().systemBarsPadding()) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         if (entry.bundleUrl.isNotEmpty()) Icons.Default.Extension else Icons.Default.Tune,
                         null,
@@ -689,7 +689,7 @@ private fun ConfigDetailDialog(
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Provenance card
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -912,7 +912,7 @@ private fun ConfigDetailDialog(
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.End) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                     Spacer(Modifier.width(8.dp))
                     Button(onClick = onApply, enabled = config != null) {
