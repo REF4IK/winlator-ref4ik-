@@ -183,52 +183,8 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                                 }
                             }
                             withContext(Dispatchers.Main) { applyProgressText = "Применение настроек..." }
-                            val cs = detailConfig!!.containerSettings
-                            if (cs != null) {
-                                val cm = com.winlator.cmod.contents.ContentsManager(ctx)
-                                cm.syncContents()
-                                fun normalize(version: String, type: com.winlator.cmod.contents.ContentProfile.ContentType): String {
-                                    if (version.isEmpty()) return version
-                                    val profiles = cm.getProfiles(type)
-                                    if (profiles != null) {
-                                        for (p in profiles) {
-                                            val vn = p.verName ?: ""
-                                            val sp = if (vn.indexOf('-') >= 0) vn.substring(vn.indexOf('-') + 1) else vn
-                                            if (version.equals(vn, true) || version.equals("$vn-${p.verCode}", true) || version.equals(sp, true)) {
-                                                return "$vn-${p.verCode}"
-                                            }
-                                        }
-                                    }
-                                    return version
-                                }
-                                val dx = cs.optString("dxwrapper", "")
-                                val dxc = cs.optString("dxwrapperConfig", "")
-                                if (dx.equals("dxvk", true) || dx.equals("d8vk", true)) {
-                                    val ver = parseVersion(dxc, "version")
-                                    if (ver != null) {
-                                        val nv = normalize(ver, com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_DXVK)
-                                        cs.put("dxwrapperConfig", dxc.replace("version=$ver", "version=$nv"))
-                                    }
-                                } else if (dx.equals("vkd3d", true)) {
-                                    val ver = parseVersion(dxc, "vkd3dVersion")
-                                    if (ver != null) {
-                                        val nv = normalize(ver, com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_VKD3D)
-                                        cs.put("dxwrapperConfig", dxc.replace("vkd3dVersion=$ver", "vkd3dVersion=$nv"))
-                                    }
-                                }
-                                val box = cs.optString("box64Version", "")
-                                if (box.isNotEmpty()) {
-                                    val bt = if (com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64.toString().equals(cs.optString("box64ContentType", ""), true))
-                                        com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
-                                    else com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_BOX64
-                                    cs.put("box64Version", normalize(box, bt))
-                                }
-                                val fex = cs.optString("fexcoreVersion", "")
-                                if (fex.isNotEmpty()) {
-                                    cs.put("fexcoreVersion", normalize(fex, com.winlator.cmod.contents.ContentProfile.ContentType.CONTENT_TYPE_FEXCORE))
-                                }
-                            }
                             GameConfigManager.applyGameConfig(detailConfig!!, shortcut.container, shortcut)
+                            GameConfigManager.applyGameConfig(detailConfig!!, shortcut.container, null)
                             withContext(Dispatchers.Main) {
                                 showApplyProgress = false
                                 statusMessage = "Applied to ${shortcut.name}"
