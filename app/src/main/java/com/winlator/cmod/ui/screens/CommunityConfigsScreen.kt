@@ -485,24 +485,13 @@ private fun CatalogPanel(
                         shape = RoundedCornerShape(10.dp),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            FilledIconButton(
-                                onClick = { onGameClick(g) },
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                ),
-                                modifier = Modifier.size(40.dp),
-                            ) { Icon(Icons.Default.Gamepad, null, modifier = Modifier.size(22.dp)) }
                             Column(Modifier.weight(1f)) {
                                 Text(g.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Description, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("${g.configCount} configs", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+                                Text("${g.configCount} configs", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                         }
@@ -540,35 +529,19 @@ private fun DevicePanel(
 ) {
     @Composable
     fun Header() {
-        Card(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                FilledIconButton(
-                    onClick = {},
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ),
-                    modifier = Modifier.size(40.dp),
-                ) { Icon(Icons.Default.PhoneAndroid, null, modifier = Modifier.size(22.dp)) }
-                Column(Modifier.weight(1f)) {
-                    Text(gameName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("${entries.size} configs", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                FilterChip(
-                    selected = matchesMyDevice,
-                    onClick = onToggleDevice,
-                    label = { Text(stringResource(R.string.community_filter_device), fontSize = 11.sp) },
-                    leadingIcon = if (matchesMyDevice) {{ Icon(Icons.Default.PhoneAndroid, null, modifier = Modifier.size(14.dp)) }} else null,
-                )
-            }
+            Text(gameName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("${entries.size}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FilterChip(
+                selected = matchesMyDevice,
+                onClick = onToggleDevice,
+                label = { Text(stringResource(R.string.community_filter_device), fontSize = 11.sp) },
+                leadingIcon = if (matchesMyDevice) {{ Icon(Icons.Default.PhoneAndroid, null, modifier = Modifier.size(14.dp)) }} else null,
+            )
         }
     }
 
@@ -607,14 +580,6 @@ private fun DevicePanel(
                         ) {
                             Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    FilledIconButton(
-                                        onClick = { onEntryClick(entry) },
-                                        colors = IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = if (match.score > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
-                                            contentColor = if (match.score > 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        ),
-                                        modifier = Modifier.size(36.dp),
-                                    ) { Icon(if (entry.bundleUrl.isNotEmpty()) Icons.Default.Extension else Icons.Default.Tune, null, modifier = Modifier.size(20.dp)) }
                                     Column(Modifier.weight(1f)) {
                                         Text(
                                             entry.device.ifBlank { entry.name },
@@ -650,11 +615,6 @@ private fun DevicePanel(
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                                             Icon(Icons.Default.Download, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                                             Text("${entry.downloads}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                    if (entry.bundleUrl.isNotEmpty()) {
-                                        Surface(color = MaterialTheme.colorScheme.tertiary, shape = RoundedCornerShape(4.dp)) {
-                                            Text(stringResource(R.string.config_preview), fontSize = 9.sp, color = MaterialTheme.colorScheme.onTertiary, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                                         }
                                     }
                                 }
@@ -826,128 +786,6 @@ private fun ConfigDetailDialog(
                         }
                     }
 
-                    // Components card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(10.dp),
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.Inventory2, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                Text(stringResource(R.string.components), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                            if (entry.bundleUrl.isNotEmpty()) {
-                                Surface(color = MaterialTheme.colorScheme.tertiary, shape = RoundedCornerShape(6.dp)) {
-                                    Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Icon(Icons.Default.Visibility, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onTertiary)
-                                        Text(stringResource(R.string.config_preview), fontSize = 12.sp, color = MaterialTheme.colorScheme.onTertiary, fontWeight = FontWeight.Medium)
-                                    }
-                                }
-                            } else {
-                                val resolver = remember { ComponentResolver(ctx) }
-                                var components by remember { mutableStateOf<List<ComponentResolver.ComponentStatus>>(emptyList()) }
-                                var componentsLoaded by remember { mutableStateOf(false) }
-                                LaunchedEffect(config.containerSettings) {
-                                    withContext(Dispatchers.IO) {
-                                        resolver.resolve(config.containerSettings) { result ->
-                                            components = result; componentsLoaded = true
-                                        }
-                                    }
-                                }
-                                if (!componentsLoaded) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                        Text("Checking...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                } else {
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        val missingCnt = components.count { !it.installed && it.downloadable }
-                                        var installStats by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-                                        var curDl by remember { mutableStateOf<String?>(null) }
-                                        var dlMsg by remember { mutableStateOf<String?>(null) }
-
-                                        components.forEach { comp ->
-                                            val res = installStats[comp.label]
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                FilledIconButton(
-                                                    onClick = {},
-                                                    colors = IconButtonDefaults.filledIconButtonColors(
-                                                        containerColor = when {
-                                                            comp.installed || res == "ok" -> MaterialTheme.colorScheme.primaryContainer
-                                                            res == "fail" -> MaterialTheme.colorScheme.errorContainer
-                                                            else -> MaterialTheme.colorScheme.surfaceContainer
-                                                        },
-                                                        contentColor = when {
-                                                            comp.installed || res == "ok" -> MaterialTheme.colorScheme.onPrimaryContainer
-                                                            res == "fail" -> MaterialTheme.colorScheme.onErrorContainer
-                                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                        },
-                                                    ),
-                                                    modifier = Modifier.size(32.dp),
-                                                ) {
-                                                    Icon(
-                                                        when {
-                                                            comp.installed || res == "ok" -> Icons.Default.Check
-                                                            res == "fail" -> Icons.Default.Close
-                                                            else -> Icons.Default.Download
-                                                        },
-                                                        null,
-                                                        modifier = Modifier.size(16.dp),
-                                                    )
-                                                }
-                                                Text("${comp.label} ${comp.version}", fontSize = 13.sp,
-                                                    color = when { comp.installed || res == "ok" -> MaterialTheme.colorScheme.primary; else -> MaterialTheme.colorScheme.onSurface },
-                                                    modifier = Modifier.weight(1f))
-                                                if (curDl?.startsWith(comp.label) == true) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                                            }
-                                        }
-
-                                        if (dlMsg != null) Text(dlMsg!!, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                                        if (missingCnt > 0 && installStats.isEmpty()) {
-                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Button(
-                                                    onClick = {
-                                                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-                                                            val st = mutableMapOf<String, String>()
-                                                            val todo = components.filter { !it.installed && it.downloadable }
-                                                            for ((i, comp) in todo.withIndex()) {
-                                                                withContext(Dispatchers.Main) { curDl = comp.label; dlMsg = "Downloading ${i+1}/${todo.size}: ${comp.label}..." }
-                                                                val latch = java.util.concurrent.CountDownLatch(1)
-                                                                try {
-                                                                    ComponentResolver.installComponent(comp, ctx, object : ComponentResolver.InstallCallback {
-                                                                        override fun onComplete(success: Boolean, message: String?) {
-                                                                            st[comp.label] = if (success) "ok" else "fail"
-                                                                            latch.countDown()
-                                                                        }
-                                                                    })
-                                                                } catch (e: Exception) {
-                                                                    st[comp.label] = "fail"
-                                                                    latch.countDown()
-                                                                }
-                                                                latch.await(60, java.util.concurrent.TimeUnit.SECONDS)
-                                                            }
-                                                            withContext(Dispatchers.Main) {
-                                                                installStats = st; curDl = null
-                                                                val ok = st.count { it.value == "ok" }
-                                                                val fail = st.count { it.value == "fail" }
-                                                                dlMsg = "$ok installed, $fail failed"
-                                                                if (fail == 0) { dlMsg = null; onApply() }
-                                                            }
-                                                        }
-                                                    },
-                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                                ) { Text("Download All ($missingCnt)") }
-                                                OutlinedButton(onClick = { onApply() }) { Text("Skip") }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
                     // Social card
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -955,19 +793,10 @@ private fun ConfigDetailDialog(
                         shape = RoundedCornerShape(10.dp),
                     ) {
                         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.Favorite, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                Text("Rating", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                            }
-
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Icon(Icons.Default.ThumbUp, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                                     Text(stringResource(R.string.community_votes, votesUp), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Default.ThumbDown, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("$votesDown", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
@@ -994,23 +823,6 @@ private fun ConfigDetailDialog(
                                         Spacer(Modifier.width(4.dp))
                                         Text(if (voted) stringResource(R.string.community_voted) else stringResource(R.string.community_upvote))
                                     }
-                                }
-                                OutlinedButton(
-                                    onClick = {
-                                        if (voted || voting) return@OutlinedButton
-                                        voting = true
-                                        social.vote(entry.sha, false) { success, up, down, err ->
-                                            voting = false
-                                            if (success) { votesUp = up; votesDown = down; voted = true }
-                                        }
-                                    },
-                                    enabled = !voted && !voting,
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                ) {
-                                    Icon(Icons.Default.ThumbDown, null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(stringResource(R.string.community_downvote))
                                 }
                             }
                         }
