@@ -175,7 +175,7 @@ fun ShortcutsScreen(
     }
 
     if (showCommunityConfigs) {
-        CommunityConfigsScreen(onBack = { showCommunityConfigs = false; communityConfigsShortcut = null }, contextShortcut = communityConfigsShortcut)
+        CommunityConfigsScreen(onBack = { showCommunityConfigs = false; communityConfigsShortcut?.let { shortcutForSteamInfo = it }; communityConfigsShortcut = null }, contextShortcut = communityConfigsShortcut)
     } else {
 Column(modifier = Modifier.fillMaxSize()) {
     Box(modifier = Modifier.fillMaxSize().weight(1f)) {
@@ -912,6 +912,26 @@ private fun getGameInfoFromCache(context: Context, appId: Int): SteamGameInfo? {
     return null
 }
 
+private fun getAppIdDir(context: Context): File {
+    val dir = File(context.filesDir, "steam_appid_cache")
+    if (!dir.exists()) dir.mkdirs()
+    return dir
+}
+
+private fun getCachedAppIdByName(context: Context, name: String): Int? {
+    val file = File(getAppIdDir(context), "appid_${name.hashCode()}.txt")
+    if (!file.exists()) return null
+    val text = file.readText().trim()
+    return text.toIntOrNull()
+}
+
+private fun saveCachedAppIdByName(context: Context, name: String, appId: Int) {
+    try {
+        val file = File(getAppIdDir(context), "appid_${name.hashCode()}.txt")
+        file.writeText(appId.toString())
+    } catch (_: Exception) {}
+}
+
 data class SteamSearchResult(
     val id: Int,
     val name: String,
@@ -1184,7 +1204,9 @@ fun SteamInfoDialog(
     val isRussian = locale == "ru"
 
     val initialAppId = remember(shortcut) {
-        shortcut.getExtra("steamAppId").toIntOrNull() ?: STEAM_NAME_TO_APP_ID_CACHE[shortcut.name]
+        shortcut.getExtra("steamAppId").toIntOrNull()
+            ?: STEAM_NAME_TO_APP_ID_CACHE[shortcut.name]
+            ?: getCachedAppIdByName(ctx, shortcut.name)
     }
     val initialInfo = remember(initialAppId) {
         initialAppId?.let { getGameInfoFromCache(ctx, it) }
@@ -1243,14 +1265,18 @@ fun SteamInfoDialog(
 
     LaunchedEffect(shortcut) {
         if (gameInfo != null) return@LaunchedEffect
-        val cachedAppId = shortcut.getExtra("steamAppId").toIntOrNull() ?: STEAM_NAME_TO_APP_ID_CACHE[shortcut.name]
+        val cachedAppId = shortcut.getExtra("steamAppId").toIntOrNull()
+            ?: STEAM_NAME_TO_APP_ID_CACHE[shortcut.name]
+            ?: getCachedAppIdByName(ctx, shortcut.name)
         if (cachedAppId != null && cachedAppId > 0) {
             appIdState = cachedAppId
+            STEAM_NAME_TO_APP_ID_CACHE[shortcut.name] = cachedAppId
             loadDetails(cachedAppId)
         } else {
             fetchAppIdByName(shortcut.name) { resolvedId ->
                 if (resolvedId != null && resolvedId > 0) {
                     STEAM_NAME_TO_APP_ID_CACHE[shortcut.name] = resolvedId
+                    saveCachedAppIdByName(ctx, shortcut.name, resolvedId)
                     appIdState = resolvedId
                     loadDetails(resolvedId)
                 } else {

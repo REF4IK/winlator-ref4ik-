@@ -412,23 +412,6 @@ private fun CatalogPanel(
                 shape = RoundedCornerShape(10.dp),
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(
-                            selected = storeFilter == StoreFilter.ALL,
-                            onClick = { onStoreFilterChange(StoreFilter.ALL) },
-                            label = { Text(stringResource(R.string.all), fontSize = 12.sp) },
-                        )
-                        FilterChip(
-                            selected = storeFilter == StoreFilter.STEAM,
-                            onClick = { onStoreFilterChange(StoreFilter.STEAM) },
-                            label = { Text("Steam", fontSize = 12.sp) },
-                        )
-                        FilterChip(
-                            selected = storeFilter == StoreFilter.TITLE,
-                            onClick = { onStoreFilterChange(StoreFilter.TITLE) },
-                            label = { Text("Title", fontSize = 12.sp) },
-                        )
-                    }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = matchesMyDevice,
@@ -437,18 +420,12 @@ private fun CatalogPanel(
                             leadingIcon = if (matchesMyDevice) {{ Icon(Icons.Default.PhoneAndroid, null, modifier = Modifier.size(16.dp)) }} else null,
                         )
                         Spacer(Modifier.weight(1f))
-                        Text(stringResource(R.string.community_sort_label), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         FilterChip(
                             selected = sort == SortMode.CONFIGS,
                             onClick = { onSortChange(SortMode.CONFIGS) },
                             label = { Text(stringResource(R.string.community_sort_configs), fontSize = 12.sp) },
-                        )
-                        FilterChip(
-                            selected = sort == SortMode.NAME,
-                            onClick = { onSortChange(SortMode.NAME) },
-                            label = { Text(stringResource(R.string.name), fontSize = 12.sp) },
                         )
                         FilterChip(
                             selected = sort == SortMode.DEVICES,
@@ -604,12 +581,8 @@ private fun DevicePanel(
                                 Spacer(Modifier.height(6.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Icon(Icons.Default.ThumbUp, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                        Icon(Icons.Default.ThumbUp, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
                                         Text("${entry.votesUp}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                                    }
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Icon(Icons.Default.ThumbDown, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text("${entry.votesDown}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     if (entry.downloads > 0) {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -795,11 +768,9 @@ private fun ConfigDetailDialog(
                         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Default.ThumbUp, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                                     Text(stringResource(R.string.community_votes, votesUp), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                                     Text("${entry.downloads}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
@@ -819,8 +790,6 @@ private fun ConfigDetailDialog(
                                 ) {
                                     if (voting) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                                     else {
-                                        Icon(Icons.Default.ThumbUp, null, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(4.dp))
                                         Text(if (voted) stringResource(R.string.community_voted) else stringResource(R.string.community_upvote))
                                     }
                                 }
