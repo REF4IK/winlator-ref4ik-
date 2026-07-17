@@ -122,7 +122,6 @@ fun ShortcutsScreen(
     var shortcutForClone by remember { mutableStateOf<Shortcut?>(null) }
     var showPublishDialog by remember { mutableStateOf<Shortcut?>(null) }
     var isPublishing by remember { mutableStateOf(false) }
-    var publishWithComponents by remember { mutableStateOf(false) }
     var showCommunityConfigs by remember { mutableStateOf(false) }
     var communityConfigsShortcut by remember { mutableStateOf<Shortcut?>(null) }
     var showPropertiesFor by remember { mutableStateOf<Shortcut?>(null) }
@@ -339,12 +338,6 @@ Column(modifier = Modifier.fillMaxSize()) {
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = publishWithComponents, onCheckedChange = { publishWithComponents = it })
-                        Spacer(Modifier.width(4.dp))
-                        Text("Include components (DXVK, VKD3D, Box64, GPU)", fontSize = 13.sp)
-                    }
                 }
             },
             confirmButton = {
@@ -353,35 +346,25 @@ Column(modifier = Modifier.fillMaxSize()) {
                         if (!isPublishing) {
                             isPublishing = true
                             val config = GameConfigManager.buildGameConfig(s.container, s, pubDesc)
-                            if (publishWithComponents) {
-                                val bundler = com.winlator.cmod.core.gameconfig.GameConfigBundler(ctx)
-                                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                    try {
-                                        val result = bundler.buildBundle(config.containerSettings, ctx.cacheDir)
-                                        com.winlator.cmod.core.gameconfig.BundleRepoClient.uploadBundle(
-                                            result.zipFile, config.toJson().toString(), config.gameName, pubDesc,
-                                            config.device, config.gpu,
-                                            object : com.winlator.cmod.core.gameconfig.BundleRepoClient.BundleUploadCallback {
-                                                override fun onComplete(success: Boolean, sha: String, bundleUrl: String, error: String?) {
-                                                    result.zipFile.delete()
-                                                    isPublishing = false
-                                                    showPublishDialog = null
-                                                    AppUtils.showToast(ctx, if (success) "Bundle published! ($sha)" else "Error: $error")
-                                                }
-                                            })
-                                    } catch (e: Exception) {
-                                        isPublishing = false
-                                        AppUtils.showToast(ctx, "Error: ${e.message}")
-                                    }
+                            val bundler = com.winlator.cmod.core.gameconfig.GameConfigBundler(ctx)
+                            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                try {
+                                    val result = bundler.buildBundle(config.containerSettings, ctx.cacheDir)
+                                    com.winlator.cmod.core.gameconfig.BundleRepoClient.uploadBundle(
+                                        result.zipFile, config.toJson().toString(), config.gameName, pubDesc,
+                                        config.device, config.gpu,
+                                        object : com.winlator.cmod.core.gameconfig.BundleRepoClient.BundleUploadCallback {
+                                            override fun onComplete(success: Boolean, sha: String, bundleUrl: String, error: String?) {
+                                                result.zipFile.delete()
+                                                isPublishing = false
+                                                showPublishDialog = null
+                                                AppUtils.showToast(ctx, if (success) ctx.getString(R.string.bundle_published, sha) else "$error")
+                                            }
+                                        })
+                                } catch (e: Exception) {
+                                    isPublishing = false
+                                    AppUtils.showToast(ctx, "Ошибка: ${e.message}")
                                 }
-                            } else {
-                                CloudConfigRepoV2.uploadConfig(config, object : CloudConfigRepoV2.UploadCallback {
-                                    override fun onComplete(success: Boolean, sha: String, uploadToken: String, error: String?) {
-                                        isPublishing = false
-                                        showPublishDialog = null
-                                        AppUtils.showToast(ctx, if (success) ctx.getString(R.string.config_published_success) else "Error: $error")
-                                    }
-                                })
                             }
                         }
                     },

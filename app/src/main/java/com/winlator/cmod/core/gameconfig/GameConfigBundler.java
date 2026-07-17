@@ -93,6 +93,18 @@ public class GameConfigBundler {
                 }
             }
         }
+        File contentDir = new File(context.getFilesDir(), "imagefs/contents/" + type);
+        if (contentDir.isDirectory()) {
+            File[] dirs = contentDir.listFiles(File::isDirectory);
+            if (dirs != null) {
+                for (File dir : dirs) {
+                    if (dir.getName().toLowerCase().contains(version.toLowerCase()) || version.toLowerCase().contains(dir.getName().toLowerCase())) {
+                        zipDirectory(zos, dir, "contents/" + type + "/" + dir.getName());
+                        return 1;
+                    }
+                }
+            }
+        }
         return 0;
     }
 

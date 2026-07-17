@@ -1675,4 +1675,11 @@
     <string name="community_sort_configs">Конфиги</string>
     <string name="community_sort_devices">Устройства</string>
     <string name="community_filter_device">Подходит моему устройству</string>
+    <string name="bundle_published">Конфиг опубликован! (%s)</string>
+    <string name="bundle_publishing">Публикация...</string>
+    <string name="bundle_failed">Ошибка конфига: %s</string>
+    <string name="bundle_downloading">Загрузка конфига...</string>
+    <string name="bundle_applied">Компоненты установлены</string>
+    <string name="components">Компоненты</string>
+    <string name="driver">Драйвер</string>
 </resources>

@@ -416,7 +416,7 @@ private fun DevicePanel(
                                     color = if (match.score > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 )
-                                val sub = listOfNotNull(entry.soc.ifBlank { null }, if (entry.timestamp > 0) dateFmt.format(Date(entry.timestamp)) else null).joinToString(" · ")
+                                val sub = if (entry.timestamp > 0) dateFmt.format(Date(entry.timestamp)) else ""
                                 if (sub.isNotEmpty()) Text(sub, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -496,7 +496,7 @@ private fun ConfigDetailDialog(
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     // Provenance
                     Text(config.gameName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    val hw = listOfNotNull(config.device.ifBlank { null }, config.gpu.ifBlank { null }).joinToString(" · ")
+                    val hw = config.device.ifBlank { "" }
                     if (hw.isNotEmpty()) Text(hw, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (dateStr.isNotEmpty()) Text(dateStr, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (config.description.isNotBlank()) Text(config.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -525,11 +525,12 @@ private fun ConfigDetailDialog(
                             if (cs.has("screenSize") && cs.optString("screenSize").isNotBlank()) row("Screen", cs.optString("screenSize"))
                             parseVersion(cs.optString("dxwrapperConfig", ""), "version")?.let { row("DXVK", it) }
                             parseVersion(cs.optString("dxwrapperConfig", ""), "vkd3dVersion")?.let { row("VKD3D", it) }
+                            val wrapper = cs.optString("graphicsDriver", "")
                             val gpuRaw = cs.optString("graphicsDriverConfig", "")
-                            val gpuVer = parseVersion(gpuRaw, "version")
-                            if (gpuVer != null) row("GPU", gpuVer)
-                            else if (gpuRaw.isNotBlank()) row("GPU", gpuRaw)
-                            if (cs.has("graphicsDriver") && cs.optString("graphicsDriver").isNotBlank()) row("Wrapper", cs.optString("graphicsDriver"))
+                            val gpuVer = com.winlator.cmod.contentdialog.GraphicsDriverConfigDialog.getVersion(gpuRaw)
+                            if (gpuVer != null && gpuVer.isNotEmpty()) {
+                                row(stringResource(R.string.driver), listOfNotNull(wrapper.ifBlank { null }, gpuVer).joinToString(" · "))
+                            }
                             if (cs.has("audioDriver") && cs.optString("audioDriver").isNotBlank()) row("Audio", cs.optString("audioDriver"))
                             if (cs.has("displayRenderer") && cs.optString("displayRenderer").isNotBlank()) row("Render", cs.optString("displayRenderer"))
                             if (cs.has("emulator") && cs.optString("emulator").isNotBlank()) row("Translator", cs.optString("emulator"))
@@ -555,37 +556,29 @@ private fun ConfigDetailDialog(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     // Components
-                    Text("Components", fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.components), fontWeight = FontWeight.Medium)
                     if (entry.bundleUrl.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Surface(color = MaterialTheme.colorScheme.tertiary, shape = RoundedCornerShape(4.dp)) {
-                                Text("Bundle includes all components", fontSize = 11.sp, color = MaterialTheme.colorScheme.onTertiary,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                            }
-                            var bundleApplying by remember { mutableStateOf(false) }
-                            var dlMsg by remember { mutableStateOf<String?>(null) }
-                            if (dlMsg != null) Text(dlMsg!!, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Button(onClick = {
-                                bundleApplying = true
-                                dlMsg = "Downloading bundle..."
-                                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-                                    val applier = BundledConfigApplier(ctx)
-                                    applier.applyFromUrl(entry.bundleUrl, null, null, object : BundledConfigApplier.ApplyCallback {
-                                        override fun onProgress(status: String) {
-                                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) { dlMsg = status }
+                        var bundleState by remember { mutableStateOf(ctx.getString(R.string.bundle_downloading)) }
+                        var bundleError by remember { mutableStateOf(false) }
+                        LaunchedEffect(entry.bundleUrl) {
+                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                                val applier = BundledConfigApplier(ctx)
+                                applier.applyFromUrl(entry.bundleUrl, null, null, object : BundledConfigApplier.ApplyCallback {
+                                    override fun onProgress(status: String) {
+                                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) { bundleState = status }
+                                    }
+                                    override fun onComplete(success: Boolean, message: String, config: GameConfig?) {
+                                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) {
+                                            if (success) { bundleState = ctx.getString(R.string.bundle_applied); onApply() }
+                                            else { bundleState = ctx.getString(R.string.bundle_failed, message); bundleError = true }
                                         }
-                                        override fun onComplete(success: Boolean, message: String, config: GameConfig?) {
-                                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) {
-                                                if (success) { dlMsg = null; onApply() }
-                                                else { dlMsg = "Bundle failed: $message"; bundleApplying = false }
-                                            }
-                                        }
-                                    })
-                                }
-                            }, enabled = !bundleApplying) {
-                                if (bundleApplying) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                else Text("Apply Bundle")
+                                    }
+                                })
                             }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (!bundleError) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Text(bundleState, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         val resolver = remember { ComponentResolver(ctx) }

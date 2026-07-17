@@ -50,9 +50,12 @@ public class BundleRepoClient {
                 }
                 String base64 = android.util.Base64.encodeToString(zipBytes, android.util.Base64.NO_WRAP);
 
+                String configBase64 = android.util.Base64.encodeToString(
+                    configJson.getBytes("UTF-8"), android.util.Base64.NO_WRAP);
+
                 JSONObject body = new JSONObject();
                 body.put("base64", base64);
-                body.put("configJson", configJson);
+                body.put("configBase64", configBase64);
                 body.put("gameName", gameName);
                 body.put("description", description != null ? description : "");
                 body.put("device", device != null ? device : "");
