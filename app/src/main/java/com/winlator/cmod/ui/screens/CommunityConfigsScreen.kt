@@ -70,6 +70,8 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
     var showDetail by remember { mutableStateOf(false) }
     var showContainerPicker by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
+    var showApplyProgress by remember { mutableStateOf(false) }
+    var applyProgressText by remember { mutableStateOf("") }
 
     val deviceMatcher = remember { DeviceMatcher() }
 
@@ -130,6 +132,21 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
 
     val selectedGame = selectedIdentity?.let { id -> games.firstOrNull { it.key == id } }
 
+    if (showApplyProgress) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.config_apply)) },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Text(applyProgressText, fontSize = 14.sp)
+                }
+            },
+            confirmButton = {}
+        )
+    }
+
     if (showDetail && detailConfig != null && detailEntry != null) {
         val shortcut = contextShortcut
         ConfigDetailDialog(
@@ -141,15 +158,19 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
             onApply = {
                 showDetail = false
                 if (shortcut != null) {
+                    showApplyProgress = true
+                    applyProgressText = ctx.getString(R.string.bundle_downloading)
                     scope.launch(Dispatchers.IO) {
                         try {
                             val bundleUrl = detailEntry?.bundleUrl
                             if (!bundleUrl.isNullOrEmpty()) {
-                                val applier = BundledConfigApplier(ctx)
                                 val latch = java.util.concurrent.CountDownLatch(1)
                                 var applyError: String? = null
+                                val applier = BundledConfigApplier(ctx)
                                 applier.applyFromUrl(bundleUrl, null, null, object : BundledConfigApplier.ApplyCallback {
-                                    override fun onProgress(status: String) {}
+                                    override fun onProgress(status: String) {
+                                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) { applyProgressText = status }
+                                    }
                                     override fun onComplete(success: Boolean, message: String, config: GameConfig?) {
                                         if (!success) applyError = message
                                         latch.countDown()
@@ -157,16 +178,19 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                                 })
                                 latch.await(120, java.util.concurrent.TimeUnit.SECONDS)
                                 if (applyError != null) {
-                                    withContext(Dispatchers.Main) { statusMessage = "Error: $applyError" }
+                                    withContext(Dispatchers.Main) { showApplyProgress = false; statusMessage = "Error: $applyError" }
                                     return@launch
                                 }
                             }
+                            withContext(Dispatchers.Main) { applyProgressText = "Применение настроек..." }
                             GameConfigManager.applyGameConfig(detailConfig!!, shortcut.container, shortcut)
                             withContext(Dispatchers.Main) {
+                                showApplyProgress = false
                                 statusMessage = "Applied to ${shortcut.name}"
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
+                                showApplyProgress = false
                                 statusMessage = "Error: ${e.message}"
                             }
                         }
