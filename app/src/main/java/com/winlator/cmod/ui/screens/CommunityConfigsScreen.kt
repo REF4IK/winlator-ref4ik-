@@ -183,8 +183,25 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                                 }
                             }
                             withContext(Dispatchers.Main) { applyProgressText = "Применение настроек..." }
-                            GameConfigManager.applyGameConfig(detailConfig!!, shortcut.container, shortcut)
-                            GameConfigManager.applyGameConfig(detailConfig!!, shortcut.container, null)
+                            val cs = detailConfig!!.containerSettings
+                            fun put(key: String, value: String) { if (value.isNotEmpty()) shortcut.putExtra(key, value) }
+                            cs?.let { s ->
+                                put("dxwrapper", s.optString("dxwrapper"))
+                                put("dxwrapperConfig", s.optString("dxwrapperConfig"))
+                                put("graphicsDriver", s.optString("graphicsDriver"))
+                                put("graphicsDriverConfig", s.optString("graphicsDriverConfig"))
+                                put("displayRenderer", s.optString("displayRenderer"))
+                                put("audioDriver", s.optString("audioDriver"))
+                                put("audioDriverConfig", s.optString("audioDriverConfig"))
+                                put("box64Version", s.optString("box64Version"))
+                                put("box64Preset", s.optString("box64Preset"))
+                                put("fexcoreVersion", s.optString("fexcoreVersion"))
+                                put("fexcorePreset", s.optString("fexcorePreset"))
+                                put("emulator", s.optString("emulator"))
+                                put("screenSize", s.optString("screenSize").split(" ")[0])
+                                put("envVars", s.optString("envVars"))
+                            }
+                            shortcut.saveData()
                             withContext(Dispatchers.Main) {
                                 showApplyProgress = false
                                 statusMessage = "Applied to ${shortcut.name}"

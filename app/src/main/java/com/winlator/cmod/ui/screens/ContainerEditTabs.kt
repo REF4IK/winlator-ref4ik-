@@ -58,7 +58,8 @@ fun ContainerSpinnerRow(
     onSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val displaySelected = entries.firstOrNull { it.equals(selected, ignoreCase = true) } ?: selected
+    val trimmed = selected.trim()
+    val displaySelected = if (trimmed.isEmpty()) selected else entries.firstOrNull { it.equals(trimmed, ignoreCase = true) || it.startsWith(trimmed) || trimmed.startsWith(it) || it.contains(trimmed) || trimmed.contains(it) } ?: selected
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -95,7 +96,8 @@ fun ContainerSpinnerRowWithDownload(
     onDownloadClick: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val displaySelected = entries.firstOrNull { it.equals(selected, ignoreCase = true) } ?: selected
+    val trimmed = selected.trim()
+    val displaySelected = if (trimmed.isEmpty()) selected else entries.firstOrNull { it.equals(trimmed, ignoreCase = true) || it.startsWith(trimmed) || trimmed.startsWith(it) || it.contains(trimmed) || trimmed.contains(it) } ?: selected
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -143,7 +145,8 @@ fun ContainerSpinnerRowWithConfig(
     onConfigClick: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val displaySelected = entries.firstOrNull { it.equals(selected, ignoreCase = true) } ?: selected
+    val trimmed = selected.trim()
+    val displaySelected = if (trimmed.isEmpty()) selected else entries.firstOrNull { it.equals(trimmed, ignoreCase = true) || it.startsWith(trimmed) || trimmed.startsWith(it) || it.contains(trimmed) || trimmed.contains(it) } ?: selected
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

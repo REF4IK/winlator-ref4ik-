@@ -827,7 +827,7 @@ fun DXVKConfigDialogCompose(
     onConfirm: (String) -> Unit,
 ) {
     val initial = remember(initialConfig) { parseKeyValueSet(initialConfig) }
-    var version by remember { mutableStateOf(initial["version"] ?: "1.10.1") }
+    var version by remember(initialConfig) { mutableStateOf(initial["version"] ?: "1.10.1") }
     var framerate by remember { mutableStateOf(initial["framerate"] ?: "0") }
     var maxDeviceMemory by remember { mutableStateOf(initial["maxDeviceMemory"] ?: "0") }
     var async by remember { mutableStateOf(initial["async"] == "1") }
@@ -864,19 +864,21 @@ fun DXVKConfigDialogCompose(
     val contentsManager = remember { ContentsManager(context) }
     val coroutineScope = rememberCoroutineScope()
 
-    var versions by remember {
+    var versions by remember(initialConfig) {
         mutableStateOf(run {
-            val contentsManager = ContentsManager(context)
-            contentsManager.syncContents()
+            val cm = ContentsManager(context)
+            cm.syncContents()
             val originalItems = context.resources.getStringArray(R.array.dxvk_version_entries).toList()
-            val installedProfilesList = (contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_DXVK) ?: emptyList())
+            val installedProfilesList = (cm.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_DXVK) ?: emptyList())
                 .filter { it.remoteUrl == null || it.remoteUrl.isEmpty() }
                 .map {
                     val entryName = ContentsManager.getEntryName(it)
                     val firstDashIndex = entryName.indexOf('-')
                     if (firstDashIndex >= 0) entryName.substring(firstDashIndex + 1) else entryName
                 }
-            (originalItems + installedProfilesList).distinct()
+            val all = (originalItems + installedProfilesList).distinct()
+            val cfgVersion = parseKeyValueSet(initialConfig)["version"] ?: ""
+            if (cfgVersion.isNotEmpty() && !all.contains(cfgVersion)) all + cfgVersion else all
         })
     }
 
@@ -918,7 +920,7 @@ fun DXVKConfigDialogCompose(
                 Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 ConfigSpinnerRow(
                     items = versions,
-                    selectedIndex = versions.indexOf(version).coerceAtLeast(0),
+                    selectedIndex = versions.indexOfFirst { it.equals(version, ignoreCase = true) || it.startsWith(version) }.coerceAtLeast(0),
                     onSelected = { version = versions[it] },
                 )
                 Button(
