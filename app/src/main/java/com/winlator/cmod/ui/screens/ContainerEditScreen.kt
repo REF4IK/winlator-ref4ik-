@@ -483,7 +483,9 @@ fun ContainerEditScreen(
                 ContainerSpinnerRowWithConfig(
                     label = stringResource(R.string.dxwrapper),
                     entries = ctx.resources.getStringArray(R.array.dxwrapper_entries).toList(),
-                    selected = dxwrapper, onSelected = { dxwrapper = it },
+                    selected = dxwrapper,
+                    showConfigButton = dxwrapper.lowercase(Locale.ENGLISH) != "wined3d",
+                    onSelected = { dxwrapper = it.lowercase(Locale.ENGLISH) },
                     onConfigClick = { showDxConfigDialog = true },
                 )
                 ContainerSpinnerRow(
@@ -690,12 +692,10 @@ fun ContainerEditScreen(
                     showDxConfigDialog = false
                 },
             )
-        } else {
-            // VKD3D: используем тот же DXVK-диалог (или DXVKConfigDialog.java для vkd3d)
-            DXVKConfigDialogCompose(
+        } else if (dxwrapper == "vkd3d") {
+            VKD3DConfigDialogCompose(
                 context = ctx,
                 initialConfig = dxwrapperConfig,
-                availableVersions = dxvkVersions,
                 onDismiss = { showDxConfigDialog = false },
                 onConfirm = { newConfig ->
                     dxwrapperConfig = newConfig

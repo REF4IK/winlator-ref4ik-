@@ -723,8 +723,15 @@ private fun ConfigDetailDialog(
                                     }
                                     if (cs.has("wineVersion") && cs.optString("wineVersion").isNotBlank()) row("Wine", cs.optString("wineVersion"))
                                     if (cs.has("screenSize") && cs.optString("screenSize").isNotBlank()) row("Screen", cs.optString("screenSize"))
-                                    parseVersion(cs.optString("dxwrapperConfig", ""), "version")?.let { row("DXVK", it) }
-                                    parseVersion(cs.optString("dxwrapperConfig", ""), "vkd3dVersion")?.let { row("VKD3D", it) }
+                                    val dxw = cs.optString("dxwrapper", "")
+                                    val dxwConfig = cs.optString("dxwrapperConfig", "")
+                                    if (dxw.equals("vkd3d", ignoreCase = true)) {
+                                        parseVersion(dxwConfig, "vkd3dVersion")?.let { row("VKD3D", it) }
+                                    } else if (dxw.equals("dxvk", ignoreCase = true) || dxw.isEmpty()) {
+                                        // fallback: если dxwrapper пустой (старые конфиги), показываем DXVK
+                                        parseVersion(dxwConfig, "version")?.let { row("DXVK", it) }
+                                    }
+                                    // для "wined3d" ничего не показываем
                                     val wrapper = cs.optString("graphicsDriver", "")
                                     val gpuRaw = cs.optString("graphicsDriverConfig", "")
                                     val gpuVer = com.winlator.cmod.contentdialog.GraphicsDriverConfigDialog.getVersion(gpuRaw)
@@ -910,7 +917,7 @@ private data class ConfigFileEntry(
 
 private fun parseVersion(configStr: String, key: String): String? {
     if (configStr.isBlank()) return null
-    for (part in configStr.split("[,;]")) {
+    for (part in configStr.split(",", ";")) {
         val kv = part.split("=", limit = 2)
         if (kv.size == 2 && kv[0].trim() == key) return kv[1].trim().ifEmpty { null }
     }

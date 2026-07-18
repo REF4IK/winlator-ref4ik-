@@ -141,8 +141,9 @@ fun ContainerSpinnerRowWithConfig(
     entries: List<String>,
     selected: String,
     enabled: Boolean = true,
+    showConfigButton: Boolean = true,
     onSelected: (String) -> Unit,
-    onConfigClick: () -> Unit,
+    onConfigClick: () -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
     val trimmed = selected.trim()
@@ -169,16 +170,18 @@ fun ContainerSpinnerRowWithConfig(
                     }
                 }
             }
-            Spacer(Modifier.width(8.dp))
-            FilledIconButton(
-                onClick = onConfigClick,
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.configuration))
+            if (showConfigButton) {
+                Spacer(Modifier.width(8.dp))
+                FilledIconButton(
+                    onClick = onConfigClick,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.configuration))
+                }
             }
         }
     }

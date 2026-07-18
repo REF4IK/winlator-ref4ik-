@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 
 public class WineInfo implements Parcelable {
     public static final WineInfo MAIN_WINE_VERSION = new WineInfo("proton","9.0", "x86_64");
-    private static final Pattern pattern = Pattern.compile("^(wine|proton)\\-([0-9\\.]+)\\-?([0-9\\.]+)?(?:\\-[a-z]+)*\\-(x86_64|x86|arm64ec)$");
+    private static final Pattern pattern = Pattern.compile("^(wine|proton)\\-([0-9\\.]+)\\-?([0-9\\.]+)?(?:\\-[a-z]+)*\\-(x86_64|x86|arm64ec)(?:\\-\\d+)?$", Pattern.CASE_INSENSITIVE);
     public final String version;
     public final String type;
     public String subversion;
@@ -159,7 +159,27 @@ public class WineInfo implements Parcelable {
 
             return new WineInfo(matcher.group(1), matcher.group(2), matcher.group(4), path);
         }
-        else return new WineInfo(MAIN_WINE_VERSION.type, MAIN_WINE_VERSION.version, MAIN_WINE_VERSION.arch, imageFs.getRootDir().getPath() + "/opt/" + MAIN_WINE_VERSION.identifier());
+        // Fallback: определяем архитектуру по строке идентификатора
+        else {
+            String idLower = identifier.toLowerCase();
+            String arch = "x86_64";
+            if (idLower.contains("arm64ec")) arch = "arm64ec";
+            else if (idLower.contains("x86_64")) arch = "x86_64";
+            else if (idLower.contains("x86")) arch = "x86";
+
+            String type = idLower.startsWith("proton-") ? "proton" : "wine";
+
+            // Извлекаем версию: убираем префикс wine-/proton- и хвостовой -arch
+            String ver = identifier;
+            int firstDash = identifier.indexOf('-');
+            if (firstDash >= 0) {
+                int secondDash = identifier.indexOf('-', firstDash + 1);
+                if (secondDash >= 0) ver = identifier.substring(firstDash + 1, secondDash);
+                else ver = identifier.substring(firstDash + 1);
+            }
+
+            return new WineInfo(type, ver, arch, imageFs.getRootDir().getPath() + "/opt/" + identifier);
+        }
     }
 
     public static boolean isMainWineVersion(String wineVersion) {

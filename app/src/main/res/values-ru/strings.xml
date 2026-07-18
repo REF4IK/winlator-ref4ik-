@@ -1031,6 +1031,11 @@
     <string name="failed_to_download">Не удалось скачать: %1$s</string>
     <string name="installed_successfully">%1$s успешно установлена!</string>
 
+    <!-- VKD3D Download strings -->
+    <string name="download_vkd3d">Скачать VKD3D</string>
+    <string name="all_vkd3d_installed">Все версии VKD3D уже установлены</string>
+    <string name="download_vkd3d_title">Скачать VKD3D (%1$d доступно)</string>
+
     <!-- DXVK download item layout samples and accessibility descriptions (Russian) -->
     <string name="dxvk_download_icon_desc">Иконка загрузки DXVK</string>
     <string name="dxvk_download_status_desc">Статус загрузки DXVK</string>

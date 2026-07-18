@@ -600,7 +600,8 @@ fun ShortcutSettingsScreen(
                     label = stringResource(R.string.dxwrapper),
                     entries = ctx.resources.getStringArray(R.array.dxwrapper_entries).toList(),
                     selected = dxwrapper,
-                    onSelected = { dxwrapper = it },
+                    showConfigButton = dxwrapper.lowercase(Locale.ENGLISH) != "wined3d",
+                    onSelected = { dxwrapper = it.lowercase(Locale.ENGLISH) },
                     onConfigClick = { showDxConfig = true }
                 )
 
@@ -1049,11 +1050,19 @@ fun ShortcutSettingsScreen(
         )
     }
     if (showDxConfig) {
-        DXVKConfigDialogCompose(
-            context = ctx, initialConfig = dxwrapperConfig, availableVersions = dxvkVersions,
-            onDismiss = { showDxConfig = false },
-            onConfirm = { dxwrapperConfig = it; showDxConfig = false },
-        )
+        if (dxwrapper == "dxvk") {
+            DXVKConfigDialogCompose(
+                context = ctx, initialConfig = dxwrapperConfig, availableVersions = dxvkVersions,
+                onDismiss = { showDxConfig = false },
+                onConfirm = { dxwrapperConfig = it; showDxConfig = false },
+            )
+        } else if (dxwrapper == "vkd3d") {
+            VKD3DConfigDialogCompose(
+                context = ctx, initialConfig = dxwrapperConfig,
+                onDismiss = { showDxConfig = false },
+                onConfirm = { dxwrapperConfig = it; showDxConfig = false },
+            )
+        }
     }
     if (showAudioConfig) {
         AudioDriverConfigDialogCompose(

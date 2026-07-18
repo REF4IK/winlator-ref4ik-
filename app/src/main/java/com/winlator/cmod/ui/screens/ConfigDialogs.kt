@@ -44,6 +44,7 @@ import com.winlator.cmod.contents.ContentProfile
 import com.winlator.cmod.contents.AdrenotoolsManager
 import com.winlator.cmod.contents.Downloader
 import com.winlator.cmod.contentdialog.DriverDownloadDialog
+import com.winlator.cmod.core.DefaultVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -806,6 +807,375 @@ fun GraphicsDriverConfigDialogCompose(
 }
 
 // =====================================================================
+// VKD3D Config Dialog (Compose)
+// =====================================================================
+
+/**
+ * Compose-версия VKD3DConfigDialog.
+ * Поля: vkd3dVersion, vkd3dLevel (Feature Level).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VKD3DConfigDialogCompose(
+    context: Context,
+    initialConfig: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    val initial = remember(initialConfig) { parseKeyValueSet(initialConfig) }
+    var version by remember(initialConfig) { mutableStateOf(initial["vkd3dVersion"] ?: DefaultVersion.VKD3D) }
+    var featureLevel by remember(initialConfig) { mutableStateOf(initial["vkd3dLevel"] ?: "12_1") }
+
+    val VKD3D_FEATURE_LEVEL = listOf("12_0", "12_1", "12_2", "11_1", "11_0", "10_1", "10_0", "9_3", "9_2", "9_1")
+
+    val contentsManager = remember { ContentsManager(context) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Списки для версий: displayLabels для показа, versionIdentifiers для сохранения
+    val versionLabels = remember(initialConfig) {
+        mutableStateOf(run {
+            val cm = ContentsManager(context)
+            cm.syncContents()
+            val labels = mutableListOf<String>()
+            // Добавляем встроенные версии из ресурсов
+            context.resources.getStringArray(R.array.vkd3d_version_entries).forEach { v ->
+                labels.add(v)
+            }
+            // Добавляем установленные профили VKD3D
+            cm.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_VKD3D).forEach { profile ->
+                val label = profile.verName
+                if (labels.none { it == label }) {
+                    labels.add(label)
+                }
+            }
+            val cfgVersion = parseKeyValueSet(initialConfig)["vkd3dVersion"] ?: ""
+            if (cfgVersion.isNotEmpty()) {
+                // Извлекаем display name из идентификатора (до "-")
+                val displayName = cfgVersion.substringBeforeLast('-')
+                if (displayName.isNotEmpty() && labels.none { it == displayName }) {
+                    labels.add(displayName)
+                }
+            }
+            labels
+        })
+    }
+
+    // Отображаем в спинере display name, но сохраняем полный идентификатор
+    val currentVersionDisplay = version.substringBeforeLast('-')
+
+    var showDownloadListDialog by remember { mutableStateOf(false) }
+    var downloadableProfiles by remember { mutableStateOf<List<ContentProfile>>(emptyList()) }
+    var installedVersions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoadingRemote by remember { mutableStateOf(false) }
+
+    var showProgressDialog by remember { mutableStateOf(false) }
+    var progressMessage by remember { mutableStateOf("") }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // Заголовок
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.Settings, null, tint = MaterialTheme.colorScheme.primary)
+                    Text("VKD3D " + stringResource(R.string.configuration), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+                HorizontalDivider()
+
+                // Version
+                Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                ConfigSpinnerRow(
+                    items = versionLabels.value,
+                    selectedIndex = versionLabels.value.indexOfFirst { it.equals(currentVersionDisplay, ignoreCase = true) }.coerceAtLeast(0),
+                    onSelected = { idx ->
+                        val label = versionLabels.value[idx]
+                        // Ищем соответствующий идентификатор
+                        val cm = ContentsManager(context)
+                        cm.syncContents()
+                        var found = false
+                        // Проверяем встроенные: идентификатор = label + "-0"
+                        for (v in context.resources.getStringArray(R.array.vkd3d_version_entries)) {
+                            if (v == label) {
+                                version = "$v-0"
+                                found = true
+                                break
+                            }
+                        }
+                        if (!found) {
+                            // Проверяем установленные профили
+                            for (profile in cm.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_VKD3D)) {
+                                if (profile.verName == label) {
+                                    version = profile.verName + "-" + profile.verCode
+                                    found = true
+                                    break
+                                }
+                            }
+                        }
+                        if (!found) {
+                            version = "$label-0"
+                        }
+                    },
+                )
+
+                // Download VKD3D button
+                Button(
+                    onClick = {
+                        isLoadingRemote = true
+                        coroutineScope.launch(Dispatchers.IO) {
+                            try {
+                                val sp = MmkvPreferences()
+                                val contentsURL = sp.getString("downloadable_contents_url",
+                                    "https://github.com/REF4IK/Components-Adrenotools-/releases/download/1/contents.json")
+                                val json = Downloader.downloadString(contentsURL)
+                                if (json != null) {
+                                    contentsManager.setRemoteProfiles(json)
+
+                                    val allProfiles = contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_VKD3D)
+                                    val installed = allProfiles.filter { it.remoteUrl == null || it.remoteUrl.isEmpty() }
+                                        .map { it.verName + "_v" + it.verCode }
+
+                                    val downloadable = allProfiles.filter { it.remoteUrl != null && it.remoteUrl.isNotEmpty() }
+
+                                    withContext(Dispatchers.Main) {
+                                        downloadableProfiles = downloadable
+                                        installedVersions = installed
+                                        if (downloadable.isEmpty()) {
+                                            AppUtils.showToast(context, context.getString(R.string.all_vkd3d_installed))
+                                        } else {
+                                            showDownloadListDialog = true
+                                        }
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        AppUtils.showToast(context, context.getString(R.string.failed_to_load_remote_contents))
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + e.message)
+                                }
+                            } finally {
+                                withContext(Dispatchers.Main) {
+                                    isLoadingRemote = false
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isLoadingRemote,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (isLoadingRemote) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.download_vkd3d))
+                    }
+                }
+
+                // Dialog list of downloadable VKD3D versions
+                if (showDownloadListDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDownloadListDialog = false },
+                        title = { Text(context.getString(R.string.download_vkd3d_title, downloadableProfiles.size)) },
+                        text = {
+                            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 550.dp)) {
+                                val scrollState = rememberScrollState()
+                                Column(modifier = Modifier.verticalScroll(scrollState)) {
+                                    downloadableProfiles.forEach { profile ->
+                                        val versionKey = profile.verName + "_v" + profile.verCode
+                                        val isInstalled = installedVersions.contains(versionKey)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable(enabled = !isInstalled) {
+                                                    showDownloadListDialog = false
+                                                    showProgressDialog = true
+                                                    progressMessage = context.getString(R.string.downloading, profile.verName)
+
+                                                    coroutineScope.launch(Dispatchers.IO) {
+                                                        try {
+                                                            val timestamp = System.currentTimeMillis()
+                                                            val tempFile = File(context.cacheDir, "vkd3d_temp_${timestamp}.tar.xz")
+                                                            val downloaded = Downloader.downloadFile(profile.remoteUrl, tempFile)
+                                                            if (!downloaded || !tempFile.exists()) {
+                                                                withContext(Dispatchers.Main) {
+                                                                    showProgressDialog = false
+                                                                    AppUtils.showToast(context, context.getString(R.string.failed_to_download, profile.verName))
+                                                                }
+                                                                return@launch
+                                                            }
+
+                                                            withContext(Dispatchers.Main) {
+                                                                progressMessage = context.getString(R.string.installing, profile.verName)
+                                                            }
+
+                                                            withContext(Dispatchers.Main) {
+                                                                val callback = object : ContentsManager.OnInstallFinishedCallback {
+                                                                    var isExtracting = true
+                                                                    override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
+                                                                        showProgressDialog = false
+                                                                        val errorMsgResId = when (reason) {
+                                                                            ContentsManager.InstallFailedReason.ERROR_BADTAR -> R.string.file_cannot_be_recognized
+                                                                            ContentsManager.InstallFailedReason.ERROR_NOPROFILE -> R.string.profile_not_found_in_content
+                                                                            ContentsManager.InstallFailedReason.ERROR_BADPROFILE -> R.string.profile_cannot_be_recognized
+                                                                            ContentsManager.InstallFailedReason.ERROR_EXIST -> R.string.content_already_exist
+                                                                            ContentsManager.InstallFailedReason.ERROR_MISSINGFILES -> R.string.content_is_incomplete
+                                                                            ContentsManager.InstallFailedReason.ERROR_UNTRUSTPROFILE -> R.string.content_cannot_be_trusted
+                                                                            else -> R.string.unable_to_install_content
+                                                                        }
+                                                                        AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + context.getString(errorMsgResId))
+                                                                        if (tempFile.exists()) tempFile.delete()
+                                                                    }
+                                                                    override fun onSucceed(installedProfile: ContentProfile) {
+                                                                        if (isExtracting) {
+                                                                            isExtracting = false
+                                                                            contentsManager.finishInstallContent(installedProfile, this)
+                                                                        } else {
+                                                                            showProgressDialog = false
+                                                                            AppUtils.showToast(context, context.getString(R.string.installed_successfully, installedProfile.verName))
+                                                                            contentsManager.syncContents()
+
+                                                                            // Обновляем список версий
+                                                                            val newLabels = mutableListOf<String>()
+                                                                            context.resources.getStringArray(R.array.vkd3d_version_entries).forEach { v ->
+                                                                                newLabels.add(v)
+                                                                            }
+                                                                            contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_VKD3D).forEach { p ->
+                                                                                if (newLabels.none { it == p.verName }) {
+                                                                                    newLabels.add(p.verName)
+                                                                                }
+                                                                            }
+                                                                            versionLabels.value = newLabels
+                                                                            version = installedProfile.verName + "-" + installedProfile.verCode
+
+                                                                            if (tempFile.exists()) tempFile.delete()
+                                                                        }
+                                                                    }
+                                                                }
+                                                                contentsManager.extraContentFile(Uri.fromFile(tempFile), callback)
+                                                            }
+                                                        } catch (e: Exception) {
+                                                            withContext(Dispatchers.Main) {
+                                                                    showProgressDialog = false
+                                                                    AppUtils.showToast(context, context.getString(R.string.install_failed) + ": " + e.message)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = if (isInstalled) "${profile.verName} (${context.getString(R.string.installed)})" else profile.verName,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (isInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+                                                )
+                                                if (profile.desc != null && profile.desc.isNotEmpty()) {
+                                                    Text(
+                                                        text = profile.desc,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                                    )
+                                                }
+                                            }
+                                            Icon(
+                                                imageVector = Icons.Filled.Download,
+                                                contentDescription = null,
+                                                tint = if (isInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                        HorizontalDivider()
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {},
+                        dismissButton = {
+                            TextButton(onClick = { showDownloadListDialog = false }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
+                    )
+                }
+
+                // Progress Loading Dialog
+                if (showProgressDialog) {
+                    Dialog(
+                        onDismissRequest = {},
+                        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 6.dp,
+                            modifier = Modifier.padding(24.dp).fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(24.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CircularProgressIndicator()
+                                Text(text = progressMessage, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                }
+
+                // Feature Level
+                Text(stringResource(R.string.vkd3d_feature_level), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                ConfigSpinnerRow(
+                    items = VKD3D_FEATURE_LEVEL,
+                    selectedIndex = VKD3D_FEATURE_LEVEL.indexOfFirst { it == featureLevel }.coerceAtLeast(0),
+                    onSelected = { featureLevel = VKD3D_FEATURE_LEVEL[it] },
+                )
+
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = {
+                        // Сохраняем только vkd3dVersion и vkd3dLevel, остальные ключи не трогаем
+                        val oldConfig = parseKeyValueSet(initialConfig)
+                        val newConfig = buildString {
+                            // Сначала сохраняем старые DXVK-ключи (если были)
+                            var first = true
+                            for ((key, value) in oldConfig) {
+                                if (key != "vkd3dVersion" && key != "vkd3dLevel") {
+                                    if (!first) append(",")
+                                    append("$key=$value")
+                                    first = false
+                                }
+                            }
+                            // Добавляем VKD3D ключи
+                            if (!first) append(",")
+                            append("vkd3dVersion=$version")
+                            append(",vkd3dLevel=$featureLevel")
+                        }
+                        onConfirm(newConfig)
+                    }) {
+                        Text(stringResource(R.string.ok))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =====================================================================
 // DXVK Config Dialog (Compose)
 // =====================================================================
 
@@ -1087,7 +1457,7 @@ fun DXVKConfigDialogCompose(
                                                 }
                                             }
                                             Icon(
-                                                imageVector = if (isInstalled) Icons.Filled.Download else Icons.Filled.Download,
+                                                imageVector = Icons.Filled.Download,
                                                 contentDescription = null,
                                                 tint = if (isInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(24.dp)

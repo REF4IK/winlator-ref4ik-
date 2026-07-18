@@ -1105,6 +1105,11 @@
     <string name="file_cannot_be_recognized">File cannot be recognized</string>
     <string name="installed">Installed</string>
 
+    <!-- VKD3D Download strings -->
+    <string name="download_vkd3d">Download VKD3D</string>
+    <string name="all_vkd3d_installed">All VKD3D versions are already installed</string>
+    <string name="download_vkd3d_title">Download VKD3D (%1$d available)</string>
+
     <!-- Graphics Driver Download strings -->
     <string name="download_graphics_driver">Download Graphics Driver</string>
     <string name="available_drivers">Available Drivers</string>
