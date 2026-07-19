@@ -75,7 +75,6 @@ This project was originally based on the **Winlator Bionic** codebase by **[Pipe
 
 Since then, **ref4ik mod** has grown into an **independent project** — it develops its own original features while also integrating useful features from other Winlator-based projects, along with its own fixes and improvements. It is no longer a simple fork that mirrors upstream — it follows its own development path and release schedule.
 
-This repository is not updated frequently — this is intentional, to give each release enough time for proper testing and polish before it's published.
 
 ---
 
