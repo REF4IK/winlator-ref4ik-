@@ -6,7 +6,7 @@
 
 **Run Windows (x86_64) applications on Android using Wine and Box86/Box64**
 
-[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/Kp5CsN4cM)
+[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/xQS8XxzJf)
 [![Telegram](https://img.shields.io/badge/Telegram-26A8E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/winlatorruu)
 
 [![Latest Release Downloads](https://img.shields.io/github/downloads/REF4IK/winlator-ref4ik-/latest/total?label=Latest%20Release&color=brightgreen&style=flat-square)](https://github.com/REF4IK/winlator-ref4ik-/releases/latest)
