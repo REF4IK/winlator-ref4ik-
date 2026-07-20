@@ -124,6 +124,13 @@ object ShortcutCoverFetcher {
             return
         }
 
+        // Skip SteamGridDB search for very short names (likely abbreviations with no match)
+        if (shortcut.name.trim().length < 3) {
+            Log.w("CoverArt", "SteamGrid: name too short (len<3), skipping search name=${shortcut.name}")
+            fetchSteamHeaderFallback(context, shortcut, landscape, onDone)
+            return
+        }
+
         val retrofit = Retrofit.Builder()
             .baseUrl(STEAMGRID_BASE_URL)
             .client(DohOkHttp.get())
@@ -142,8 +149,34 @@ object ShortcutCoverFetcher {
                     fetchSteamHeaderFallback(context, shortcut, landscape, onDone)
                     return
                 }
-                val gameId = response.body()!!.data[0].id
-                fetchGridsForGame(context, gameId, shortcut, landscape, onDone)
+
+                // --- Name validation: find the best matching result ---
+                val data = response.body()!!.data
+                var bestId = -1
+                var bestScore = -1
+                var bestResultName = ""
+
+                for (result in data) {
+                    val resultName = result.name?.trim() ?: continue
+                    if (resultName.isEmpty()) continue
+                    val score = computeMatchScore(shortcut.name, resultName)
+                    Log.d("CoverArt", "SteamGrid result: query=${shortcut.name} -> result=$resultName id=${result.id} score=$score")
+                    if (score > bestScore) {
+                        bestScore = score
+                        bestId = result.id
+                        bestResultName = resultName
+                    }
+                }
+
+                if (bestId <= 0 || bestScore < 70) {
+                    Log.w("CoverArt", "SteamGrid: no good match found name=${shortcut.name} bestScore=$bestScore bestResult=$bestResultName")
+                    STEAMGRID_LAST_FAIL[shortcut.name] = System.currentTimeMillis()
+                    fetchSteamHeaderFallback(context, shortcut, landscape, onDone)
+                    return
+                }
+
+                Log.i("CoverArt", "SteamGrid: selected match name=${shortcut.name} -> result=$bestResultName id=$bestId score=$bestScore")
+                fetchGridsForGame(context, bestId, shortcut, landscape, onDone)
             }
 
             override fun onFailure(call: retrofit2.Call<SteamGridSearchResponse>, t: Throwable) {
@@ -381,7 +414,7 @@ object ShortcutCoverFetcher {
 
     private fun resolveSteamAppIdByStoreSearch(queryName: String): Int? {
         val q = queryName.trim()
-        if (q.length < 4) return null
+        if (q.length < 3) return null
 
         val cached = STEAM_APPID_CACHE[queryName]
         if (cached != null && cached > 0) return cached
@@ -402,6 +435,7 @@ object ShortcutCoverFetcher {
                 val qTokens = qNorm.split("[^a-z0-9]+".toRegex()).toTypedArray()
                 var bestScore = -1
                 var bestId = 0
+                var bestName = ""
 
                 for (i in 0 until items.length()) {
                     val it = items.optJSONObject(i) ?: continue
@@ -415,7 +449,7 @@ object ShortcutCoverFetcher {
 
                     if (nNorm == qNorm) {
                         score += 100
-                    } else if (nNorm.contains(qNorm)) {
+                    } else if (nNorm.contains(qNorm) || qNorm.contains(nNorm)) {
                         score += 20
                     }
 
@@ -451,18 +485,31 @@ object ShortcutCoverFetcher {
                         if (nTokenCount > 1) score -= 50
                     }
 
-                    if (qTokenCount > 0 && matched == 0) score -= 20
+                    // Stricter: if no tokens matched AND no substring relation, force zero
+                    if (qTokenCount > 0 && matched == 0 && !nNorm.contains(qNorm) && !qNorm.contains(nNorm)) {
+                        score = 0
+                    } else if (qTokenCount > 0 && matched == 0) {
+                        score -= 20
+                    }
+
+                    // Short query penalty (< 5 chars): need higher confidence
+                    if (qNorm.length < 5) score -= 20
 
                     if (score > bestScore) {
                         bestScore = score
                         bestId = id
+                        bestName = name
                     }
                 }
 
-                if (bestId > 0 && bestScore >= 60) {
+                // Increased threshold from 60 to 75
+                if (bestId > 0 && bestScore >= 75) {
+                    Log.i("CoverArt", "Steam storesearch match name=$queryName -> appid=$bestId ($bestName) score=$bestScore")
                     STEAM_APPID_CACHE[queryName] = bestId
                     return bestId
                 }
+
+                Log.w("CoverArt", "Steam storesearch: no good match name=$queryName bestScore=$bestScore bestName=$bestName")
             }
         } catch (ignored: Exception) {
         }
@@ -476,7 +523,78 @@ object ShortcutCoverFetcher {
         if (lower == "gta 5" || lower == "gta v") return "Grand Theft Auto V"
         if (lower == "gta sa") return "Grand Theft Auto San Andreas"
         if (lower == "gta vc") return "Grand Theft Auto Vice City"
+        if (lower == "gta 3" || lower == "gta iii") return "Grand Theft Auto III"
+        if (lower == "gta 6" || lower == "gta vi") return "Grand Theft Auto VI"
+        if (lower == "re4" || lower == "re 4") return "Resident Evil 4"
+        if (lower == "re5" || lower == "re 5") return "Resident Evil 5"
+        if (lower == "re6" || lower == "re 6") return "Resident Evil 6"
+        if (lower == "re7" || lower == "re 7") return "Resident Evil 7"
+        if (lower == "re8" || lower == "re 8") return "Resident Evil Village"
+        if (lower == "re2" || lower == "re 2") return "Resident Evil 2"
+        if (lower == "re3" || lower == "re 3") return "Resident Evil 3"
+        if (lower == "re1" || lower == "re 1") return "Resident Evil"
+        if (lower == "rdr2" || lower == "rdr 2") return "Red Dead Redemption 2"
+        if (lower == "rdr" || lower == "rdr1" || lower == "rdr 1") return "Red Dead Redemption"
+        if (lower == "doom 2016" || lower == "doom2016" || lower == "doom4" || lower == "doom 4") return "DOOM"
+        if (lower == "doom eternal" || lower == "doometernal") return "Doom Eternal"
+        if (lower == "witcher3" || lower == "tw3" || lower == "witcher 3") return "The Witcher 3 Wild Hunt"
+        if (lower == "witcher2" || lower == "tw2" || lower == "witcher 2") return "The Witcher 2"
+        if (lower == "witcher1" || lower == "tw1" || lower == "witcher 1") return "The Witcher"
+        if (lower == "kcd" || lower == "kingdom come" || lower == "kingdomcome") return "Kingdom Come Deliverance"
+        if (lower == "kcd2" || lower == "kingdom come 2" || lower == "kingdomcome2") return "Kingdom Come Deliverance II"
+        if (lower == "cp2077" || lower == "cyberpunk 2077" || lower == "cyberpunk2077") return "Cyberpunk 2077"
+        if (lower == "d4" || lower == "diablo 4" || lower == "diablo4") return "Diablo IV"
+        if (lower == "d3" || lower == "diablo 3" || lower == "diablo3") return "Diablo III"
+        if (lower == "hl2" || lower == "half life 2") return "Half-Life 2"
+        if (lower == "hl1" || lower == "half life" || lower == "half life 1") return "Half-Life"
+        if (lower == "sms" || lower == "supermarioshine") return "Super Mario Sunshine"
+        if (lower == "hades 1" || lower == "hades1") return "Hades"
         return normalized
+    }
+
+    /**
+     * Вычисляет score совпадения между именем ярлыка и именем результата.
+     * Используется для валидации результатов SteamGridDB.
+     */
+    private fun computeMatchScore(queryName: String, resultName: String): Int {
+        val q = queryName.trim().lowercase(Locale.US)
+        val n = resultName.trim().lowercase(Locale.US)
+        if (q.isEmpty() || n.isEmpty()) return 0
+
+        val qTokens = q.split("[^a-z0-9]+".toRegex()).filter { it.isNotEmpty() }
+        val nTokens = n.split("[^a-z0-9]+".toRegex()).filter { it.isNotEmpty() }
+        if (qTokens.isEmpty()) return 0
+
+        var score = 0
+
+        // Exact match
+        if (n == q) {
+            score += 100
+        } else if (n.contains(q) || q.contains(n)) {
+            score += 20
+        }
+
+        // Token matching
+        val matched = qTokens.count { qt -> nTokens.any { nt -> nt == qt } }
+        score += matched * 10
+        if (matched == qTokens.size) score += 60
+
+        // Penalty for single short token overmatch
+        if (qTokens.size == 1 && n != q && nTokens.size > 1) {
+            score -= if (qTokens[0].length < 4) 60 else 50
+        }
+
+        // Strict: no token match + no substring relation = force zero
+        if (matched == 0 && !n.contains(q) && !q.contains(n)) {
+            score = 0
+        } else if (matched == 0) {
+            score -= 20
+        }
+
+        // Short query penalty
+        if (q.length < 5) score -= 20
+
+        return score
     }
 
     private fun downloadBitmap(url: String): Bitmap? {

@@ -566,6 +566,13 @@ public class ShortcutsFragment extends Fragment {
             return;
         }
 
+        // Skip SteamGridDB search for very short names (likely abbreviations with no match)
+        if (shortcut.name.trim().length() < 3) {
+            Log.w("CoverArt", "SteamGrid: name too short (len<3), skipping search name=" + shortcut.name);
+            fetchSteamHeaderFallback(holder, shortcut, landscape);
+            return;
+        }
+
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(STEAMGRID_BASE_URL)
                 .client(DohOkHttp.get())
@@ -593,7 +600,33 @@ public class ShortcutsFragment extends Fragment {
                     return;
                 }
 
-                fetchGridsForGame(holder, response.body().data.get(0).id, shortcut, landscape);
+                // --- Name validation: find the best matching result ---
+                List<SteamGridSearchResponse.GameData> data = response.body().data;
+                int bestId = -1;
+                int bestScore = -1;
+                String bestResultName = "";
+
+                for (SteamGridSearchResponse.GameData result : data) {
+                    String resultName = result.name != null ? result.name.trim() : "";
+                    if (resultName.isEmpty()) continue;
+                    int score = computeMatchScore(shortcut.name, resultName);
+                    Log.d("CoverArt", "SteamGrid result: query=" + shortcut.name + " -> result=" + resultName + " id=" + result.id + " score=" + score);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestId = result.id;
+                        bestResultName = resultName;
+                    }
+                }
+
+                if (bestId <= 0 || bestScore < 70) {
+                    Log.w("CoverArt", "SteamGrid: no good match found name=" + shortcut.name + " bestScore=" + bestScore + " bestResult=" + bestResultName);
+                    markSteamGridFailed(shortcut.name);
+                    fetchSteamHeaderFallback(holder, shortcut, landscape);
+                    return;
+                }
+
+                Log.i("CoverArt", "SteamGrid: selected match name=" + shortcut.name + " -> result=" + bestResultName + " id=" + bestId + " score=" + bestScore);
+                fetchGridsForGame(holder, bestId, shortcut, landscape);
             }
 
             @Override
@@ -612,6 +645,32 @@ public class ShortcutsFragment extends Fragment {
         if (lower.equals("gta 5") || lower.equals("gta v")) return "Grand Theft Auto V";
         if (lower.equals("gta sa")) return "Grand Theft Auto San Andreas";
         if (lower.equals("gta vc")) return "Grand Theft Auto Vice City";
+        if (lower.equals("gta 3") || lower.equals("gta iii")) return "Grand Theft Auto III";
+        if (lower.equals("gta 6") || lower.equals("gta vi")) return "Grand Theft Auto VI";
+        if (lower.equals("re4") || lower.equals("re 4")) return "Resident Evil 4";
+        if (lower.equals("re5") || lower.equals("re 5")) return "Resident Evil 5";
+        if (lower.equals("re6") || lower.equals("re 6")) return "Resident Evil 6";
+        if (lower.equals("re7") || lower.equals("re 7")) return "Resident Evil 7";
+        if (lower.equals("re8") || lower.equals("re 8")) return "Resident Evil Village";
+        if (lower.equals("re2") || lower.equals("re 2")) return "Resident Evil 2";
+        if (lower.equals("re3") || lower.equals("re 3")) return "Resident Evil 3";
+        if (lower.equals("re1") || lower.equals("re 1")) return "Resident Evil";
+        if (lower.equals("rdr2") || lower.equals("rdr 2")) return "Red Dead Redemption 2";
+        if (lower.equals("rdr") || lower.equals("rdr1") || lower.equals("rdr 1")) return "Red Dead Redemption";
+        if (lower.equals("doom 2016") || lower.equals("doom2016") || lower.equals("doom4") || lower.equals("doom 4")) return "DOOM";
+        if (lower.equals("doom eternal") || lower.equals("doometernal")) return "Doom Eternal";
+        if (lower.equals("witcher3") || lower.equals("tw3") || lower.equals("witcher 3")) return "The Witcher 3 Wild Hunt";
+        if (lower.equals("witcher2") || lower.equals("tw2") || lower.equals("witcher 2")) return "The Witcher 2";
+        if (lower.equals("witcher1") || lower.equals("tw1") || lower.equals("witcher 1")) return "The Witcher";
+        if (lower.equals("kcd") || lower.equals("kingdom come") || lower.equals("kingdomcome")) return "Kingdom Come Deliverance";
+        if (lower.equals("kcd2") || lower.equals("kingdom come 2") || lower.equals("kingdomcome2")) return "Kingdom Come Deliverance II";
+        if (lower.equals("cp2077") || lower.equals("cyberpunk 2077") || lower.equals("cyberpunk2077")) return "Cyberpunk 2077";
+        if (lower.equals("d4") || lower.equals("diablo 4") || lower.equals("diablo4")) return "Diablo IV";
+        if (lower.equals("d3") || lower.equals("diablo 3") || lower.equals("diablo3")) return "Diablo III";
+        if (lower.equals("hl2") || lower.equals("half life 2")) return "Half-Life 2";
+        if (lower.equals("hl1") || lower.equals("half life") || lower.equals("half life 1")) return "Half-Life";
+        if (lower.equals("sms") || lower.equals("supermarioshine")) return "Super Mario Sunshine";
+        if (lower.equals("hades 1") || lower.equals("hades1")) return "Hades";
         return normalized;
     }
 
@@ -756,6 +815,73 @@ public class ShortcutsFragment extends Fragment {
         STEAMGRID_LAST_FAIL.put(shortcutName, System.currentTimeMillis());
     }
 
+    /**
+     * Вычисляет score совпадения между именем ярлыка и именем результата.
+     * Используется для валидации результатов SteamGridDB.
+     */
+    private int computeMatchScore(@NonNull String queryName, @NonNull String resultName) {
+        String q = queryName.trim().toLowerCase(Locale.US);
+        String n = resultName.trim().toLowerCase(Locale.US);
+        if (q.isEmpty() || n.isEmpty()) return 0;
+
+        String[] qTokens = q.split("[^a-z0-9]+", -1);
+        String[] nTokens = n.split("[^a-z0-9]+", -1);
+        int qTokenCount = 0;
+        for (String t : qTokens) if (t != null && !t.isEmpty()) qTokenCount++;
+        if (qTokenCount == 0) return 0;
+
+        int score = 0;
+
+        // Exact match
+        if (n.equals(q)) {
+            score += 100;
+        } else if (n.contains(q) || q.contains(n)) {
+            score += 20;
+        }
+
+        // Token matching
+        int matched = 0;
+        for (String qt : qTokens) {
+            if (qt == null || qt.isEmpty()) continue;
+            boolean found = false;
+            for (String nt : nTokens) {
+                if (nt == null || nt.isEmpty()) continue;
+                if (nt.equals(qt)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) matched++;
+        }
+
+        if (qTokenCount > 0) {
+            score += matched * 10;
+            if (matched == qTokenCount) score += 60;
+        }
+
+        // Penalty for single short token overmatch
+        if (qTokenCount == 1 && !n.equals(q)) {
+            int nTokenCount = 0;
+            for (String nt : nTokens) if (nt != null && !nt.isEmpty()) nTokenCount++;
+            if (nTokenCount > 1) {
+                boolean isShort = qTokens[0] != null && qTokens[0].length() < 4;
+                score -= isShort ? 60 : 50;
+            }
+        }
+
+        // Strict: no token match + no substring relation = force zero
+        if (matched == 0 && !n.contains(q) && !q.contains(n)) {
+            score = 0;
+        } else if (matched == 0) {
+            score -= 20;
+        }
+
+        // Short query penalty
+        if (q.length() < 5) score -= 20;
+
+        return score;
+    }
+
     private void fetchSteamHeaderFallback(@NonNull ShortcutsAdapter.ViewHolder holder, @NonNull Shortcut shortcut, boolean landscape) {
         final String expectedKey = shortcut.name;
         COVER_ART_EXECUTOR.execute(() -> {
@@ -815,7 +941,7 @@ public class ShortcutsFragment extends Fragment {
     private Integer resolveSteamAppIdByStoreSearch(@NonNull String queryName) {
         try {
             String q = queryName.trim();
-            if (q.length() < 4) {
+            if (q.length() < 3) {
                 Log.w("CoverArt", "Steam storesearch skipped (query too short) name=" + queryName);
                 return null;
             }
@@ -860,7 +986,7 @@ public class ShortcutsFragment extends Fragment {
 
                     if (nNorm.equals(qNorm)) {
                         score += 100;
-                    } else if (nNorm.contains(qNorm)) {
+                    } else if (nNorm.contains(qNorm) || qNorm.contains(nNorm)) {
                         score += 20;
                     }
 
@@ -898,8 +1024,15 @@ public class ShortcutsFragment extends Fragment {
                         if (nTokenCount > 1) score -= 50;
                     }
 
-                    // Penalize obviously wrong matches (e.g. "Fallout 1" -> "Fallout 1st")
-                    if (qTokenCount > 0 && matched == 0) score -= 20;
+                    // Stricter: if no tokens matched AND no substring relation, force zero
+                    if (qTokenCount > 0 && matched == 0 && !nNorm.contains(qNorm) && !qNorm.contains(nNorm)) {
+                        score = 0;
+                    } else if (qTokenCount > 0 && matched == 0) {
+                        score -= 20;
+                    }
+
+                    // Short query penalty (< 5 chars): need higher confidence
+                    if (qNorm.length() < 5) score -= 20;
 
                     if (score > bestScore) {
                         bestScore = score;
@@ -908,13 +1041,14 @@ public class ShortcutsFragment extends Fragment {
                     }
                 }
 
-                if (bestId > 0 && bestScore >= 60) {
-                    Log.i("CoverArt", "Steam storesearch best match name=" + queryName + " -> appid=" + bestId + " (" + bestName + ") score=" + bestScore);
+                // Increased threshold from 60 to 75
+                if (bestId > 0 && bestScore >= 75) {
+                    Log.i("CoverArt", "Steam storesearch match name=" + queryName + " -> appid=" + bestId + " (" + bestName + ") score=" + bestScore);
                     STEAM_APPID_CACHE.put(queryName, bestId);
                     return bestId;
                 }
 
-                Log.w("CoverArt", "Steam storesearch: no good match found name=" + queryName + " items=" + items.length() + " bestScore=" + bestScore + " bestName=" + bestName);
+                Log.w("CoverArt", "Steam storesearch: no good match name=" + queryName + " bestScore=" + bestScore + " bestName=" + bestName);
                 return null;
             }
         }
