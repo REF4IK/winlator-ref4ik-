@@ -63,12 +63,12 @@ fun SteamFriendsScreen(onBack: () -> Unit) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0F1016),
-                    titleContentColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
         },
-        containerColor = Color(0xFF0F1016),
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
         if (friends.isEmpty()) {
             Box(
@@ -80,12 +80,12 @@ fun SteamFriendsScreen(onBack: () -> Unit) {
                         Icons.Filled.Person,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = Color(0xFF666666),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
                         stringResource(R.string.steam_friends_empty),
-                        color = Color(0xFF999999),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                     )
                     Spacer(Modifier.height(16.dp))
@@ -138,7 +138,7 @@ fun SteamFriendsScreen(onBack: () -> Unit) {
 private fun SectionHeader(title: String) {
     Text(
         text = title,
-        color = Color(0xFFAAAAAA),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -155,14 +155,14 @@ private fun FriendRow(friend: SteamFriend, onClick: () -> Unit = {}) {
             .padding(horizontal = 12.dp, vertical = 3.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1D27)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF2A2D37)),
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
                 contentAlignment = Alignment.Center,
             ) {
                 if (avatarUrl.isNotBlank()) {
@@ -176,7 +176,7 @@ private fun FriendRow(friend: SteamFriend, onClick: () -> Unit = {}) {
                     Icon(
                         Icons.Filled.Person,
                         contentDescription = null,
-                        tint = Color(0xFF888888),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp),
                     )
                 }
@@ -187,7 +187,7 @@ private fun FriendRow(friend: SteamFriend, onClick: () -> Unit = {}) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = friend.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Medium,
                     fontSize = 15.sp,
                     maxLines = 1,
@@ -196,7 +196,7 @@ private fun FriendRow(friend: SteamFriend, onClick: () -> Unit = {}) {
                 if (friend.isPlayingGame && friend.gameName.isNotBlank()) {
                     Text(
                         text = friend.gameName,
-                        color = Color(0xFF66C0F4),
+                        color = MaterialTheme.colorScheme.tertiary,
                         fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -212,7 +212,7 @@ private fun FriendRow(friend: SteamFriend, onClick: () -> Unit = {}) {
                             6 -> "Looking to Play"
                             else -> "Offline"
                         },
-                        color = if (friend.isOnline) Color(0xFF4CAF50) else Color(0xFF777777),
+                        color = if (friend.isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                     )
                 }
@@ -224,9 +224,9 @@ private fun FriendRow(friend: SteamFriend, onClick: () -> Unit = {}) {
                     .clip(CircleShape)
                     .background(
                         when {
-                            friend.isPlayingGame -> Color(0xFF66C0F4)
-                            friend.isOnline -> Color(0xFF4CAF50)
-                            else -> Color(0xFF555555)
+                            friend.isPlayingGame -> MaterialTheme.colorScheme.tertiary
+                            friend.isOnline -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         }
                     ),
             )

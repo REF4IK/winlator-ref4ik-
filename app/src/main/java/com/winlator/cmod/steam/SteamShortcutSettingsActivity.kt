@@ -54,7 +54,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -109,22 +109,11 @@ import com.winlator.cmod.fexcore.FEXCoreEditPresetDialog
 import com.winlator.cmod.fexcore.FEXCoreManager
 import com.winlator.cmod.fexcore.FEXCorePreset
 import com.winlator.cmod.fexcore.FEXCorePresetManager
+import com.winlator.cmod.ui.theme.WinlatorTheme
 import com.winlator.cmod.winhandler.WinHandler
 import java.io.File
 import java.util.Locale
 import kotlin.math.roundToInt
-
-private val SteamSettingsColors = darkColorScheme(
-    primary = Color(0xFF18C5BE),
-    secondary = Color(0xFF6AD5F9),
-    background = Color(0xFF09090D),
-    surface = Color(0xFF11141C),
-    surfaceVariant = Color(0xFF171C26),
-    onPrimary = Color.White,
-    onBackground = Color(0xFFF3F7FF),
-    onSurface = Color(0xFFF3F7FF),
-    onSurfaceVariant = Color(0xFF95A6BF),
-)
 
 private data class SteamOption(
     val label: String,
@@ -203,7 +192,7 @@ class SteamShortcutSettingsActivity : ComponentActivity() {
         }
 
         setContent {
-            MaterialTheme(colorScheme = SteamSettingsColors) {
+            WinlatorTheme {
                 SteamShortcutSettingsScreen(
                     shortcut = shortcut,
                     onClose = ::finish,
@@ -688,7 +677,7 @@ private fun SteamShortcutSettingsScreen(
                 ) {
                     Text(
                         text = shortcut.name,
-                        color = Color(0xFFF3F7FF),
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -696,7 +685,7 @@ private fun SteamShortcutSettingsScreen(
                     )
                     Text(
                         text = "STEAM",
-                        color = Color(0xFF18C5BE),
+                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -705,14 +694,14 @@ private fun SteamShortcutSettingsScreen(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF171D28))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = null,
-                        tint = Color(0xFFF3F7FF),
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -720,14 +709,14 @@ private fun SteamShortcutSettingsScreen(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF171D28))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable(onClick = saveAndClose),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = null,
-                        tint = Color(0xFFF3F7FF),
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -915,14 +904,14 @@ private fun SteamSettingsSidebar(
     ) {
         Text(
             text = stringResource(R.string.settings),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.titleMedium,
         )
         Box(
             modifier = Modifier
                 .width(74.dp)
                 .height(1.dp)
-                .background(Color(0xFF2A4666)),
+                .background(MaterialTheme.colorScheme.outlineVariant),
         )
         Spacer(modifier = Modifier.height(2.dp))
         SteamSettingsSection.entries.forEach { section ->
@@ -931,10 +920,10 @@ private fun SteamSettingsSidebar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .background(if (isSelected) Color(0xFF0E4E83).copy(alpha = 0.28f) else Color.Transparent)
+                    .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent)
                     .border(
                         width = 1.dp,
-                        color = if (isSelected) Color(0xFF4F6F92) else Color.Transparent,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
                         shape = RoundedCornerShape(18.dp),
                     )
                     .clickable { onSelectSection(section) }
@@ -942,7 +931,7 @@ private fun SteamSettingsSidebar(
             ) {
                 Text(
                     text = stringResource(section.titleRes),
-                    color = if (isSelected) Color.White else Color(0xFF9CB0CE),
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 2,
@@ -1379,7 +1368,7 @@ private fun SteamWinComponentsSection(
     if (directComponents.isNotEmpty()) {
         Text(
             text = "DirectX",
-            color = Color(0xFF18C5BE),
+            color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
         )
@@ -1396,7 +1385,7 @@ private fun SteamWinComponentsSection(
     if (commonComponents.isNotEmpty()) {
         Text(
             text = "General",
-            color = Color(0xFF18C5BE),
+            color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
         )
@@ -1595,7 +1584,7 @@ private fun SteamTextField(
     ) {
         Text(
             text = label,
-            color = Color(0xFF9CB0CE),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyLarge,
         )
         OutlinedTextField(
@@ -1606,13 +1595,13 @@ private fun SteamTextField(
             minLines = minLines,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF3F5878),
-                unfocusedBorderColor = Color(0xFF2C3A4E),
-                focusedTextColor = Color(0xFFF3F7FF),
-                unfocusedTextColor = Color(0xFFF3F7FF),
-                focusedContainerColor = Color(0xFF101722),
-                unfocusedContainerColor = Color(0xFF101722),
-                cursorColor = Color(0xFF18C5BE),
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                cursorColor = MaterialTheme.colorScheme.primary,
             ),
             shape = RoundedCornerShape(16.dp),
         )
@@ -1641,8 +1630,8 @@ private fun SteamSelectField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .background(if (enabled) Color(0xFF101722) else Color(0xFF0C121B))
-                    .border(1.dp, if (enabled) Color(0xFF223349) else Color(0xFF182332), RoundedCornerShape(18.dp))
+                    .background(if (enabled) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .border(1.dp, if (enabled) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
                     .clickable(enabled = enabled && options.isNotEmpty()) { expanded = true }
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1650,12 +1639,12 @@ private fun SteamSelectField(
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = label,
-                        color = if (enabled) Color(0xFF95A6BF) else Color(0xFF65738A),
+                        color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Text(
                         text = selectedLabel,
-                        color = if (enabled) Color(0xFFF3F7FF) else Color(0xFF8A97AB),
+                        color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1664,14 +1653,14 @@ private fun SteamSelectField(
                 Icon(
                     imageVector = Icons.Filled.ArrowDropDown,
                     contentDescription = null,
-                    tint = if (enabled) Color(0xFF95A6BF) else Color(0xFF65738A),
+                    tint = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 )
             }
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
                 modifier = Modifier
-                    .background(Color(0xFF171C26))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .fillMaxWidth(0.9f),
             ) {
                 options.forEach { option ->
@@ -1679,7 +1668,7 @@ private fun SteamSelectField(
                         text = {
                             Text(
                                 option.label,
-                                color = if (option.value == value) Color(0xFF18C5BE) else Color(0xFFF3F7FF),
+                                color = if (option.value == value) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             )
                         },
                         onClick = {
@@ -1710,7 +1699,7 @@ private fun SteamSelectField(
         if (!supportingText.isNullOrBlank()) {
             Text(
                 text = supportingText,
-                color = Color(0xFF6FAED0),
+                color = MaterialTheme.colorScheme.tertiary,
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -1739,8 +1728,8 @@ private fun SteamInlineActionButton(
         modifier = Modifier
             .size(52.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF101722))
-            .border(1.dp, Color(0xFF223349), RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
             .clickable(onClick = action.onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -1748,13 +1737,13 @@ private fun SteamInlineActionButton(
             Icon(
                 painter = painterResource(action.iconRes),
                 contentDescription = action.label,
-                tint = Color(0xFF9DDCFF),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp),
             )
         } else {
             Text(
                 text = action.label,
-                color = Color(0xFF9DDCFF),
+                color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -1771,14 +1760,14 @@ private fun SteamActionChip(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF101722))
-            .border(1.dp, Color(0xFF223349), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Text(
             text = text,
-            color = Color(0xFF9DDCFF),
+            color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
         )
@@ -1795,14 +1784,18 @@ private fun SteamModalScaffold(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xF0030509)),
+            .background(MaterialTheme.colorScheme.background),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color(0xFF111116), Color(0xFF09090D), Color(0xFF050507)),
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface,
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                        ),
                     ),
                 )
                 .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -1813,7 +1806,7 @@ private fun SteamModalScaffold(
             ) {
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
@@ -1822,14 +1815,14 @@ private fun SteamModalScaffold(
                     modifier = Modifier
                         .size(34.dp)
                         .clip(RoundedCornerShape(17.dp))
-                        .background(Color(0xFF171D28))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable(onClick = onDismiss),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -1838,7 +1831,7 @@ private fun SteamModalScaffold(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(1.dp)
-                    .background(Color(0xFF263A54)),
+                    .background(MaterialTheme.colorScheme.outlineVariant),
             )
             Spacer(modifier = Modifier.height(10.dp))
             Column(
@@ -1857,13 +1850,13 @@ private fun SteamModalScaffold(
                 ) {
                     SteamModalButton(
                         text = stringResource(R.string.cancel),
-                        background = Brush.verticalGradient(listOf(Color(0xFF171D28), Color(0xFF171D28))),
-                        borderColor = Color(0xFF263A54),
+                        background = Brush.verticalGradient(listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant)),
+                        borderColor = MaterialTheme.colorScheme.outlineVariant,
                         onClick = onDismiss,
                     )
                     SteamModalButton(
                         text = stringResource(R.string.ok),
-                        background = Brush.horizontalGradient(listOf(Color(0xFF19B9FF), Color(0xFF7A40FF))),
+                        background = Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary)),
                         borderColor = Color.Transparent,
                         onClick = onConfirm,
                     )

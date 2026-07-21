@@ -61,7 +61,7 @@ fun AchievementsSheet(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xCC0F1016)),
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f)),
         ) {
             Column(
                 modifier = Modifier
@@ -77,7 +77,7 @@ fun AchievementsSheet(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.steam_library_achievements),
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                         )
@@ -85,33 +85,33 @@ fun AchievementsSheet(
                             val unlocked = achievements.count { it.unlocked == true }
                             Text(
                                 text = stringResource(R.string.steam_library_achievements_count, unlocked, achievements.size),
-                                color = Color(0xFFAAAAAA),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 14.sp,
                             )
                         }
                     }
                     IconButton(onClick = onDismiss) {
                         Box(
-                            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0xFF2A2D37)),
+                            modifier = Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFF2A2D37))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
                 // Content
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Color(0xFF66C0F4))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 } else if (achievements.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             text = "No achievements data available for this game.",
-                            color = Color(0xFF888888),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -137,20 +137,20 @@ private fun AchievementRow(achievement: Achievement) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = if (unlocked) Color(0x801A2A1A) else Color(0xFF1A1D27)),
+        colors = CardDefaults.cardColors(containerColor = if (unlocked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(if (unlocked) Color(0xFF2A4A2A) else Color(0xFF2A2D37)),
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(if (unlocked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Filled.Star,
                     contentDescription = null,
-                    tint = if (unlocked) Color(0xFFFFD700) else Color(0xFF555555),
+                    tint = if (unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -160,7 +160,7 @@ private fun AchievementRow(achievement: Achievement) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = achievement.displayName?.get("english") ?: achievement.name,
-                    color = if (unlocked) Color.White else Color(0xFFCCCCCC),
+                    color = if (unlocked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
                     maxLines = 1,
@@ -169,7 +169,7 @@ private fun AchievementRow(achievement: Achievement) {
                 if (!achievement.description.isNullOrEmpty()) {
                     Text(
                         text = achievement.description["english"] ?: "",
-                        color = Color(0xFF999999),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -180,7 +180,7 @@ private fun AchievementRow(achievement: Achievement) {
             if (unlocked && achievement.unlockTimestamp != null && achievement.unlockTimestamp!! > 0) {
                 Text(
                     text = formatTimestamp(achievement.unlockTimestamp!!),
-                    color = Color(0xFF888888),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                 )
             }

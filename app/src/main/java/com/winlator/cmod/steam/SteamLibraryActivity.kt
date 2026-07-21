@@ -65,7 +65,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -77,7 +76,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -126,6 +124,7 @@ import com.winlator.cmod.steam.ui.SteamLibraryUiState
 import com.winlator.cmod.steam.ui.SteamLibraryViewModel
 import com.winlator.cmod.steam.utils.PrefManager
 import com.winlator.cmod.steam.workshop.WorkshopManager
+import com.winlator.cmod.ui.theme.WinlatorTheme
 import com.winlator.cmod.utils.StorageUtils
 import java.io.File
 import java.text.DateFormat
@@ -137,18 +136,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class SteamViewMode { GRID, LIST, COMPACT }
-
-private val SteamColors: ColorScheme = darkColorScheme(
-    primary = Color(0xFF18C5BE),
-    secondary = Color(0xFF6AD5F9),
-    background = Color(0xFF09090D),
-    surface = Color(0xFF11141C),
-    surfaceVariant = Color(0xFF171C26),
-    onPrimary = Color.White,
-    onBackground = Color(0xFFF3F7FF),
-    onSurface = Color(0xFFF3F7FF),
-    onSurfaceVariant = Color(0xFF95A6BF),
-)
 
 private enum class SteamTab {
     DOWNLOADS,
@@ -182,7 +169,7 @@ class SteamLibraryActivity : ComponentActivity() {
         }
 
         setContent {
-            MaterialTheme(colorScheme = SteamColors) {
+            WinlatorTheme {
                 val viewModel: SteamLibraryViewModel = viewModel()
                 val state by viewModel.uiState.collectAsState()
                 val context = LocalContext.current
@@ -455,7 +442,11 @@ private fun SteamLibraryScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFF111116), Color(0xFF09090D), Color(0xFF050507)),
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                    ),
                 ),
             ),
     ) {
@@ -610,7 +601,7 @@ private fun SteamLibraryScreen(
                     ) {
                         Box(modifier = Modifier.size(28.dp)) {
                             Box(
-                                modifier = Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF171D28)),
+                                modifier = Modifier.size(28.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (state.profile.avatarUrl.isNotBlank()) {
@@ -631,8 +622,8 @@ private fun SteamLibraryScreen(
                                         .align(Alignment.BottomEnd)
                                         .size(9.dp)
                                         .clip(CircleShape)
-                                        .background(if (state.profile.isOnline) Color(0xFF4CAF50) else Color(0xFF888888))
-                                        .border(1.5.dp, Color(0xFF0F1016), CircleShape),
+                                        .background(if (state.profile.isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
                                 )
                             }
                         }
@@ -647,7 +638,7 @@ private fun SteamLibraryScreen(
                             if (state.isLoggedIn && state.profile.isOnline && state.profile.currentGame?.isNotBlank() == true) {
                                     Text(
                                         text = "Playing ${state.profile.currentGame ?: ""}",
-                                        color = Color(0xFF66C0F4),
+                                        color = MaterialTheme.colorScheme.tertiary,
                                         fontSize = 11.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -661,8 +652,8 @@ private fun SteamLibraryScreen(
                             Box {
                                 Icon(Icons.Filled.Person, contentDescription = stringResource(R.string.steam_friends_title), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                                 if (onlineCount > 0) {
-                                    Badge(modifier = Modifier.align(Alignment.TopEnd).size(14.dp), containerColor = Color(0xFF4CAF50)) {
-                                        Text(text = onlineCount.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    Badge(modifier = Modifier.align(Alignment.TopEnd).size(14.dp), containerColor = MaterialTheme.colorScheme.primary) {
+                                        Text(text = onlineCount.toString(), color = MaterialTheme.colorScheme.onPrimary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -827,7 +818,7 @@ private fun SteamTopBar(
 
         Card(
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF101116)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
@@ -886,14 +877,14 @@ private fun RoundActionButton(
         modifier = Modifier
             .size(size.dp)
             .clip(CircleShape)
-            .background(if (enabled) Color(0xFF141A24) else Color(0xFF101217))
+            .background(if (enabled) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             icon,
             contentDescription = null,
-            tint = if (enabled) Color.White else Color(0xFF58657B),
+            tint = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size((size * 0.42f).dp),
         )
     }
@@ -904,14 +895,14 @@ private fun SteamTabButton(label: String, selected: Boolean, onClick: () -> Unit
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(if (selected) Color(0xFF0C1420) else Color.Transparent)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
                 Text(
                     text = label,
-                    color = if (selected) Color(0xFF0FA6FF) else Color(0xFF92A2BC),
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.titleSmall,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
         )
@@ -924,11 +915,11 @@ private fun SteamViewButton(icon: androidx.compose.ui.graphics.vector.ImageVecto
         modifier = Modifier
             .size(36.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) Color(0xFF0C1420) else Color.Transparent)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = if (selected) Color(0xFF0FA6FF) else Color(0xFF92A2BC), modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -936,7 +927,7 @@ private fun SteamViewButton(icon: androidx.compose.ui.graphics.vector.ImageVecto
 private fun SteamInlineMessage(title: String, body: String, onDismiss: () -> Unit) {
     Card(
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1F2A)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -944,7 +935,7 @@ private fun SteamInlineMessage(title: String, body: String, onDismiss: () -> Uni
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onDismiss) {
@@ -964,17 +955,17 @@ private fun SteamPlaceholder(
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Card(
             shape = RoundedCornerShape(30.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF12151D)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Column(
                 modifier = Modifier.width(540.dp).padding(28.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text(title, color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (actionLabel != null && onAction != null) {
                     Button(onClick = onAction) {
-                        Text(actionLabel, color = Color.White)
+                        Text(actionLabel)
                     }
                 }
             }
@@ -996,11 +987,11 @@ private fun SteamGameCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
     }
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1016)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.clickable(onClick = onClick),
     ) {
         Column {
-            Box(modifier = Modifier.fillMaxWidth().height(104.dp).background(Color(0xFF131722))) {
+            Box(modifier = Modifier.fillMaxWidth().height(104.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
                 AsyncImage(
                     model = capsuleRequest,
                     contentDescription = game.name,
@@ -1020,7 +1011,7 @@ private fun SteamGameCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
             ) {
                 Text(
                     text = game.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1030,7 +1021,7 @@ private fun SteamGameCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
                         progress = { game.downloadProgress },
                         modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
                         color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color(0xFF2D3443),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                     )
                 }
             }
@@ -1052,11 +1043,11 @@ private fun SteamGameListCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
     }
     Card(
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF12141A)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     ) {
         Row(modifier = Modifier.fillMaxWidth().height(72.dp)) {
-            Box(modifier = Modifier.width(128.dp).fillMaxHeight().background(Color(0xFF131722))) {
+            Box(modifier = Modifier.width(128.dp).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
                 AsyncImage(
                     model = capsuleRequest,
                     contentDescription = game.name,
@@ -1068,13 +1059,13 @@ private fun SteamGameListCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
                 modifier = Modifier.weight(1f).fillMaxHeight().padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(game.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(game.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (game.subtitle.isNotBlank()) {
-                    Text(game.subtitle, color = Color(0xFF888888), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(game.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (game.isDownloading) {
                     Spacer(Modifier.height(4.dp))
-                    LinearProgressIndicator(progress = { game.downloadProgress }, modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape), color = MaterialTheme.colorScheme.primary, trackColor = Color(0xFF2D3443))
+                    LinearProgressIndicator(progress = { game.downloadProgress }, modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape), color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                 }
             }
             if (game.installed) {
@@ -1092,7 +1083,7 @@ private fun SteamGameCompactCard(game: SteamLibraryGameUi, onClick: () -> Unit) 
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF131722)), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(game.capsuleUrl)
@@ -1107,16 +1098,16 @@ private fun SteamGameCompactCard(game: SteamLibraryGameUi, onClick: () -> Unit) 
         }
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(game.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(game.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (game.subtitle.isNotBlank()) {
-                Text(game.subtitle, color = Color(0xFF888888), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(game.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         if (game.installed) {
-            Text(stringResource(R.string.steam_library_installed_badge), color = Color(0xFF4CAF50), fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp))
+            Text(stringResource(R.string.steam_library_installed_badge), color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp))
         }
         if (game.isDownloading) {
-            Text(game.statusLine, color = Color(0xFF0FA6FF), fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp))
+            Text(game.statusLine, color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp))
         }
     }
 }
@@ -1295,7 +1286,7 @@ private fun SteamGameOverlay(
                                 Color.Black.copy(alpha = 0.05f),
                                 Color.Black.copy(alpha = 0.25f),
                                 Color.Black.copy(alpha = 0.65f),
-                                Color(0xDD0F1016),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.87f),
                             ),
                         ),
                     ),
@@ -1321,14 +1312,14 @@ private fun SteamGameOverlay(
                     }
                     Text(
                         game.name,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = if (compactLayout) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     if (game.subtitle.isNotBlank()) {
                         Text(
                             game.subtitle,
-                            color = Color(0xFFD6E2F7),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = if (compactLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -1459,7 +1450,7 @@ private fun SteamGameOverlay(
                         verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         if (!isDownloadSession) {
-                            Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0x80171C25))) {
+                            Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(if (compactLayout) 6.dp else 8.dp),
                                     verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -1482,16 +1473,16 @@ private fun SteamGameOverlay(
                                                 modifier = Modifier.weight(1f).height(36.dp),
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                             ) {
-                                                Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF43B5FF))
+                                                Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text(stringResource(R.string.steam_library_choose_folder), color = Color.White, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text(stringResource(R.string.steam_library_choose_folder), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                             }
                                         }
                                     }
                                 }
                             }
                         } else {
-                            Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0x80161D29))) {
+                            Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
                                     verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -1503,7 +1494,7 @@ private fun SteamGameOverlay(
                                     ) {
                                         Text(
                                             text = stringResource(R.string.steam_library_download_status_title),
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.SemiBold,
                                         )
@@ -1750,8 +1741,8 @@ private fun SteamGameOverlay(
                                     text = stringResource(R.string.steam_library_uninstall),
                                     onClick = { onDelete(game.appId) },
                                     modifier = Modifier.weight(1f),
-                                    containerColor = Color(0x9934161D),
-                                    contentColor = Color(0xFFFF8CA4),
+                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                    contentColor = MaterialTheme.colorScheme.error,
                                 )
                             }
                         } else {
@@ -1777,8 +1768,8 @@ private fun SteamGameOverlay(
                                     text = stringResource(R.string.steam_library_cancel_download),
                                     onClick = { onCancelDownload(game.appId) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    containerColor = Color(0x9934161D),
-                                    contentColor = Color(0xFFFF8CA4),
+                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                    contentColor = MaterialTheme.colorScheme.error,
                                 )
                             } else {
                                 GradientButton(
@@ -1901,7 +1892,7 @@ private fun SteamGameOverlay(
 private fun DownloadProgressCard(game: SteamGameDetailUi, compactLayout: Boolean) {
     Card(
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0x80171C25)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
@@ -1914,7 +1905,7 @@ private fun DownloadProgressCard(game: SteamGameDetailUi, compactLayout: Boolean
             ) {
                 Text(
                     stringResource(R.string.steam_library_download_panel_title),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.labelLarge,
                 )
@@ -1924,7 +1915,7 @@ private fun DownloadProgressCard(game: SteamGameDetailUi, compactLayout: Boolean
                 progress = { game.downloadProgress },
                 modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                 color = MaterialTheme.colorScheme.primary,
-                trackColor = Color(0xFF31394A),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
             DetailMiniLine(stringResource(R.string.steam_library_downloaded), buildProgressText(game.downloadedBytes, game.totalBytes))
             DetailMiniLine(stringResource(R.string.steam_library_speed), formatSpeed(game.speedBytesPerSec))
@@ -1954,7 +1945,7 @@ private fun SteamLaunchOverlay(game: SteamGameDetailUi) {
         Card(
             modifier = Modifier.fillMaxWidth(0.62f),
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF121722)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -1979,7 +1970,7 @@ private fun SteamLaunchOverlay(game: SteamGameDetailUi) {
                                     colors = listOf(
                                         Color.Black.copy(alpha = 0.18f),
                                         Color.Black.copy(alpha = 0.34f),
-                                        Color(0xFF121722),
+                                        MaterialTheme.colorScheme.surfaceVariant,
                                     ),
                                 ),
                             ),
@@ -1998,7 +1989,7 @@ private fun SteamLaunchOverlay(game: SteamGameDetailUi) {
                     ) {
                         Text(
                             text = game.name,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -2007,7 +1998,7 @@ private fun SteamLaunchOverlay(game: SteamGameDetailUi) {
                         if (game.subtitle.isNotBlank()) {
                             Text(
                                 text = game.subtitle,
-                                color = Color(0xFFD3E0F6),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyLarge,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -2024,7 +2015,7 @@ private fun SteamLaunchOverlay(game: SteamGameDetailUi) {
                 ) {
                     Text(
                         text = stringResource(R.string.steam_library_launching_status),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -2034,7 +2025,7 @@ private fun SteamLaunchOverlay(game: SteamGameDetailUi) {
                             .height(8.dp)
                             .clip(CircleShape),
                         color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color(0xFF30384A),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2074,11 +2065,11 @@ private fun ContainerDropdown(
             modifier = Modifier.fillMaxWidth().height(36.dp),
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
         ) {
-            Icon(Icons.Filled.Storage, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF43B5FF))
+            Icon(Icons.Filled.Storage, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = selectedContainer?.name ?: stringResource(R.string.steam_library_select_container),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -2101,12 +2092,12 @@ private fun ContainerDropdown(
 private fun StatusBadge(text: String, modifier: Modifier = Modifier, solid: Boolean = false) {
     Box(
         modifier = modifier.clip(RoundedCornerShape(8.dp)).background(
-            if (solid) Color(0x800E4E83) else Color(0x8011151D),
+            if (solid) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         ).padding(horizontal = 7.dp, vertical = 3.dp),
     ) {
         Text(
             text = text,
-            color = if (solid) Color(0xFF43B5FF) else Color.White,
+            color = if (solid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.labelSmall,
         )
@@ -2115,10 +2106,10 @@ private fun StatusBadge(text: String, modifier: Modifier = Modifier, solid: Bool
 
 @Composable
 private fun DetailInfoCard(title: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier, shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0x80171C25))) {
+    Card(modifier = modifier, shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(title.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
-            Text(value, color = Color.White, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -2127,7 +2118,7 @@ private fun DetailInfoCard(title: String, value: String, modifier: Modifier = Mo
 private fun DetailMiniLine(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-        Text(value, color = Color.White, style = MaterialTheme.typography.labelSmall)
+        Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -2141,7 +2132,7 @@ private fun CompactStatCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0x80171C25)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
@@ -2151,7 +2142,7 @@ private fun CompactStatCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color(0xFF43B5FF),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(14.dp),
             )
             Text(
@@ -2164,7 +2155,7 @@ private fun CompactStatCard(
             )
             Text(
                 text = value,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -2183,12 +2174,12 @@ private fun GradientButton(
 ) {
     Box(
         modifier = modifier.clip(RoundedCornerShape(10.dp)).background(
-            Brush.horizontalGradient(listOf(Color(0xFF18C5F3), Color(0xFF7E2DFF))),
+            MaterialTheme.colorScheme.primary,
         ).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 7.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            Text(text, color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+            Text(text, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -2199,14 +2190,14 @@ private fun DeleteGameButton(onClick: () -> Unit) {
         modifier = Modifier
             .size(48.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFF2A1620))
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             Icons.Filled.Delete,
             contentDescription = stringResource(R.string.steam_library_delete_game),
-            tint = Color(0xFFFF8CA4),
+            tint = MaterialTheme.colorScheme.error,
         )
     }
 }
@@ -2223,8 +2214,8 @@ private fun SteamActionTile(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    containerColor: Color = Color(0x99171C25),
-    contentColor: Color = Color.White,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
 ) {
     Card(
         modifier = modifier.clickable(onClick = onClick),

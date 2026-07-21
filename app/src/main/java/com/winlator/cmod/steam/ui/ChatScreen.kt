@@ -81,7 +81,7 @@ fun ChatScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0xFF2A2D37)),
+                            modifier = Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center,
                         ) {
                             if (avatarUrl.isNotBlank()) {
@@ -92,7 +92,7 @@ fun ChatScreen(
                                     contentScale = ContentScale.Crop,
                                 )
                             } else {
-                                Icon(Icons.Filled.Person, contentDescription = null, tint = Color(0xFF888888), modifier = Modifier.size(20.dp))
+                                Icon(Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                             }
                         }
                         Spacer(Modifier.width(10.dp))
@@ -105,14 +105,14 @@ fun ChatScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0F1016),
-                    titleContentColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
         },
         bottomBar = {
             Surface(
-                color = Color(0xFF0F1016),
+                color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 2.dp,
             ) {
                 Row(
@@ -123,13 +123,13 @@ fun ChatScreen(
                         value = inputText,
                         onValueChange = { inputText = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Message", color = Color(0xFF888888)) },
+                        placeholder = { Text("Message", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF2A2D37),
-                            unfocusedBorderColor = Color(0xFF1A1D27),
-                            cursorColor = Color.White,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            cursorColor = MaterialTheme.colorScheme.primary,
                         ),
                         shape = RoundedCornerShape(20.dp),
                         maxLines = 4,
@@ -161,18 +161,18 @@ fun ChatScreen(
                         },
                         modifier = Modifier.size(40.dp),
                         shape = CircleShape,
-                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color(0xFF66C0F4)),
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary),
                     ) {
-                        Icon(Icons.Filled.Send, contentDescription = "Send", tint = Color.White, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.Send, contentDescription = "Send", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
         },
-        containerColor = Color(0xFF0F1016),
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
         if (messages.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No messages yet. Say hello!", color = Color(0xFF888888))
+                Text("No messages yet. Say hello!", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyColumn(
@@ -210,19 +210,19 @@ private fun ChatBubble(message: ChatMessage) {
                     bottomStart = if (isIncoming) 4.dp else 16.dp,
                     bottomEnd = if (isIncoming) 16.dp else 4.dp,
                 ),
-                color = if (isIncoming) Color(0xFF1A1D27) else Color(0xFF66C0F4),
+                color = if (isIncoming) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
                 shadowElevation = 0.dp,
             ) {
                 Text(
                     text = message.text,
-                    color = if (isIncoming) Color.White else Color(0xFF0F1016),
+                    color = if (isIncoming) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     fontSize = 15.sp,
                 )
             }
             Text(
                 text = timeStr,
-                color = Color(0xFF666666),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
             )

@@ -112,14 +112,14 @@ fun SteamSearchField(
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFF121722),
-                unfocusedContainerColor = Color(0xFF121722),
-                focusedBorderColor = Color(0xFF284A70),
-                unfocusedBorderColor = Color(0xFF22354F),
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedPlaceholderColor = Color(0xFF8091AA),
-                unfocusedPlaceholderColor = Color(0xFF8091AA),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
             shape = RoundedCornerShape(18.dp),
         )
@@ -127,11 +127,11 @@ fun SteamSearchField(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF141A24))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(onClick = onClose),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White)
+            Icon(Icons.Filled.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -287,11 +287,11 @@ fun SteamContentManagerSheet(
         when {
             loading -> SteamCenteredState(stringResource(R.string.steam_library_loading))
             loadFailed -> Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Icon(Icons.Filled.Warning, null, tint = Color(0xFFFF7A88), modifier = Modifier.size(40.dp))
+                Icon(Icons.Filled.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(40.dp))
                 Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.steam_library_content_manager_failed), color = Color(0xFFFF7A88))
+                Text(stringResource(R.string.steam_library_content_manager_failed), color = MaterialTheme.colorScheme.error)
                 if (errorMessage.isNotBlank()) {
-                    Text(errorMessage, color = Color(0xFF888888), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text(errorMessage, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
                 }
             }
             else -> {
@@ -300,8 +300,8 @@ fun SteamContentManagerSheet(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Size: ${totalDownloadSizeText} / ${totalInstallSizeText}", color = Color(0xFFAAAAAA), fontSize = 13.sp)
-                        Text("Space: $availableSpaceText", color = Color(0xFFAAAAAA), fontSize = 13.sp)
+                        Text("Size: ${totalDownloadSizeText} / ${totalInstallSizeText}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        Text("Space: $availableSpaceText", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                     }
 
                     LazyColumn(
@@ -321,7 +321,7 @@ fun SteamContentManagerSheet(
                         if (dlcApps.isNotEmpty()) {
                             item {
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text("DLC (${dlcApps.size})", color = Color(0xFFCCCCCC), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                    Text("DLC (${dlcApps.size})", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                     Spacer(Modifier.weight(1f))
                                     TextButton(onClick = {
                                         val newVal = !allSelected
@@ -340,7 +340,7 @@ fun SteamContentManagerSheet(
 
                             Card(
                                 shape = RoundedCornerShape(10.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1D27)),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -350,18 +350,18 @@ fun SteamContentManagerSheet(
                                         checked = checked,
                                         onCheckedChange = { if (entry.installable) selectedDlcIds[entry.appId] = it },
                                         enabled = entry.installable,
-                                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF66C0F4), uncheckedColor = Color(0xFF555555)),
+                                        colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary, uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant),
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(entry.name, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                            Text(entry.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                             if (isInstalledDlc) {
-                                                Badge(containerColor = Color(0xFF4CAF50)) { Text("INSTALLED", color = Color.White, fontSize = 9.sp) }
+                                                Badge(containerColor = MaterialTheme.colorScheme.primary) { Text("INSTALLED", color = MaterialTheme.colorScheme.onPrimary, fontSize = 9.sp) }
                                             }
                                         }
                                         Spacer(Modifier.height(2.dp))
-                                        Text(sizeText, color = Color(0xFF888888), fontSize = 12.sp)
+                                        Text(sizeText, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                                     }
                                 }
                             }
@@ -370,10 +370,10 @@ fun SteamContentManagerSheet(
                         if (dlcApps.isEmpty()) {
                             item {
                                 Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(stringResource(R.string.steam_library_content_empty), color = Color(0xFF888888))
+                                    Text(stringResource(R.string.steam_library_content_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     if (debugLog.isNotBlank()) {
                                         Spacer(Modifier.height(8.dp))
-                                        Text(debugLog, color = Color(0xFF555555), fontSize = 10.sp)
+                                        Text(debugLog, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 10.sp)
                                     }
                                 }
                             }
@@ -392,7 +392,7 @@ fun SteamContentManagerSheet(
                             )
                         },
                         modifier = Modifier.fillMaxWidth().height(52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF66C0F4)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     ) {
                         Text(stringResource(R.string.steam_library_install_selected), fontWeight = FontWeight.Bold)
                     }
@@ -486,9 +486,9 @@ fun SteamWorkshopManagerSheet(
         when {
             isLoading -> SteamCenteredState(stringResource(R.string.steam_library_loading))
             fetchFailed -> Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Icon(Icons.Filled.Warning, null, tint = Color(0xFFFF7A88), modifier = Modifier.size(40.dp))
+                Icon(Icons.Filled.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(40.dp))
                 Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.steam_library_workshop_failed), color = Color(0xFFFF7A88))
+                Text(stringResource(R.string.steam_library_workshop_failed), color = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = {
                     scope.launch {
@@ -521,17 +521,17 @@ fun SteamWorkshopManagerSheet(
 
                     if (workshopItems.isEmpty()) {
                         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Icon(Icons.Filled.FolderZip, null, tint = Color(0xFF555555), modifier = Modifier.size(40.dp))
+                            Icon(Icons.Filled.FolderZip, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(40.dp))
                             Spacer(Modifier.height(8.dp))
-                            Text(stringResource(R.string.steam_library_workshop_empty), color = Color(0xFF888888))
+                            Text(stringResource(R.string.steam_library_workshop_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(4.dp))
-                            Text("Subscribe to items in Steam to see them here", color = Color(0xFF555555), fontSize = 12.sp)
+                            Text("Subscribe to items in Steam to see them here", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 12.sp)
                         }
                     } else {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${visibleItems.size} items", color = Color(0xFFAAAAAA), fontSize = 13.sp)
+                            Text("${visibleItems.size} items", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                             Spacer(Modifier.weight(1f))
-                            Text("$selectedCount selected", color = Color(0xFFAAAAAA), fontSize = 13.sp)
+                            Text("$selectedCount selected", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         }
 
                         LazyColumn(
@@ -543,7 +543,7 @@ fun SteamWorkshopManagerSheet(
 
                                 Card(
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1D27)),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth().padding(10.dp),
@@ -551,7 +551,7 @@ fun SteamWorkshopManagerSheet(
                                     ) {
                                         // Preview image
                                         Box(
-                                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF2A2D37)),
+                                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
                                             contentAlignment = Alignment.Center,
                                         ) {
                                             if (item.previewUrl.isNotBlank()) {
@@ -562,25 +562,25 @@ fun SteamWorkshopManagerSheet(
                                                     contentScale = ContentScale.Crop,
                                                 )
                                             } else {
-                                                Icon(Icons.Filled.FolderZip, null, tint = Color(0xFF555555), modifier = Modifier.size(24.dp))
+                                                Icon(Icons.Filled.FolderZip, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
                                             }
                                         }
 
                                         Spacer(Modifier.width(10.dp))
 
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Text(item.title.ifEmpty { "Item ${item.publishedFileId}" }, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                            Text(item.title.ifEmpty { "Item ${item.publishedFileId}" }, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                             Spacer(Modifier.height(2.dp))
                                             if (item.fileSizeBytes > 0L) {
-                                                Text(formatBinarySize(item.fileSizeBytes), color = Color(0xFF888888), fontSize = 11.sp)
+                                                Text(formatBinarySize(item.fileSizeBytes), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                                             }
-                                            Text("ID: ${item.publishedFileId}", color = Color(0xFF555555), fontSize = 10.sp)
+                                            Text("ID: ${item.publishedFileId}", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 10.sp)
                                         }
 
                                         Checkbox(
                                             checked = isChecked,
                                             onCheckedChange = { selectedIds[item.publishedFileId] = it },
-                                            colors = CheckboxDefaults.colors(checkedColor = Color(0xFF66C0F4), uncheckedColor = Color(0xFF555555)),
+                                            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary, uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant),
                                         )
                                     }
                                 }
@@ -594,7 +594,7 @@ fun SteamWorkshopManagerSheet(
                         },
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         enabled = selectedCount > 0,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF66C0F4)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     ) {
                         Text(stringResource(R.string.steam_library_apply_and_sync), fontWeight = FontWeight.Bold)
                     }
@@ -667,14 +667,17 @@ private fun SteamFullscreenSheet(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0E131B)),
+                .background(MaterialTheme.colorScheme.background),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color(0xFF111722), Color(0xFF0C1016)),
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                MaterialTheme.colorScheme.background,
+                            ),
                         ),
                     )
                     .windowInsetsPadding(WindowInsets.systemBars)
@@ -698,7 +701,7 @@ private fun SteamFullscreenSheet(
                         )
                         Text(
                             text = subtitle,
-                            color = Color(0xFF8FA4BF),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -708,14 +711,14 @@ private fun SteamFullscreenSheet(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF151D29))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable(onClick = onDismiss),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Filled.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
                     }
                 }
-                HorizontalDivider(color = Color(0xFF223654))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -736,7 +739,7 @@ private fun SteamCenteredState(text: String, modifier: Modifier = Modifier) {
     ) {
         Text(
             text = text,
-            color = Color(0xFFB8C6D9),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.titleMedium,
         )
     }
@@ -746,7 +749,7 @@ private fun SteamCenteredState(text: String, modifier: Modifier = Modifier) {
 private fun SteamInfoBanner(title: String, body: String) {
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF131B27)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -754,13 +757,13 @@ private fun SteamInfoBanner(title: String, body: String) {
         ) {
             Text(
                 text = title.uppercase(),
-                color = Color(0xFF7F94B0),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 text = body,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyLarge,
             )
         }
@@ -778,7 +781,7 @@ private fun SteamSelectableRow(
     Card(
         modifier = Modifier.fillMaxWidth().clickable(enabled = enabled) { onCheckedChange(!checked) },
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF131B27)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -791,13 +794,13 @@ private fun SteamSelectableRow(
             ) {
                 Text(
                     text = title,
-                    color = if (enabled) Color.White else Color(0xFF90A0B8),
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = subtitle,
-                    color = Color(0xFF90A0B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -815,7 +818,7 @@ private fun SteamWorkshopRow(
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) },
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF131B27)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -826,7 +829,7 @@ private fun SteamWorkshopRow(
                 modifier = Modifier
                     .size(58.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF1A2432)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
                 contentAlignment = Alignment.Center,
             ) {
                 if (item.previewUrl.isNotBlank()) {
@@ -839,7 +842,7 @@ private fun SteamWorkshopRow(
                 } else {
                     Text(
                         text = item.title.take(1).uppercase(),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
@@ -851,7 +854,7 @@ private fun SteamWorkshopRow(
             ) {
                 Text(
                     text = item.title,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
@@ -859,7 +862,7 @@ private fun SteamWorkshopRow(
                 )
                 Text(
                     text = formatBinarySize(item.fileSizeBytes),
-                    color = Color(0xFF8FA4BF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -878,7 +881,7 @@ private fun SteamBranchRow(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) Color(0xFF14304A) else Color(0xFF131B27),
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         ),
     ) {
         Row(
@@ -888,7 +891,7 @@ private fun SteamBranchRow(
         ) {
             Text(
                 text = branch,
-                color = Color.White,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
