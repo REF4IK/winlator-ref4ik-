@@ -20,3 +20,10 @@ build-android/
 
 # pe-parse is a Windows-only PE parser dependency, not used on Android
 /thirdparty/pe-parse
+
+# toml11 tests / tools (not needed for build)
+/thirdparty/toml11/tests
+/thirdparty/toml11/tools
+
+# volk source library — we use system Vulkan headers, not volk
+/thirdparty/volk
