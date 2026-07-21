@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
@@ -21,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
+import com.winlator.cmod.container.Container
+import com.winlator.cmod.core.LsfgVkManager
 import com.winlator.cmod.ui.screens.FpsCounterSettingsDialog
 import com.winlator.cmod.ui.screens.ActiveWindowsDialogCompose
 import com.winlator.cmod.ui.screens.ScreenEffectDialogCompose
@@ -100,6 +103,11 @@ fun XServerMenuOverlay(
     var showScreenEffectDialog by remember { mutableStateOf(false) }
     var showFrameGenDialog by remember { mutableStateOf(false) }
     var showInputControlsDialog by remember { mutableStateOf(false) }
+
+    // LSFG status
+    val container = remember { activity.getContainer() }
+    val lsfgStatus = remember(container) { if (container != null) LsfgVkManager.getStatus(activity, container) else "no_container" }
+    val lsfgActive = lsfgStatus == "armed"
 
     // List of menu items to render
     data class XMenuItem(
@@ -213,8 +221,18 @@ fun XServerMenuOverlay(
                                     text = title,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f),
                                 )
+                                // LSFG status dot — only visible when active
+                                if (item.id == R.id.main_menu_frame_generation && lsfgActive) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(Color(0xFF4CAF50))
+                                    )
+                                }
                             }
                         }
                     }

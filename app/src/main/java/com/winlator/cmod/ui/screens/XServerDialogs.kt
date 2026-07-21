@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.core.MmkvPreferences
@@ -730,33 +731,127 @@ fun FrameGenerationDialogCompose(
     var performanceMode by remember { mutableStateOf(LsfgVkManager.performanceMode(container)) }
     var presentMode by remember { mutableStateOf(LsfgVkManager.presentMode(container)) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(painterResource(R.drawable.icon_screen_effect), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.lsfg_title))
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                Text(stringResource(R.string.lsfg_description), style = MaterialTheme.typography.bodyMedium)
+    // Status indicators
+    val lsfgStatus = remember { LsfgVkManager.getStatus(activity, container) }
+    val dllSource = remember { LsfgVkManager.getDllSource(activity, container) }
+    val isActive = lsfgStatus == "armed"
 
-                Column {
-                    Text(stringResource(R.string.lsfg_multiplier), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        listOf(0, 2, 3, 4).forEach { valTag ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.clickable { multiplier = valTag }.padding(vertical = 4.dp)
-                            ) {
-                                RadioButton(selected = multiplier == valTag, onClick = { multiplier = valTag })
-                                Text(if (valTag == 0) "Off" else "${valTag}x")
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true, dismissOnClickOutside = true),
+    ) {
+        Card(
+            modifier = Modifier
+                .widthIn(max = 500.dp)
+                .fillMaxWidth(0.92f)
+                .fillMaxHeight(1.0f)
+                .padding(horizontal = 8.dp, vertical = 0.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.icon_screen_effect), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.lsfg_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(20.dp))
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+
+                // Scrollable content
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    // ─── Status indicator ────────────────────────────
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isActive) Color(0xFF1B5E20).copy(alpha = 0.15f)
+                                             else Color(0xFFB71C1C).copy(alpha = 0.1f)
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier.size(12.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(if (isActive) Color(0xFF4CAF50) else Color(0xFFE53935))
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (isActive) "Frame Generation Active"
+                                           else when (lsfgStatus) {
+                                               "no_dll" -> "No Lossless.dll"
+                                               "disabled" -> "Disabled"
+                                               "no_layer" -> "Not installed"
+                                               else -> "Not available"
+                                           },
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = if (isActive) Color(0xFF4CAF50) else Color(0xFFE53935),
+                                )
+                                Text(
+                                    text = when (dllSource) {
+                                        "steam" -> "DLL: Steam (Lossless Scaling)"
+                                        "global" -> "DLL: Global import"
+                                        "bundled" -> "DLL: Bundled"
+                                        else -> if (isActive) "Multiplier: ${multiplier}x" else "Ready to configure"
+                                    },
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (isActive) {
+                                Text("${multiplier}x", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF4CAF50))
                             }
                         }
                     }
-                }
+                    HorizontalDivider()
+
+                    Text(stringResource(R.string.lsfg_description), style = MaterialTheme.typography.bodyMedium)
+
+                    Column {
+                        Text(stringResource(R.string.lsfg_multiplier), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            listOf(0, 2, 3, 4).forEach { valTag ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { multiplier = valTag }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    RadioButton(selected = multiplier == valTag, onClick = null)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(if (valTag == 0) "Off" else "${valTag}x")
+                                }
+                            }
+                        }
+                    }
 
                 Column {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -791,34 +886,48 @@ fun FrameGenerationDialogCompose(
                     }
                 )
             }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val enabled = multiplier > 0
-                LsfgQuickMenuHelper.applySettings(
-                    container,
-                    LsfgQuickMenuHelper.Settings(
-                        multiplier,
-                        flowScale,
-                        performanceMode,
-                        false,
-                        presentMode,
-                        false
-                    )
-                )
-                if (enabled) {
-                    LsfgVkManager.ensureRuntimeInstalled(activity, container)
-                    LsfgVkManager.writeConfig(container)
+
+            // Bottom buttons
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onDismiss, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                    Text(stringResource(R.string.cancel), fontWeight = FontWeight.Medium)
                 }
-                val msg = ctx.getString(R.string.lsfg_applied, if (enabled) "${multiplier}x" else "Off")
-                Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
-                onDismiss()
-            }) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        val enabled = multiplier > 0
+                        LsfgQuickMenuHelper.applySettings(
+                            container,
+                            LsfgQuickMenuHelper.Settings(
+                                multiplier,
+                                flowScale,
+                                performanceMode,
+                                false,
+                                presentMode,
+                                false
+                            )
+                        )
+                        if (enabled) {
+                            LsfgVkManager.ensureRuntimeInstalled(activity, container)
+                            LsfgVkManager.writeConfig(container)
+                        }
+                        val msg = ctx.getString(R.string.lsfg_applied, if (enabled) "${multiplier}x" else "Off")
+                        Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+                        onDismiss()
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp),
+                ) { Text(stringResource(R.string.ok), fontWeight = FontWeight.Bold) }
+            }
         }
-    )
+    }
+}
 }
 
 @Composable

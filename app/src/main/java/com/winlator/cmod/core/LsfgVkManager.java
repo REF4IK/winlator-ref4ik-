@@ -138,6 +138,29 @@ public abstract class LsfgVkManager {
         return container != null && parseBool(container.getExtra(EXTRA_NO_FP16, "false"));
     }
 
+    /** @return "armed", "no_dll", "disabled", or "no_layer" */
+    public static String getStatus(Context context, Container container) {
+        if (container == null || container.getRootDir() == null) return "no_container";
+        File layerDir = new File(container.getRootDir(), LAYER_RELATIVE_DIR);
+        File manifestFile = new File(layerDir, MANIFEST_FILENAME);
+        if (!manifestFile.isFile()) return "no_layer";
+        if (!isEnabled(container)) return "disabled";
+        boolean dllOk = containerDllPath(container) != null || isDllAvailable()
+                        || isGlobalDllAvailable(context) || isBundledDllAvailable(context);
+        if (!dllOk) return "no_dll";
+        return "armed";
+    }
+
+    /** @return "steam", "global", "bundled", "none" */
+    public static String getDllSource(Context context, Container container) {
+        if (containerDllPath(container) != null) {
+            if (findSteamDll() != null) return "steam";
+            if (globalDllFile(context) != null && globalDllFile(context).isFile()) return "global";
+            return "bundled";
+        }
+        return "none";
+    }
+
     public static String sanitizePresentMode(String raw) {
         if (raw == null) return DEFAULT_PRESENT_MODE;
         String value = raw.trim().toLowerCase(Locale.US);

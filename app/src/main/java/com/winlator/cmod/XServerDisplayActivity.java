@@ -2590,169 +2590,105 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
+        android.widget.LinearLayout.LayoutParams verticalSpacingParams = new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        int bottomMargin = (int)(12 * getResources().getDisplayMetrics().density);
+        verticalSpacingParams.setMargins(0, 0, 0, bottomMargin);
+
         TextView description = new TextView(this);
-
         description.setText(getString(R.string.lsfg_description));
-
-        layout.addView(description);
-
-
+        layout.addView(description, verticalSpacingParams);
 
         android.widget.RadioGroup multiplierGroup = new android.widget.RadioGroup(this);
-
         multiplierGroup.setOrientation(android.widget.RadioGroup.HORIZONTAL);
-
         int[] multiplierValues = {0, 2, 3, 4};
-
+        int rightMargin = (int)(16 * getResources().getDisplayMetrics().density);
         for (int value : multiplierValues) {
-
             android.widget.RadioButton radioButton = new android.widget.RadioButton(this);
-
             radioButton.setId(View.generateViewId());
-
             radioButton.setTag(value);
-
             radioButton.setText(value == 0 ? "Off" : value + "x");
-
             radioButton.setChecked(selectedMultiplier[0] == value || (value == 0 && selectedMultiplier[0] < 2));
-
+            
+            android.widget.RadioGroup.LayoutParams radioParams = new android.widget.RadioGroup.LayoutParams(
+                android.widget.RadioGroup.LayoutParams.WRAP_CONTENT,
+                android.widget.RadioGroup.LayoutParams.WRAP_CONTENT
+            );
+            radioParams.setMargins(0, 0, rightMargin, 0);
+            radioButton.setLayoutParams(radioParams);
+            
             multiplierGroup.addView(radioButton);
-
         }
-
         multiplierGroup.setOnCheckedChangeListener((group, checkedId) -> {
-
             View checked = group.findViewById(checkedId);
-
             if (checked != null && checked.getTag() instanceof Integer) {
-
                 selectedMultiplier[0] = (Integer)checked.getTag();
-
             }
-
         });
-
-        layout.addView(multiplierGroup);
-
-
+        layout.addView(multiplierGroup, verticalSpacingParams);
 
         TextView flowLabel = new TextView(this);
-
         flowLabel.setPadding(0, padding, 0, 0);
-
         flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", selectedFlowScale[0]));
-
         layout.addView(flowLabel);
 
-
-
         android.widget.SeekBar flowScaleSeekBar = new android.widget.SeekBar(this);
-
         flowScaleSeekBar.setMax(15);
-
         flowScaleSeekBar.setProgress(Math.round((selectedFlowScale[0] - 0.25f) / 0.05f));
-
         flowScaleSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
-
             @Override
-
             public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
-
                 selectedFlowScale[0] = Math.max(0.25f, Math.min(1.0f, 0.25f + progress * 0.05f));
-
                 flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", selectedFlowScale[0]));
-
             }
 
-
-
             @Override
-
             public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
 
-
-
             @Override
-
             public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
-
         });
-
-        layout.addView(flowScaleSeekBar);
-
-
+        layout.addView(flowScaleSeekBar, verticalSpacingParams);
 
         CheckBox performanceModeCheckBox = new CheckBox(this);
-
         performanceModeCheckBox.setText(getString(R.string.lsfg_performance_mode));
-
         performanceModeCheckBox.setChecked(selectedPerformanceMode[0]);
-
         performanceModeCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> selectedPerformanceMode[0] = isChecked);
-
-        layout.addView(performanceModeCheckBox);
-
-
+        layout.addView(performanceModeCheckBox, verticalSpacingParams);
 
         final String[] PRESENT_MODE_BY_INDEX = {
-
                 LsfgVkManager.PRESENT_MODE_FIFO,
-
                 LsfgVkManager.PRESENT_MODE_MAILBOX,
-
                 LsfgVkManager.PRESENT_MODE_IMMEDIATE
-
         };
-
         // Present mode (Vulkan swapchain mode). fifo = v-sync, mailbox = low-latency, immediate = no v-sync.
-
         TextView presentModeLabel = new TextView(this);
-
         presentModeLabel.setPadding(0, padding, 0, 0);
-
         presentModeLabel.setText("Present mode (Vulkan)");
-
         layout.addView(presentModeLabel);
 
-
-
         final String[] presentModeLabels = {"FIFO (v-sync)", "Mailbox (low latency)", "Immediate (no v-sync)"};
-
         android.widget.Spinner presentModeSpinner = new android.widget.Spinner(this);
-
         android.widget.ArrayAdapter<String> presentModeAdapter = new android.widget.ArrayAdapter<>(
-
                 this, android.R.layout.simple_spinner_item, presentModeLabels);
-
         presentModeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
         presentModeSpinner.setAdapter(presentModeAdapter);
-
         int currentPresentIdx = 0;
-
         if (LsfgVkManager.PRESENT_MODE_MAILBOX.equals(selectedPresentMode[0])) currentPresentIdx = 1;
-
         else if (LsfgVkManager.PRESENT_MODE_IMMEDIATE.equals(selectedPresentMode[0])) currentPresentIdx = 2;
-
         presentModeSpinner.setSelection(currentPresentIdx);
-
         presentModeSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-
             @Override
-
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-
                 selectedPresentMode[0] = PRESENT_MODE_BY_INDEX[Math.max(0, Math.min(2, position))];
-
             }
 
             @Override
-
             public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-
         });
-
-        layout.addView(presentModeSpinner);
+        layout.addView(presentModeSpinner, verticalSpacingParams);
 
 
 
