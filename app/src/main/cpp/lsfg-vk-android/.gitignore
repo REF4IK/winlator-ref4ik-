@@ -1,0 +1,22 @@
+# cmake files
+/build
+
+# cargo files
+/ui/target
+
+# ide/lsp files
+/.zed
+/.vscode
+/.clangd
+/.cache
+/.ccls
+
+build-android/
+
+# CI / issue templates / funding (not needed in fork)
+/.github
+/.gitmodules
+/scripts
+
+# pe-parse is a Windows-only PE parser dependency, not used on Android
+/thirdparty/pe-parse

@@ -1,0 +1,9 @@
+# cmake files
+/build
+
+# ide/lsp files
+/.zed
+/.vscode
+/.clangd
+/.cache
+/.ccls
