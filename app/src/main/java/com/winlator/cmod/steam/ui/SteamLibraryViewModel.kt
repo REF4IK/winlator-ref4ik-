@@ -53,6 +53,7 @@ data class SteamLibraryGameUi(
     val name: String,
     val subtitle: String,
     val appType: AppType,
+    /** The 460x215 header art — the shape every library tile is built around. */
     val capsuleUrl: String,
     val heroUrl: String,
     val logoUrl: String,

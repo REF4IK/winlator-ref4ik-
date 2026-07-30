@@ -1028,6 +1028,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                     maybeBindSteamCloudSync(shortcut);
 
+                    // Restore per-game runtime settings (FPS counter, input controls, etc.)
+
+                    loadRuntimeSettingsFromShortcut();
+
                 } else {
 
                     Log.d("XServerDisplayActivity", "Shortcut is NULL after creation");
@@ -2038,6 +2042,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
     private void exit() {
+        // Save per-game runtime settings before exit
+        saveRuntimeSettingsToShortcut();
 
         if (xServerView != null) {
             xServerView.getRenderer().forceCleanup();
@@ -2059,8 +2065,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (wineRequestHandler != null) wineRequestHandler.stop();
 
         /* Gracefully terminate all running wine processes */
-
-        ProcessHelper.terminateAllWineProcesses();
 
         /* Wait until all processes have gracefully terminated, forcefully killing them only after a certain amount of time */
 
@@ -2096,6 +2100,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     protected void onDestroy() {
 
+        // Save per-game runtime settings before destroy
+
+        saveRuntimeSettingsToShortcut();
+
         savePlaytimeData(); // Save on destroy
 
         handler.removeCallbacks(savePlaytimeRunnable);
@@ -2118,7 +2126,158 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     }
 
+    /**
+     * Saves current runtime settings (FPS counter, input controls, screen effects)
+     * back to the shortcut or container so they persist per-game across sessions.
+     */
+    private void saveRuntimeSettingsToShortcut() {
+        if (shortcut == null && container == null) return;
+        try {
+            JSONObject settings = new JSONObject();
 
+            // --- FPS Counter settings ---
+            JSONObject fps = new JSONObject();
+            fps.put("enabled", fpsCounterConfig.isEnabled());
+            fps.put("show_fps", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.FPS));
+            fps.put("show_ram", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.RAM));
+            fps.put("show_gpu", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.GPU));
+            fps.put("show_gpu_load", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.GPU_LOAD));
+            fps.put("show_gpu_temp", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.GPU_TEMP));
+            fps.put("show_frame_time_graph", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.FRAME_TIME_GRAPH));
+            fps.put("show_renderer", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.RENDERER));
+            fps.put("show_cpu_load", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.CPU_LOAD));
+            fps.put("show_cpu_temp", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.CPU_TEMP));
+            fps.put("show_battery_temp", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.BATTERY_TEMP));
+            fps.put("show_battery_voltage", fpsCounterConfig.isModuleVisible(FpsCounterConfig.Module.BATTERY_VOLTAGE));
+            fps.put("horizontal_layout", fpsCounterConfig.isHorizontalLayout());
+            fps.put("background_opacity", fpsCounterConfig.getBackgroundOpacity());
+            fps.put("scale", fpsCounterConfig.getCounterScale());
+            fps.put("fps_limit", fpsCounterConfig.getFpsLimit());
+            fps.put("style", fpsCounterConfig.getCounterStyle());
+            fps.put("white_fonts", fpsCounterConfig.isWhiteFonts());
+            settings.put("fps_counter", fps);
+
+            // --- Input controls settings ---
+            JSONObject input = new JSONObject();
+            input.put("show_touchscreen_controls", inputControlsView != null && inputControlsView.isShowTouchscreenControls());
+            input.put("touchscreen_timeout_enabled", preferences.getBoolean("touchscreen_timeout_enabled", false));
+            input.put("touchscreen_haptics_enabled", preferences.getBoolean("touchscreen_haptics_enabled", false));
+            input.put("gyro_enabled", preferences.getBoolean("gyro_enabled", false));
+            input.put("gyro_sensitivity", preferences.getFloat("gyro_sensitivity", 1.0f));
+            input.put("quick_access_panel_enabled", preferences.getBoolean("quick_access_panel_enabled", false));
+            input.put("relative_mouse_movement", preferences.getBoolean("relative_mouse_movement", false));
+            if (inputControlsView != null && inputControlsView.getProfile() != null) {
+                input.put("controls_profile_id", inputControlsView.getProfile().id);
+            }
+            settings.put("input_controls", input);
+
+            // --- Screen effects settings ---
+            JSONObject effects = new JSONObject();
+            effects.put("sharpen", preferences.getBoolean("effect_sharpen", false));
+            settings.put("screen_effects", effects);
+
+            String json = settings.toString();
+            String name;
+            if (shortcut != null) {
+                shortcut.putExtra("runtimeSettings", json);
+                shortcut.saveData();
+                name = shortcut.name;
+            } else {
+                container.putExtra("runtimeSettings", json);
+                container.saveData();
+                name = container.getName();
+            }
+            Log.d("XServerDisplayActivity", "Runtime settings saved: " + name);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to save runtime settings", e);
+        }
+    }
+
+    /**
+     * Restores previously saved runtime settings from the shortcut or container
+     * and applies them to the global preference stores so they take effect.
+     */
+    private void loadRuntimeSettingsFromShortcut() {
+        if (shortcut == null && container == null) return;
+        try {
+            String json;
+            String name;
+            if (shortcut != null) {
+                json = shortcut.getExtra("runtimeSettings");
+                name = shortcut.name;
+            } else {
+                json = container.getExtra("runtimeSettings");
+                name = container.getName();
+            }
+            if (json == null || json.isEmpty()) return;
+
+            JSONObject settings = new JSONObject(json);
+            Log.d("XServerDisplayActivity", "Restoring runtime settings: " + name);
+
+            // --- Restore FPS Counter settings ---
+            if (settings.has("fps_counter")) {
+                JSONObject fps = settings.getJSONObject("fps_counter");
+                if (fps.has("enabled")) fpsCounterConfig.setEnabled(fps.getBoolean("enabled"));
+                if (fps.has("show_fps")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.FPS, fps.getBoolean("show_fps"));
+                if (fps.has("show_ram")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.RAM, fps.getBoolean("show_ram"));
+                if (fps.has("show_gpu")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.GPU, fps.getBoolean("show_gpu"));
+                if (fps.has("show_gpu_load")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.GPU_LOAD, fps.getBoolean("show_gpu_load"));
+                if (fps.has("show_gpu_temp")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.GPU_TEMP, fps.getBoolean("show_gpu_temp"));
+                if (fps.has("show_frame_time_graph")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.FRAME_TIME_GRAPH, fps.getBoolean("show_frame_time_graph"));
+                if (fps.has("show_renderer")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.RENDERER, fps.getBoolean("show_renderer"));
+                if (fps.has("show_cpu_load")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.CPU_LOAD, fps.getBoolean("show_cpu_load"));
+                if (fps.has("show_cpu_temp")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.CPU_TEMP, fps.getBoolean("show_cpu_temp"));
+                if (fps.has("show_battery_temp")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.BATTERY_TEMP, fps.getBoolean("show_battery_temp"));
+                if (fps.has("show_battery_voltage")) fpsCounterConfig.setModuleVisible(FpsCounterConfig.Module.BATTERY_VOLTAGE, fps.getBoolean("show_battery_voltage"));
+                if (fps.has("horizontal_layout")) fpsCounterConfig.setHorizontalLayout(fps.getBoolean("horizontal_layout"));
+                if (fps.has("background_opacity")) fpsCounterConfig.setBackgroundOpacity(fps.getInt("background_opacity"));
+                if (fps.has("scale")) fpsCounterConfig.setCounterScale(fps.getInt("scale"));
+                if (fps.has("fps_limit")) fpsCounterConfig.setFpsLimit(fps.getInt("fps_limit"));
+                if (fps.has("style")) fpsCounterConfig.setCounterStyle(fps.getInt("style"));
+                if (fps.has("white_fonts")) fpsCounterConfig.setWhiteFonts(fps.getBoolean("white_fonts"));
+            }
+
+            // --- Restore Input controls settings ---
+            if (settings.has("input_controls")) {
+                JSONObject input = settings.getJSONObject("input_controls");
+                SharedPreferences.Editor editor = preferences.edit();
+                if (input.has("show_touchscreen_controls")) {
+                    editor.putBoolean("show_touchscreen_controls_enabled", input.getBoolean("show_touchscreen_controls"));
+                }
+                if (input.has("touchscreen_timeout_enabled")) {
+                    editor.putBoolean("touchscreen_timeout_enabled", input.getBoolean("touchscreen_timeout_enabled"));
+                }
+                if (input.has("touchscreen_haptics_enabled")) {
+                    editor.putBoolean("touchscreen_haptics_enabled", input.getBoolean("touchscreen_haptics_enabled"));
+                }
+                if (input.has("gyro_enabled")) {
+                    editor.putBoolean("gyro_enabled", input.getBoolean("gyro_enabled"));
+                }
+                if (input.has("gyro_sensitivity")) {
+                    editor.putFloat("gyro_sensitivity", (float) input.getDouble("gyro_sensitivity"));
+                }
+                if (input.has("quick_access_panel_enabled")) {
+                    editor.putBoolean("quick_access_panel_enabled", input.getBoolean("quick_access_panel_enabled"));
+                }
+                if (input.has("relative_mouse_movement")) {
+                    editor.putBoolean("relative_mouse_movement", input.getBoolean("relative_mouse_movement"));
+                }
+                editor.apply();
+            }
+
+            // --- Restore Screen effects ---
+            if (settings.has("screen_effects")) {
+                JSONObject effects = settings.getJSONObject("screen_effects");
+                if (effects.has("sharpen")) {
+                    preferences.edit().putBoolean("effect_sharpen", effects.getBoolean("sharpen")).apply();
+                }
+            }
+
+            Log.d("XServerDisplayActivity", "Runtime settings restored: " + name);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to restore runtime settings", e);
+        }
+    }
 
     @Override
 
@@ -2590,105 +2749,169 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        android.widget.LinearLayout.LayoutParams verticalSpacingParams = new android.widget.LinearLayout.LayoutParams(
-            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        int bottomMargin = (int)(12 * getResources().getDisplayMetrics().density);
-        verticalSpacingParams.setMargins(0, 0, 0, bottomMargin);
-
         TextView description = new TextView(this);
+
         description.setText(getString(R.string.lsfg_description));
-        layout.addView(description, verticalSpacingParams);
+
+        layout.addView(description);
+
+
 
         android.widget.RadioGroup multiplierGroup = new android.widget.RadioGroup(this);
+
         multiplierGroup.setOrientation(android.widget.RadioGroup.HORIZONTAL);
+
         int[] multiplierValues = {0, 2, 3, 4};
-        int rightMargin = (int)(16 * getResources().getDisplayMetrics().density);
+
         for (int value : multiplierValues) {
+
             android.widget.RadioButton radioButton = new android.widget.RadioButton(this);
+
             radioButton.setId(View.generateViewId());
+
             radioButton.setTag(value);
+
             radioButton.setText(value == 0 ? "Off" : value + "x");
+
             radioButton.setChecked(selectedMultiplier[0] == value || (value == 0 && selectedMultiplier[0] < 2));
-            
-            android.widget.RadioGroup.LayoutParams radioParams = new android.widget.RadioGroup.LayoutParams(
-                android.widget.RadioGroup.LayoutParams.WRAP_CONTENT,
-                android.widget.RadioGroup.LayoutParams.WRAP_CONTENT
-            );
-            radioParams.setMargins(0, 0, rightMargin, 0);
-            radioButton.setLayoutParams(radioParams);
-            
+
             multiplierGroup.addView(radioButton);
+
         }
+
         multiplierGroup.setOnCheckedChangeListener((group, checkedId) -> {
+
             View checked = group.findViewById(checkedId);
+
             if (checked != null && checked.getTag() instanceof Integer) {
+
                 selectedMultiplier[0] = (Integer)checked.getTag();
+
             }
+
         });
-        layout.addView(multiplierGroup, verticalSpacingParams);
+
+        layout.addView(multiplierGroup);
+
+
 
         TextView flowLabel = new TextView(this);
+
         flowLabel.setPadding(0, padding, 0, 0);
+
         flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", selectedFlowScale[0]));
+
         layout.addView(flowLabel);
 
+
+
         android.widget.SeekBar flowScaleSeekBar = new android.widget.SeekBar(this);
+
         flowScaleSeekBar.setMax(15);
+
         flowScaleSeekBar.setProgress(Math.round((selectedFlowScale[0] - 0.25f) / 0.05f));
+
         flowScaleSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
-                selectedFlowScale[0] = Math.max(0.25f, Math.min(1.0f, 0.25f + progress * 0.05f));
-                flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", selectedFlowScale[0]));
-            }
 
             @Override
+
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+
+                selectedFlowScale[0] = Math.max(0.25f, Math.min(1.0f, 0.25f + progress * 0.05f));
+
+                flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", selectedFlowScale[0]));
+
+            }
+
+
+
+            @Override
+
             public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
 
+
+
             @Override
+
             public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
+
         });
-        layout.addView(flowScaleSeekBar, verticalSpacingParams);
+
+        layout.addView(flowScaleSeekBar);
+
+
 
         CheckBox performanceModeCheckBox = new CheckBox(this);
+
         performanceModeCheckBox.setText(getString(R.string.lsfg_performance_mode));
+
         performanceModeCheckBox.setChecked(selectedPerformanceMode[0]);
+
         performanceModeCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> selectedPerformanceMode[0] = isChecked);
-        layout.addView(performanceModeCheckBox, verticalSpacingParams);
+
+        layout.addView(performanceModeCheckBox);
+
+
 
         final String[] PRESENT_MODE_BY_INDEX = {
+
                 LsfgVkManager.PRESENT_MODE_FIFO,
+
                 LsfgVkManager.PRESENT_MODE_MAILBOX,
+
                 LsfgVkManager.PRESENT_MODE_IMMEDIATE
+
         };
+
         // Present mode (Vulkan swapchain mode). fifo = v-sync, mailbox = low-latency, immediate = no v-sync.
+
         TextView presentModeLabel = new TextView(this);
+
         presentModeLabel.setPadding(0, padding, 0, 0);
+
         presentModeLabel.setText("Present mode (Vulkan)");
+
         layout.addView(presentModeLabel);
 
+
+
         final String[] presentModeLabels = {"FIFO (v-sync)", "Mailbox (low latency)", "Immediate (no v-sync)"};
+
         android.widget.Spinner presentModeSpinner = new android.widget.Spinner(this);
+
         android.widget.ArrayAdapter<String> presentModeAdapter = new android.widget.ArrayAdapter<>(
+
                 this, android.R.layout.simple_spinner_item, presentModeLabels);
+
         presentModeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
         presentModeSpinner.setAdapter(presentModeAdapter);
+
         int currentPresentIdx = 0;
+
         if (LsfgVkManager.PRESENT_MODE_MAILBOX.equals(selectedPresentMode[0])) currentPresentIdx = 1;
+
         else if (LsfgVkManager.PRESENT_MODE_IMMEDIATE.equals(selectedPresentMode[0])) currentPresentIdx = 2;
+
         presentModeSpinner.setSelection(currentPresentIdx);
+
         presentModeSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+
             @Override
+
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+
                 selectedPresentMode[0] = PRESENT_MODE_BY_INDEX[Math.max(0, Math.min(2, position))];
+
             }
 
             @Override
+
             public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+
         });
-        layout.addView(presentModeSpinner, verticalSpacingParams);
+
+        layout.addView(presentModeSpinner);
 
 
 

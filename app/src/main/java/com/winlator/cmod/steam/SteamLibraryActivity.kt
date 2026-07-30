@@ -11,7 +11,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.text.style.TextAlign
+import kotlin.math.absoluteValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -440,19 +452,27 @@ private fun SteamLibraryScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        // A single soft primary wash at the top, so the chrome sits on something
+        // with depth without tinting the artwork below it.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.09f),
+                            Color.Transparent,
+                        ),
                     ),
                 ),
-            ),
-    ) {
+        )
+
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SteamTopBar(
                 tab = tab,
@@ -700,11 +720,12 @@ private fun SteamLibraryScreen(
                     when (viewMode) {
                         SteamViewMode.GRID -> {
                             LazyVerticalGrid(
-                                columns = GridCells.Adaptive(152.dp),
+                                // Sized so the 460x215 header art stays legible.
+                                columns = GridCells.Adaptive(182.dp),
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 16.dp),
+                                contentPadding = PaddingValues(bottom = 20.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 items(visibleGames, key = { it.appId }) { game ->
                                     SteamGameCard(
@@ -807,43 +828,47 @@ private fun SteamTopBar(
     onViewModeChange: (SteamViewMode) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundActionButton(Icons.AutoMirrored.Filled.ArrowBack, onBack)
-            RoundActionButton(Icons.Filled.Refresh, onRefresh)
-        }
+        RoundActionButton(Icons.AutoMirrored.Filled.ArrowBack, onBack, size = 42)
 
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        // Segmented control — one track, a single moving selection.
+        Row(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                SteamTabButton(
-                    label = stringResource(R.string.steam_library_tab_downloads),
-                    selected = tab == SteamTab.DOWNLOADS,
-                    onClick = { onSelectTab(SteamTab.DOWNLOADS) },
-                )
-                SteamTabButton(
-                    label = if (steamCount > 0) {
-                        stringResource(R.string.steam_library_tab_steam_count, steamCount)
-                    } else {
-                        stringResource(R.string.steam_library_tab_steam)
-                    },
-                    selected = tab == SteamTab.STEAM,
-                    onClick = { onSelectTab(SteamTab.STEAM) },
-                )
-            }
+            SteamTabButton(
+                label = stringResource(R.string.steam_library_tab_downloads),
+                selected = tab == SteamTab.DOWNLOADS,
+                onClick = { onSelectTab(SteamTab.DOWNLOADS) },
+            )
+            SteamTabButton(
+                label = if (steamCount > 0) {
+                    stringResource(R.string.steam_library_tab_steam_count, steamCount)
+                } else {
+                    stringResource(R.string.steam_library_tab_steam)
+                },
+                selected = tab == SteamTab.STEAM,
+                onClick = { onSelectTab(SteamTab.STEAM) },
+            )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            // View mode toggle
-            if (tab == SteamTab.STEAM) {
+        Spacer(modifier = Modifier.weight(1f))
+
+        // View-mode switch, grouped on its own track so it reads as one control.
+        if (tab == SteamTab.STEAM) {
+            Row(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
                 SteamViewButton(
                     icon = Icons.Filled.GridView,
                     selected = viewMode == SteamViewMode.GRID,
@@ -860,9 +885,12 @@ private fun SteamTopBar(
                     onClick = { onViewModeChange(SteamViewMode.COMPACT) },
                 )
             }
-            RoundActionButton(Icons.Filled.Search, onSearchClick, enabled = canSearch)
-            RoundActionButton(Icons.Filled.Tune, onMenuClick)
+            Spacer(modifier = Modifier.width(2.dp))
         }
+
+        RoundActionButton(Icons.Filled.Search, onSearchClick, enabled = canSearch, size = 42)
+        RoundActionButton(Icons.Filled.Refresh, onRefresh, size = 42)
+        RoundActionButton(Icons.Filled.Tune, onMenuClick, size = 42)
     }
 }
 
@@ -873,241 +901,512 @@ private fun RoundActionButton(
     enabled: Boolean = true,
     size: Int = 48,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && enabled) 0.9f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "iconPress",
+    )
+
     Box(
         modifier = Modifier
+            .scale(scale)
             .size(size.dp)
             .clip(CircleShape)
-            .background(if (enabled) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .clickable(enabled = enabled, onClick = onClick),
+            .background(
+                if (enabled) {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                },
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             icon,
             contentDescription = null,
-            tint = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.size((size * 0.42f).dp),
+            tint = if (enabled) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            },
+            modifier = Modifier.size((size * 0.44f).dp),
         )
     }
 }
 
+/** A segment of the tab track: the selected one is a filled pill. */
 @Composable
 private fun SteamTabButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    val container by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "tabContainer",
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "tabContent",
+    )
+
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .clip(CircleShape)
+            .background(container)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 18.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-                Text(
-                    text = label,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.titleSmall,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+        Text(
+            text = label,
+            color = content,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
         )
     }
 }
 
 @Composable
 private fun SteamViewButton(icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, onClick: () -> Unit) {
+    val container by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "viewContainer",
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "viewContent",
+    )
+
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(container)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(18.dp))
     }
 }
 
+/** Error strip: an error-tinted rail plus the message, dismissible. */
 @Composable
 private fun SteamInlineMessage(title: String, body: String, onDismiss: () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f))
+            .padding(start = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(44.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.error),
+        )
+        Column(
+            modifier = Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Filled.Close, contentDescription = null)
-            }
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = body,
+                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        IconButton(onClick = onDismiss) {
+            Icon(
+                Icons.Filled.Close,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
 
+/**
+ * Empty state. Centred, narrow, with a soft primary halo behind the icon so the
+ * screen still feels composed rather than blank.
+ */
 @Composable
 private fun SteamPlaceholder(
     title: String,
     body: String,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.GridView,
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Card(
-            shape = RoundedCornerShape(30.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        Column(
+            modifier = Modifier.widthIn(max = 340.dp).padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Column(
-                modifier = Modifier.width(540.dp).padding(28.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (actionLabel != null && onAction != null) {
-                    Button(onClick = onAction) {
-                        Text(actionLabel)
-                    }
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = body,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+            )
+            if (actionLabel != null && onAction != null) {
+                Button(onClick = onAction, shape = CircleShape) {
+                    Text(actionLabel, fontWeight = FontWeight.Bold)
                 }
             }
         }
     }
 }
 
+/**
+ * Deterministic accent for a game, derived from its app id. Used to tint the
+ * fallback art so a library without capsule images still reads as a set of
+ * distinct titles rather than a wall of identical grey boxes.
+ */
+private fun steamAccentFor(appId: Int): Color {
+    val hues = listOf(202f, 258f, 292f, 338f, 16f, 42f, 92f, 160f)
+    return Color.hsl(hues[(appId.hashCode().absoluteValue) % hues.size], 0.42f, 0.34f)
+}
+
+/** First letters of the title — the fallback "cover" when no art exists. */
+private fun steamInitials(name: String): String =
+    name.split(' ', ':', '-')
+        .filter { it.isNotBlank() }
+        .take(2)
+        .map { it.first().uppercaseChar() }
+        .joinToString("")
+        .ifBlank { "?" }
+
+/**
+ * Cover art with a graceful fallback. Steam's `libraryCapsule` is a 2:3 poster,
+ * so it is shown uncropped; when it is missing we paint a tinted panel with the
+ * title's initials instead of leaving an empty rectangle.
+ */
 @Composable
-private fun SteamGameCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
+private fun SteamCoverArt(
+    game: SteamLibraryGameUi,
+    cacheKey: String,
+    targetSize: Pair<Int, Int>,
+    initialsStyle: androidx.compose.ui.text.TextStyle,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
-    val capsuleRequest = remember(game.appId, game.capsuleUrl) {
+    val accent = remember(game.appId) { steamAccentFor(game.appId) }
+    var artFailed by remember(game.appId, game.capsuleUrl) { mutableStateOf(false) }
+
+    val request = remember(game.appId, game.capsuleUrl, cacheKey) {
         ImageRequest.Builder(context)
             .data(game.capsuleUrl)
-            .crossfade(false)
-            .memoryCacheKey("steam-grid-${game.appId}")
+            .crossfade(180)
+            .memoryCacheKey("$cacheKey-${game.appId}")
             .diskCacheKey(game.capsuleUrl)
-            .size(480, 224)
+            .size(targetSize.first, targetSize.second)
             .build()
     }
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier.clickable(onClick = onClick),
-    ) {
-        Column {
-            Box(modifier = Modifier.fillMaxWidth().height(104.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
-                AsyncImage(
-                    model = capsuleRequest,
-                    contentDescription = game.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-                if (game.isDownloading || game.installed) {
-                    StatusBadge(
-                        text = if (game.isDownloading) game.statusLine else stringResource(R.string.steam_library_installed_badge),
-                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = game.name,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (game.isDownloading) {
-                    LinearProgressIndicator(
-                        progress = { game.downloadProgress },
-                        modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    )
-                }
-            }
-        }
-    }
-}
 
-@Composable
-private fun SteamGameListCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
-    val context = LocalContext.current
-    val capsuleRequest = remember(game.appId, game.capsuleUrl) {
-        ImageRequest.Builder(context)
-            .data(game.capsuleUrl)
-            .crossfade(false)
-            .memoryCacheKey("steam-list-${game.appId}")
-            .diskCacheKey(game.capsuleUrl)
-            .size(240, 112)
-            .build()
-    }
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    Box(
+        modifier = modifier.background(
+            Brush.linearGradient(listOf(accent, accent.copy(alpha = 0.55f))),
+        ),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(modifier = Modifier.fillMaxWidth().height(72.dp)) {
-            Box(modifier = Modifier.width(128.dp).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
-                AsyncImage(
-                    model = capsuleRequest,
-                    contentDescription = game.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f).fillMaxHeight().padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(game.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (game.subtitle.isNotBlank()) {
-                    Text(game.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                if (game.isDownloading) {
-                    Spacer(Modifier.height(4.dp))
-                    LinearProgressIndicator(progress = { game.downloadProgress }, modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape), color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                }
-            }
-            if (game.installed) {
-                Box(modifier = Modifier.padding(8.dp).align(Alignment.CenterVertically)) {
-                    StatusBadge(text = stringResource(R.string.steam_library_installed_badge))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SteamGameCompactCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
+        if (game.capsuleUrl.isBlank() || artFailed) {
+            Text(
+                text = steamInitials(game.name),
+                color = Color.White.copy(alpha = 0.92f),
+                style = initialsStyle,
+                fontWeight = FontWeight.Black,
+            )
+        } else {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(game.capsuleUrl)
-                    .crossfade(false)
-                    .memoryCacheKey("steam-compact-${game.appId}")
-                    .size(80, 80)
-                    .build(),
+                model = request,
                 contentDescription = game.name,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
+                onError = { artFailed = true },
             )
         }
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(game.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (game.subtitle.isNotBlank()) {
-                Text(game.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * Grid tile: a full-bleed 2:3 poster with the title laid over a scrim, an
+ * installed dot, and a progress bar pinned to the bottom edge while downloading.
+ */
+@Composable
+private fun SteamGameCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "cardPress",
+    )
+
+    Column(
+        modifier = Modifier
+            .scale(scale)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .then(
+                if (game.installed) {
+                    Modifier.border(
+                        1.5.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        RoundedCornerShape(14.dp),
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
+    ) {
+        // Steam header art is 460x215 — matching that ratio shows it uncropped.
+        Box(modifier = Modifier.fillMaxWidth().aspectRatio(460f / 215f)) {
+            SteamCoverArt(
+                game = game,
+                cacheKey = "steam-grid",
+                targetSize = 460 to 215,
+                initialsStyle = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+            if (game.isDownloading) {
+                // Progress hugs the bottom edge of the art, above the caption.
+                LinearProgressIndicator(
+                    progress = { game.downloadProgress },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.Black.copy(alpha = 0.45f),
+                )
+            }
+
+            if (game.installed && !game.isDownloading) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(7.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                )
             }
         }
-        if (game.installed) {
-            Text(stringResource(R.string.steam_library_installed_badge), color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp))
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = game.name,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (game.isDownloading) {
+                Text(
+                    text = game.statusLine,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            } else if (game.subtitle.isNotBlank()) {
+                Text(
+                    text = game.subtitle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
+    }
+}
+
+/**
+ * List row: a small 2:3 poster, the title with its developer line, and the
+ * install state carried by a slim accent rail down the leading edge.
+ */
+@Composable
+private fun SteamGameListCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val container by animateColorAsState(
+        targetValue = if (pressed) {
+            MaterialTheme.colorScheme.surfaceVariant
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        },
+        label = "rowPress",
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(container)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        SteamCoverArt(
+            game = game,
+            cacheKey = "steam-list",
+            targetSize = 230 to 108,
+            initialsStyle = MaterialTheme.typography.titleMedium,
+            modifier = Modifier
+                .width(96.dp)
+                .height(45.dp)
+                .clip(RoundedCornerShape(8.dp)),
+        )
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = game.name,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (game.subtitle.isNotBlank()) {
+                Text(
+                    text = game.subtitle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (game.isDownloading) {
+                Spacer(Modifier.height(3.dp))
+                LinearProgressIndicator(
+                    progress = { game.downloadProgress },
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                )
+            }
+        }
+
         if (game.isDownloading) {
-            Text(game.statusLine, color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp))
+            StatusBadge(text = game.statusLine, solid = true)
+        } else if (game.installed) {
+            StatusBadge(text = stringResource(R.string.steam_library_installed_badge))
+        }
+    }
+}
+
+/** Compact row: the densest view — thumbnail, title, and a state dot. */
+@Composable
+private fun SteamGameCompactCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        SteamCoverArt(
+            game = game,
+            cacheKey = "steam-compact",
+            targetSize = 138 to 64,
+            initialsStyle = MaterialTheme.typography.labelSmall,
+            modifier = Modifier
+                .width(58.dp)
+                .height(27.dp)
+                .clip(RoundedCornerShape(5.dp)),
+        )
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                text = game.name,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (game.subtitle.isNotBlank()) {
+                Text(
+                    text = game.subtitle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        when {
+            game.isDownloading -> Text(
+                text = "${(game.downloadProgress * 100f).toInt()}%",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            game.installed -> Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+            )
         }
     }
 }
@@ -1890,46 +2189,106 @@ private fun SteamGameOverlay(
 
 @Composable
 private fun DownloadProgressCard(game: SteamGameDetailUi, compactLayout: Boolean) {
-    Card(
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+    // The percentage is the headline here; the byte counts and rate sit under it
+    // as supporting figures rather than competing label/value pairs.
+    val percent = (game.downloadProgress.coerceIn(0f, 1f) * 100f)
+    val animatedProgress by animateFloatAsState(
+        targetValue = game.downloadProgress.coerceIn(0f, 1f),
+        animationSpec = tween(400),
+        label = "downloadProgress",
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    stringResource(R.string.steam_library_download_panel_title),
+                    text = "%.0f".format(percent),
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
                 )
-                StatusBadge(text = game.statusLine)
-            }
-            LinearProgressIndicator(
-                progress = { game.downloadProgress },
-                modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
-            DetailMiniLine(stringResource(R.string.steam_library_downloaded), buildProgressText(game.downloadedBytes, game.totalBytes))
-            DetailMiniLine(stringResource(R.string.steam_library_speed), formatSpeed(game.speedBytesPerSec))
-            DetailMiniLine(stringResource(R.string.steam_library_eta), formatEta(game.etaMs))
-            if (!game.currentFileName.isNullOrBlank()) {
                 Text(
-                    text = "${stringResource(R.string.steam_library_download_file_label)}: ${game.currentFileName}",
+                    text = "%",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 3.dp),
                 )
             }
+            StatusBadge(text = game.statusLine, solid = true)
         }
+
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            DownloadMetric(
+                label = stringResource(R.string.steam_library_downloaded),
+                value = buildProgressText(game.downloadedBytes, game.totalBytes),
+                modifier = Modifier.weight(1.4f),
+            )
+            DownloadMetric(
+                label = stringResource(R.string.steam_library_speed),
+                value = formatSpeed(game.speedBytesPerSec),
+                modifier = Modifier.weight(1f),
+            )
+            DownloadMetric(
+                label = stringResource(R.string.steam_library_eta),
+                value = formatEta(game.etaMs),
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        if (!game.currentFileName.isNullOrBlank()) {
+            Text(
+                text = game.currentFileName,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** One figure in the download readout: caption above, value below. */
+@Composable
+private fun DownloadMetric(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        Text(
+            text = label.uppercase(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -2060,25 +2419,52 @@ private fun ContainerDropdown(
     val selectedContainer = containers.firstOrNull { it.id == selectedContainerId }
 
     Box(modifier = modifier) {
-        OutlinedButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth().height(36.dp),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                .clickable { expanded = true }
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Filled.Storage, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                Icons.Filled.Storage,
+                contentDescription = null,
+                modifier = Modifier.size(15.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
             Text(
                 text = selectedContainer?.name ?: stringResource(R.string.steam_library_select_container),
                 color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                Icons.Filled.Tune,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             containers.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option.name) },
+                    trailingIcon = {
+                        if (option.id == selectedContainerId) {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    },
                     onClick = {
                         expanded = false
                         onSelectContainer(option.id)
@@ -2088,29 +2474,70 @@ private fun ContainerDropdown(
         }
     }
 }
+/**
+ * A pill carrying one piece of state. `solid` marks the active/primary case
+ * (downloading); the quiet variant is for settled states such as "installed".
+ */
 @Composable
 private fun StatusBadge(text: String, modifier: Modifier = Modifier, solid: Boolean = false) {
-    Box(
-        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(
-            if (solid) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        ).padding(horizontal = 7.dp, vertical = 3.dp),
+    val container = if (solid) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+    }
+    val content = if (solid) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Row(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(container)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
+        Box(
+            modifier = Modifier
+                .size(5.dp)
+                .clip(CircleShape)
+                .background(content.copy(alpha = if (solid) 0.9f else 0.7f)),
+        )
         Text(
             text = text,
-            color = if (solid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            color = content,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
         )
     }
 }
 
 @Composable
 private fun DetailInfoCard(title: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier, shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(title.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
-            Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        Text(
+            text = title.uppercase(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelSmall,
+        )
+        Text(
+            text = value,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -2122,6 +2549,10 @@ private fun DetailMiniLine(label: String, value: String) {
     }
 }
 
+/**
+ * One statistic: the icon sits in its own tinted chip so a row of these scans
+ * as a set of readings rather than a wall of small text.
+ */
 @Composable
 private fun CompactStatCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -2129,15 +2560,20 @@ private fun CompactStatCard(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            horizontalAlignment = Alignment.Start,
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
@@ -2145,6 +2581,11 @@ private fun CompactStatCard(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(14.dp),
             )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
             Text(
                 text = label.uppercase(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2165,6 +2606,7 @@ private fun CompactStatCard(
     }
 }
 
+/** The primary call to action — Play / Download. */
 @Composable
 private fun GradientButton(
     text: String,
@@ -2172,14 +2614,47 @@ private fun GradientButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "ctaPress",
+    )
+
     Box(
-        modifier = modifier.clip(RoundedCornerShape(10.dp)).background(
-            MaterialTheme.colorScheme.primary,
-        ).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 7.dp),
+        modifier = modifier
+            .scale(scale)
+            .clip(CircleShape)
+            .background(
+                Brush.horizontalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.82f),
+                    ),
+                ),
+            )
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
-            Text(text, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = text,
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
         }
     }
 }
@@ -2188,9 +2663,9 @@ private fun GradientButton(
 private fun DeleteGameButton(onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(48.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -2198,6 +2673,7 @@ private fun DeleteGameButton(onClick: () -> Unit) {
             Icons.Filled.Delete,
             contentDescription = stringResource(R.string.steam_library_delete_game),
             tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -2214,29 +2690,34 @@ private fun SteamActionTile(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
 ) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val container by animateColorAsState(
+        targetValue = if (pressed) containerColor.copy(alpha = 0.9f) else containerColor,
+        label = "tilePress",
+    )
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(container)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(16.dp))
-            Text(
-                text = text,
-                color = contentColor,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(16.dp))
+        Text(
+            text = text,
+            color = contentColor,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
