@@ -262,6 +262,8 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
     public void stop() {
         synchronized (lock) {
             if (pid != -1) {
+                ProcessHelper.terminateProcess(pid);
+                try { Thread.sleep(200); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
                 Process.killProcess(pid);
                 pid = -1;
                 GuestProgramLauncherComponent.setActivePid(-1);

@@ -50,6 +50,12 @@ public abstract class ProcessHelper {
         }
     }
 
+    public static void killAllWineProcesses() {
+        for (String process : listRunningWineProcesses()) {
+            killProcess(Integer.parseInt(process));
+        }
+    }
+
     public static void pauseAllWineProcesses() {
         for (String process : listRunningWineProcesses()) {
             suspendProcess(Integer.parseInt(process));

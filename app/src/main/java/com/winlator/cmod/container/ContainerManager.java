@@ -211,12 +211,15 @@ public class ContainerManager {
         ArrayList<Shortcut> shortcuts = new ArrayList<>();
         for (Container container : containers) {
             File desktopDir = container.getDesktopDir();
-            ArrayList<File> files = new ArrayList<>();
-            if (desktopDir.exists())
-                files.addAll(Arrays.asList(desktopDir.listFiles()));
-            if (files != null) {
-                for (File file : files) {
-                    if (file.getName().endsWith(".desktop")) shortcuts.add(new Shortcut(container, file));
+            File[] listedFiles = desktopDir.isDirectory() ? desktopDir.listFiles() : null;
+            if (listedFiles == null) continue;
+            for (File file : listedFiles) {
+                if (file.getName().endsWith(".desktop")) {
+                    try {
+                        shortcuts.add(new Shortcut(container, file));
+                    } catch (Exception e) {
+                        Log.w("ContainerManager", "Failed to load shortcut from " + file.getPath(), e);
+                    }
                 }
             }
         }

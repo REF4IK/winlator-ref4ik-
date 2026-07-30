@@ -23,6 +23,7 @@ struct VkTable {
     PFN_vkDestroyDevice DestroyDevice;
     PFN_vkGetDeviceQueue GetDeviceQueue;
     PFN_vkDeviceWaitIdle DeviceWaitIdle;
+    PFN_vkQueueWaitIdle QueueWaitIdle;
     PFN_vkCreateSwapchainKHR CreateSwapchainKHR;
     PFN_vkDestroySwapchainKHR DestroySwapchainKHR;
     PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR;

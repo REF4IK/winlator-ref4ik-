@@ -368,6 +368,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
 
     private HashMap<String, String> graphicsDriverConfig;
+    private String graphicsDriverConfigRaw;
 
     private String audioDriver = Container.DEFAULT_AUDIO_DRIVER;
 
@@ -1262,6 +1263,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
+            this.graphicsDriverConfigRaw = graphicsDriverConfig;
             this.graphicsDriverConfig = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig);
 
 
@@ -2041,18 +2043,35 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
+    private boolean isExiting = false;
+
     private void exit() {
-        // Save per-game runtime settings before exit
+        if (isExiting) return;
+        isExiting = true;
+
         saveRuntimeSettingsToShortcut();
 
+        ProcessHelper.terminateAllWineProcesses();
+
+        long start = System.currentTimeMillis();
+        while (!ProcessHelper.listRunningWineProcesses().isEmpty()) {
+            long elapsed = System.currentTimeMillis() - start;
+            if (elapsed >= 3000) break;
+            try { Thread.sleep(50); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); break; }
+        }
+
+        ProcessHelper.killAllWineProcesses();
+
         if (xServerView != null) {
-            xServerView.getRenderer().forceCleanup();
+            try {
+                xServerView.getRenderer().forceCleanup();
+            } catch (Exception e) {
+                Log.w("XServerDisplayActivity", "forceCleanup failed", e);
+            }
             xServerView.setVisibility(View.GONE);
         }
 
         if (midiHandler != null) midiHandler.stop();
-
-        // Unregister sensor listener to avoid memory leaks
 
         if (sensorManager != null) sensorManager.unregisterListener(gyroListener);
 
@@ -2064,34 +2083,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         if (wineRequestHandler != null) wineRequestHandler.stop();
 
-        /* Gracefully terminate all running wine processes */
-
-        /* Wait until all processes have gracefully terminated, forcefully killing them only after a certain amount of time */
-
-        long start = System.currentTimeMillis();
-
-        while (!ProcessHelper.listRunningWineProcesses().isEmpty()) {
-
-            long elapsed = System.currentTimeMillis() - start;
-
-            if (elapsed >= 1500) {
-
-                break;
-
-            }
-
-        }
-
         if (returnToSteamLibraryIfNeeded()) {
-
             super.finish();
-
             return;
-
         }
 
         AppUtils.restartApplication(this);
-
     }
 
 
@@ -3487,7 +3484,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             // GPU Name spoofing
             {
-                String gpuConfig = container.getGraphicsDriverConfig();
+                String gpuConfig = graphicsDriverConfigRaw != null ? graphicsDriverConfigRaw : container.getGraphicsDriverConfig();
                 if (gpuConfig != null) {
                     String gpuName = "";
                     String customName = null, customDevId = null, customVenId = null;

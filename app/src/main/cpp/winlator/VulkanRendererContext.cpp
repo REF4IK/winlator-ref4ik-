@@ -45,6 +45,7 @@ VulkanRendererContext::~VulkanRendererContext() {
     if (renderThread.joinable()) renderThread.join();
     std::lock_guard<std::mutex> lk(renderMutex);
     vk_.DeviceWaitIdle(device);
+    vk_.QueueWaitIdle(graphicsQueue);
     for (auto& [id, wt] : texMap) destroyWinTex(wt);
     texMap.clear();
     
@@ -103,6 +104,7 @@ void VulkanRendererContext::loadDeviceDispatch() {
     LOAD_D2(DestroyDevice);
     LOAD_D2(GetDeviceQueue);
     LOAD_D2(DeviceWaitIdle);
+    LOAD_D2(QueueWaitIdle);
     LOAD_D2(CreateSwapchainKHR);
     LOAD_D2(DestroySwapchainKHR);
     LOAD_D2(GetSwapchainImagesKHR);
