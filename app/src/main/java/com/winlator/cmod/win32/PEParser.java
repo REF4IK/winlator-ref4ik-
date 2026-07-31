@@ -99,84 +99,70 @@ public class PEParser {
     }
 
     private ByteBuffer readIconData(int iconOffset, int iconSize) {
-        try {
-            InputStream inStream = new BufferedInputStream(new FileInputStream(this.peFile), 65536);
-            try {
-                byte[] iconBytes = new byte[iconSize];
-                StreamUtils.skip(inStream, iconOffset);
-                int bytesRead = inStream.read(iconBytes);
-                ByteBuffer order = bytesRead != -1 ? ByteBuffer.wrap(iconBytes).order(ByteOrder.LITTLE_ENDIAN) : null;
-                inStream.close();
-                return order;
-            } finally {
-            }
+        try (InputStream inStream = new BufferedInputStream(new FileInputStream(this.peFile), 65536)) {
+            byte[] iconBytes = new byte[iconSize];
+            StreamUtils.skip(inStream, iconOffset);
+            int bytesRead = inStream.read(iconBytes);
+            return bytesRead != -1 ? ByteBuffer.wrap(iconBytes).order(ByteOrder.LITTLE_ENDIAN) : null;
         } catch (IOException e) {
             return null;
         }
     }
 
     private ImageResourceDirectory readImageResourceDirectory() {
-        try {
-            InputStream inStream = new BufferedInputStream(new FileInputStream(this.peFile), 65536);
-            try {
-                ByteBuffer allocate = ByteBuffer.allocate(64);
-                ByteOrder byteOrder = ByteOrder.LITTLE_ENDIAN;
-                ByteBuffer dosHeader = allocate.order(byteOrder);
-                int filePosition = 0 + inStream.read(dosHeader.array());
-                short magicNumber = dosHeader.getShort();
-                if (magicNumber == 23117) {
-                    dosHeader.position(60);
-                    int fileHeaderOffset = dosHeader.getInt() + 4;
-                    int filePosition2 = filePosition + StreamUtils.skip(inStream, fileHeaderOffset - filePosition);
-                    ByteBuffer fileHeader = ByteBuffer.allocate(20).order(byteOrder);
-                    int filePosition3 = filePosition2 + inStream.read(fileHeader.array());
-                    Short.toUnsignedInt(fileHeader.getShort());
-                    short numberOfSections = fileHeader.getShort();
-                    fileHeader.position(fileHeader.position() + 12);
-                    short sizeofOptionalHeader = fileHeader.getShort();
-                    int filePosition4 = filePosition3 + StreamUtils.skip(inStream, sizeofOptionalHeader);
-                    int i = 0;
-                    this.resourcesRVA = 0;
-                    this.resourcesOffset = 0;
-                    int resourcesSize = 0;
-                    ByteBuffer sectionHeader = ByteBuffer.allocate(40).order(byteOrder);
-                    byte[] nameBytes = new byte[8];
-                    byte i2 = 0;
-                    while (true) {
-                        if (i2 >= numberOfSections) {
-                            break;
-                        }
-                        sectionHeader.position(i);
-                        filePosition4 += inStream.read(sectionHeader.array());
-                        sectionHeader.get(nameBytes);
-                        String name = StringUtils.fromANSIString(nameBytes);
-                        if (!name.equals(".rsrc")) {
-                            i2 = (byte) (i2 + 1);
-                            i = 0;
-                        } else {
-                            sectionHeader.getInt();
-                            this.resourcesRVA = sectionHeader.getInt();
-                            resourcesSize = sectionHeader.getInt();
-                            this.resourcesOffset = sectionHeader.getInt();
-                            break;
-                        }
+        try (InputStream inStream = new BufferedInputStream(new FileInputStream(this.peFile), 65536)) {
+            ByteBuffer allocate = ByteBuffer.allocate(64);
+            ByteOrder byteOrder = ByteOrder.LITTLE_ENDIAN;
+            ByteBuffer dosHeader = allocate.order(byteOrder);
+            int filePosition = 0 + inStream.read(dosHeader.array());
+            short magicNumber = dosHeader.getShort();
+            if (magicNumber == 23117) {
+                dosHeader.position(60);
+                int fileHeaderOffset = dosHeader.getInt() + 4;
+                int filePosition2 = filePosition + StreamUtils.skip(inStream, fileHeaderOffset - filePosition);
+                ByteBuffer fileHeader = ByteBuffer.allocate(20).order(byteOrder);
+                int filePosition3 = filePosition2 + inStream.read(fileHeader.array());
+                Short.toUnsignedInt(fileHeader.getShort());
+                short numberOfSections = fileHeader.getShort();
+                fileHeader.position(fileHeader.position() + 12);
+                short sizeofOptionalHeader = fileHeader.getShort();
+                int filePosition4 = filePosition3 + StreamUtils.skip(inStream, sizeofOptionalHeader);
+                int i = 0;
+                this.resourcesRVA = 0;
+                this.resourcesOffset = 0;
+                int resourcesSize = 0;
+                ByteBuffer sectionHeader = ByteBuffer.allocate(40).order(byteOrder);
+                byte[] nameBytes = new byte[8];
+                byte i2 = 0;
+                while (true) {
+                    if (i2 >= numberOfSections) {
+                        break;
                     }
-                    int i3 = this.resourcesOffset;
-                    if (i3 > 0) {
-                        int skip = filePosition4 + StreamUtils.skip(inStream, i3 - filePosition4);
-                        ByteBuffer resourcesBuffer = ByteBuffer.allocate(resourcesSize).order(ByteOrder.LITTLE_ENDIAN);
-                        inStream.read(resourcesBuffer.array(), 0, resourcesBuffer.limit());
-                        ImageResourceDirectory imageResourceDirectory = new ImageResourceDirectory(resourcesBuffer, 0);
-                        inStream.close();
-                        return imageResourceDirectory;
+                    sectionHeader.position(i);
+                    filePosition4 += inStream.read(sectionHeader.array());
+                    sectionHeader.get(nameBytes);
+                    String name = StringUtils.fromANSIString(nameBytes);
+                    if (!name.equals(".rsrc")) {
+                        i2 = (byte) (i2 + 1);
+                        i = 0;
+                    } else {
+                        sectionHeader.getInt();
+                        this.resourcesRVA = sectionHeader.getInt();
+                        resourcesSize = sectionHeader.getInt();
+                        this.resourcesOffset = sectionHeader.getInt();
+                        break;
                     }
-                    inStream.close();
-                    return null;
                 }
-                inStream.close();
+                int i3 = this.resourcesOffset;
+                if (i3 > 0) {
+                    int skip = filePosition4 + StreamUtils.skip(inStream, i3 - filePosition4);
+                    ByteBuffer resourcesBuffer = ByteBuffer.allocate(resourcesSize).order(ByteOrder.LITTLE_ENDIAN);
+                    inStream.read(resourcesBuffer.array(), 0, resourcesBuffer.limit());
+                    return new ImageResourceDirectory(resourcesBuffer, 0);
+                }
                 return null;
-            } finally {
             }
+            return null;
         } catch (IOException e) {
             return null;
         }

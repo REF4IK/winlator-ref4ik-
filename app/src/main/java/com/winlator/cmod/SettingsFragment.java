@@ -87,7 +87,12 @@ public class SettingsFragment extends Fragment {
     public static final String DEFAULT_WINE_DEBUG_CHANNELS = "warn,err,fixme";
     private Callback<Uri> installSoundFontCallback;
     private PreloaderDialog preloaderDialog;
-    public static final String DEFAULT_EXPORT_PATH = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/Winlator/Frontend";
+    private static String defaultExportPath() {
+        File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        String downloadPath = downloads != null ? downloads.getPath() : "/storage/emulated/0/Download";
+        return downloadPath + "/Winlator/Frontend";
+    }
+    public static final String DEFAULT_EXPORT_PATH = defaultExportPath();
     private SharedPreferences preferences;
 
 	// Disable or enable True Mouse Control
@@ -706,7 +711,9 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
             try {
                 jsonArray = new JSONArray(FileUtils.readString(context, "wine_debug_channels.json"));
             }
-            catch (JSONException e) {}
+            catch (JSONException e) {
+                Log.e("SettingsFragment", "Failed to parse wine_debug_channels.json", e);
+            }
 
             final String[] items = ArrayUtils.toStringArray(jsonArray);
             ContentDialog.showMultipleChoiceList(context, R.string.wine_debug_channel, items, (selectedPositions) -> {

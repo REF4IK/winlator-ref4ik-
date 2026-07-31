@@ -297,7 +297,9 @@ public class VulkanRenderer implements XServerRenderer,
                 if (scanoutGameSC != null) txn.setVisibility(scanoutGameSC, false);
                 if (scanoutCursorSC != null) txn.setVisibility(scanoutCursorSC, false);
                 txn.apply();
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                android.util.Log.w("VulkanRenderer", "Failed to hide scanout layers on destroy: " + e);
+            }
         }
         releaseScanoutSurfaces();
     }
@@ -719,7 +721,9 @@ public class VulkanRenderer implements XServerRenderer,
                 if (scanoutGameSC != null) txn.setVisibility(scanoutGameSC, false);
                 if (scanoutCursorSC != null) txn.setVisibility(scanoutCursorSC, false);
                 txn.apply();
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                android.util.Log.w("VulkanRenderer", "Failed to hide scanout layers: " + e);
+            }
         }
     }
 
@@ -867,7 +871,9 @@ public class VulkanRenderer implements XServerRenderer,
                     if (scanoutGameSC != null) txn.setVisibility(scanoutGameSC, true);
                     if (scanoutCursorSC != null) txn.setVisibility(scanoutCursorSC, true);
                     txn.apply();
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    android.util.Log.w("VulkanRenderer", "Failed to restore scanout layers visibility: " + e);
+                }
             });
         }
     }

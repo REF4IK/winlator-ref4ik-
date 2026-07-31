@@ -74,7 +74,6 @@ import com.winlator.cmod.core.ShortcutCoverFetcher
 import com.winlator.cmod.core.SteamImageCache
 import com.winlator.cmod.core.gameconfig.GameConfigManager
 import com.winlator.cmod.core.gameconfig.CloudConfigRepoV2
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
@@ -353,6 +352,7 @@ Column(modifier = Modifier.fillMaxSize()) {
 
     // Publish dialog
     showPublishDialog?.let { s ->
+        val publishScope = rememberCoroutineScope()
         var pubDesc by remember(s) { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showPublishDialog = null },
@@ -377,7 +377,7 @@ Column(modifier = Modifier.fillMaxSize()) {
                             isPublishing = true
                             val config = GameConfigManager.buildGameConfig(s.container, s, pubDesc)
                             val bundler = com.winlator.cmod.core.gameconfig.GameConfigBundler(ctx)
-                            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            publishScope.launch(Dispatchers.IO) {
                                 try {
                                     val result = bundler.buildBundle(config.containerSettings, ctx.cacheDir)
                                     com.winlator.cmod.core.gameconfig.BundleRepoClient.uploadBundle(

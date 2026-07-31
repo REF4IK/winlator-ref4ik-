@@ -27,24 +27,29 @@ public class WineRequestHandler {
 
     private Context context;
     private ServerSocket serverSocket;
+    private ExecutorService executor;
 
     public WineRequestHandler(Context context) {
         this.context = context;
     }
 
     public void start() {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             try {
                 serverSocket = new ServerSocket(20000);
                 while (true) {
                     Socket socket = serverSocket.accept();
-                    DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-                    DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
-                    int requestCode = inputStream.readInt();
-                    handleRequest(inputStream, outputStream, requestCode);
+                    try (DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+                         DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
+                        int requestCode = inputStream.readInt();
+                        handleRequest(inputStream, outputStream, requestCode);
+                    }
                 }
             } catch (IOException e) {
+                if (serverSocket == null || !serverSocket.isClosed()) {
+                    Log.e("WineRequestHandler", "Error in wine request server", e);
+                }
             }
         });
     }
@@ -54,7 +59,11 @@ public class WineRequestHandler {
             try {
                 serverSocket.close();
             } catch (IOException e) {
+                Log.e("WineRequestHandler", "Failed to close wine request server", e);
             }
+        }
+        if (executor != null) {
+            executor.shutdown();
         }
     }
 

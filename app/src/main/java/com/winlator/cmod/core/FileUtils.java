@@ -113,7 +113,9 @@ public abstract class FileUtils {
             (new File(linkFile)).delete();
             Os.symlink(linkTarget, linkFile);
         }
-        catch (ErrnoException e) {}
+        catch (ErrnoException e) {
+            Log.e(TAG, "Failed to create symlink: " + linkFile + " -> " + linkTarget, e);
+        }
     }
 
     public static boolean isSymlink(File file) {
@@ -266,7 +268,9 @@ public abstract class FileUtils {
                     else copy(context, relativePath, dstFile);
                 }
             }
-            catch (IOException e) {}
+            catch (IOException e) {
+                Log.e(TAG, "Failed to list asset directory: " + assetFile, e);
+            }
         }
         else {
             if (dstFile.isDirectory()) dstFile = new File(dstFile, FileUtils.getName(assetFile));
@@ -276,7 +280,9 @@ public abstract class FileUtils {
                  BufferedOutputStream outStream = new BufferedOutputStream(new FileOutputStream(dstFile), StreamUtils.BUFFER_SIZE)) {
                 StreamUtils.copy(inStream, outStream);
             }
-            catch (IOException e) {}
+            catch (IOException e) {
+                Log.e(TAG, "Failed to copy asset: " + assetFile, e);
+            }
         }
     }
 
@@ -331,7 +337,9 @@ public abstract class FileUtils {
         try {
             Os.chmod(file.getAbsolutePath(), mode);
         }
-        catch (ErrnoException e) {}
+        catch (ErrnoException e) {
+            Log.e(TAG, "Failed to chmod: " + file.getAbsolutePath(), e);
+        }
     }
 
     public static File createTempFile(File parent, String prefix) {
@@ -493,7 +501,9 @@ public abstract class FileUtils {
                 result = !line.isEmpty() ? Integer.parseInt(line) : 0;
             }
         }
-        catch (Exception e) {}
+        catch (Exception e) {
+            Log.e(TAG, "Failed to read int from: " + path, e);
+        }
         return result;
     }
 
@@ -571,13 +581,12 @@ public abstract class FileUtils {
     }
     public static String getUriFileName(Context context, Uri uri) {
         String fileName = null;
-        Cursor cursor = context.getContentResolver().query(uri, null, null, null, null);
-
-        if (cursor != null && cursor.moveToFirst()) {
-            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-            if (nameIndex != -1)
-                fileName = cursor.getString(nameIndex);
-            cursor.close();
+        try (Cursor cursor = context.getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (nameIndex != -1)
+                    fileName = cursor.getString(nameIndex);
+            }
         }
 
         return fileName;

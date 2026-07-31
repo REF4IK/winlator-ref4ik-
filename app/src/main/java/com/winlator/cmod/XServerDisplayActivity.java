@@ -1535,7 +1535,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                         finalIn.close();
 
-                    } catch (Exception e2) {}
+                    } catch (Exception e2) {
+                        Log.e("XServerDisplayActivity", "Failed to close MIDI input stream", e2);
+                    }
 
                 }
 
@@ -1553,7 +1555,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                     MidiManager.load(new File(MidiManager.getSoundFontDir(this), midiSoundFont), callback);
 
-            } catch (Exception e) {}
+            } catch (Exception e) {
+                Log.e("XServerDisplayActivity", "Failed to load MIDI soundfont: " + midiSoundFont, e);
+            }
 
         }
 
@@ -2626,7 +2630,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                                 runOnUiThread(() -> {
                                     outputView.append("Wineserver restarted.\n");
                                 });
-                            } catch (Exception e) {}
+                            } catch (Exception e) {
+                                Log.e("XServerDisplayActivity", "Failed to restart wineserver", e);
+                            }
                             environment.setWinetricksRunning(false);
                         }
                     });
@@ -2980,7 +2986,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             }
 
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) {
+            Log.e("XServerDisplayActivity", "Failed to resize LSFG dialog window", e);
+        }
 
     }
 
@@ -3519,7 +3527,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                                         break;
                                     }
                                 }
-                            } catch (Exception ignored) {}
+                            } catch (Exception e) {
+                                Log.e("XServerDisplayActivity", "Failed to apply GPU name from gpu_cards.json: " + gpuName, e);
+                            }
                         }
                     }
                 }
@@ -6298,7 +6308,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         }
 
-        catch (JSONException e) {}
+        catch (JSONException e) {
+            Log.e("XServerDisplayActivity", "Failed to restore original DLL files", e);
+        }
 
     }
 

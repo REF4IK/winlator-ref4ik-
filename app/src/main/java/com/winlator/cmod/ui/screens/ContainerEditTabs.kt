@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import android.graphics.BitmapFactory
@@ -40,6 +41,8 @@ import com.winlator.cmod.fexcore.FEXCorePresetManager
 import com.winlator.cmod.winhandler.WinHandler
 import com.winlator.cmod.xserver.XKeycode
 import com.winlator.cmod.widget.EnvVarsView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
@@ -307,14 +310,14 @@ fun WineConfigTab(
             if (bgType == "IMAGE") {
                 val userWallpaperFile = remember { WineThemeManager.getUserWallpaperFile(ctx) }
                 var wallpaperExists by remember { mutableStateOf(userWallpaperFile.isFile) }
-                var bitmap by remember(wallpaperExists, desktopTheme) {
-                    mutableStateOf(
-                        if (userWallpaperFile.isFile) {
+                val bitmap by produceState<ImageBitmap?>(initialValue = null, wallpaperExists, desktopTheme, userWallpaperFile) {
+                    value = if (userWallpaperFile.isFile) {
+                        withContext(Dispatchers.IO) {
                             try {
                                 BitmapFactory.decodeFile(userWallpaperFile.path)?.asImageBitmap()
                             } catch (_: Exception) { null }
-                        } else null
-                    )
+                        }
+                    } else null
                 }
                 
                 val pickerLauncher = rememberLauncherForActivityResult(

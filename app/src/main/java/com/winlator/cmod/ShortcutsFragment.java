@@ -1582,7 +1582,9 @@ public class ShortcutsFragment extends Fragment {
         try {
             shortcutManager.disableShortcuts(Collections.singletonList(shortcut.getExtra("uuid")),
                     context.getString(R.string.shortcut_not_available));
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            Log.e("ShortcutsFragment", "Failed to disable shortcut on screen", e);
+        }
     }
 
     public void updateShortcutOnScreen(String shortLabel, String longLabel, int containerId, String shortcutPath, Icon icon, String uuid) {
@@ -1614,7 +1616,9 @@ public class ShortcutsFragment extends Fragment {
                     break;
                 }
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            Log.e("ShortcutsFragment", "Failed to update shortcut on screen: " + uuid, e);
+        }
     }
 
     @Override
@@ -1641,7 +1645,9 @@ public class ShortcutsFragment extends Fragment {
                     Bitmap exeIcon = null;
                     try {
                         exeIcon = PEParser.extractIcon(exeFile);
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        Log.e("ShortcutsFragment", "Failed to extract icon from: " + exeFile.getAbsolutePath(), e);
+                    }
                     String driveLetter = detectDriveLetter(exeFile.getAbsolutePath());
                     if (driveLetter != null) {
                         String exePath = buildExePath(exeFile.getAbsolutePath(), driveLetter);
@@ -1698,6 +1704,10 @@ public class ShortcutsFragment extends Fragment {
                     }
 
                     String fileName = queryName(getContext().getContentResolver(), selectedFile);
+                    if (fileName == null || !fileName.endsWith(".exe")) {
+                        Toast.makeText(getContext(), "Can't read file name!", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     String fileNameOutExe = fileName.substring(0, fileName.length() - 4); // -.exe
                     String pathWOutDocument = selectedFilePath;
                     
@@ -1910,11 +1920,11 @@ public class ShortcutsFragment extends Fragment {
     
     private String queryName(ContentResolver resolver, Uri uri) {
         String[] projection = new String[] { OpenableColumns.DISPLAY_NAME };
-        Cursor returnCursor = resolver.query(uri, projection, null, null, null);
-        assert returnCursor != null;
-        returnCursor.moveToFirst();
-        String name = returnCursor.getString(0);
-        returnCursor.close();
-        return name;
+        try (Cursor returnCursor = resolver.query(uri, projection, null, null, null)) {
+            if (returnCursor != null && returnCursor.moveToFirst()) {
+                return returnCursor.getString(0);
+            }
+        }
+        return null;
     }
 }

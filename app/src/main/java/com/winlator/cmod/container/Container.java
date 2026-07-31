@@ -38,7 +38,12 @@ public class Container {
     public static final String DEFAULT_DDRAWRAPPER = "wined3d";
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=0,directmusic=0,directshow=0,directplay=0,xaudio=0,vcrun2010=1,opengl=0";
     public static final String FALLBACK_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=1,directplay=1,xaudio=1,vcrun2010=1,opengl=0";
-    public static final String DEFAULT_DRIVES = "D:"+Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)+"E:/data/data/com.winlator.cmod/storage";
+    private static String defaultDrives() {
+        File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        String downloadPath = downloads != null ? downloads.getPath() : "/storage/emulated/0/Download";
+        return "D:" + downloadPath + "E:/data/data/com.winlator.cmod/storage";
+    }
+    public static final String DEFAULT_DRIVES = defaultDrives();
     public static final byte STARTUP_SELECTION_NORMAL = 0;
     public static final byte STARTUP_SELECTION_ESSENTIAL = 1;
     public static final byte STARTUP_SELECTION_AGGRESSIVE = 2;
@@ -359,7 +364,9 @@ public class Container {
             }
             else extraData.remove(name);
         }
-        catch (JSONException e) {}
+        catch (JSONException e) {
+            Log.e("Container", "Failed to put extra data: " + name, e);
+        }
     }
 
     public String getWineVersion() {
@@ -484,7 +491,9 @@ public class Container {
             if (!WineInfo.isMainWineVersion(wineVersion)) data.put("wineVersion", wineVersion);
             FileUtils.writeString(getConfigFile(), data.toString());
         }
-        catch (JSONException e) {}
+        catch (JSONException e) {
+            Log.e("Container", "Failed to save container data to " + getConfigFile().getPath(), e);
+        }
     }
 
 
@@ -665,7 +674,9 @@ public class Container {
 
             data.put("wincomponents", result);
         }
-        catch (JSONException e) {}
+        catch (JSONException e) {
+            Log.e("Container", "Failed to migrate obsolete container properties", e);
+        }
     }
 
     public static String getFallbackCPUList() {
