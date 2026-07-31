@@ -1329,6 +1329,18 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
         } else if ("pt-rBR".equals(languageCode)) {
             androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("pt-BR");
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
+        } else if ("pl".equals(languageCode)) {
+            androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("pl");
+            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
+        } else if ("es".equals(languageCode)) {
+            androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("es");
+            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
+        } else if ("ja".equals(languageCode)) {
+            androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("ja");
+            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
+        } else if ("ar".equals(languageCode)) {
+            androidx.core.os.LocaleListCompat localeList = androidx.core.os.LocaleListCompat.forLanguageTags("ar");
+            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList);
         }
     }
 

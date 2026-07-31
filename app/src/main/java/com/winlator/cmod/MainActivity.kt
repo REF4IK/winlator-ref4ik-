@@ -316,6 +316,18 @@ class MainActivity : AppCompatActivity() {
             "pt-rBR" -> androidx.core.os.LocaleListCompat.forLanguageTags("pt-BR").let {
                 androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
             }
+            "pl" -> androidx.core.os.LocaleListCompat.forLanguageTags("pl").let {
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
+            }
+            "es" -> androidx.core.os.LocaleListCompat.forLanguageTags("es").let {
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
+            }
+            "ja" -> androidx.core.os.LocaleListCompat.forLanguageTags("ja").let {
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
+            }
+            "ar" -> androidx.core.os.LocaleListCompat.forLanguageTags("ar").let {
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(it)
+            }
         }
     }
 

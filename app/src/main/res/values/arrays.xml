@@ -522,6 +522,10 @@
         <item>@string/app_language_chinese</item>
         <item>@string/app_language_portuguese</item>
         <item>@string/app_language_portuguese_brazil</item>
+        <item>@string/app_language_polish</item>
+        <item>@string/app_language_spanish</item>
+        <item>@string/app_language_japanese</item>
+        <item>@string/app_language_arabic</item>
     </string-array>
     
     <string-array name="app_languages_values">
@@ -531,6 +535,10 @@
         <item>zh</item>
         <item>pt</item>
         <item>pt-rBR</item>
+        <item>pl</item>
+        <item>es</item>
+        <item>ja</item>
+        <item>ar</item>
     </string-array>
     
     <string-array name="transition_animations">

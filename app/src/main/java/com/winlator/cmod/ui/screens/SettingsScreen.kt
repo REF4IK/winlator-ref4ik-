@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.preference.PreferenceManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.border
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 /**
@@ -165,7 +166,7 @@ fun SettingsScreen(
     }
 
     // ---- Списки для диалогов ----
-    val languageOptions = listOf("system" to ctx.getString(com.winlator.cmod.R.string.app_language_system), "en" to "English", "ru" to "Русский", "zh" to "中文", "pt" to "Português", "pt-rBR" to "Português (Brasil)")
+    val languageOptions = listOf("system" to ctx.getString(com.winlator.cmod.R.string.app_language_system), "en" to "English", "ru" to "Русский", "zh" to "中文", "pt" to "Português", "pt-rBR" to "Português (Brasil)", "pl" to "Polski", "es" to "Español", "ja" to "日本語", "ar" to "العربية")
     val animOptions = listOf("none" to "None", "slide_vertical" to "Slide Vertical", "slide_horizontal" to "Slide Horizontal", "fade" to "Fade", "zoom" to "Zoom")
     val triggerOptions = listOf(0 to "Is Button", 1 to "Is Axis", 2 to "Is Mixed")
     val gyroModeOptions = listOf(0 to "Hold Mode", 1 to "Toggle Mode")
@@ -704,8 +705,12 @@ private fun <T> ChoiceDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column {
-                options.forEach { (value, label) ->
+            val maxListHeight = with(androidx.compose.ui.platform.LocalConfiguration.current) {
+                (screenHeightDp * 0.6f).dp
+            }
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = maxListHeight)) {
+                items(options.size) { index ->
+                    val (value, label) = options[index]
                     Row(
                         Modifier.fillMaxWidth().clickable { onSelect(value) }.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
