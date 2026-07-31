@@ -6757,7 +6757,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        for (Window child : window.getChildren()) {
+        // Window updates can arrive while the HUD scans the tree; do not iterate the live list.
+        for (Window child : new ArrayList<>(window.getChildren())) {
 
             best = findBestFrameRatingSnapshot(child, best);
 
