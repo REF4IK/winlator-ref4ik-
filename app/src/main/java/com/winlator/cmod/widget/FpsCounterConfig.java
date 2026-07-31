@@ -5,6 +5,13 @@ import android.content.SharedPreferences;
 import com.winlator.cmod.core.MmkvPreferences;
 
 public class FpsCounterConfig {
+    public static final int STYLE_DEFAULT = 0;
+    public static final int STYLE_CYBER = 1;
+    public static final int STYLE_RETRO = 2;
+    public static final int STYLE_GLASS = 3;
+    public static final int STYLE_WINLATOR_LUDASHI = 4;
+    public static final int STYLE_GAMENATIVE = 5;
+
     private static final String PREFS_NAME = "fps_counter_config";
     private static final String KEY_ENABLED = "fps_counter_enabled";
     private static final String KEY_SHOW_FPS = "fps_counter_show_fps";
@@ -163,7 +170,7 @@ public class FpsCounterConfig {
     }
 
     public int getCounterStyle() {
-        return prefs.getInt(KEY_COUNTER_STYLE, 0);
+        return prefs.getInt(KEY_COUNTER_STYLE, STYLE_DEFAULT);
     }
 
     public void setCounterStyle(int style) {
@@ -196,7 +203,7 @@ public class FpsCounterConfig {
             .putInt(KEY_BACKGROUND_OPACITY, DEFAULT_BACKGROUND_OPACITY)
             .putInt(KEY_COUNTER_SCALE, 60)
             .putInt(KEY_FPS_LIMIT, 0)
-            .putInt(KEY_COUNTER_STYLE, 0)
+            .putInt(KEY_COUNTER_STYLE, STYLE_DEFAULT)
             .putBoolean(KEY_WHITE_FONTS, false)
             .apply();
     }

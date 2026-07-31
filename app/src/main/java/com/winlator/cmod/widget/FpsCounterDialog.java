@@ -9,8 +9,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.core.view.WindowCompat;
@@ -36,6 +38,7 @@ public class FpsCounterDialog {
     private CheckBox checkboxShowBatteryTemp;
     private CheckBox checkboxShowBatteryVoltage;
     private CheckBox checkboxHorizontalLayout;
+    private Spinner spinnerCounterStyle;
     private SeekBar seekbarBackgroundOpacity;
     private TextView textOpacityValue;
     private SeekBar seekbarCounterScale;
@@ -81,6 +84,7 @@ public class FpsCounterDialog {
         checkboxShowBatteryTemp = view.findViewById(R.id.checkbox_show_battery_temp);
         checkboxShowBatteryVoltage = view.findViewById(R.id.checkbox_show_battery_voltage);
         checkboxHorizontalLayout = view.findViewById(R.id.checkbox_horizontal_layout);
+        spinnerCounterStyle = view.findViewById(R.id.spinner_fps_counter_style);
         seekbarBackgroundOpacity = view.findViewById(R.id.seekbar_background_opacity);
         textOpacityValue = view.findViewById(R.id.text_opacity_value);
         seekbarCounterScale = view.findViewById(R.id.seekbar_counter_scale);
@@ -127,6 +131,26 @@ public class FpsCounterDialog {
         checkboxShowBatteryTemp.setChecked(config.isModuleVisible(FpsCounterConfig.Module.BATTERY_TEMP));
         checkboxShowBatteryVoltage.setChecked(config.isModuleVisible(FpsCounterConfig.Module.BATTERY_VOLTAGE));
         checkboxHorizontalLayout.setChecked(config.isHorizontalLayout());
+
+        if (spinnerCounterStyle != null) {
+            String[] styleNames = {
+                context.getString(R.string.fps_counter_style_default),
+                context.getString(R.string.fps_counter_style_cyber),
+                context.getString(R.string.fps_counter_style_retro),
+                context.getString(R.string.fps_counter_style_glass),
+                context.getString(R.string.fps_counter_style_winlator_ludashi),
+                context.getString(R.string.fps_counter_style_gamenative)
+            };
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                context,
+                android.R.layout.simple_spinner_item,
+                styleNames
+            );
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerCounterStyle.setAdapter(adapter);
+            int style = config.getCounterStyle();
+            spinnerCounterStyle.setSelection(Math.max(0, Math.min(styleNames.length - 1, style)));
+        }
 
         int currentOpacity = config.getBackgroundOpacity();
         seekbarBackgroundOpacity.setProgress(currentOpacity);
@@ -198,6 +222,7 @@ public class FpsCounterDialog {
         checkboxShowCpuTemp.setEnabled(enabled);
         checkboxShowBatteryTemp.setEnabled(enabled);
         checkboxShowBatteryVoltage.setEnabled(enabled);
+        if (spinnerCounterStyle != null) spinnerCounterStyle.setEnabled(enabled);
     }
 
     private void saveSettings() {
@@ -214,6 +239,9 @@ public class FpsCounterDialog {
         config.setModuleVisible(FpsCounterConfig.Module.BATTERY_TEMP, checkboxShowBatteryTemp.isChecked());
         config.setModuleVisible(FpsCounterConfig.Module.BATTERY_VOLTAGE, checkboxShowBatteryVoltage.isChecked());
         config.setHorizontalLayout(checkboxHorizontalLayout.isChecked());
+        if (spinnerCounterStyle != null) {
+            config.setCounterStyle(spinnerCounterStyle.getSelectedItemPosition());
+        }
         config.setBackgroundOpacity(seekbarBackgroundOpacity.getProgress());
         config.setCounterScale(Math.max(60, seekbarCounterScale.getProgress()));
         config.setFpsLimit((int) sliderFpsLimit.getValue());

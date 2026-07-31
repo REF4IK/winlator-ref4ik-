@@ -456,6 +456,8 @@
     <string name="fps_counter_style_cyber">Капсулы</string>
     <string name="fps_counter_style_retro">Плитки</string>
     <string name="fps_counter_style_glass">Панель</string>
+    <string name="fps_counter_style_winlator_ludashi">Winlator Ludashi</string>
+    <string name="fps_counter_style_gamenative">GameNative</string>
     <string name="fps_limit_applied">Применён лимит FPS: %s</string>
     <string name="frame_rate">Частота кадров</string>
     <string name="fullscreen_stretched">Включить полноэкранный режим (растянутый)</string>

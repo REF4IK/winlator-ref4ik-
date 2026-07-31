@@ -514,9 +514,8 @@ fun ShortcutSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // ---- Верхний блок: Contents ----
             SectionCard(title = stringResource(R.string.contents), icon = Icons.Filled.Settings) {

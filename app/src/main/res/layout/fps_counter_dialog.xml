@@ -354,6 +354,25 @@
                         android:background="?attr/colorOutlineVariant"
                         android:layout_marginVertical="8dp" />
 
+                    <!-- Section: Visual style -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fps_counter_style_title"
+                        android:textSize="12sp"
+                        android:textAllCaps="true"
+                        android:letterSpacing="0.08"
+                        android:textColor="?attr/colorPrimary"
+                        android:paddingHorizontal="4dp"
+                        android:paddingBottom="4dp" />
+
+                    <Spinner
+                        android:id="@+id/spinner_fps_counter_style"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="4dp"
+                        android:paddingVertical="4dp" />
+
                     <!-- Section: Layout -->
                     <TextView
                         android:layout_width="match_parent"

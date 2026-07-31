@@ -463,6 +463,8 @@
     <string name="fps_counter_style_cyber">Cyber</string>
     <string name="fps_counter_style_retro">Retro</string>
     <string name="fps_counter_style_glass">Glass</string>
+    <string name="fps_counter_style_winlator_ludashi">Winlator Ludashi</string>
+    <string name="fps_counter_style_gamenative">GameNative</string>
     <string name="fps_limit_applied">FPS limit applied: %s</string>
     <string name="frame_rate">Frame Rate</string>
     <string name="fullscreen_stretched">Enable Fullscreen (Stretched)</string>

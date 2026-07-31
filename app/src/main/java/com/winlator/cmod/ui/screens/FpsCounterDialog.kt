@@ -414,29 +414,42 @@ private fun FpsStyleSelectionRow(
         stringResource(R.string.fps_counter_style_default),
         stringResource(R.string.fps_counter_style_cyber),
         stringResource(R.string.fps_counter_style_retro),
-        stringResource(R.string.fps_counter_style_glass)
+        stringResource(R.string.fps_counter_style_glass),
+        stringResource(R.string.fps_counter_style_winlator_ludashi),
+        stringResource(R.string.fps_counter_style_gamenative)
     )
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        styles.forEachIndexed { index, styleName ->
-            val isSelected = selectedStyle == index
-            Button(
-                onClick = { onStyleSelected(index) },
-                enabled = enabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary 
-                                     else MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary 
-                                   else MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                modifier = Modifier.weight(1f)
+        styles.chunked(2).forEachIndexed { rowIndex, rowStyles ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(styleName, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                rowStyles.forEachIndexed { columnIndex, styleName ->
+                    val index = rowIndex * 2 + columnIndex
+                    val isSelected = selectedStyle == index
+                    Button(
+                        onClick = { onStyleSelected(index) },
+                        enabled = enabled,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary
+                                             else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(styleName, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                    }
+                }
+                if (rowStyles.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

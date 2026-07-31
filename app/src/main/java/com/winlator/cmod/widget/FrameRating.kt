@@ -29,8 +29,11 @@ import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.graphics.Path as ComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
@@ -192,10 +195,12 @@ class FrameRating @JvmOverloads constructor(
         }
 
         when (counterStyle) {
-            1 -> FrameRatingBadges(activeModules, bgColor, strokeColor) // Floating Badges (Default style colors)
-            2 -> FrameRatingDashboard(activeModules, bgColor, strokeColor) // Dashboard Grid (Default style colors)
-            3 -> FrameRatingSidebar(activeModules, bgColor, strokeColor) // Sidebar Dock with progress bars (Default style colors)
-            else -> FrameRatingClassic(activeModules, bgColor, strokeColor) // Classic Card (Default)
+            FpsCounterConfig.STYLE_CYBER -> FrameRatingBadges(activeModules, bgColor, strokeColor)
+            FpsCounterConfig.STYLE_RETRO -> FrameRatingDashboard(activeModules, bgColor, strokeColor)
+            FpsCounterConfig.STYLE_GLASS -> FrameRatingSidebar(activeModules, bgColor, strokeColor)
+            FpsCounterConfig.STYLE_WINLATOR_LUDASHI -> FrameRatingWinlatorLudashi(activeModules)
+            FpsCounterConfig.STYLE_GAMENATIVE -> FrameRatingGameNative(activeModules)
+            else -> FrameRatingClassic(activeModules, bgColor, strokeColor)
         }
     }
 
@@ -223,7 +228,7 @@ class FrameRating @JvmOverloads constructor(
             if (isHorizontalLayout) {
                 @OptIn(ExperimentalLayoutApi::class)
                 FlowRow(
-                    modifier = Modifier.wrapContentSize(),
+                    modifier = Modifier.widthIn(max = maxHudWidth()),
                     verticalArrangement = Arrangement.Center,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -251,6 +256,356 @@ class FrameRating @JvmOverloads constructor(
     }
 
     @Composable
+    private fun FrameRatingWinlatorLudashi(activeModules: List<ActiveModule>) {
+        val background = ComposeColor.Black.copy(alpha = backgroundOpacity / 255f)
+        val itemModifier = Modifier.wrapContentSize()
+        val orderedModules = activeModules.sortedBy { winlatorLudashiOrder(it.type) }
+
+        Box(
+            modifier = Modifier
+                .wrapContentSize()
+                .clip(RoundedCornerShape(5.dp))
+                .background(background)
+                .padding(horizontal = 6.dp, vertical = 4.dp)
+        ) {
+            if (isHorizontalLayout) {
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
+                    modifier = Modifier.widthIn(max = maxHudWidth()),
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    maxItemsInEachRow = Int.MAX_VALUE
+                ) {
+                    orderedModules.forEachIndexed { index, module ->
+                        if (index > 0) {
+                            Text(
+                                text = " | ",
+                                color = ComposeColor(0xFF606060),
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                modifier = itemModifier
+                            )
+                        }
+                        WinlatorLudashiMetric(module)
+                    }
+                    if (showFrameTimeGraph) {
+                        if (orderedModules.isNotEmpty()) {
+                            Text(
+                                text = " | ",
+                                color = ComposeColor(0xFF606060),
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                modifier = itemModifier
+                            )
+                        }
+                        WinlatorFrameTimeMetric()
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.wrapContentSize(),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    orderedModules.forEach { module -> WinlatorLudashiMetric(module) }
+                    if (showFrameTimeGraph) WinlatorFrameTimeMetric()
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun WinlatorFrameTimeMetric() {
+        Row(
+            modifier = Modifier.wrapContentSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = "FT ",
+                color = if (whiteFonts) ComposeColor.White else ComposeColor(0xFFFFEA00),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = frameTimeState,
+                color = ComposeColor.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            WinlatorFrameTimeGraph()
+        }
+    }
+
+    @Composable
+    private fun WinlatorFrameTimeGraph() {
+        FrameTimeLineGraph(
+            lineColor = ComposeColor(0xFFFFEA00),
+            glowColor = ComposeColor(0x66FFEA00)
+        )
+    }
+
+    @Composable
+    private fun WinlatorLudashiMetric(module: ActiveModule) {
+        if (module.type == FpsCounterConfig.Module.RENDERER) {
+            Text(
+                text = module.value,
+                color = winlatorLudashiColor(module.type),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            return
+        }
+
+        Row(
+            modifier = Modifier.wrapContentSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = "${module.label} ",
+                color = winlatorLudashiColor(module.type),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = module.value,
+                color = ComposeColor.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+
+    private fun winlatorLudashiColor(type: FpsCounterConfig.Module): ComposeColor {
+        if (whiteFonts) return ComposeColor.White
+
+        return when (type) {
+            FpsCounterConfig.Module.GPU,
+            FpsCounterConfig.Module.GPU_LOAD,
+            FpsCounterConfig.Module.GPU_TEMP -> ComposeColor(0xFFE040FB)
+            FpsCounterConfig.Module.CPU_LOAD,
+            FpsCounterConfig.Module.CPU_TEMP -> ComposeColor(0xFF00E5FF)
+            FpsCounterConfig.Module.BATTERY_TEMP -> ComposeColor(0xFFEF5350)
+            FpsCounterConfig.Module.BATTERY_VOLTAGE -> ComposeColor(0xFFFF8000)
+            FpsCounterConfig.Module.FPS -> ComposeColor(0xFF76FF03)
+            FpsCounterConfig.Module.RENDERER -> ComposeColor(0xFFFFEA00)
+            FpsCounterConfig.Module.RAM -> ComposeColor(0xFFB0FFB0)
+            FpsCounterConfig.Module.FRAME_TIME_GRAPH -> ComposeColor(0xFFFFB300)
+        }
+    }
+
+    private fun winlatorLudashiOrder(type: FpsCounterConfig.Module): Int {
+        return when (type) {
+            FpsCounterConfig.Module.RENDERER -> 0
+            FpsCounterConfig.Module.GPU,
+            FpsCounterConfig.Module.GPU_LOAD,
+            FpsCounterConfig.Module.GPU_TEMP -> 1
+            FpsCounterConfig.Module.CPU_LOAD,
+            FpsCounterConfig.Module.CPU_TEMP -> 2
+            FpsCounterConfig.Module.RAM -> 3
+            FpsCounterConfig.Module.BATTERY_VOLTAGE,
+            FpsCounterConfig.Module.BATTERY_TEMP -> 4
+            FpsCounterConfig.Module.FPS -> 5
+            FpsCounterConfig.Module.FRAME_TIME_GRAPH -> 6
+        }
+    }
+
+    @Composable
+    private fun FrameRatingGameNative(activeModules: List<ActiveModule>) {
+        val opacity = (backgroundOpacity / 255f).coerceIn(0f, 1f)
+        val background = ComposeColor.Black.copy(alpha = opacity)
+        val stroke = ComposeColor.White.copy(alpha = 0.38f * opacity)
+        val orderedModules = activeModules.sortedBy { gameNativeOrder(it.type) }
+        val textStyle = TextStyle(
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            shadow = Shadow(
+                color = ComposeColor.Black.copy(alpha = 0.86f),
+                offset = Offset.Zero,
+                blurRadius = 2f
+            )
+        )
+
+        Box(
+            modifier = Modifier
+                .wrapContentSize()
+                .clip(RoundedCornerShape(10.dp))
+                .background(background)
+                .border(1.dp, stroke, RoundedCornerShape(10.dp))
+                .padding(horizontal = 10.dp, vertical = 8.dp)
+        ) {
+            if (isHorizontalLayout) {
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
+                    modifier = Modifier.widthIn(max = maxHudWidth()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    orderedModules.forEach { module ->
+                        GameNativeMetric(module, textStyle, compact = true)
+                    }
+                    if (showFrameTimeGraph) GameNativeFrameTimeMetric(compact = true)
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    orderedModules.forEach { module ->
+                        GameNativeMetric(module, textStyle, compact = false)
+                    }
+                    if (showFrameTimeGraph) GameNativeFrameTimeMetric(compact = false)
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun GameNativeMetric(module: ActiveModule, textStyle: TextStyle, compact: Boolean) {
+        GameNativeMetricText(module, textStyle)
+    }
+
+    @Composable
+    private fun GameNativeFrameTimeMetric(compact: Boolean) {
+        val valueStyle = TextStyle(
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            shadow = Shadow(
+                color = ComposeColor.Black.copy(alpha = 0.86f),
+                offset = Offset.Zero,
+                blurRadius = 2f
+            )
+        )
+        val labelColor = if (whiteFonts) ComposeColor.White else ComposeColor(0xFF4CAF50)
+
+        if (compact) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text("FT", color = labelColor, style = valueStyle)
+                GameNativeFrameTimeGraph()
+                Text(frameTimeState, color = ComposeColor.White, style = valueStyle)
+            }
+        } else {
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Text("FT", color = labelColor, style = valueStyle)
+                    Text(frameTimeState, color = ComposeColor.White, style = valueStyle)
+                }
+                GameNativeFrameTimeGraph()
+            }
+        }
+    }
+
+    @Composable
+    private fun GameNativeMetricText(module: ActiveModule, textStyle: TextStyle) {
+        Text(
+            text = "${module.label} ${module.value}",
+            color = gameNativeColor(module.type),
+            style = textStyle,
+            maxLines = 1
+        )
+    }
+
+    private fun gameNativeColor(type: FpsCounterConfig.Module): ComposeColor {
+        if (whiteFonts) return ComposeColor.White
+
+        return when (type) {
+            FpsCounterConfig.Module.FPS -> ComposeColor(0xFF4CAF50)
+            FpsCounterConfig.Module.CPU_LOAD,
+            FpsCounterConfig.Module.CPU_TEMP -> ComposeColor(0xFF42A5F5)
+            FpsCounterConfig.Module.GPU,
+            FpsCounterConfig.Module.GPU_LOAD,
+            FpsCounterConfig.Module.GPU_TEMP -> ComposeColor(0xFFEF5350)
+            FpsCounterConfig.Module.RAM -> ComposeColor(0xFFFFEE58)
+            FpsCounterConfig.Module.BATTERY_TEMP -> ComposeColor(0xFFBDBDBD)
+            FpsCounterConfig.Module.BATTERY_VOLTAGE -> ComposeColor(0xFF4DD0E1)
+            FpsCounterConfig.Module.RENDERER -> ComposeColor(0xFFA5D6A7)
+            FpsCounterConfig.Module.FRAME_TIME_GRAPH -> ComposeColor(0xFF4CAF50)
+        }
+    }
+
+    private fun gameNativeOrder(type: FpsCounterConfig.Module): Int {
+        return when (type) {
+            FpsCounterConfig.Module.FPS -> 0
+            FpsCounterConfig.Module.CPU_LOAD,
+            FpsCounterConfig.Module.CPU_TEMP -> 1
+            FpsCounterConfig.Module.GPU,
+            FpsCounterConfig.Module.GPU_LOAD,
+            FpsCounterConfig.Module.GPU_TEMP -> 2
+            FpsCounterConfig.Module.RAM -> 3
+            FpsCounterConfig.Module.BATTERY_VOLTAGE -> 4
+            FpsCounterConfig.Module.BATTERY_TEMP -> 5
+            FpsCounterConfig.Module.RENDERER -> 6
+            FpsCounterConfig.Module.FRAME_TIME_GRAPH -> 7
+        }
+    }
+
+    @Composable
+    private fun GameNativeFrameTimeGraph() {
+        FrameTimeLineGraph(
+            lineColor = ComposeColor(0xFF4CAF50),
+            glowColor = ComposeColor(0x664CAF50)
+        )
+    }
+
+    @Composable
+    private fun FrameTimeLineGraph(lineColor: ComposeColor, glowColor: ComposeColor) {
+
+        Canvas(modifier = Modifier.size(width = 72.dp, height = 16.dp)) {
+            if (samples.size < 2) return@Canvas
+
+            val path = ComposePath()
+            val step = size.width / (samples.size - 1)
+            for (index in samples.indices) {
+                val sample = samples[(nextIndex + index) % samples.size]
+                val x = index * step
+                val y = size.height - (sample / MAX_FRAME_TIME_MS * size.height).coerceIn(0f, size.height)
+                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+
+            drawPath(
+                path = path,
+                color = glowColor,
+                style = Stroke(
+                    width = 3.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                )
+            )
+            drawPath(
+                path = path,
+                color = lineColor,
+                style = Stroke(
+                    width = 1.5.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                )
+            )
+        }
+    }
+
+    @Composable
+    private fun maxHudWidth(): androidx.compose.ui.unit.Dp {
+        val screenWidthDp = LocalConfiguration.current.screenWidthDp
+        val scale = config.counterScale.coerceAtLeast(60) / 100f
+        return ((screenWidthDp - 24).coerceAtLeast(180) / scale)
+            .coerceAtLeast(180f)
+            .dp
+    }
+
+    @Composable
     private fun FrameRatingBadges(
         activeModules: List<ActiveModule>,
         bgColor: ComposeColor,
@@ -259,7 +614,7 @@ class FrameRating @JvmOverloads constructor(
         if (isHorizontalLayout) {
             @OptIn(ExperimentalLayoutApi::class)
             FlowRow(
-                modifier = Modifier.wrapContentSize(),
+                modifier = Modifier.widthIn(max = maxHudWidth()),
                 verticalArrangement = Arrangement.Center,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -345,7 +700,7 @@ class FrameRating @JvmOverloads constructor(
         ) {
             @OptIn(ExperimentalLayoutApi::class)
             FlowRow(
-                modifier = Modifier.width(if (isHorizontalLayout) 380.dp else 190.dp),
+                modifier = Modifier.widthIn(max = if (isHorizontalLayout) maxHudWidth() else 190.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
