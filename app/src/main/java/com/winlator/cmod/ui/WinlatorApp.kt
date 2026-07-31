@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
@@ -319,6 +320,7 @@ fun WinlatorApp(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
+                containerColor = Color.Transparent,
                 topBar = {
                     if (!hideTopBarBySteamInfo) {
                         TopAppBar(

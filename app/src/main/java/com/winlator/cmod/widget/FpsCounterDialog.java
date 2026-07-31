@@ -94,6 +94,18 @@ public class FpsCounterDialog {
         buttonOk = view.findViewById(R.id.button_ok);
         buttonCancel = view.findViewById(R.id.button_cancel);
 
+        try {
+            android.content.SharedPreferences global = new com.winlator.cmod.core.MmkvPreferences();
+            int accentColor = global.getInt("custom_theme_color", 0xFF1A6C59);
+            if (buttonOk instanceof com.google.android.material.button.MaterialButton) {
+                ((com.google.android.material.button.MaterialButton) buttonOk)
+                    .setBackgroundTintList(android.content.res.ColorStateList.valueOf(accentColor));
+            }
+            if (buttonCancel instanceof com.google.android.material.button.MaterialButton) {
+                ((com.google.android.material.button.MaterialButton) buttonCancel).setTextColor(accentColor);
+            }
+        } catch (Exception ignored) {}
+
         loadCurrentSettings();
         setupListeners();
         updateModuleCheckboxes();

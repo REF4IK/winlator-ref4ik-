@@ -2,17 +2,65 @@ package com.winlator.cmod.ui.theme
 
 import android.app.Activity
 import android.content.SharedPreferences
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.core.MmkvPreferences
+
+object ThemePrefs {
+    const val THEME_MODE = "theme_mode"
+    const val THEME_ID = "theme_id"
+    const val DARK_MODE = "dark_mode"
+    const val CUSTOM_THEME_COLOR = "custom_theme_color"
+    const val DYNAMIC_COLOR = "dynamic_color"
+    const val UI_SCALE = "ui_scale"
+    const val FONT_SCALE = "font_scale"
+    const val CORNER_RADIUS = "corner_radius"
+    const val CUSTOM_PRIMARY = "custom_theme_primary"
+    const val CUSTOM_SECONDARY = "custom_theme_secondary"
+    const val CUSTOM_BACKGROUND = "custom_theme_background"
+    const val CUSTOM_SURFACE = "custom_theme_surface"
+    const val UI_WALLPAPER = "ui_wallpaper"
+    const val UI_WALLPAPER_BLUR = "ui_wallpaper_blur"
+    const val UI_WALLPAPER_DARKEN = "ui_wallpaper_darken"
+
+    const val THEME_MODE_SYSTEM = "system"
+    const val THEME_MODE_LIGHT = "light"
+    const val THEME_MODE_DARK = "dark"
+
+    fun resolveThemeMode(prefs: SharedPreferences): String {
+        val stored = prefs.getString(THEME_MODE, null)
+        if (stored != null) return stored
+        val migrated = if (prefs.getBoolean(DARK_MODE, false)) THEME_MODE_DARK else THEME_MODE_LIGHT
+        prefs.edit().putString(THEME_MODE, migrated).apply()
+        return migrated
+    }
+
+    fun isDarkFromMode(mode: String, systemDark: Boolean): Boolean = when (mode) {
+        THEME_MODE_LIGHT -> false
+        THEME_MODE_DARK -> true
+        else -> systemDark
+    }
+}
+
+data class CustomThemeColors(
+    val primaryArgb: Int,
+    val secondaryArgb: Int,
+    val backgroundArgb: Int,
+    val surfaceArgb: Int,
+)
 
 // Material 3 Light theme colors - mapped from existing XML colors
 private val LightColorScheme = lightColorScheme(
@@ -91,7 +139,12 @@ val ThemesList = listOf(
     ThemeInfo("custom", "Custom Palette", Color(0xFF1A6C59), Color(0xFF8CD5BC))
 )
 
-fun getColorSchemeFor(themeId: String, isDark: Boolean, customColorArgb: Int): ColorScheme {
+fun getColorSchemeFor(
+    themeId: String,
+    isDark: Boolean,
+    customColorArgb: Int,
+    customColors: CustomThemeColors? = null,
+): ColorScheme {
     val customColor = Color(customColorArgb)
     return when (themeId) {
         "midnight" -> if (isDark) {
@@ -404,32 +457,47 @@ fun getColorSchemeFor(themeId: String, isDark: Boolean, customColorArgb: Int): C
             )
         }
         "custom" -> {
+            val primary = Color(customColors?.primaryArgb ?: customColorArgb)
+            val secondary = Color(customColors?.secondaryArgb ?: 0xFF8CD5BC.toInt())
+            val bg = Color(customColors?.backgroundArgb ?: (if (isDark) 0xFF121212 else 0xFFFBFDF9).toInt())
+            val surface = Color(customColors?.surfaceArgb ?: (if (isDark) 0xFF161616 else 0xFFF5F7F5).toInt())
+            val surfaceVariant = if (isDark) {
+                androidx.compose.ui.graphics.lerp(surface, Color(0xFF9E9E9E), 0.18f)
+            } else {
+                androidx.compose.ui.graphics.lerp(surface, Color.Black, 0.07f)
+            }
+            val onBg = if (bg.luminance() > 0.5f) Color(0xFF191C1A) else Color(0xFFE1E3DF)
+            val onSurfaceC = if (surface.luminance() > 0.5f) Color(0xFF191C1A) else Color(0xFFE1E3DF)
             if (isDark) {
                 darkColorScheme(
-                    primary = customColor,
-                    onPrimary = if (customColor.luminance() > 0.5f) Color.Black else Color.White,
-                    primaryContainer = customColor.copy(alpha = 0.2f),
-                    onPrimaryContainer = customColor,
-                    background = Color(0xFF121212),
-                    surface = Color(0xFF161616),
-                    onBackground = Color(0xFFE1E3DF),
-                    onSurface = Color(0xFFE1E3DF),
-                    surfaceVariant = Color(0xFF282B29),
+                    primary = primary,
+                    onPrimary = if (primary.luminance() > 0.5f) Color.Black else Color.White,
+                    primaryContainer = primary.copy(alpha = 0.2f),
+                    onPrimaryContainer = primary,
+                    secondary = secondary,
+                    onSecondary = if (secondary.luminance() > 0.5f) Color.Black else Color.White,
+                    background = bg,
+                    surface = surface,
+                    onBackground = onBg,
+                    onSurface = onSurfaceC,
+                    surfaceVariant = surfaceVariant,
                     onSurfaceVariant = Color(0xFFC0C9C2),
                     outline = Color(0xFF8A938C),
                     outlineVariant = Color(0xFF404943)
                 )
             } else {
                 lightColorScheme(
-                    primary = customColor,
-                    onPrimary = if (customColor.luminance() > 0.5f) Color.Black else Color.White,
-                    primaryContainer = customColor.copy(alpha = 0.2f),
-                    onPrimaryContainer = customColor,
-                    background = Color(0xFFFBFDF9),
-                    surface = Color(0xFFF5F7F5),
-                    onBackground = Color(0xFF191C1A),
-                    onSurface = Color(0xFF191C1A),
-                    surfaceVariant = Color(0xFFDBE5DD),
+                    primary = primary,
+                    onPrimary = if (primary.luminance() > 0.5f) Color.Black else Color.White,
+                    primaryContainer = primary.copy(alpha = 0.2f),
+                    onPrimaryContainer = primary,
+                    secondary = secondary,
+                    onSecondary = if (secondary.luminance() > 0.5f) Color.Black else Color.White,
+                    background = bg,
+                    surface = surface,
+                    onBackground = onBg,
+                    onSurface = onSurfaceC,
+                    surfaceVariant = surfaceVariant,
                     onSurfaceVariant = Color(0xFF404943),
                     outline = Color(0xFF707973),
                     outlineVariant = Color(0xFFC0C9C2)
@@ -492,6 +560,24 @@ fun SharedPreferences.observeInt(key: String, defaultValue: Int): State<Int> {
 }
 
 @Composable
+fun SharedPreferences.observeFloat(key: String, defaultValue: Float): State<Float> {
+    val state = remember { mutableStateOf(getFloat(key, defaultValue)) }
+    DisposableEffect(this, key) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+            if (k == key) {
+                state.value = getFloat(key, defaultValue)
+            }
+        }
+        registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+    return state
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun WinlatorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
@@ -499,13 +585,57 @@ fun WinlatorTheme(
     val context = LocalContext.current
     val prefs = remember { MmkvPreferences() }
 
-    val themeId by prefs.observeString("theme_id", "midnight")
-    val customColor by prefs.observeInt("custom_theme_color", 0xFF1A6C59.toInt())
+    val themeMode by prefs.observeString(ThemePrefs.THEME_MODE, ThemePrefs.resolveThemeMode(prefs))
+    val themeId by prefs.observeString(ThemePrefs.THEME_ID, "midnight")
+    val customColor by prefs.observeInt(ThemePrefs.CUSTOM_THEME_COLOR, 0xFF1A6C59.toInt())
+    val dynamicEnabled by prefs.observeBoolean(ThemePrefs.DYNAMIC_COLOR, false)
+    val uiScale by prefs.observeFloat(ThemePrefs.UI_SCALE, 1f)
+    val fontScale by prefs.observeFloat(ThemePrefs.FONT_SCALE, 1f)
+    val cornerRadius by prefs.observeString(ThemePrefs.CORNER_RADIUS, "small")
+    val customPrimary by prefs.observeInt(
+        ThemePrefs.CUSTOM_PRIMARY,
+        if (prefs.contains(ThemePrefs.CUSTOM_THEME_COLOR)) customColor else 0xFF1A6C59.toInt(),
+    )
+    val customSecondary by prefs.observeInt(ThemePrefs.CUSTOM_SECONDARY, 0xFF8CD5BC.toInt())
+    val customBackground by prefs.observeInt(ThemePrefs.CUSTOM_BACKGROUND, 0xFF121212.toInt())
+    val customSurface by prefs.observeInt(ThemePrefs.CUSTOM_SURFACE, 0xFF161616.toInt())
 
-    val effectiveDark = darkTheme
+    val effectiveDark = ThemePrefs.isDarkFromMode(themeMode, darkTheme)
 
-    val colorScheme = remember(themeId, effectiveDark, customColor) {
-        getColorSchemeFor(themeId, effectiveDark, customColor)
+    val colorScheme = if (dynamicEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (effectiveDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else {
+        remember(themeId, effectiveDark, customPrimary, customSecondary, customBackground, customSurface) {
+            getColorSchemeFor(
+                themeId,
+                effectiveDark,
+                customPrimary,
+                CustomThemeColors(
+                    primaryArgb = customPrimary,
+                    secondaryArgb = customSecondary,
+                    backgroundArgb = customBackground,
+                    surfaceArgb = customSurface,
+                ),
+            )
+        }
+    }
+
+    val shapes = when (cornerRadius) {
+        "small" -> Shapes(
+            small = RoundedCornerShape(4.dp),
+            medium = RoundedCornerShape(8.dp),
+            large = RoundedCornerShape(12.dp),
+        )
+        "large" -> Shapes(
+            small = RoundedCornerShape(12.dp),
+            medium = RoundedCornerShape(20.dp),
+            large = RoundedCornerShape(28.dp),
+        )
+        else -> Shapes(
+            small = RoundedCornerShape(8.dp),
+            medium = RoundedCornerShape(16.dp),
+            large = RoundedCornerShape(24.dp),
+        )
     }
 
     val view = LocalView.current
@@ -517,8 +647,19 @@ fun WinlatorTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content,
-    )
+    val baseDensity = LocalDensity.current
+    val scaledDensity = remember(baseDensity, uiScale, fontScale) {
+        Density(
+            density = baseDensity.density * uiScale.coerceIn(0.85f, 1.3f),
+            fontScale = baseDensity.fontScale * fontScale.coerceIn(0.85f, 1.3f),
+        )
+    }
+
+    CompositionLocalProvider(LocalDensity provides scaledDensity) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            shapes = shapes,
+            content = content,
+        )
+    }
 }

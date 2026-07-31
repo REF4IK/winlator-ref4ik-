@@ -1556,9 +1556,37 @@
 
     <!-- Theme Manager Strings -->
     <string name="theme_manager">Менеджер тем</string>
+    <string name="customization">Кастомизация</string>
+    <string name="customization_desc">Масштаб, углы, своя тема, обои</string>
+    <string name="custom_theme_hint">Выберите тему \"Своя палитра\" в менеджере тем, чтобы редактировать цвета.</string>
     <string name="select_theme">Выберите тему</string>
     <string name="custom_color">Кастомный цвет</string>
     <string name="select_primary_color">Выберите основной цвет приложения:</string>
+    <string name="theme_mode">Режим темы</string>
+    <string name="theme_mode_system">Как в системе</string>
+    <string name="theme_mode_light">Светлая</string>
+    <string name="theme_mode_dark">Тёмная</string>
+    <string name="dynamic_color">Динамическая тема (Material You)</string>
+    <string name="interface_scale">Масштаб интерфейса</string>
+    <string name="ui_scale">Масштаб интерфейса</string>
+    <string name="font_scale">Размер шрифта</string>
+    <string name="corner_radius">Закругление углов</string>
+    <string name="corner_radius_small">Маленькое</string>
+    <string name="corner_radius_medium">Среднее</string>
+    <string name="corner_radius_large">Большое</string>
+    <string name="ui_wallpaper">Обои интерфейса</string>
+    <string name="select_wallpaper">Выбрать изображение</string>
+    <string name="remove_wallpaper">Убрать</string>
+    <string name="wallpaper_blur">Размытие</string>
+    <string name="wallpaper_darken">Затемнение</string>
+    <string name="custom_primary">Основной цвет</string>
+    <string name="custom_secondary">Дополнительный цвет</string>
+    <string name="custom_background">Фон</string>
+    <string name="custom_surface">Поверхности</string>
+    <string name="custom_color_picker">Свой цвет</string>
+    <string name="theme_transfer">Перенос темы</string>
+    <string name="export_theme">Экспорт темы</string>
+    <string name="import_theme">Импорт темы</string>
     <string name="theme_default">Классический бирюзовый</string>
     <string name="theme_midnight">Ночной OLED</string>
     <string name="theme_cyberpunk">Киберпанк неон</string>

@@ -63,6 +63,12 @@ public class CustomFilePickerActivity extends AppCompatActivity {
 //            upButton.setBackgroundResource(R.drawable.button_light);
         }
 
+        // Apply custom accent color to the title
+        try {
+            int accent = sharedPreferences.getInt("custom_theme_color", 0xFF1A6C59);
+            pickerTitle.setTextColor(accent);
+        } catch (Exception ignored) {}
+
         // Get the initial directory from the intent
         String initialDirectoryPath = getIntent().getStringExtra("initialDirectory");
         currentDirectory = new File(initialDirectoryPath);

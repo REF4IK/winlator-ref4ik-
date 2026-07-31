@@ -1573,9 +1573,37 @@
 
     <!-- Theme Manager Strings -->
     <string name="theme_manager">Theme Manager</string>
+    <string name="customization">Customization</string>
+    <string name="customization_desc">Scale, corners, custom theme, wallpaper</string>
+    <string name="custom_theme_hint">Select the \"Custom Palette\" theme in Theme Manager to edit colors.</string>
     <string name="select_theme">Select Theme</string>
     <string name="custom_color">Custom Color</string>
     <string name="select_primary_color">Select application primary color:</string>
+    <string name="theme_mode">Theme Mode</string>
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="dynamic_color">Dynamic Color (Material You)</string>
+    <string name="interface_scale">Interface Scale</string>
+    <string name="ui_scale">UI Scale</string>
+    <string name="font_scale">Font Size</string>
+    <string name="corner_radius">Corner Radius</string>
+    <string name="corner_radius_small">Small</string>
+    <string name="corner_radius_medium">Medium</string>
+    <string name="corner_radius_large">Large</string>
+    <string name="ui_wallpaper">Interface Wallpaper</string>
+    <string name="select_wallpaper">Select Image</string>
+    <string name="remove_wallpaper">Remove</string>
+    <string name="wallpaper_blur">Blur</string>
+    <string name="wallpaper_darken">Darken</string>
+    <string name="custom_primary">Primary Color</string>
+    <string name="custom_secondary">Secondary Color</string>
+    <string name="custom_background">Background</string>
+    <string name="custom_surface">Surface</string>
+    <string name="custom_color_picker">Custom Color Picker</string>
+    <string name="theme_transfer">Theme Transfer</string>
+    <string name="export_theme">Export Theme</string>
+    <string name="import_theme">Import Theme</string>
     <string name="theme_default">Teal Classic</string>
     <string name="theme_midnight">Midnight OLED</string>
     <string name="theme_cyberpunk">Cyberpunk Neon</string>

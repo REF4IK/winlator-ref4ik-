@@ -25,7 +25,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.preference.PreferenceManager
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 
@@ -58,7 +57,6 @@ fun SettingsScreen(
     fun toast(resId: Int) = Toast.makeText(ctx, ctx.getString(resId), Toast.LENGTH_SHORT).show()
 
     // ---- Реактивные состояния с точными дефолтами из SettingsFragment.java ----
-    var darkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
     var appLanguage by remember { mutableStateOf(prefs.getString("app_language", "system") ?: "system") }
     var transitionAnim by remember { mutableStateOf(prefs.getString("transition_animation", "none") ?: "none") }
     var cursorLock by remember { mutableStateOf(prefs.getBoolean("cursor_lock", true)) }
@@ -77,11 +75,9 @@ fun SettingsScreen(
     var openWithBrowser by remember { mutableStateOf(prefs.getBoolean("open_with_android_browser", false)) }
     var shareClipboard by remember { mutableStateOf(prefs.getBoolean("share_android_clipboard", false)) }
     var adrenoTurbo by remember { mutableStateOf(prefs.getBoolean("adreno_turbo_mode", false)) }
-    var themeId by remember { mutableStateOf(prefs.getString("theme_id", "midnight") ?: "midnight") }
-    var customThemeColor by remember { mutableStateOf(prefs.getInt("custom_theme_color", 0xFF1A6C59.toInt())) }
 
     // ---- Состояния диалогов ----
-    var showThemeDialog by remember { mutableStateOf(false) }
+    var showCustomization by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showAnimDialog by remember { mutableStateOf(false) }
     var showTriggerDialog by remember { mutableStateOf(false) }
@@ -194,20 +190,9 @@ fun SettingsScreen(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // 2. Тема
-            SectionHeader(stringResource(com.winlator.cmod.R.string.theme), Icons.Filled.Palette)
+            // 2. Общие
+            SectionHeader(stringResource(com.winlator.cmod.R.string.general), Icons.Filled.Palette)
             SettingsCard {
-                SettingsCheckRow(
-                    icon = Icons.Filled.DarkMode,
-                    title = stringResource(com.winlator.cmod.R.string.dark_mode),
-                    checked = darkMode,
-                    onCheckedChange = {
-                        darkMode = it
-                        saveBool("dark_mode", it)
-                        onDarkModeChange(it)
-                    }
-                )
-                SettingsDivider()
                 SettingsClickRow(
                     icon = Icons.Filled.Language,
                     title = stringResource(com.winlator.cmod.R.string.language),
@@ -215,93 +200,12 @@ fun SettingsScreen(
                     onClick = { showLanguageDialog = true }
                 )
                 SettingsDivider()
-                val currentThemeName = stringResource(
-                    when (themeId) {
-                        "midnight" -> com.winlator.cmod.R.string.theme_midnight
-                        "cyberpunk" -> com.winlator.cmod.R.string.theme_cyberpunk
-                        "royal" -> com.winlator.cmod.R.string.theme_royal
-                        "dracula" -> com.winlator.cmod.R.string.theme_dracula
-                        "frost" -> com.winlator.cmod.R.string.theme_frost
-                        "forest" -> com.winlator.cmod.R.string.theme_forest
-                        "ocean" -> com.winlator.cmod.R.string.theme_ocean
-                        "sakura" -> com.winlator.cmod.R.string.theme_sakura
-                        "sunset" -> com.winlator.cmod.R.string.theme_sunset
-                        "matrix" -> com.winlator.cmod.R.string.theme_matrix
-                        "monochrome" -> com.winlator.cmod.R.string.theme_monochrome
-                        "chocolate" -> com.winlator.cmod.R.string.theme_chocolate
-                        "custom" -> com.winlator.cmod.R.string.theme_custom
-                        else -> com.winlator.cmod.R.string.theme_default
-                    }
-                )
                 SettingsClickRow(
-                    icon = Icons.Filled.Palette,
-                    title = stringResource(com.winlator.cmod.R.string.theme_manager),
-                    subtitle = currentThemeName,
-                    onClick = { showThemeDialog = true }
+                    icon = Icons.Filled.Tune,
+                    title = stringResource(com.winlator.cmod.R.string.customization),
+                    subtitle = stringResource(com.winlator.cmod.R.string.customization_desc),
+                    onClick = { showCustomization = true }
                 )
-            }
-
-            if (themeId == "custom") {
-                SectionHeader(stringResource(com.winlator.cmod.R.string.custom_color), Icons.Filled.Brush)
-                SettingsCard {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(com.winlator.cmod.R.string.select_primary_color),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(Modifier.height(12.dp))
-
-                        val row1Colors = listOf(
-                            Color(0xFFE53935), Color(0xFFD81B60), Color(0xFF8E24AA), Color(0xFF5E35B1), Color(0xFF3949AB), Color(0xFF1E88E5), Color(0xFF00ACC1)
-                        )
-                        val row2Colors = listOf(
-                            Color(0xFF00897B), Color(0xFF43A047), Color(0xFF7CB342), Color(0xFFFDD835), Color(0xFFFFB300), Color(0xFFF4511E), Color(0xFF795548)
-                        )
-
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                row1Colors.forEach { color ->
-                                    val isSelected = customThemeColor == color.toArgb()
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(color, shape = androidx.compose.foundation.shape.CircleShape)
-                                            .border(
-                                                width = if (isSelected) 3.dp else 1.dp,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                                                shape = androidx.compose.foundation.shape.CircleShape
-                                            )
-                                            .clickable {
-                                                customThemeColor = color.toArgb()
-                                                saveInt("custom_theme_color", color.toArgb())
-                                            }
-                                    )
-                                }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                row2Colors.forEach { color ->
-                                    val isSelected = customThemeColor == color.toArgb()
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(color, shape = androidx.compose.foundation.shape.CircleShape)
-                                            .border(
-                                                width = if (isSelected) 3.dp else 1.dp,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                                                shape = androidx.compose.foundation.shape.CircleShape
-                                            )
-                                            .clickable {
-                                                customThemeColor = color.toArgb()
-                                                saveInt("custom_theme_color", color.toArgb())
-                                            }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
             }
 
             // 3. Shortcuts
@@ -565,86 +469,15 @@ fun SettingsScreen(
         ) { Icon(Icons.Filled.Check, "Save", tint = MaterialTheme.colorScheme.onPrimary) }
     }
 
-    // ---- Диалоги ----
-    if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            title = { Text(stringResource(com.winlator.cmod.R.string.select_theme)) },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    com.winlator.cmod.ui.theme.ThemesList.forEach { theme ->
-                        val isSelected = theme.id == themeId
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    themeId = theme.id
-                                    saveString("theme_id", theme.id)
-                                    showThemeDialog = false
-                                }
-                                .border(
-                                    width = if (isSelected) 2.dp else 0.dp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    shape = RoundedCornerShape(8.dp)
-                                ),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column {
-                                    val localizedName = stringResource(
-                                        when (theme.id) {
-                                            "midnight" -> com.winlator.cmod.R.string.theme_midnight
-                                            "cyberpunk" -> com.winlator.cmod.R.string.theme_cyberpunk
-                                            "royal" -> com.winlator.cmod.R.string.theme_royal
-                                            "dracula" -> com.winlator.cmod.R.string.theme_dracula
-                                            "frost" -> com.winlator.cmod.R.string.theme_frost
-                                            "forest" -> com.winlator.cmod.R.string.theme_forest
-                                            "ocean" -> com.winlator.cmod.R.string.theme_ocean
-                                            "sakura" -> com.winlator.cmod.R.string.theme_sakura
-                                            "sunset" -> com.winlator.cmod.R.string.theme_sunset
-                                            "matrix" -> com.winlator.cmod.R.string.theme_matrix
-                                            "monochrome" -> com.winlator.cmod.R.string.theme_monochrome
-                                            "chocolate" -> com.winlator.cmod.R.string.theme_chocolate
-                                            "custom" -> com.winlator.cmod.R.string.theme_custom
-                                            else -> com.winlator.cmod.R.string.theme_default
-                                        }
-                                    )
-                                    Text(localizedName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                                    Spacer(Modifier.height(4.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Box(Modifier.size(16.dp).background(theme.primaryColor, shape = androidx.compose.foundation.shape.CircleShape))
-                                        Box(Modifier.size(16.dp).background(theme.accentColor, shape = androidx.compose.foundation.shape.CircleShape))
-                                    }
-                                }
-                                RadioButton(selected = isSelected, onClick = {
-                                    themeId = theme.id
-                                    saveString("theme_id", theme.id)
-                                    showThemeDialog = false
-                                })
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) { Text("OK") }
-            }
+    // Подменю «Кастомизация» поверх основного экрана
+    if (showCustomization) {
+        CustomizationScreen(
+            preferences = prefs,
+            onBack = { showCustomization = false }
         )
     }
 
+    // ---- Диалоги ----
     if (showLanguageDialog) {
         ChoiceDialog(
             title = stringResource(com.winlator.cmod.R.string.language),
