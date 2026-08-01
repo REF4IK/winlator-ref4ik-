@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -806,7 +808,7 @@ private fun BindingPickerDialog(
                             .weight(1f)
                             .verticalScroll(rememberScrollState()),
                     ) {
-                        MouseBindingContent(element, index, ctx, ::applyBinding)
+                        MouseBindingContent(element, index, ::applyBinding)
                     }
                     2 -> GamepadBindingContent(element, index, ctx, ::applyBinding)
                 }
@@ -866,17 +868,145 @@ private fun KeyboardBindingContent(
 private fun MouseBindingContent(
     element: ControlElement,
     index: Int,
-    ctx: Context,
     applyBinding: (Binding) -> Unit,
 ) {
     val current = element.getBindingAt(index)
-    val rows = listOf(
-        listOf(Binding.MOUSE_LEFT_BUTTON, Binding.MOUSE_RIGHT_BUTTON, Binding.MOUSE_MIDDLE_BUTTON, Binding.MOUSE_SCROLL_UP),
-        listOf(Binding.MOUSE_SCROLL_DOWN, Binding.MOUSE_MOVE_UP, Binding.MOUSE_MOVE_DOWN, Binding.MOUSE_MOVE_LEFT),
-        listOf(Binding.MOUSE_MOVE_RIGHT),
-    )
-    rows.forEach { rowBindings ->
-        BindingKeyRow(bindings = rowBindings, current = current, ctx = ctx, onClick = applyBinding)
+
+    // ---- Ряд 1: кнопки мыши и колесо ----
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        MouseImageKey(
+            iconRes = R.drawable.mouse_left_click,
+            accent = current == Binding.MOUSE_LEFT_BUTTON,
+            onClick = { applyBinding(Binding.MOUSE_LEFT_BUTTON) },
+            modifier = Modifier.weight(1f),
+        )
+        MouseImageKey(
+            iconRes = R.drawable.mouse_right_click,
+            accent = current == Binding.MOUSE_RIGHT_BUTTON,
+            onClick = { applyBinding(Binding.MOUSE_RIGHT_BUTTON) },
+            modifier = Modifier.weight(1f),
+        )
+        MouseImageKey(
+            iconRes = R.drawable.mouse_wheel_click,
+            accent = current == Binding.MOUSE_MIDDLE_BUTTON,
+            onClick = { applyBinding(Binding.MOUSE_MIDDLE_BUTTON) },
+            modifier = Modifier.weight(1f),
+        )
+        MouseImageKey(
+            iconRes = R.drawable.mouse_wheel_click,
+            accent = current == Binding.MOUSE_SCROLL_UP,
+            onClick = { applyBinding(Binding.MOUSE_SCROLL_UP) },
+            modifier = Modifier.weight(1f),
+            arrowIcon = Icons.Filled.KeyboardArrowUp,
+        )
+        MouseImageKey(
+            iconRes = R.drawable.mouse_wheel_click,
+            accent = current == Binding.MOUSE_SCROLL_DOWN,
+            onClick = { applyBinding(Binding.MOUSE_SCROLL_DOWN) },
+            modifier = Modifier.weight(1f),
+            arrowIcon = Icons.Filled.KeyboardArrowDown,
+        )
+    }
+
+    Spacer(Modifier.height(10.dp))
+
+    // ---- Ряд 2: вверх (по центру) ----
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        DirectionKey(
+            accent = current == Binding.MOUSE_MOVE_UP,
+            icon = Icons.Filled.ArrowUpward,
+            onClick = { applyBinding(Binding.MOUSE_MOVE_UP) },
+        )
+    }
+
+    Spacer(Modifier.height(8.dp))
+
+    // ---- Ряд 3: влево / вниз / вправо ----
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+    ) {
+        DirectionKey(
+            accent = current == Binding.MOUSE_MOVE_LEFT,
+            icon = Icons.Filled.ArrowBack,
+            onClick = { applyBinding(Binding.MOUSE_MOVE_LEFT) },
+        )
+        DirectionKey(
+            accent = current == Binding.MOUSE_MOVE_DOWN,
+            icon = Icons.Filled.ArrowDownward,
+            onClick = { applyBinding(Binding.MOUSE_MOVE_DOWN) },
+        )
+        DirectionKey(
+            accent = current == Binding.MOUSE_MOVE_RIGHT,
+            icon = Icons.Filled.ArrowForward,
+            onClick = { applyBinding(Binding.MOUSE_MOVE_RIGHT) },
+        )
+    }
+}
+
+// ---- Кнопка-мышь с картинкой ----
+@Composable
+private fun MouseImageKey(
+    iconRes: Int,
+    accent: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    arrowIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+) {
+    val bodyColor = if (accent) Color(0xff11a9ef) else Color(0xff353535)
+    val borderColor = if (accent) Color(0xff5bdcff) else Color(0xff444444)
+
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bodyColor)
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(36.dp),
+        )
+        if (arrowIcon != null) {
+            Icon(
+                imageVector = arrowIcon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(3.dp)
+                    .size(16.dp)
+                    .background(Color(0x99000000), CircleShape),
+            )
+        }
+    }
+}
+
+// ---- Круглая кнопка-стрелка перемещения ----
+@Composable
+private fun DirectionKey(
+    accent: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(52.dp)
+            .clip(CircleShape)
+            .background(if (accent) Color(0xff11a9ef) else Color(0xff353535))
+            .border(1.dp, if (accent) Color(0xff5bdcff) else Color(0xff444444), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
     }
 }
 
