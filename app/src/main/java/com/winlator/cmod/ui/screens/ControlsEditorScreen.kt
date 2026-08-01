@@ -6,6 +6,7 @@ import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,15 +21,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -87,17 +95,39 @@ fun ControlsEditorScreen(
     var refreshTick by remember { mutableStateOf(0) }
     val refresh: () -> Unit = { refreshTick = refreshTick + 1 }
 
+    // ---- Перетаскивание тулбара ----
+    var toolbarOffset by remember { mutableStateOf(Offset.Zero) }
+    var toolbarSize by remember { mutableStateOf(IntSize.Zero) }
+    val screenSize = with(LocalDensity.current) {
+        val cfg = LocalConfiguration.current
+        IntSize(cfg.screenWidthDp.dp.roundToPx(), cfg.screenHeightDp.dp.roundToPx())
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
             factory = { inputControlsView },
             modifier = Modifier.fillMaxSize(),
         )
 
-        // ---- Плавающая панель инструментов ----
-        Surface(
+        // ---- Плавающая панель инструментов (перетаскиваемая) ----
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 8.dp),
+                .offset { IntOffset(toolbarOffset.x.roundToInt(), toolbarOffset.y.roundToInt()) }
+                .onSizeChanged { toolbarSize = it }
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        val newX = (toolbarOffset.x + dragAmount.x)
+                            .coerceIn(-toolbarSize.width / 2f, (screenSize.width - toolbarSize.width) / 2f)
+                        val newY = (toolbarOffset.y + dragAmount.y)
+                            .coerceIn(0f, (screenSize.height - toolbarSize.height).toFloat())
+                        toolbarOffset = Offset(newX, newY)
+                    }
+                },
+        ) {
+        Surface(
+            modifier = Modifier.padding(top = 8.dp),
             shape = RoundedCornerShape(12.dp),
             color = Color(0xE6202020),
             contentColor = Color.White,
@@ -107,6 +137,12 @@ fun ControlsEditorScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
+                Icon(
+                    Icons.Filled.DragHandle,
+                    contentDescription = null,
+                    tint = Color(0x66ffffff),
+                    modifier = Modifier.size(22.dp),
+                )
                 Column(modifier = Modifier.padding(horizontal = 8.dp)) {
                     Text(
                         stringResource(R.string.profile),
@@ -139,6 +175,7 @@ fun ControlsEditorScreen(
                 VerticalDivider(modifier = Modifier.height(32.dp), color = Color(0xff444444))
                 ToolbarIconButton(Icons.Filled.Close, stringResource(R.string.cancel)) { onExit() }
             }
+        }
         }
     }
 

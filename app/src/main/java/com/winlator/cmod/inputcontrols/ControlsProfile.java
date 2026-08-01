@@ -21,6 +21,7 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
     public final int id;
     private String name;
     private float cursorSpeed = 1.0f;
+    private byte visualStyle = 1; // 0=Original, 1=Glass (по умолчанию), 2=Shadow
     private final ArrayList<ControlElement> elements = new ArrayList<>();
     private final ArrayList<ExternalController> controllers = new ArrayList<>();
     private final List<ControlElement> immutableElements = Collections.unmodifiableList(elements);
@@ -50,6 +51,14 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
 
     public void setCursorSpeed(float cursorSpeed) {
         this.cursorSpeed = cursorSpeed;
+    }
+
+    public int getVisualStyle() {
+        return visualStyle;
+    }
+
+    public void setVisualStyle(int visualStyle) {
+        this.visualStyle = (byte)visualStyle;
     }
 
     public boolean isVirtualGamepad() {
@@ -116,6 +125,7 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
             data.put("id", id);
             data.put("name", name);
             data.put("cursorSpeed", Float.valueOf(cursorSpeed));
+            data.put("visualStyle", visualStyle);
 
             JSONArray elementsJSONArray = new JSONArray();
             if (!elementsLoaded && file.isFile()) {

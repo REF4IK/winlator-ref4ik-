@@ -3,13 +3,15 @@ package com.winlator.cmod.inputcontrols;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
+import android.graphics.RadialGradient;
 import com.winlator.cmod.inputcontrols.IconPackManager;
 import android.graphics.Rect;
 import android.graphics.RectF;
-
+import android.graphics.Shader;
 import androidx.core.graphics.ColorUtils;
 
 import com.winlator.cmod.core.CubicBezierInterpolator;
@@ -251,6 +253,10 @@ public class ControlElement {
         return selected;
     }
 
+    public boolean isEngaged() {
+        return currentPointerId != -1 || (toggleSwitch && selected);
+    }
+
     public void setSelected(boolean selected) {
         this.selected = selected;
     }
@@ -435,6 +441,7 @@ public class ControlElement {
     public void draw(Canvas canvas) {
         int snappingSize = inputControlsView.getSnappingSize();
         Paint paint = inputControlsView.getPaint();
+        int style = inputControlsView.getVisualStyle();
         int primaryColor = textColor != Color.TRANSPARENT ? ColorUtils.setAlphaComponent(textColor, (int)(opacity * 255)) : inputControlsView.getPrimaryColor();
         int strokeColor = borderColor != Color.TRANSPARENT ? ColorUtils.setAlphaComponent(borderColor, (int)(opacity * 255)) : (selected ? inputControlsView.getSecondaryColor() : inputControlsView.getPrimaryColor());
         int currentFillColor = fillColor != Color.TRANSPARENT ? fillColor : Color.WHITE;
@@ -448,14 +455,16 @@ public class ControlElement {
         canvas.save();
         canvas.rotate(rotation, x, y);
 
+        drawStyleBody(canvas, paint, boundingBox, snappingSize, strokeColor, currentFillColor, strokeWidth);
+
         switch (type) {
             case BUTTON: {
                 float cx = boundingBox.centerX();
                 float cy = boundingBox.centerY();
-                drawButtonFill(canvas, paint, boundingBox, currentFillColor, fillOpacity, shape, scale);
+                if (style != 1 && style != 2) drawButtonFill(canvas, paint, boundingBox, currentFillColor, fillOpacity, shape, scale);
 
-                // Рисовать границу только если hideBorder = false
-                if (!hideBorder) {
+                // Рисовать границу только если hideBorder = false (для Glass обводка не нужна)
+                if (!hideBorder && style != 1) {
                     switch (shape) {
                         case CIRCLE:
                             canvas.drawCircle(cx, cy, boundingBox.width() * 0.5f, paint);
@@ -485,14 +494,16 @@ public class ControlElement {
                     paint.setTextAlign(Paint.Align.CENTER);
                     paint.setStyle(Paint.Style.FILL);
                     paint.setColor(primaryColor);
+                    if (style == 1) paint.setFakeBoldText(true);
                     canvas.drawText(text, x, (y - ((paint.descent() + paint.ascent()) * 0.5f)), paint);
+                    paint.setFakeBoldText(false);
                 }
                 break;
             }
             case COMBO_BUTTON: {
                 float radius = snappingSize * 0.75f * scale;
-                drawButtonFill(canvas, paint, boundingBox, currentFillColor, fillOpacity, Shape.ROUND_RECT, scale);
-                if (!hideBorder) canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
+                if (style != 1 && style != 2) drawButtonFill(canvas, paint, boundingBox, currentFillColor, fillOpacity, Shape.ROUND_RECT, scale);
+                if (!hideBorder && style != 1) canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
 
                 float segmentWidth = boundingBox.width() / (float)Math.max(1, bindings.length);
                 for (int i = 1; i < bindings.length; i++) {
@@ -502,6 +513,7 @@ public class ControlElement {
 
                 paint.setStyle(Paint.Style.FILL);
                 paint.setColor(primaryColor);
+                if (style == 1) paint.setFakeBoldText(true);
                 paint.setTextAlign(Paint.Align.CENTER);
                 for (int i = 0; i < bindings.length; i++) {
                     String itemText = getBindingAt(i).toString().replace("BUTTON ", "");
@@ -513,6 +525,7 @@ public class ControlElement {
                         canvas.drawText("+", boundingBox.left + segmentWidth * (i + 1), y - ((paint.descent() + paint.ascent()) * 0.5f), paint);
                     }
                 }
+                paint.setFakeBoldText(false);
                 break;
             }
             case D_PAD: {
@@ -552,7 +565,37 @@ public class ControlElement {
                 path.lineTo(cx + offsetY, cy + offsetX);
                 path.close();
 
-                canvas.drawPath(path, paint);
+                if (style == 1) { // Glass: стеклянный крест (заливка + виньетка + обводка)
+                    int[] g = computeGlassColors();
+                    boolean engaged = isEngaged();
+
+                    paint.setShader(null);
+                    paint.setStyle(Paint.Style.FILL);
+                    paint.setColor(g[0]);
+                    canvas.drawPath(path, paint);
+                    if (engaged) {
+                        paint.setColor(g[2]);
+                        canvas.drawPath(path, paint);
+                    }
+
+                    float gradR = Math.max(boundingBox.width(), boundingBox.height()) * 0.5f;
+                    drawGlassPath(canvas, paint, path, cx, cy, gradR, engaged ? g[5] : g[4], boundingBox, snappingSize);
+
+                    if (!hideBorder) {
+                        paint.setShader(null);
+                        paint.setStyle(Paint.Style.STROKE);
+                        paint.setStrokeWidth(Math.max(2f, snappingSize * 0.18f));
+                        paint.setStrokeJoin(Paint.Join.ROUND);
+                        paint.setStrokeCap(Paint.Cap.ROUND);
+                        paint.setColor(engaged ? g[3] : g[1]);
+                        canvas.drawPath(path, paint);
+                        paint.setStrokeJoin(Paint.Join.MITER);
+                        paint.setStrokeCap(Paint.Cap.BUTT);
+                    }
+                }
+                else {
+                    canvas.drawPath(path, paint);
+                }
                 break;
             }
             case RANGE_BUTTON: {
@@ -570,7 +613,7 @@ public class ControlElement {
                     float lineTop = boundingBox.top + strokeWidth * 0.5f;
                     float lineBottom = boundingBox.bottom - strokeWidth * 0.5f;
                     float startX = boundingBox.left;
-                    canvas.drawRoundRect(startX, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
+                    if (style != 1) canvas.drawRoundRect(startX, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
 
                     canvas.save();
                     path.addRoundRect(startX, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, Path.Direction.CW);
@@ -603,7 +646,7 @@ public class ControlElement {
                     float lineLeft = boundingBox.left + strokeWidth * 0.5f;
                     float lineRight = boundingBox.right - strokeWidth * 0.5f;
                     float startY = boundingBox.top;
-                    canvas.drawRoundRect(boundingBox.left, startY, boundingBox.right, boundingBox.bottom, radius, radius, paint);
+                    if (style != 1) canvas.drawRoundRect(boundingBox.left, startY, boundingBox.right, boundingBox.bottom, radius, radius, paint);
 
                     canvas.save();
                     path.addRoundRect(boundingBox.left, startY, boundingBox.right, boundingBox.bottom, radius, radius, Path.Direction.CW);
@@ -638,8 +681,8 @@ public class ControlElement {
                 int cy = boundingBox.centerY();  // Fixed outer circle center
                 int oldColor = paint.getColor();
 
-                // Draw the outer circle (base of the stick)
-                canvas.drawCircle(cx, cy, boundingBox.height() * 0.5f, paint);
+                // Draw the outer circle (base of the stick). Для Glass контур уже нарисован стилем.
+                if (style != 1) canvas.drawCircle(cx, cy, boundingBox.height() * 0.5f, paint);
 
                 // Draw the inner thumbstick (current position based on gyroscope movement)
                 float thumbstickX = getCurrentPosition().x;
@@ -663,16 +706,19 @@ public class ControlElement {
 
             case TRACKPAD: {
                 float radius = boundingBox.height() * 0.15f;
-                canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
-                float offset = strokeWidth * 2.5f;
-                float innerStrokeWidth = strokeWidth * 2;
-                float innerHeight = boundingBox.height() - offset * 2;
-                radius = (innerHeight / boundingBox.height()) * radius - (innerStrokeWidth * 0.5f + strokeWidth * 0.5f);
-                paint.setStrokeWidth(innerStrokeWidth);
-                canvas.drawRoundRect(boundingBox.left + offset, boundingBox.top + offset, boundingBox.right - offset, boundingBox.bottom - offset, radius, radius, paint);
+                // Для Glass контейнер с виньеткой уже нарисован стилем
+                if (style != 1) {
+                    canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
+                    float offset = strokeWidth * 2.5f;
+                    float innerStrokeWidth = strokeWidth * 2;
+                    float innerHeight = boundingBox.height() - offset * 2;
+                    radius = (innerHeight / boundingBox.height()) * radius - (innerStrokeWidth * 0.5f + strokeWidth * 0.5f);
+                    paint.setStrokeWidth(innerStrokeWidth);
+                    canvas.drawRoundRect(boundingBox.left + offset, boundingBox.top + offset, boundingBox.right - offset, boundingBox.bottom - offset, radius, radius, paint);
+                }
 
                 if (iconId > 0) {
-                    drawIcon(canvas, boundingBox.centerX(), boundingBox.centerY(), boundingBox.width() - offset * 2, boundingBox.height() - offset * 2, iconId);
+                    drawIcon(canvas, boundingBox.centerX(), boundingBox.centerY(), boundingBox.width() - strokeWidth * 5, boundingBox.height() - strokeWidth * 5, iconId);
                 }
                 break;
             }
@@ -683,8 +729,8 @@ public class ControlElement {
                 float radius = boundingBox.width() * 0.4f;
                 int oldColor = paint.getColor();
 
-                // Draw outer circle (steering wheel rim)
-                canvas.drawCircle(cx, cy, radius, paint);
+                // Draw outer circle (steering wheel rim). Для Glass контур уже нарисован стилем.
+                if (style != 1) canvas.drawCircle(cx, cy, radius, paint);
 
                 // Get current rotation angle from touch position
                 float rotationAngle = 0f;
@@ -725,6 +771,185 @@ public class ControlElement {
         }
         if (selected && inputControlsView.isEditMode()) drawSelectionOverlay(canvas, paint, boundingBox);
         canvas.restore();
+    }
+
+    // ---- Визуальные стили (0=Original, 1=Glass по умолчанию, 2=Shadow) ----
+
+    // Шейдеры стекла (как в WinNative/GameHub). Рисование только на UI-потоке, статический кэш безопасен.
+    private static Shader bloomShader;
+    private static Shader edgeShadeShader;
+    private static final Matrix shaderMatrix = new Matrix();
+
+    private static Shader getBloomShader() {
+        if (bloomShader == null) {
+            bloomShader = new RadialGradient(0f, 0f, 1f,
+                new int[] {0x8CFFFFFF, 0x3EFFFFFF, 0x00FFFFFF},
+                new float[] {0f, 0.6f, 1f},
+                Shader.TileMode.CLAMP);
+        }
+        return bloomShader;
+    }
+
+    private static Shader getEdgeShadeShader() {
+        if (edgeShadeShader == null) {
+            edgeShadeShader = new RadialGradient(0f, 0f, 1f, 0x00000000, 0xFF000000, Shader.TileMode.CLAMP);
+        }
+        return edgeShadeShader;
+    }
+
+    private static void placeShader(Shader shader, float cx, float cy, float r) {
+        shaderMatrix.reset();
+        shaderMatrix.postScale(r, r);
+        shaderMatrix.postTranslate(cx, cy);
+        shader.setLocalMatrix(shaderMatrix);
+    }
+
+    // Стеклянная виньетка: та же форма, заполненная радиальным градиентом (прозрачный центр -> тёмные края)
+    private void drawGlassShape(Canvas canvas, Paint paint, Rect boundingBox, int snappingSize, int alpha) {
+        if (alpha <= 0) return;
+        float cx = boundingBox.exactCenterX();
+        float cy = boundingBox.exactCenterY();
+        float gradR = Math.max(boundingBox.width(), boundingBox.height()) * 0.5f;
+        drawGlassPath(canvas, paint, null, cx, cy, gradR, alpha, boundingBox, snappingSize);
+    }
+
+    private void drawGlassPath(Canvas canvas, Paint paint, Path path, float cx, float cy, float gradR, int alpha, Rect boundingBox, int snappingSize) {
+        if (alpha <= 0) return;
+        placeShader(getEdgeShadeShader(), cx, cy, gradR);
+        paint.setShader(getEdgeShadeShader());
+        paint.setStyle(Paint.Style.FILL);
+        paint.setAlpha(alpha);
+        if (path != null) canvas.drawPath(path, paint);
+        else drawBodyShape(canvas, paint, boundingBox, snappingSize);
+        paint.setShader(null);
+    }
+
+    // Цвета стекла (как в WinNative/GameHub): [0]=тело, [1]=обводка, [2]=тело-нажатие, [3]=обводка-нажатие, [4]=виньетка, [5]=виньетка-нажатие
+    private int[] computeGlassColors() {
+        float effectiveOpacity = inputControlsView.isEditMode() ? Math.max(0.15f, opacity) : opacity;
+        float overlayOpacity = inputControlsView.getOverlayOpacity();
+        float dim = overlayOpacity <= 0.4f
+            ? 0.28f + (overlayOpacity - 0.1f) * (0.5f / 0.3f)
+            : 0.78f + (overlayOpacity - 0.4f) * (0.22f / 0.6f);
+        boolean hasAccent = borderColor != Color.TRANSPARENT;
+
+        int fillAlpha = (int)(90 * dim * effectiveOpacity);
+        int strokeAlpha = (int)(150 * dim * effectiveOpacity);
+        int glassEdgeAlpha = (int)(75 * dim * effectiveOpacity);
+        int pressedFillAlpha = (int)(90 * dim * effectiveOpacity);
+        int pressedStrokeAlpha = (int)(220 * dim * effectiveOpacity);
+
+        return new int[] {
+            Color.argb(fillAlpha, 0, 0, 0),
+            hasAccent ? ColorUtils.setAlphaComponent(borderColor, Math.max(strokeAlpha, 110)) : Color.argb(strokeAlpha, 255, 255, 255),
+            ColorUtils.setAlphaComponent(hasAccent ? borderColor : Color.WHITE, pressedFillAlpha),
+            hasAccent ? ColorUtils.setAlphaComponent(borderColor, Math.max(pressedStrokeAlpha, 160)) : Color.argb(pressedStrokeAlpha, 255, 255, 255),
+            glassEdgeAlpha * fillAlpha / 255,
+            glassEdgeAlpha * pressedFillAlpha / 255
+        };
+    }
+
+    private void drawStyleBody(Canvas canvas, Paint paint, Rect boundingBox, int snappingSize, int strokeColor, int currentFillColor, float strokeWidth) {
+        int style = inputControlsView.getVisualStyle();
+        if (style > 2) style = 1; // Защита для старых профилей
+
+        if (style == 1) { // Glass (GameHub) — точный порт отрисовки WinNative
+            if (type != Type.D_PAD) { // D-Pad рисует стекло сам (нужна форма креста)
+                int[] g = computeGlassColors();
+                boolean engaged = isEngaged();
+
+                paint.setShader(null);
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(g[0]);
+                drawBodyShape(canvas, paint, boundingBox, snappingSize);
+
+                if (engaged) {
+                    paint.setColor(g[2]);
+                    drawBodyShape(canvas, paint, boundingBox, snappingSize);
+                }
+
+                drawGlassShape(canvas, paint, boundingBox, snappingSize, engaged ? g[5] : g[4]);
+
+                if (!hideBorder) {
+                    paint.setShader(null);
+                    paint.setStyle(Paint.Style.STROKE);
+                    paint.setStrokeWidth(Math.max(2f, snappingSize * 0.18f));
+                    paint.setStrokeJoin(Paint.Join.ROUND);
+                    paint.setStrokeCap(Paint.Cap.ROUND);
+                    paint.setColor(engaged ? g[3] : g[1]);
+                    drawBodyShape(canvas, paint, boundingBox, snappingSize);
+                    paint.setStrokeJoin(Paint.Join.MITER);
+                    paint.setStrokeCap(Paint.Cap.BUTT);
+                }
+            }
+        }
+        else if (style == 2) { // Shadow — мягкое тёмное тело с тенью
+            paint.setShader(null);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(ColorUtils.setAlphaComponent(0xff1b1b26, (int)(opacity * 210)));
+            paint.setShadowLayer(snappingSize * 0.55f, 0, snappingSize * 0.15f, 0xAA000000);
+            drawBodyShape(canvas, paint, boundingBox, snappingSize);
+            paint.clearShadowLayer();
+        }
+
+        // Возвращаем исходное состояние кисти
+        paint.setShader(null);
+        paint.setColor(strokeColor);
+        paint.setAlpha((int)(opacity * 255));
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(strokeWidth);
+    }
+
+    private void drawBodyShape(Canvas canvas, Paint paint, Rect boundingBox, int snappingSize) {
+        float cx = boundingBox.centerX();
+        float cy = boundingBox.centerY();
+        switch (type) {
+            case BUTTON:
+            case COMBO_BUTTON:
+                switch (shape) {
+                    case CIRCLE:
+                        canvas.drawCircle(cx, cy, boundingBox.width() * 0.5f, paint);
+                        break;
+                    case RECT:
+                        canvas.drawRect(boundingBox, paint);
+                        break;
+                    case ROUND_RECT: {
+                        float radius = boundingBox.height() * 0.5f;
+                        canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
+                        break;
+                    }
+                    case SQUARE: {
+                        float radius = snappingSize * 0.75f * scale;
+                        canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
+                        break;
+                    }
+                }
+                break;
+            case STICK:
+                canvas.drawCircle(cx, cy, boundingBox.height() * 0.5f, paint);
+                break;
+            case TRACKPAD:
+            case RANGE_BUTTON: {
+                float radius = boundingBox.height() * 0.15f;
+                canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
+                break;
+            }
+            case STEERING_WHEEL:
+                canvas.drawCircle(cx, cy, boundingBox.width() * 0.4f, paint);
+                break;
+            case D_PAD: {
+                float tileX = boundingBox.width() * 0.17f;
+                float tileY = boundingBox.height() * 0.17f;
+                float radius = snappingSize * 0.3f;
+                canvas.drawRoundRect(cx - tileX, boundingBox.top, cx + tileX, cy - tileY, radius, radius, paint);
+                canvas.drawRoundRect(cx - tileX, cy + tileY, cx + tileX, boundingBox.bottom, radius, radius, paint);
+                canvas.drawRoundRect(boundingBox.left, cy - tileX, cx - tileY, cy + tileX, radius, radius, paint);
+                canvas.drawRoundRect(cx + tileY, cy - tileX, boundingBox.right, cy + tileX, radius, radius, paint);
+                break;
+            }
+            default:
+                break;
+        }
     }
 
     private void drawButtonFill(Canvas canvas, Paint paint, Rect boundingBox, int fillColor, float fillOpacity, Shape shape, float scale) {
@@ -890,6 +1115,7 @@ public class ControlElement {
         if (currentPointerId == -1 && containsPoint(x, y)) {
             currentPointerId = pointerId;
             if (type == Type.BUTTON || type == Type.COMBO_BUTTON) {
+                inputControlsView.invalidate();
                 if (isKeepButtonPressedAfterMinTime()) touchTime = System.currentTimeMillis();
                 if (!toggleSwitch || !selected) {
                     for (Binding binding : bindings) if (binding != Binding.NONE) inputControlsView.handleInputEvent(binding, true);
@@ -920,6 +1146,7 @@ public class ControlElement {
 
     public boolean handleTouchMove(int pointerId, float x, float y) {
         if (pointerId == currentPointerId && (type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD || type == Type.STEERING_WHEEL)) {
+            inputControlsView.invalidate();
             float deltaX, deltaY;
             Rect boundingBox = getBoundingBox();
             float radius = boundingBox.width() * 0.5f;
@@ -1077,12 +1304,12 @@ public class ControlElement {
     public boolean handleTouchUp(int pointerId) {
         if (pointerId == currentPointerId) {
             if (type == Type.BUTTON || type == Type.COMBO_BUTTON) {
+                inputControlsView.invalidate();
                 Binding binding = getBindingAt(0);
                 if (isKeepButtonPressedAfterMinTime() && touchTime != null) {
                     selected = (System.currentTimeMillis() - (long)touchTime) > BUTTON_MIN_TIME_TO_KEEP_PRESSED;
                     if (!selected) inputControlsView.handleInputEvent(binding, false);
                     touchTime = null;
-                    inputControlsView.invalidate();
                 }
                 else if (!toggleSwitch || selected) {
                     for (Binding comboBinding : bindings) if (comboBinding != Binding.NONE) inputControlsView.handleInputEvent(comboBinding, false);
@@ -1090,7 +1317,6 @@ public class ControlElement {
 
                 if (toggleSwitch) {
                     selected = !selected;
-                    inputControlsView.invalidate();
                 }
             }
             else if (type == Type.RANGE_BUTTON || type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD || type == Type.STEERING_WHEEL) {
@@ -1116,9 +1342,9 @@ public class ControlElement {
                 if (type == Type.RANGE_BUTTON) {
                     scroller.handleTouchUp();
                 }
-                else if (type == Type.STICK || type == Type.STEERING_WHEEL) {
-                    inputControlsView.invalidate();
-                }
+
+                // Всегда перерисовываем: подсветка нажатия должна гаснуть при отпускании
+                inputControlsView.invalidate();
 
                 if (currentPosition != null) currentPosition = null;
             }

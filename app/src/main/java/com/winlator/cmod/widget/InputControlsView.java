@@ -201,6 +201,10 @@ public class InputControlsView extends View {
         this.overlayOpacity = overlayOpacity;
     }
 
+    public float getOverlayOpacity() {
+        return overlayOpacity;
+    }
+
     public int getSnappingSize() {
         return snappingSize;
     }
@@ -391,6 +395,10 @@ public class InputControlsView extends View {
 
     public synchronized ControlsProfile getProfile() {
         return profile;
+    }
+
+    public int getVisualStyle() {
+        return profile != null ? profile.getVisualStyle() : 1;
     }
 
     public synchronized void setProfile(ControlsProfile profile) {
