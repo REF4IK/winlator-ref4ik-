@@ -127,8 +127,25 @@ public abstract class ProcessHelper {
         Executors.newSingleThreadExecutor().execute(() -> {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
                 String line;
+                String lastPrintedLine = null;
+                long duplicateCount = 0;
                 while ((line = reader.readLine()) != null) {
-                    if (PRINT_DEBUG) System.out.println(line);
+                    if (PRINT_DEBUG) {
+                        if (line.equals(lastPrintedLine)) {
+                            duplicateCount++;
+                            if (duplicateCount % 100 == 0) {
+                                System.out.println("[suppressed " + duplicateCount + " repeated lines]");
+                            }
+                        }
+                        else {
+                            if (duplicateCount > 0 && duplicateCount % 100 != 0) {
+                                System.out.println("[suppressed " + duplicateCount + " repeated lines]");
+                            }
+                            System.out.println(line);
+                            lastPrintedLine = line;
+                            duplicateCount = 0;
+                        }
+                    }
                     synchronized (debugCallbacks) {
                         if (!debugCallbacks.isEmpty()) {
                             for (Callback<String> callback : debugCallbacks) callback.call(line);

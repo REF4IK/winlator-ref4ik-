@@ -9,8 +9,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,6 +20,7 @@ public class SensorReader {
 
     private static final String TAG = "SensorReader";
     private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d+)");
+    private static final Set<String> loggedFailPaths = new HashSet<>();
 
     private long lastCpuTotal = -1L;
     private long lastCpuIdle = -1L;
@@ -511,7 +514,9 @@ public class SensorReader {
         try (RandomAccessFile reader = new RandomAccessFile(file, "r")) {
             return reader.readLine();
         } catch (Exception e) {
-            Log.d(TAG, "Failed to read " + path + ": " + e.getMessage());
+            if (loggedFailPaths.add(path)) {
+                Log.d(TAG, "Failed to read " + path + ": " + e.getMessage());
+            }
             return null;
         }
     }
