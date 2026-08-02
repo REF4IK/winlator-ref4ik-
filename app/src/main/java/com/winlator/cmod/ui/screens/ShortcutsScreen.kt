@@ -74,6 +74,7 @@ import com.winlator.cmod.core.ShortcutCoverFetcher
 import com.winlator.cmod.core.SteamImageCache
 import com.winlator.cmod.core.gameconfig.GameConfigManager
 import com.winlator.cmod.core.gameconfig.CloudConfigRepoV2
+import com.winlator.cmod.win32.PEParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
@@ -471,6 +472,28 @@ private fun exportShortcutToFrontend(ctx: android.content.Context, shortcut: Sho
 
 // ---- Карточка как в старом ShortcutsFragment (list_item.xml) — компактная ----
 @Composable
+private fun rememberGameVersion(shortcut: Shortcut): String? {
+    var version by remember(shortcut) { mutableStateOf<String?>(null) }
+    LaunchedEffect(shortcut) {
+        if (version == null) {
+            version = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val exe = shortcut.resolveExeFile()
+                    val info = if (exe != null) PEParser.getFileVersionInfo(exe) else null
+                    val v = (info?.FileVersion ?: info?.ProductVersion)?.takeIf { it.isNotBlank() }
+                    android.util.Log.d("GameVersion", "shortcut=${shortcut.name} exe=${exe?.absolutePath} info=${info != null} version=$v")
+                    v
+                } catch (e: Throwable) {
+                    android.util.Log.d("GameVersion", "shortcut=${shortcut.name} error: ${e.message}")
+                    null
+                }
+            }
+        }
+    }
+    return version
+}
+
+@Composable
 private fun ShortcutCard(
     shortcut: Shortcut,
     onClick: () -> Unit,
@@ -565,15 +588,31 @@ private fun ShortcutCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 val wineVer = shortcut.container.wineVersion
-                if (wineVer.isNotEmpty()) {
-                    Text(
-                        text = wineVer,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                val gameVersion = rememberGameVersion(shortcut)
+                if (wineVer.isNotEmpty() || gameVersion != null) {
+                    Row(
                         modifier = Modifier.padding(top = 2.dp),
-                    )
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (wineVer.isNotEmpty()) {
+                            Text(
+                                text = wineVer,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        gameVersion?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
             }
             // Кнопка ⋮
@@ -719,20 +758,42 @@ private fun ShortcutLargeCard(
                     modifier = Modifier.padding(top = 2.dp),
                 )
                 val wineVer = shortcut.container.wineVersion
-                if (wineVer.isNotEmpty()) {
-                    Surface(
-                        color = Color(0xFF1A73E8).copy(alpha = 0.85f),
-                        shape = RoundedCornerShape(4.dp),
+                val gameVersion = rememberGameVersion(shortcut)
+                if (wineVer.isNotEmpty() || gameVersion != null) {
+                    Row(
                         modifier = Modifier.padding(top = 3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Text(
-                            text = wineVer,
-                            color = Color.White.copy(alpha = 0.87f),
-                            fontSize = 9.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
-                        )
+                        if (wineVer.isNotEmpty()) {
+                            Surface(
+                                color = Color(0xFF1A73E8).copy(alpha = 0.85f),
+                                shape = RoundedCornerShape(4.dp),
+                            ) {
+                                Text(
+                                    text = wineVer,
+                                    color = Color.White.copy(alpha = 0.87f),
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                )
+                            }
+                        }
+                        gameVersion?.let {
+                            Surface(
+                                color = Color(0xFF2E7D32).copy(alpha = 0.85f),
+                                shape = RoundedCornerShape(4.dp),
+                            ) {
+                                Text(
+                                    text = it,
+                                    color = Color.White.copy(alpha = 0.87f),
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }

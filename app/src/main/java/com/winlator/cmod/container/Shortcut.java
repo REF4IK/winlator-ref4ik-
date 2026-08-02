@@ -4,6 +4,7 @@
 
     import android.graphics.Bitmap;
     import android.graphics.BitmapFactory;
+    import android.os.Environment;
     import android.util.Log;
 
     import com.winlator.cmod.MainActivity;
@@ -438,6 +439,14 @@ import java.nio.file.Files;
                                 File candidate = new File(driveDir, rest);
                                 if (candidate.isFile()) return candidate;
                             }
+                        }
+
+                        // Fallback: imports write paths like D:/Games/Game.exe relative to the
+                        // external storage root (/storage/emulated/0), regardless of the drive config
+                        File externalRoot = Environment.getExternalStorageDirectory();
+                        if (externalRoot != null) {
+                            File candidate = new File(externalRoot, rest);
+                            if (candidate.isFile()) return candidate;
                         }
                     }
                 }
