@@ -298,14 +298,36 @@ Column(modifier = Modifier.fillMaxSize()) {
         val hours = (totalPlaytime / (1000 * 60 * 60)) % 24
         val days = totalPlaytime / (1000 * 60 * 60 * 24)
         val playtime = "${days}d ${String.format("%02d", hours)}h ${String.format("%02d", minutes)}m ${String.format("%02d", seconds)}s"
+        val gameInfo = rememberGameInfo(s)
+        val exePath = remember(s) { s.resolveExeFile()?.absolutePath }
 
         AlertDialog(
             onDismissRequest = { showPropertiesFor = null },
             title = { Text("Properties", fontWeight = FontWeight.Bold) },
             text = {
-                Column {
-                    Text("Number of times played: $playCount", style = MaterialTheme.typography.bodyMedium)
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    val infoRows = listOfNotNull(
+                        gameInfo?.version?.let { "Version" to it },
+                        gameInfo?.productName?.let { "Product" to it },
+                        gameInfo?.company?.let { "Developer" to it },
+                        gameInfo?.description?.let { "Description" to it },
+                        gameInfo?.copyright?.let { "Copyright" to it },
+                        gameInfo?.originalFilename?.let { "File name" to it },
+                        exePath?.let { "EXE path" to it },
+                    )
+                    infoRows.forEach { (label, value) ->
+                        Column {
+                            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(value, style = MaterialTheme.typography.bodySmall, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    Text("Container: ${s.container.name}", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text("Wine version: ${s.container.wineVersion}", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(8.dp))
+                    Text("Number of times played: $playCount", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
                     Text("Playtime: $playtime", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(16.dp))
                     Button(
@@ -471,18 +493,39 @@ private fun exportShortcutToFrontend(ctx: android.content.Context, shortcut: Sho
 }
 
 // ---- Карточка как в старом ShortcutsFragment (list_item.xml) — компактная ----
+data class GameInfo(
+    val version: String?,
+    val company: String?,
+    val productName: String?,
+    val description: String?,
+    val copyright: String?,
+    val originalFilename: String?,
+)
+
+private val GAME_INFO_CACHE = ConcurrentHashMap<String, GameInfo>()
+
 @Composable
-private fun rememberGameVersion(shortcut: Shortcut): String? {
-    var version by remember(shortcut) { mutableStateOf<String?>(null) }
+private fun rememberGameInfo(shortcut: Shortcut): GameInfo? {
+    val cacheKey = shortcut.file?.absolutePath ?: shortcut.name
+    val cached = GAME_INFO_CACHE[cacheKey]
+    var info by remember(shortcut) { mutableStateOf(cached) }
     LaunchedEffect(shortcut) {
-        if (version == null) {
-            version = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (info == null) {
+            info = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 try {
                     val exe = shortcut.resolveExeFile()
-                    val info = if (exe != null) PEParser.getFileVersionInfo(exe) else null
-                    val v = (info?.FileVersion ?: info?.ProductVersion)?.takeIf { it.isNotBlank() }
-                    android.util.Log.d("GameVersion", "shortcut=${shortcut.name} exe=${exe?.absolutePath} info=${info != null} version=$v")
-                    v
+                    val fi = if (exe != null) PEParser.getFileVersionInfo(exe) else null
+                    val gameInfo = if (fi != null) GameInfo(
+                        version = (fi.FileVersion ?: fi.ProductVersion)?.takeIf { it.isNotBlank() },
+                        company = fi.CompanyName?.takeIf { it.isNotBlank() },
+                        productName = fi.ProductName?.takeIf { it.isNotBlank() },
+                        description = fi.FileDescription?.takeIf { it.isNotBlank() },
+                        copyright = fi.LegalCopyright?.takeIf { it.isNotBlank() },
+                        originalFilename = fi.OriginalFilename?.takeIf { it.isNotBlank() },
+                    ) else null
+                    android.util.Log.d("GameVersion", "shortcut=${shortcut.name} exe=${exe?.absolutePath} info=${fi != null} version=${gameInfo?.version}")
+                    if (gameInfo != null) GAME_INFO_CACHE[cacheKey] = gameInfo
+                    gameInfo
                 } catch (e: Throwable) {
                     android.util.Log.d("GameVersion", "shortcut=${shortcut.name} error: ${e.message}")
                     null
@@ -490,7 +533,77 @@ private fun rememberGameVersion(shortcut: Shortcut): String? {
             }
         }
     }
-    return version
+    return info
+}
+
+@Composable
+private fun rememberPlaytime(shortcut: Shortcut): String? {
+    return remember(shortcut) {
+        val prefs = MmkvPreferences("playtime_stats")
+        val totalMs = prefs.getLong("${shortcut.name}_playtime", 0)
+        val count = prefs.getInt("${shortcut.name}_play_count", 0)
+        if (totalMs <= 0 && count <= 0) {
+            null
+        } else {
+            val totalSeconds = totalMs / 1000
+            val days = totalSeconds / 86400
+            val hours = (totalSeconds % 86400) / 3600
+            val minutes = (totalSeconds % 3600) / 60
+            val timeStr = buildString {
+                if (days > 0) append("${days}д ")
+                if (hours > 0) append("${hours}ч ")
+                append("${minutes}м")
+            }
+            if (count > 0) "$timeStr · $count запусков" else timeStr
+        }
+    }
+}
+
+@Composable
+private fun GameInfoDialog(info: GameInfo, shortcut: Shortcut, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(shortcut.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val rows = listOfNotNull(
+                    info.description?.let { "Описание" to it },
+                    info.productName?.let { "Продукт" to it },
+                    info.version?.let { "Версия" to it },
+                    info.company?.let { "Разработчик" to it },
+                    info.copyright?.let { "Авторские права" to it },
+                    info.originalFilename?.let { "Имя файла" to it },
+                )
+                if (rows.isEmpty()) {
+                    Text(
+                        "Информация о версии не найдена",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    rows.forEach { (label, value) ->
+                        Column {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = value,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.okay)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -524,6 +637,8 @@ private fun ShortcutCard(
             }
         }
     }
+    val gameInfo = rememberGameInfo(shortcut)
+    var showGameInfo by remember(shortcut) { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -588,8 +703,7 @@ private fun ShortcutCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 val wineVer = shortcut.container.wineVersion
-                val gameVersion = rememberGameVersion(shortcut)
-                if (wineVer.isNotEmpty() || gameVersion != null) {
+                if (wineVer.isNotEmpty() || gameInfo?.version != null) {
                     Row(
                         modifier = Modifier.padding(top = 2.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -603,16 +717,27 @@ private fun ShortcutCard(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        gameVersion?.let {
+                        gameInfo?.version?.let {
                             Text(
                                 text = it,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.tertiary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.clickable { showGameInfo = true },
                             )
                         }
                     }
+                }
+                rememberPlaytime(shortcut)?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
                 }
             }
             // Кнопка ⋮
@@ -620,6 +745,9 @@ private fun ShortcutCard(
                 Icon(Icons.Filled.MoreVert, contentDescription = null)
             }
         }
+    }
+    if (showGameInfo && gameInfo != null) {
+        GameInfoDialog(info = gameInfo, shortcut = shortcut, onDismiss = { showGameInfo = false })
     }
 }
 
@@ -658,6 +786,8 @@ private fun ShortcutLargeCard(
             }
         }
     }
+    val gameInfo = rememberGameInfo(shortcut)
+    var showGameInfo by remember(shortcut) { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -734,70 +864,88 @@ private fun ShortcutLargeCard(
             ) {
                 Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color.White)
             }
-            // Текст снизу: имя → контейнер → wine-badge
+            // Текст снизу: имя → контейнер → бейджи
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(start = 10.dp, end = 48.dp, bottom = 10.dp),
+                    .padding(start = 10.dp, end = 10.dp, bottom = 6.dp),
             ) {
                 Text(
                     text = shortcut.name,
                     color = Color.White,
-                    fontSize = 13.sp,
+                    fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = shortcut.container.name,
-                    color = Color.White.copy(alpha = 0.74f),
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
                 val wineVer = shortcut.container.wineVersion
-                val gameVersion = rememberGameVersion(shortcut)
-                if (wineVer.isNotEmpty() || gameVersion != null) {
+                if (wineVer.isNotEmpty() || gameInfo?.version != null) {
                     Row(
-                        modifier = Modifier.padding(top = 3.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(top = 1.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         if (wineVer.isNotEmpty()) {
                             Surface(
                                 color = Color(0xFF1A73E8).copy(alpha = 0.85f),
-                                shape = RoundedCornerShape(4.dp),
+                                shape = RoundedCornerShape(3.dp),
                             ) {
                                 Text(
                                     text = wineVer,
                                     color = Color.White.copy(alpha = 0.87f),
-                                    fontSize = 9.sp,
+                                    fontSize = 8.sp,
+                                    lineHeight = 8.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.dp),
                                 )
                             }
                         }
-                        gameVersion?.let {
+                        gameInfo?.version?.let {
                             Surface(
                                 color = Color(0xFF2E7D32).copy(alpha = 0.85f),
-                                shape = RoundedCornerShape(4.dp),
+                                shape = RoundedCornerShape(3.dp),
+                                modifier = Modifier.clickable { showGameInfo = true },
                             ) {
                                 Text(
                                     text = it,
                                     color = Color.White.copy(alpha = 0.87f),
-                                    fontSize = 9.sp,
+                                    fontSize = 8.sp,
+                                    lineHeight = 8.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.dp),
                                 )
                             }
                         }
                     }
                 }
+                Row(
+                    modifier = Modifier.padding(top = 1.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    rememberPlaytime(shortcut)?.let {
+                        Text(
+                            text = it,
+                            color = Color.White.copy(alpha = 0.74f),
+                            fontSize = 8.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(
+                        text = shortcut.container.name,
+                        color = Color.White.copy(alpha = 0.74f),
+                        fontSize = 8.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
+    }
+    if (showGameInfo && gameInfo != null) {
+        GameInfoDialog(info = gameInfo, shortcut = shortcut, onDismiss = { showGameInfo = false })
     }
 }
 
