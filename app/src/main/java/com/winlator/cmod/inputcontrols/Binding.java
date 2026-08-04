@@ -122,39 +122,65 @@ public enum Binding {
         return this == MOUSE_MOVE_UP || this == MOUSE_MOVE_RIGHT || this == MOUSE_MOVE_DOWN || this == MOUSE_MOVE_LEFT;
     }
 
+    private static final String[] MOUSE_LABELS;
+    private static final String[] KEYBOARD_LABELS;
+    private static final String[] GAMEPAD_LABELS;
+    private static final Binding[] MOUSE_VALUES;
+    private static final Binding[] KEYBOARD_VALUES;
+    private static final Binding[] GAMEPAD_VALUES;
+
+    static {
+        ArrayList<String> mouseLabels = new ArrayList<>();
+        ArrayList<String> keyboardLabels = new ArrayList<>();
+        ArrayList<String> gamepadLabels = new ArrayList<>();
+        ArrayList<Binding> mouseValues = new ArrayList<>();
+        ArrayList<Binding> keyboardValues = new ArrayList<>();
+        ArrayList<Binding> gamepadValues = new ArrayList<>();
+
+        for (Binding binding : values()) {
+            if (binding.isMouse()) {
+                mouseLabels.add(binding.toString());
+                mouseValues.add(binding);
+            }
+            if (binding.isKeyboard()) {
+                keyboardLabels.add(binding.toString());
+                keyboardValues.add(binding);
+            }
+            if (binding.isGamepad()) {
+                gamepadLabels.add(binding.toString());
+                gamepadValues.add(binding);
+            }
+        }
+
+        MOUSE_LABELS = mouseLabels.toArray(new String[0]);
+        KEYBOARD_LABELS = keyboardLabels.toArray(new String[0]);
+        GAMEPAD_LABELS = gamepadLabels.toArray(new String[0]);
+        MOUSE_VALUES = mouseValues.toArray(new Binding[0]);
+        KEYBOARD_VALUES = keyboardValues.toArray(new Binding[0]);
+        GAMEPAD_VALUES = gamepadValues.toArray(new Binding[0]);
+    }
+
     public static String[] mouseBindingLabels() {
-        ArrayList<String> names = new ArrayList<>();
-        for (Binding binding : values()) if (binding.isMouse()) names.add(binding.toString());
-        return names.toArray(new String[0]);
+        return MOUSE_LABELS;
     }
 
     public static String[] keyboardBindingLabels() {
-        ArrayList<String> labels = new ArrayList<>();
-        for (Binding binding : values()) if (binding.isKeyboard()) labels.add(binding.toString());
-        return labels.toArray(new String[0]);
+        return KEYBOARD_LABELS;
     }
 
     public static String[] gamepadBindingLabels() {
-        ArrayList<String> names = new ArrayList<>();
-        for (Binding binding : values()) if (binding.isGamepad()) names.add(binding.toString());
-        return names.toArray(new String[0]);
+        return GAMEPAD_LABELS;
     }
 
     public static Binding[] mouseBindingValues() {
-        ArrayList<Binding> labels = new ArrayList<>();
-        for (Binding binding : values()) if (binding.isMouse()) labels.add(binding);
-        return labels.toArray(new Binding[0]);
+        return MOUSE_VALUES;
     }
 
     public static Binding[] keyboardBindingValues() {
-        ArrayList<Binding> values = new ArrayList<>();
-        for (Binding binding : values()) if (binding.isKeyboard()) values.add(binding);
-        return values.toArray(new Binding[0]);
+        return KEYBOARD_VALUES;
     }
 
     public static Binding[] gamepadBindingValues() {
-        ArrayList<Binding> labels = new ArrayList<>();
-        for (Binding binding : values()) if (binding.isGamepad()) labels.add(binding);
-        return labels.toArray(new Binding[0]);
+        return GAMEPAD_VALUES;
     }
 }
