@@ -48,9 +48,15 @@ public class MultiSelectionComboBox extends AppCompatTextView {
     }
 
     public String getSelectedItemsAsString() {
-        String result = "";
-        for (String item : items) if (selectedItemSet.contains(item)) result += (!result.isEmpty() ? "," : "")+item;
-        return result;
+        if (items == null) return "";
+        StringBuilder result = new StringBuilder();
+        for (String item : items) {
+            if (selectedItemSet.contains(item)) {
+                if (result.length() > 0) result.append(",");
+                result.append(item);
+            }
+        }
+        return result.toString();
     }
 
     @Override
