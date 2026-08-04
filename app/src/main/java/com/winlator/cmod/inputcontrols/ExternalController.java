@@ -459,34 +459,6 @@ public class ExternalController {
 
 
 
-//    public boolean updateStateFromMotionEvent(MotionEvent event) {
-//        if (isJoystickDevice(event)) {
-//            // Check if the event contains trigger axis data
-//            boolean hasTriggerData = event.getAxisValue(MotionEvent.AXIS_LTRIGGER) != 0f ||
-//                    event.getAxisValue(MotionEvent.AXIS_RTRIGGER) != 0f ||
-//                    event.getAxisValue(MotionEvent.AXIS_BRAKE) != 0f ||
-//                    event.getAxisValue(MotionEvent.AXIS_GAS) != 0f;
-//
-//            if (hasTriggerData) {
-////                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
-////                triggerType = (byte) preferences.getInt("trigger_type", TRIGGER_IS_BUTTON);
-//
-//                if (triggerType == TRIGGER_IS_AXIS) {
-////                    Log.d("ExternalController", "triggerType is " + triggerType);
-//                    processTriggerButton(event);
-//                }
-//            }
-//
-//            int historySize = event.getHistorySize();
-//            for (int i = 0; i < historySize; i++) {
-//                processJoystickInput(event, i);
-//            }
-//            processJoystickInput(event, -1);
-//            return true;
-//        }
-//        return false;
-//    }
-
     public boolean updateStateFromMotionEvent(MotionEvent event) {
         if (isJoystickDevice(event)) {
             if (triggerType == TRIGGER_IS_AXIS)
