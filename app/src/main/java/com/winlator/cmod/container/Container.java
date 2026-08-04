@@ -680,10 +680,13 @@ public class Container {
     }
 
     public static String getFallbackCPUList() {
-        String cpuList = "";
         int numProcessors = Runtime.getRuntime().availableProcessors();
-        for (int i = 0; i < numProcessors; i++) cpuList += (!cpuList.isEmpty() ? "," : "")+i;
-        return cpuList;
+        StringBuilder cpuList = new StringBuilder();
+        for (int i = 0; i < numProcessors; i++) {
+            if (i > 0) cpuList.append(",");
+            cpuList.append(i);
+        }
+        return cpuList.toString();
     }
 
     public static String getFallbackCPUListWoW64() {
