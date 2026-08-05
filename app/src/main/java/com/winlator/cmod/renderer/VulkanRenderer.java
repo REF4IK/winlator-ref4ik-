@@ -823,8 +823,6 @@ public class VulkanRenderer implements XServerRenderer,
     public static final int EFFECT_SMOOTH = 11;
     public static final int EFFECT_HDR = 12;
     public static final int EFFECT_NTSC = 13;
-    public static final int EFFECT_FSR1_EASU = 14;
-    public static final int EFFECT_FSR1_RCAS = 15;
 
     public void setEffects(int[] types, float[][] paramsArr) {
         synchronized (lock) {

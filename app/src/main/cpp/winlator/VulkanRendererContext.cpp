@@ -23,8 +23,6 @@
 #include "effect_smooth_frag.h"
 #include "effect_hdr_frag.h"
 #include "effect_ntsc_frag.h"
-#include "effect_fsr1_easu_frag.h"
-#include "effect_fsr1_rcas_frag.h"
 
 VulkanRendererContext::VulkanRendererContext(ANativeWindow* win, int cW, int cH, void* aHandle)
     : window(win), surfaceWidth(cW), surfaceHeight(cH), containerWidth(cW), containerHeight(cH),
@@ -881,8 +879,11 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
             vk_.CmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, effectPipeLayout, 0, 1, &src.ds, 0, nullptr);
 
             EffectPushConstants epc{};
-            epc.resolutionX = (float)surfaceWidth;
-            epc.resolutionY = (float)surfaceHeight;
+            // BUG FIX: шейдеры эффектов считают texel-шаг (1/resolution) от РАЗМЕРА БУФЕРА,
+            // в который рендерят (offscreen container), а не от размера экрана.
+            // Иначе FXAA/blur/sharpen работают с неверным шагом и мылят картинку.
+            epc.resolutionX = (float)containerWidth;
+            epc.resolutionY = (float)containerHeight;
             memcpy(epc.params, effect.params, sizeof(effect.params));
             vk_.CmdPushConstants(cb, effectPipeLayout, VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(epc), &epc);
             vk_.CmdDraw(cb, 4, 1, 0, 0);
@@ -1571,8 +1572,6 @@ static const uint32_t* getEffectFragCode(EffectType type, size_t& sz) {
         case EFFECT_SMOOTH:     sz = sizeof(effect_smooth_frag_code)/sizeof(uint32_t); return effect_smooth_frag_code;
         case EFFECT_HDR:        sz = sizeof(effect_hdr_frag_code)/sizeof(uint32_t); return effect_hdr_frag_code;
         case EFFECT_NTSC:       sz = sizeof(effect_ntsc_frag_code)/sizeof(uint32_t); return effect_ntsc_frag_code;
-        case EFFECT_FSR1_EASU:  sz = sizeof(effect_fsr1_easu_frag_code)/sizeof(uint32_t); return effect_fsr1_easu_frag_code;
-        case EFFECT_FSR1_RCAS:  sz = sizeof(effect_fsr1_rcas_frag_code)/sizeof(uint32_t); return effect_fsr1_rcas_frag_code;
         default: return nullptr;
     }
 }

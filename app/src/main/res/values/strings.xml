@@ -298,14 +298,6 @@
     <string name="enable_sendinput_mode">Use Windows SendInput Mode</string>
     <string name="enable_sepia_effect">Enable Sepia Effect</string>
     <string name="enable_sharpen_effect">Enable Sharpen Effect</string>
-    <string name="enable_fsr_effect">AMD FSR 1.0 (Upscale + Sharpen)</string>
-    <string name="fsr_sharpness">FSR Sharpness</string>
-    <string name="fsr_quality">FSR Quality</string>
-    <string name="fsr_quality_ultra">Ultra Quality (1.3x)</string>
-    <string name="fsr_quality_quality">Quality (1.5x)</string>
-    <string name="fsr_quality_balanced">Balanced (1.7x)</string>
-    <string name="fsr_quality_performance">Performance (2.0x)</string>
-    <string name="fsr_aspect_fit">FSR Aspect Fit (letterbox)</string>
     <string name="enable_smooth_effect">Enable Smooth Effect</string>
     <string name="enable_toon_shader">Enable Toon Shader</string>
     <string name="enable_touchscreen_haptics">Enable Touchscreen Haptic Feedback</string>

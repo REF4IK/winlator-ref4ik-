@@ -65,13 +65,6 @@
                 <CheckBox android:id="@+id/CBEnableSharpenEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_sharpen_effect" />
                 <CheckBox android:id="@+id/CBEnableSmoothEffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_smooth_effect" />
                 <CheckBox android:id="@+id/CBEnableHDREffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="HDR" />
-                <CheckBox android:id="@+id/CBEnableFSREffect" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/enable_fsr_effect" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/fsr_quality" />
-                <Spinner android:id="@+id/SFsrQuality" android:layout_width="fill_parent" android:layout_height="wrap_content" style="@style/ComboBox" />
-                <CheckBox android:id="@+id/CBFsrAspectFit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/fsr_aspect_fit" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/fsr_sharpness" />
-                <com.winlator.cmod.widget.SeekBar
-                    android:id="@+id/SBFsrSharpness" android:layout_width="fill_parent" android:layout_height="60dp" app:maxValue="100" app:minValue="0" />
 
             </LinearLayout>
         </LinearLayout>

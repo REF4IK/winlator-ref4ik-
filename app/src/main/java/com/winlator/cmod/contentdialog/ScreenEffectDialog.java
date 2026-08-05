@@ -46,16 +46,12 @@ public class ScreenEffectDialog extends ContentDialog {
     private final CheckBox cbEnableSharpenEffect;
     private final CheckBox cbEnableSmoothEffect;
     private final CheckBox cbEnableHDREffect;
-    private final CheckBox cbEnableFSREffect;
-    private final CheckBox cbFsrAspectFit;
-    private final Spinner sFsrQuality;
     private final SharedPreferences preferences;
     private final boolean isDarkMode;
     private final Spinner sProfile;
     private final SeekBar sbBrightness;
     private final SeekBar sbContrast;
     private final SeekBar sbGamma;
-    private final SeekBar sbFsrSharpness;
 
     private static final String TAG = "ScreenEffectDialog";
 
@@ -74,7 +70,6 @@ public class ScreenEffectDialog extends ContentDialog {
         sbBrightness = findViewById(R.id.SBBrightness);
         sbContrast = findViewById(R.id.SBContrast);
         sbGamma = findViewById(R.id.SBGamma);
-        sbFsrSharpness = findViewById(R.id.SBFsrSharpness);
         cbEnableFXAA = findViewById(R.id.CBEnableFXAA);
         cbEnableCRTShader = findViewById(R.id.CBEnableCRTShader);
 
@@ -88,20 +83,6 @@ public class ScreenEffectDialog extends ContentDialog {
         cbEnableSharpenEffect = findViewById(R.id.CBEnableSharpenEffect);
         cbEnableSmoothEffect = findViewById(R.id.CBEnableSmoothEffect);
         cbEnableHDREffect = findViewById(R.id.CBEnableHDREffect);
-        cbEnableFSREffect = findViewById(R.id.CBEnableFSREffect);
-        cbFsrAspectFit = findViewById(R.id.CBFsrAspectFit);
-        sFsrQuality = findViewById(R.id.SFsrQuality);
-        {
-            ArrayAdapter<String> qAdapter = new ArrayAdapter<>(activity, android.R.layout.simple_spinner_item, new String[]{
-                    activity.getString(R.string.fsr_quality_ultra),
-                    activity.getString(R.string.fsr_quality_quality),
-                    activity.getString(R.string.fsr_quality_balanced),
-                    activity.getString(R.string.fsr_quality_performance)
-            });
-            qAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            sFsrQuality.setAdapter(qAdapter);
-            sFsrQuality.setSelection(1);
-        }
 
         applyDialogThemeOverrides();
 
@@ -235,9 +216,7 @@ public class ScreenEffectDialog extends ContentDialog {
                 cbEnableGrayscaleEffect,
                 cbEnableSharpenEffect,
                 cbEnableSmoothEffect,
-                cbEnableHDREffect,
-                cbEnableFSREffect,
-                cbFsrAspectFit
+                cbEnableHDREffect
         };
 
         for (CheckBox checkBox : checkBoxes) {
@@ -338,10 +317,6 @@ public class ScreenEffectDialog extends ContentDialog {
                 cbEnableSharpenEffect.setChecked(settings.getBoolean("sharpen_effect", false));
                 cbEnableSmoothEffect.setChecked(settings.getBoolean("smooth_effect", false));
                 cbEnableHDREffect.setChecked(settings.getBoolean("hdr_effect", false));
-                cbEnableFSREffect.setChecked(settings.getBoolean("fsr_effect", false));
-                sbFsrSharpness.setValue(settings.getFloat("fsr_sharpness", 75f));
-                sFsrQuality.setSelection(Math.max(0, Math.min(3, (int) settings.getFloat("fsr_quality", 1f))));
-                cbFsrAspectFit.setChecked(settings.getBoolean("fsr_aspect_fit", false));
                 return;
             }
         }
@@ -371,10 +346,6 @@ public class ScreenEffectDialog extends ContentDialog {
         cbEnableSharpenEffect.setChecked(false);
         cbEnableSmoothEffect.setChecked(false);
         cbEnableHDREffect.setChecked(false);
-        cbEnableFSREffect.setChecked(false);
-        sbFsrSharpness.setValue(75f);
-        sFsrQuality.setSelection(1);
-        cbFsrAspectFit.setChecked(false);
     }
 
     private void saveProfile(Spinner sProfile) {
@@ -398,10 +369,6 @@ public class ScreenEffectDialog extends ContentDialog {
             settings.put("sharpen_effect", cbEnableSharpenEffect.isChecked());
             settings.put("smooth_effect", cbEnableSmoothEffect.isChecked());
             settings.put("hdr_effect", cbEnableHDREffect.isChecked());
-            settings.put("fsr_effect", cbEnableFSREffect.isChecked());
-            settings.put("fsr_sharpness", sbFsrSharpness.getValue());
-            settings.put("fsr_quality", (float) sFsrQuality.getSelectedItemPosition());
-            settings.put("fsr_aspect_fit", cbFsrAspectFit.isChecked());
 
             for (String profile : oldProfiles) {
                 String[] parts = profile.split(":");
@@ -437,10 +404,6 @@ public class ScreenEffectDialog extends ContentDialog {
         cbEnableSharpenEffect.setChecked(preferences.getBoolean("effect_sharpen", false));
         cbEnableSmoothEffect.setChecked(preferences.getBoolean("effect_smooth", false));
         cbEnableHDREffect.setChecked(preferences.getBoolean("effect_hdr", false));
-        cbEnableFSREffect.setChecked(preferences.getBoolean("effect_fsr", false));
-        sbFsrSharpness.setValue(preferences.getFloat("effect_fsr_sharpness", 75f));
-        sFsrQuality.setSelection(Math.max(0, Math.min(3, (int)preferences.getFloat("effect_fsr_quality", 1f))));
-        cbFsrAspectFit.setChecked(preferences.getBoolean("effect_fsr_aspect_fit", false));
     }
 
     private void saveEffectSettingsToPrefs() {
@@ -460,10 +423,6 @@ public class ScreenEffectDialog extends ContentDialog {
             .putBoolean("effect_sharpen", cbEnableSharpenEffect.isChecked())
             .putBoolean("effect_smooth", cbEnableSmoothEffect.isChecked())
             .putBoolean("effect_hdr", cbEnableHDREffect.isChecked())
-            .putBoolean("effect_fsr", cbEnableFSREffect.isChecked())
-            .putFloat("effect_fsr_sharpness", sbFsrSharpness.getValue())
-            .putFloat("effect_fsr_quality", (float) sFsrQuality.getSelectedItemPosition())
-            .putBoolean("effect_fsr_aspect_fit", cbFsrAspectFit.isChecked())
             .apply();
     }
 
@@ -485,7 +444,6 @@ public class ScreenEffectDialog extends ContentDialog {
         boolean enableSharpen = cbEnableSharpenEffect.isChecked();
         boolean enableSmooth = cbEnableSmoothEffect.isChecked();
         boolean enableHDR = cbEnableHDREffect.isChecked();
-        boolean enableFSR = cbEnableFSREffect.isChecked();
 
         // Save current settings
         saveEffectSettingsToPrefs();
@@ -563,26 +521,6 @@ public class ScreenEffectDialog extends ContentDialog {
             paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
-        if (enableFSR) {
-            // FSR EASU + RCAS
-            int screenW = renderer.getSurfaceWidth();
-            int screenH = renderer.getSurfaceHeight();
-            // Quality modes: ultra=77%, quality=67%, balanced=59%, performance=50%
-            float[] qualityScales = {0.77f, 0.67f, 0.59f, 0.50f};
-            int qIdx = Math.max(0, Math.min(3, sFsrQuality.getSelectedItemPosition()));
-            float scale = qualityScales[qIdx];
-            float inputW = screenW * scale;
-            float inputH = screenH * scale;
-            float preserveAspect = cbFsrAspectFit.isChecked() ? 1.0f : 0.0f;
-
-            types.add(VulkanRenderer.EFFECT_FSR1_EASU);
-            paramsList.add(new float[]{inputW, inputH, (float)screenW, (float)screenH, preserveAspect, 0, 0, 0});
-
-            types.add(VulkanRenderer.EFFECT_FSR1_RCAS);
-            float sharpnessStops = sliderValueToStops(sbFsrSharpness.getValue());
-            paramsList.add(new float[]{sharpnessStops, 0, 0, 0, 0, 0, 0, 0});
-        }
-
         if (types.isEmpty()) {
             // РќРµС‚ СЌС„С„РµРєС‚РѕРІ вЂ” РїСЂРѕСЃС‚Рѕ РѕС‡РёС‰Р°РµРј, scanout РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЃСЏ СЃР°Рј
             renderer.clearEffects();
@@ -616,17 +554,6 @@ public class ScreenEffectDialog extends ContentDialog {
     public void applyEffects(Object colorEffect, Object renderer, Object fxaaEffect, Object crtEffect, Object toonEffect, Object ntscEffect) {
         applyEffects(colorEffect, renderer, fxaaEffect, crtEffect, toonEffect, ntscEffect,
                 null, null, null, null, null, null, null, null);
-    }
-
-    /** Slider value 0..100 -> RCAS sharpnessStops 2.0..0.0 (higher slider = sharper). */
-    private static float sliderValueToStops(float sliderValue) {
-        float v = Math.max(0f, Math.min(100f, sliderValue));
-        return 2.0f * (1.0f - v / 100f);
-    }
-
-    private static float stopsToSliderValue(float stops) {
-        float s = Math.max(0f, Math.min(2f, stops));
-        return (1.0f - s / 2.0f) * 100f;
     }
 
     public void setOnConfirmCallback(Runnable confirmCallback) {

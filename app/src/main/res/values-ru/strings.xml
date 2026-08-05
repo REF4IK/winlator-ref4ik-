@@ -291,14 +291,6 @@
     <string name="enable_sendinput_mode">Использовать режим Windows SendInput</string>
     <string name="enable_sepia_effect">Включить эффект сепии</string>
     <string name="enable_sharpen_effect">Включить эффект резкости</string>
-    <string name="enable_fsr_effect">AMD FSR 1.0 (апскейл + резкость)</string>
-    <string name="fsr_sharpness">Резкость FSR</string>
-    <string name="fsr_quality">Качество FSR</string>
-    <string name="fsr_quality_ultra">Ультра-качество (1.3x)</string>
-    <string name="fsr_quality_quality">Качество (1.5x)</string>
-    <string name="fsr_quality_balanced">Сбалансировано (1.7x)</string>
-    <string name="fsr_quality_performance">Производительность (2.0x)</string>
-    <string name="fsr_aspect_fit">FSR сохранение пропорций</string>
     <string name="enable_smooth_effect">Включить эффект сглаживания</string>
     <string name="enable_toon_shader">Включить шейдер Toon</string>
     <string name="enable_touchscreen_haptics">Включить тактильную обратную связь сенсорного экрана</string>

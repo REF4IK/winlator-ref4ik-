@@ -135,8 +135,6 @@ enum EffectType : int32_t {
     EFFECT_SMOOTH,
     EFFECT_HDR,
     EFFECT_NTSC,
-    EFFECT_FSR1_EASU,
-    EFFECT_FSR1_RCAS,
     EFFECT_COUNT
 };
 

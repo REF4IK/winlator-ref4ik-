@@ -96,7 +96,7 @@ set(EFFECT_SHADERS
     effect_color effect_fxaa effect_crt effect_toon
     effect_vignette effect_sepia effect_blur effect_pixelate
     effect_grayscale effect_sharpen effect_smooth effect_hdr
-    effect_ntsc effect_fsr1_easu effect_fsr1_rcas
+    effect_ntsc
 )
 
 # Effect vertex shader

@@ -309,11 +309,6 @@ fun ScreenEffectDialogCompose(
     var enableSharpen by remember { mutableStateOf(preferences.getBoolean("effect_sharpen", false)) }
     var enableSmooth by remember { mutableStateOf(preferences.getBoolean("effect_smooth", false)) }
     var enableHDR by remember { mutableStateOf(preferences.getBoolean("effect_hdr", false)) }
-    var enableFSR by remember { mutableStateOf(preferences.getBoolean("effect_fsr", false)) }
-
-    var fsrQuality by remember { mutableIntStateOf(Math.max(0, Math.min(3, preferences.getFloat("effect_fsr_quality", 1f).toInt()))) }
-    var fsrAspectFit by remember { mutableStateOf(preferences.getBoolean("effect_fsr_aspect_fit", false)) }
-    var fsrSharpness by remember { mutableFloatStateOf(preferences.getFloat("effect_fsr_sharpness", 75f)) }
 
     var selectedProfile by remember { mutableStateOf(activity.screenEffectProfile ?: "") }
     var profileList by remember {
@@ -345,10 +340,6 @@ fun ScreenEffectDialogCompose(
             enableSharpen = settings.getBoolean("sharpen_effect", false)
             enableSmooth = settings.getBoolean("smooth_effect", false)
             enableHDR = settings.getBoolean("hdr_effect", false)
-            enableFSR = settings.getBoolean("fsr_effect", false)
-            fsrSharpness = settings.getFloat("fsr_sharpness", 75f)
-            fsrQuality = Math.max(0, Math.min(3, settings.getFloat("fsr_quality", 1f).toInt()))
-            fsrAspectFit = settings.getBoolean("fsr_aspect_fit", false)
         }
     }
 
@@ -368,10 +359,6 @@ fun ScreenEffectDialogCompose(
         enableSharpen = false
         enableSmooth = false
         enableHDR = false
-        enableFSR = false
-        fsrSharpness = 75f
-        fsrQuality = 1
-        fsrAspectFit = false
     }
 
     fun saveProfile(profileName: String) {
@@ -394,10 +381,6 @@ fun ScreenEffectDialogCompose(
             settings.put("sharpen_effect", enableSharpen)
             settings.put("smooth_effect", enableSmooth)
             settings.put("hdr_effect", enableHDR)
-            settings.put("fsr_effect", enableFSR)
-            settings.put("fsr_sharpness", fsrSharpness)
-            settings.put("fsr_quality", fsrQuality.toFloat())
-            settings.put("fsr_aspect_fit", fsrAspectFit)
 
             oldProfiles.forEach {
                 if (it.split(":")[0] == profileName) {
@@ -430,10 +413,6 @@ fun ScreenEffectDialogCompose(
             .putBoolean("effect_sharpen", enableSharpen)
             .putBoolean("effect_smooth", enableSmooth)
             .putBoolean("effect_hdr", enableHDR)
-            .putBoolean("effect_fsr", enableFSR)
-            .putFloat("effect_fsr_sharpness", fsrSharpness)
-            .putFloat("effect_fsr_quality", fsrQuality.toFloat())
-            .putBoolean("effect_fsr_aspect_fit", fsrAspectFit)
             .apply()
 
         val types = ArrayList<Int>()
@@ -504,23 +483,6 @@ fun ScreenEffectDialogCompose(
         if (enableSmooth) {
             types.add(VulkanRenderer.EFFECT_SMOOTH)
             paramsList.add(floatArrayOf(1.0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
-        }
-
-        if (enableFSR) {
-            val screenW = renderer.surfaceWidth.toFloat()
-            val screenH = renderer.surfaceHeight.toFloat()
-            val qualityScales = floatArrayOf(0.77f, 0.67f, 0.59f, 0.50f)
-            val scale = qualityScales[fsrQuality.coerceIn(0, 3)]
-            val inputW = screenW * scale
-            val inputH = screenH * scale
-            val preserveAspect = if (fsrAspectFit) 1.0f else 0.0f
-
-            types.add(VulkanRenderer.EFFECT_FSR1_EASU)
-            paramsList.add(floatArrayOf(inputW, inputH, screenW, screenH, preserveAspect, 0f, 0f, 0f))
-
-            types.add(VulkanRenderer.EFFECT_FSR1_RCAS)
-            val sharpnessStops = 2.0f * (1.0f - fsrSharpness / 100f)
-            paramsList.add(floatArrayOf(sharpnessStops, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (types.isEmpty()) {
@@ -640,30 +602,6 @@ fun ScreenEffectDialogCompose(
                         CheckBoxRow(label = stringResource(R.string.enable_sharpen_effect), checked = enableSharpen, onCheckedChange = { enableSharpen = it })
                         CheckBoxRow(label = stringResource(R.string.enable_smooth_effect), checked = enableSmooth, onCheckedChange = { enableSmooth = it })
                         CheckBoxRow(label = "HDR", checked = enableHDR, onCheckedChange = { enableHDR = it })
-                        CheckBoxRow(label = stringResource(R.string.enable_fsr_effect), checked = enableFSR, onCheckedChange = { enableFSR = it })
-
-                        if (enableFSR) {
-                            val qualityOptions = listOf(
-                                stringResource(R.string.fsr_quality_ultra),
-                                stringResource(R.string.fsr_quality_quality),
-                                stringResource(R.string.fsr_quality_balanced),
-                                stringResource(R.string.fsr_quality_performance)
-                            )
-                            SpinnerRow(
-                                label = stringResource(R.string.fsr_quality),
-                                entries = qualityOptions,
-                                selected = qualityOptions.getOrElse(fsrQuality) { qualityOptions[1] },
-                                onSelected = { fsrQuality = qualityOptions.indexOf(it).coerceIn(0, 3) }
-                            )
-                            CheckBoxRow(label = stringResource(R.string.fsr_aspect_fit), checked = fsrAspectFit, onCheckedChange = { fsrAspectFit = it })
-                            Column {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(stringResource(R.string.fsr_sharpness), style = MaterialTheme.typography.bodySmall)
-                                    Text("${fsrSharpness.toInt()}%", style = MaterialTheme.typography.bodySmall)
-                                }
-                                Slider(value = fsrSharpness, onValueChange = { fsrSharpness = it }, valueRange = 0f..100f)
-                            }
-                        }
                     }
                 }
 
