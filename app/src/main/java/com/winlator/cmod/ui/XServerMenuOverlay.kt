@@ -118,26 +118,30 @@ fun XServerMenuOverlay(
     )
 
     val menuItems = remember(isPaused, enableLogs) {
-        val list = mutableListOf(
-            XMenuItem(R.id.main_menu_keyboard, R.string.keyboard, null, R.drawable.icon_keyboard),
-            XMenuItem(R.id.main_menu_input_controls, R.string.input_controls, null, R.drawable.icon_input_controls),
-            XMenuItem(R.id.main_menu_toggle_fullscreen, R.string.toggle_fullscreen, null, R.drawable.icon_fullscreen),
-            XMenuItem(R.id.main_menu_pip_mode, R.string.pip_mode, null, R.drawable.ic_picture_in_picture_alt),
-            XMenuItem(R.id.main_menu_frame_generation, R.string.lsfg_title, null, R.drawable.icon_screen_effect),
-            XMenuItem(R.id.main_menu_screen_effects, R.string.screen_effect, null, R.drawable.icon_screen_effect),
-            XMenuItem(R.id.main_menu_task_manager, R.string.task_manager, null, R.drawable.icon_task_manager),
-            XMenuItem(R.id.main_menu_fps_counter, R.string.fps_counter, null, R.drawable.icon_debug),
-            XMenuItem(R.id.main_menu_active_windows, R.string.active_windows, null, R.drawable.icon_window_list),
+        // Пункты, скрытые пользователем в настройках (Exit скрыть нельзя)
+        val hidden = com.winlator.cmod.core.XServerMenuSettings.hiddenIds()
+        fun visible(id: String) = id !in hidden
+        val list = mutableListOf<XMenuItem>()
+        if (visible("keyboard")) list.add(XMenuItem(R.id.main_menu_keyboard, R.string.keyboard, null, R.drawable.icon_keyboard))
+        if (visible("input_controls")) list.add(XMenuItem(R.id.main_menu_input_controls, R.string.input_controls, null, R.drawable.icon_input_controls))
+        if (visible("toggle_fullscreen")) list.add(XMenuItem(R.id.main_menu_toggle_fullscreen, R.string.toggle_fullscreen, null, R.drawable.icon_fullscreen))
+        if (visible("pip_mode")) list.add(XMenuItem(R.id.main_menu_pip_mode, R.string.pip_mode, null, R.drawable.ic_picture_in_picture_alt))
+        if (visible("frame_generation")) list.add(XMenuItem(R.id.main_menu_frame_generation, R.string.lsfg_title, null, R.drawable.icon_screen_effect))
+        if (visible("screen_effects")) list.add(XMenuItem(R.id.main_menu_screen_effects, R.string.screen_effect, null, R.drawable.icon_screen_effect))
+        if (visible("task_manager")) list.add(XMenuItem(R.id.main_menu_task_manager, R.string.task_manager, null, R.drawable.icon_task_manager))
+        if (visible("fps_counter")) list.add(XMenuItem(R.id.main_menu_fps_counter, R.string.fps_counter, null, R.drawable.icon_debug))
+        if (visible("active_windows")) list.add(XMenuItem(R.id.main_menu_active_windows, R.string.active_windows, null, R.drawable.icon_window_list))
+        if (visible("pause")) list.add(
             XMenuItem(
                 R.id.main_menu_pause,
                 null,
                 if (isPaused) "Resume" else "Pause",
                 if (isPaused) R.drawable.icon_play else R.drawable.icon_pause
-            ),
-            XMenuItem(R.id.main_menu_winetricks, null, "Winetricks", R.drawable.icon_wine),
-            XMenuItem(R.id.main_menu_terminal, null, "Debug Terminal", R.drawable.icon_env_var)
+            )
         )
-        if (enableLogs) {
+        if (visible("winetricks")) list.add(XMenuItem(R.id.main_menu_winetricks, null, "Winetricks", R.drawable.icon_wine))
+        if (visible("terminal")) list.add(XMenuItem(R.id.main_menu_terminal, null, "Debug Terminal", R.drawable.icon_env_var))
+        if (enableLogs && visible("logs")) {
             list.add(XMenuItem(R.id.main_menu_logs, R.string.logs, null, R.drawable.icon_debug))
         }
         list.add(XMenuItem(R.id.main_menu_exit, R.string.exit, null, R.drawable.icon_exit))

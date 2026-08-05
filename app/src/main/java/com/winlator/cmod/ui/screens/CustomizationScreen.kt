@@ -230,6 +230,47 @@ fun CustomizationScreen(
                 ) { fontScale = it; saveFloat(ThemePrefs.FONT_SCALE, it) }
             }
 
+            // Меню X-Server: скрытие неиспользуемых пунктов
+            SectionHeader(stringResource(com.winlator.cmod.R.string.xserver_menu_section), Icons.Filled.Menu)
+            SettingsCard {
+                var hiddenIds by remember { mutableStateOf(com.winlator.cmod.core.XServerMenuSettings.hiddenIds()) }
+                com.winlator.cmod.core.XServerMenuSettings.items
+                    .filter { it.id != com.winlator.cmod.core.XServerMenuSettings.ID_EXIT }
+                    .forEach { item ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                val newHidden = if (item.id in hiddenIds) hiddenIds - item.id else hiddenIds + item.id
+                                hiddenIds = newHidden
+                                com.winlator.cmod.core.XServerMenuSettings.setHidden(newHidden)
+                            }.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(item.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.width(16.dp))
+                            Text(item.title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                            Checkbox(checked = item.id !in hiddenIds, onCheckedChange = { checked ->
+                                val newHidden = if (checked) hiddenIds - item.id else hiddenIds + item.id
+                                hiddenIds = newHidden
+                                com.winlator.cmod.core.XServerMenuSettings.setHidden(newHidden)
+                            })
+                        }
+                        if (item != com.winlator.cmod.core.XServerMenuSettings.items
+                                .filter { it.id != com.winlator.cmod.core.XServerMenuSettings.ID_EXIT }.last()
+                        ) {
+                            SettingsDivider()
+                        }
+                    }
+                SettingsDivider()
+                SettingsButtonRow(
+                    icon = Icons.Filled.Restore,
+                    title = stringResource(com.winlator.cmod.R.string.xserver_menu_reset),
+                    onClick = {
+                        hiddenIds = emptySet()
+                        com.winlator.cmod.core.XServerMenuSettings.setHidden(emptySet())
+                    }
+                )
+            }
+
             // Углы
             SectionHeader(stringResource(com.winlator.cmod.R.string.corner_radius), Icons.Filled.CropSquare)
             SettingsCard {

@@ -1740,4 +1740,8 @@
     <string name="update_install_failed">Не удалось запустить установку</string>
     <string name="update_notes">Что нового</string>
     <string name="update_repo_missing">Укажите репозиторий в UpdateManager (UPDATE_REPO)</string>
+
+    <!-- X-Server menu customization -->
+    <string name="xserver_menu_section">Меню X-Server</string>
+    <string name="xserver_menu_reset">Вернуть все пункты</string>
 </resources>

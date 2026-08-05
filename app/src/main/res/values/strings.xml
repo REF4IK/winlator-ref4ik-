@@ -1758,4 +1758,8 @@
     <string name="update_install_failed">Failed to start installation</string>
     <string name="update_notes">What\'s new</string>
     <string name="update_repo_missing">Set the repository in UpdateManager (UPDATE_REPO)</string>
+
+    <!-- X-Server menu customization -->
+    <string name="xserver_menu_section">X-Server Menu</string>
+    <string name="xserver_menu_reset">Restore all items</string>
 </resources>

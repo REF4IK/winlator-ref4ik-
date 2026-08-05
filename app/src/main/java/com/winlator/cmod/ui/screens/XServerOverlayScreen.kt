@@ -12,35 +12,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
-
-data class XServerMenuItem(
-    val id: String,
-    val icon: ImageVector,
-    val title: String,
-)
-
-private val xserverMenuItems = listOf(
-    XServerMenuItem("keyboard", Icons.Filled.Keyboard, "Keyboard"),
-    XServerMenuItem("input_controls", Icons.Filled.Gamepad, "Input Controls"),
-    XServerMenuItem("toggle_fullscreen", Icons.Filled.Fullscreen, "Toggle Fullscreen"),
-    XServerMenuItem("pip_mode", Icons.Filled.PictureInPictureAlt, "PiP Mode"),
-    XServerMenuItem("frame_generation", Icons.Filled.Speed, "Frame Generation"),
-    XServerMenuItem("screen_effects", Icons.Filled.Tune, "Screen Effects"),
-    XServerMenuItem("task_manager", Icons.Filled.Memory, "Task Manager"),
-    XServerMenuItem("fps_counter", Icons.Filled.BugReport, "FPS Counter"),
-    XServerMenuItem("active_windows", Icons.Filled.Window, "Active Windows"),
-    XServerMenuItem("pause", Icons.Filled.Pause, "Pause/Resume"),
-    XServerMenuItem("winetricks", Icons.Filled.WineBar, "Winetricks"),
-    XServerMenuItem("terminal", Icons.Filled.Terminal, "Debug Terminal"),
-    XServerMenuItem("logs", Icons.Filled.Description, "Logs"),
-    XServerMenuItem("exit", Icons.Filled.ExitToApp, "Exit"),
-)
+import com.winlator.cmod.core.XServerMenuSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +26,8 @@ fun XServerMenuDialog(
     onDismiss: () -> Unit,
     onItemSelected: (String) -> Unit,
 ) {
+    // Скрытые пользователем пункты не показываем (Exit — всегда)
+    val menuItems = remember { XServerMenuSettings.visibleItems() }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true),
@@ -86,7 +65,7 @@ fun XServerMenuDialog(
                 Column(
                     modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
                 ) {
-                    xserverMenuItems.forEach { item ->
+                    menuItems.forEach { item ->
                         val isPauseItem = item.id == "pause"
                         Row(
                             modifier = Modifier
@@ -112,7 +91,7 @@ fun XServerMenuDialog(
                             }
                             Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                         }
-                        if (item != xserverMenuItems.last()) {
+                        if (item != menuItems.last()) {
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         }
                     }
