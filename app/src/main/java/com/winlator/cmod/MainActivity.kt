@@ -4,24 +4,18 @@ import android.Manifest
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -44,8 +38,6 @@ import com.winlator.cmod.ui.theme.observeFloat
 import com.winlator.cmod.ui.theme.observeInt
 import com.winlator.cmod.ui.theme.observeString
 import com.winlator.cmod.xenvironment.ImageFsInstaller
-import kotlinx.coroutines.withContext
-import java.io.File
 
 class MainActivity : AppCompatActivity() {
     companion object {
@@ -132,36 +124,23 @@ class MainActivity : AppCompatActivity() {
                 val wallpaperPath by prefsRef.observeString(ThemePrefs.UI_WALLPAPER, "")
                 val wallpaperBlur by prefsRef.observeInt(ThemePrefs.UI_WALLPAPER_BLUR, 20)
                 val wallpaperDarken by prefsRef.observeInt(ThemePrefs.UI_WALLPAPER_DARKEN, 40)
+                // Подгонка хранится отдельно для портрета и ландшафта
+                val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                val wallpaperScale by prefsRef.observeFloat(com.winlator.cmod.ui.screens.wallpaperScaleKey(isLandscape), 1f)
+                val wallpaperOffsetX by prefsRef.observeFloat(com.winlator.cmod.ui.screens.wallpaperOffsetXKey(isLandscape), 0f)
+                val wallpaperOffsetY by prefsRef.observeFloat(com.winlator.cmod.ui.screens.wallpaperOffsetYKey(isLandscape), 0f)
 
                 WinlatorTheme(darkTheme = darkMode) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        var wallpaperBitmap by remember(wallpaperPath, wallpaperBlur) { mutableStateOf<Bitmap?>(null) }
-                        LaunchedEffect(wallpaperPath, wallpaperBlur) {
-                            wallpaperBitmap = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                if (wallpaperPath.isNotEmpty()) {
-                                    loadWallpaperBitmap(wallpaperPath, wallpaperBlur)
-                                } else null
-                            }
-                        }
-                        if (wallpaperBitmap != null) {
-                            Image(
-                                bitmap = wallpaperBitmap!!.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = (wallpaperDarken.coerceIn(0, 100) / 100f)))
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
-                            )
-                        }
+                        com.winlator.cmod.ui.screens.WallpaperLayer(
+                            path = wallpaperPath,
+                            blur = wallpaperBlur,
+                            darken = wallpaperDarken,
+                            scale = wallpaperScale,
+                            offsetRatioX = wallpaperOffsetX,
+                            offsetRatioY = wallpaperOffsetY,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                         Surface(
                             modifier = Modifier.fillMaxSize(),
                             color = Color.Transparent,
@@ -335,90 +314,5 @@ class MainActivity : AppCompatActivity() {
         val dialog = ContentDialog(this, R.layout.about_dialog)
         dialog.findViewById<android.widget.LinearLayout>(R.id.LLBottomBar).visibility = android.view.View.GONE
         dialog.show()
-    }
-
-    private fun loadWallpaperBitmap(path: String, blurRadius: Int): Bitmap? {
-        return try {
-            val file = File(path)
-            if (!file.exists()) return null
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(path, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-            val maxDim = maxOf(bounds.outWidth, bounds.outHeight)
-            var sample = 1
-            while (maxDim / (sample * 2) >= 1024) sample *= 2
-
-            val options = BitmapFactory.Options().apply { inSampleSize = sample }
-            val source = BitmapFactory.decodeFile(path, options) ?: return null
-
-            val radius = blurRadius.coerceIn(0, 100)
-            if (radius <= 0) return source
-
-            // Блюр на уменьшенной копии, затем возврат к рабочему размеру
-            val small = Bitmap.createScaledBitmap(source, 1024, (1024.0 * source.height / source.width).toInt(), true)
-            if (small !== source) source.recycle()
-            val blurred = stackBlur(small, radius)
-            if (blurred !== small) small.recycle()
-            blurred
-        } catch (e: Exception) {
-            android.util.Log.e("WinlatorTheme", "Wallpaper load failed", e)
-            null
-        }
-    }
-
-    private fun stackBlur(bitmap: Bitmap, radius: Int): Bitmap {
-        val width = bitmap.width
-        val height = bitmap.height
-        var pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-        val passes = 3
-        var r = radius
-        for (pass in 0 until passes) {
-            r = (radius * (pass + 1)) / passes
-            if (r < 1) r = 1
-            pixels = boxBlur1D(pixels, width, height, r, horizontal = true)
-            pixels = boxBlur1D(pixels, width, height, r, horizontal = false)
-        }
-        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
-    }
-
-    private fun boxBlur1D(pixels: IntArray, width: Int, height: Int, radius: Int, horizontal: Boolean): IntArray {
-        val output = IntArray(pixels.size)
-        val length = if (horizontal) width else height
-        val other = if (horizontal) height else width
-        for (line in 0 until other) {
-            // скользящее окно
-            var accR = 0; var accG = 0; var accB = 0
-            var count = 0
-            for (i in -radius until length + radius) {
-                if (i + radius < length) {
-                    val idx = if (horizontal) (line * width + (i + radius).coerceIn(0, length - 1))
-                    else ((i + radius).coerceIn(0, length - 1) * width + line)
-                    val p = pixels[idx]
-                    accR += (p shr 16) and 0xFF
-                    accG += (p shr 8) and 0xFF
-                    accB += p and 0xFF
-                    count++
-                }
-                if (i - radius - 1 >= 0) {
-                    val idx = if (horizontal) (line * width + (i - radius - 1).coerceIn(0, length - 1))
-                    else ((i - radius - 1).coerceIn(0, length - 1) * width + line)
-                    val p = pixels[idx]
-                    accR -= (p shr 16) and 0xFF
-                    accG -= (p shr 8) and 0xFF
-                    accB -= p and 0xFF
-                    count--
-                }
-                if (i >= 0 && i < length && count > 0) {
-                    val outIdx = if (horizontal) (line * width + i) else (i * width + line)
-                    output[outIdx] = (0xFF shl 24) or
-                        (((accR / count).coerceIn(0, 255)) shl 16) or
-                        (((accG / count).coerceIn(0, 255)) shl 8) or
-                        ((accB / count).coerceIn(0, 255))
-                }
-            }
-        }
-        return output
     }
 }

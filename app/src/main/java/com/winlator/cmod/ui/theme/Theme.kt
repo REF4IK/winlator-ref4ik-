@@ -599,6 +599,8 @@ fun WinlatorTheme(
     val customSecondary by prefs.observeInt(ThemePrefs.CUSTOM_SECONDARY, 0xFF8CD5BC.toInt())
     val customBackground by prefs.observeInt(ThemePrefs.CUSTOM_BACKGROUND, 0xFF121212.toInt())
     val customSurface by prefs.observeInt(ThemePrefs.CUSTOM_SURFACE, 0xFF161616.toInt())
+    val uiWallpaper by prefs.observeString(ThemePrefs.UI_WALLPAPER, "")
+    val surfaceAlpha by prefs.observeInt("ui_wallpaper_surface_alpha", 60)
 
     val effectiveDark = ThemePrefs.isDarkFromMode(themeMode, darkTheme)
 
@@ -618,6 +620,28 @@ fun WinlatorTheme(
                 ),
             )
         }
+    }
+
+    // Обои установлены (изображение/GIF/видео): поверхности становятся
+    // полупрозрачными, чтобы обои просвечивали сквозь карточки/списки.
+    // В горизонтальном режиме обои не показываются — поверхности обычные
+    val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val translucentSurfaces = remember(uiWallpaper) { uiWallpaper.isNotEmpty() } && !isLandscape
+    val effectiveColorScheme = if (translucentSurfaces) {
+        val alpha = (surfaceAlpha.coerceIn(0, 100) / 100f)
+        colorScheme.copy(
+            background = colorScheme.background.copy(alpha = alpha),
+            surface = colorScheme.surface.copy(alpha = alpha),
+            surfaceVariant = colorScheme.surfaceVariant.copy(alpha = alpha),
+            surfaceContainer = colorScheme.surfaceContainer.copy(alpha = alpha),
+            surfaceContainerHigh = colorScheme.surfaceContainerHigh.copy(alpha = alpha),
+            surfaceContainerHighest = colorScheme.surfaceContainerHighest.copy(alpha = alpha),
+            surfaceContainerLow = colorScheme.surfaceContainerLow.copy(alpha = alpha),
+            surfaceContainerLowest = colorScheme.surfaceContainerLowest.copy(alpha = alpha),
+        )
+    } else {
+        colorScheme
     }
 
     val shapes = when (cornerRadius) {
@@ -642,6 +666,7 @@ fun WinlatorTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
+            // Статус-бар всегда непрозрачный (иначе просвечивает белый window background)
             window.statusBarColor = colorScheme.surface.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !effectiveDark
         }
@@ -657,7 +682,7 @@ fun WinlatorTheme(
 
     CompositionLocalProvider(LocalDensity provides scaledDensity) {
         MaterialTheme(
-            colorScheme = colorScheme,
+            colorScheme = effectiveColorScheme,
             shapes = shapes,
             content = content,
         )

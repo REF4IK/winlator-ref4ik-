@@ -59,6 +59,7 @@ fun CustomizationScreen(
     var uiWallpaper by remember { mutableStateOf(prefs.getString(ThemePrefs.UI_WALLPAPER, "") ?: "") }
     var uiWallpaperBlur by remember { mutableStateOf(prefs.getInt(ThemePrefs.UI_WALLPAPER_BLUR, 20)) }
     var uiWallpaperDarken by remember { mutableStateOf(prefs.getInt(ThemePrefs.UI_WALLPAPER_DARKEN, 40)) }
+    var uiWallpaperSurfaceAlpha by remember { mutableStateOf(prefs.getInt("ui_wallpaper_surface_alpha", 60)) }
     var customPrimary by remember { mutableStateOf(prefs.getInt(ThemePrefs.CUSTOM_PRIMARY, prefs.getInt("custom_theme_color", 0xFF1A6C59.toInt()))) }
     var customSecondary by remember { mutableStateOf(prefs.getInt(ThemePrefs.CUSTOM_SECONDARY, 0xFF8CD5BC.toInt())) }
     var customBackground by remember { mutableStateOf(prefs.getInt(ThemePrefs.CUSTOM_BACKGROUND, 0xFF121212.toInt())) }
@@ -70,6 +71,8 @@ fun CustomizationScreen(
     var showAnimDialog by remember { mutableStateOf(false) }
     var showColorPickerFor by remember { mutableStateOf<String?>(null) }
     var showThemeManager by remember { mutableStateOf(false) }
+    var showWallpaperAdjust by remember { mutableStateOf(false) }
+    var wallpaperAdjustPath by remember { mutableStateOf("") }
 
     val animOptions = listOf(
         "none" to "None",
@@ -112,13 +115,18 @@ fun CustomizationScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             try {
+                // Удаляем старые обои (любого типа)
+                ctx.filesDir.listFiles()?.filter { it.name.startsWith("ui_wallpaper.") }?.forEach { it.delete() }
                 val input = ctx.contentResolver.openInputStream(uri) ?: return@rememberLauncherForActivityResult
-                val target = File(ctx.filesDir, "ui_wallpaper.jpg")
+                val target = File(ctx.filesDir, "ui_wallpaper.${wallpaperExtension(ctx, uri)}")
                 target.outputStream().use { out -> input.copyTo(out) }
                 input.close()
                 uiWallpaper = target.absolutePath
                 saveString(ThemePrefs.UI_WALLPAPER, target.absolutePath)
-                toast("Wallpaper applied")
+                // Сброс подгонки для обоих режимов и открытие экрана настройки
+                com.winlator.cmod.ui.screens.wallpaperResetAdjustKeys(prefs)
+                wallpaperAdjustPath = target.absolutePath
+                showWallpaperAdjust = true
             } catch (e: Exception) {
                 toast("Wallpaper: ${e.message}")
             }
@@ -128,7 +136,10 @@ fun CustomizationScreen(
     fun removeWallpaper() {
         uiWallpaper = ""
         saveString(ThemePrefs.UI_WALLPAPER, "")
-        try { File(ctx.filesDir, "ui_wallpaper.jpg").delete() } catch (_: Exception) {}
+        com.winlator.cmod.ui.screens.wallpaperResetAdjustKeys(prefs)
+        try {
+            ctx.filesDir.listFiles()?.filter { it.name.startsWith("ui_wallpaper.") }?.forEach { it.delete() }
+        } catch (_: Exception) {}
     }
 
     val exportThemeLauncher = rememberLauncherForActivityResult(
@@ -150,6 +161,7 @@ fun CustomizationScreen(
                 json.put("corner_radius", cornerRadius)
                 json.put("ui_wallpaper_blur", uiWallpaperBlur)
                 json.put("ui_wallpaper_darken", uiWallpaperDarken)
+                json.put("ui_wallpaper_surface_alpha", uiWallpaperSurfaceAlpha)
                 val output = ctx.contentResolver.openOutputStream(uri) ?: return@rememberLauncherForActivityResult
                 output.write(json.toString(2).toByteArray())
                 output.close()
@@ -182,6 +194,7 @@ fun CustomizationScreen(
                 editor.putString(ThemePrefs.CORNER_RADIUS, json.optString("corner_radius", cornerRadius))
                 editor.putInt(ThemePrefs.UI_WALLPAPER_BLUR, json.optInt("ui_wallpaper_blur", uiWallpaperBlur))
                 editor.putInt(ThemePrefs.UI_WALLPAPER_DARKEN, json.optInt("ui_wallpaper_darken", uiWallpaperDarken))
+                editor.putInt("ui_wallpaper_surface_alpha", json.optInt("ui_wallpaper_surface_alpha", uiWallpaperSurfaceAlpha))
                 editor.apply()
                 (ctx as? android.app.Activity)?.recreate()
             } catch (e: Exception) {
@@ -192,6 +205,20 @@ fun CustomizationScreen(
 
     BackHandler(onBack = onBack)
 
+    // Непрозрачная подложка из обоев: вложенный экран скрывает предыдущее меню
+    val wpConfig = androidx.compose.ui.platform.LocalConfiguration.current
+    val wpLandscape = wpConfig.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    Box(modifier = Modifier.fillMaxSize()) {
+    WallpaperLayer(
+        path = uiWallpaper,
+        blur = uiWallpaperBlur,
+        darken = uiWallpaperDarken,
+        scale = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperScaleKey(wpLandscape), 1f),
+        offsetRatioX = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperOffsetXKey(wpLandscape), 0f),
+        offsetRatioY = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperOffsetYKey(wpLandscape), 0f),
+        modifier = Modifier.fillMaxSize(),
+        allowVideo = false,
+    )
     Scaffold(
         topBar = {
             TopAppBar(
@@ -457,7 +484,8 @@ fun CustomizationScreen(
                 SettingsButtonRow(
                     icon = Icons.Filled.AddPhotoAlternate,
                     title = stringResource(com.winlator.cmod.R.string.select_wallpaper),
-                    onClick = { wallpaperLauncher.launch(arrayOf("image/*")) }
+                    subtitle = if (uiWallpaper.isNotEmpty()) wallpaperTypeLabel(uiWallpaper) else null,
+                    onClick = { wallpaperLauncher.launch(arrayOf("image/*", "video/*")) }
                 )
                 if (uiWallpaper.isNotEmpty()) {
                     SettingsDivider()
@@ -466,14 +494,33 @@ fun CustomizationScreen(
                         title = stringResource(com.winlator.cmod.R.string.remove_wallpaper),
                         onClick = { removeWallpaper() }
                     )
+                    SettingsDivider()
+                    SettingsButtonRow(
+                        icon = Icons.Filled.Tune,
+                        title = stringResource(com.winlator.cmod.R.string.wallpaper_adjust),
+                        onClick = {
+                            wallpaperAdjustPath = uiWallpaper
+                            showWallpaperAdjust = true
+                        }
+                    )
+                    if (isAnimatedWallpaper(uiWallpaper)) {
+                        Text(
+                            stringResource(com.winlator.cmod.R.string.ui_wallpaper_battery),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
                 }
-                SettingsDivider()
-                SliderSettingRow(
-                    title = stringResource(com.winlator.cmod.R.string.wallpaper_blur),
-                    value = uiWallpaperBlur.toFloat(),
-                    valueRange = 0f..100f,
-                    label = "$uiWallpaperBlur%",
-                ) { uiWallpaperBlur = it.toInt(); saveInt(ThemePrefs.UI_WALLPAPER_BLUR, it.toInt()) }
+                if (uiWallpaper.isNotEmpty()) {
+                    SettingsDivider()
+                    SliderSettingRow(
+                        title = stringResource(com.winlator.cmod.R.string.ui_wallpaper_surface_alpha),
+                        value = uiWallpaperSurfaceAlpha.toFloat(),
+                        valueRange = 0f..100f,
+                        label = "$uiWallpaperSurfaceAlpha%",
+                    ) { uiWallpaperSurfaceAlpha = it.toInt(); saveInt("ui_wallpaper_surface_alpha", it.toInt()) }
+                }
                 SettingsDivider()
                 SliderSettingRow(
                     title = stringResource(com.winlator.cmod.R.string.wallpaper_darken),
@@ -481,6 +528,15 @@ fun CustomizationScreen(
                     valueRange = 0f..100f,
                     label = "$uiWallpaperDarken%",
                 ) { uiWallpaperDarken = it.toInt(); saveInt(ThemePrefs.UI_WALLPAPER_DARKEN, it.toInt()) }
+                if (!isAnimatedWallpaper(uiWallpaper)) {
+                    SettingsDivider()
+                    SliderSettingRow(
+                        title = stringResource(com.winlator.cmod.R.string.wallpaper_blur),
+                        value = uiWallpaperBlur.toFloat(),
+                        valueRange = 0f..100f,
+                        label = "$uiWallpaperBlur%",
+                    ) { uiWallpaperBlur = it.toInt(); saveInt(ThemePrefs.UI_WALLPAPER_BLUR, it.toInt()) }
+                }
             }
 
             // Экспорт/импорт темы
@@ -539,6 +595,33 @@ fun CustomizationScreen(
         )
     }
 
+    // Экран подгонки обоев (зум/перемещение, как в галерее).
+    // Apply сохраняет для текущей ориентации и не закрывает экран —
+    // повернул телефон, настроил другой режим, снова Apply
+    if (showWallpaperAdjust && wallpaperAdjustPath.isNotEmpty()) {
+        val config = androidx.compose.ui.platform.LocalConfiguration.current
+        val landscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        WallpaperAdjustScreen(
+            path = wallpaperAdjustPath,
+            initialScale = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperScaleKey(landscape), 1f),
+            initialOffsetX = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperOffsetXKey(landscape), 0f),
+            initialOffsetY = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperOffsetYKey(landscape), 0f),
+            onApply = { scale, ratioX, ratioY ->
+                val isLandscape = landscape
+                prefs.edit()
+                    .putFloat(com.winlator.cmod.ui.screens.wallpaperScaleKey(isLandscape), scale)
+                    .putFloat(com.winlator.cmod.ui.screens.wallpaperOffsetXKey(isLandscape), ratioX)
+                    .putFloat(com.winlator.cmod.ui.screens.wallpaperOffsetYKey(isLandscape), ratioY)
+                    .apply()
+                toast(ctx.getString(
+                    com.winlator.cmod.R.string.wallpaper_adjust_saved,
+                    ctx.getString(if (isLandscape) com.winlator.cmod.R.string.wallpaper_adjust_landscape else com.winlator.cmod.R.string.wallpaper_adjust_portrait),
+                ))
+            },
+            onCancel = { showWallpaperAdjust = false },
+        )
+    }
+
     showColorPickerFor?.let { slot ->
         val initial = when (slot) {
             ThemePrefs.CUSTOM_SECONDARY -> customSecondary
@@ -563,6 +646,7 @@ fun CustomizationScreen(
             onDismiss = { showColorPickerFor = null },
         )
     }
+    } // Box с непрозрачной подложкой
 }
 
 @Composable
@@ -604,14 +688,19 @@ private fun SettingsClickRow(icon: androidx.compose.ui.graphics.vector.ImageVect
 }
 
 @Composable
-private fun SettingsButtonRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, onClick: () -> Unit) {
+private fun SettingsButtonRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, onClick: () -> Unit, subtitle: String? = null) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(16.dp))
-        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle != null) {
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Icon(Icons.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -691,4 +780,56 @@ private fun <T> ChoiceDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } }
     )
+}
+
+// ── Обои: тип файла ───────────────────────────────────────────────────
+
+private fun wallpaperExtension(ctx: android.content.Context, uri: Uri): String {
+    return try {
+        val mime = ctx.contentResolver.getType(uri) ?: ""
+        when {
+            mime.contains("gif") -> "gif"
+            mime.contains("webp") -> "webp"
+            mime.contains("mp4") -> "mp4"
+            mime.contains("webm") -> "webm"
+            mime.contains("matroska") -> "mkv"
+            mime.contains("quicktime") -> "mov"
+            mime.contains("video") -> "mp4"
+            mime.contains("png") -> "png"
+            mime.contains("jpeg") -> "jpg"
+            else -> {
+                val name = queryDisplayName(ctx, uri) ?: ""
+                name.substringAfterLast('.', "jpg").lowercase()
+            }
+        }
+    } catch (_: Exception) {
+        "jpg"
+    }
+}
+
+private fun queryDisplayName(ctx: android.content.Context, uri: Uri): String? {
+    return try {
+        ctx.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun isAnimatedWallpaper(path: String): Boolean {
+    if (path.isBlank()) return false
+    val ext = path.substringAfterLast('.', "").lowercase()
+    return ext == "gif" || ext == "webp" || ext == "mp4" || ext == "webm" || ext == "mkv" || ext == "mov"
+}
+
+private fun wallpaperTypeLabel(path: String): String {
+    if (path.isBlank()) return ""
+    val ext = path.substringAfterLast('.', "").lowercase()
+    return when (ext) {
+        "gif", "webp" -> "GIF"
+        "mp4", "webm", "mkv", "mov" -> "Video"
+        else -> "Image"
+    }
 }

@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,6 +33,9 @@ import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.ui.navigation.Screen
 import com.winlator.cmod.ui.screens.*
+import com.winlator.cmod.ui.theme.observeFloat
+import com.winlator.cmod.ui.theme.observeInt
+import com.winlator.cmod.ui.theme.observeString
 
 /**
  * Navigation drawer items corresponding to the main menu.
@@ -537,26 +541,35 @@ fun WinlatorApp(
                 }
             }
 
-            // Overlay-экраны поверх всего (со своим TopAppBar, без дублирования)
+            // Overlay-экраны поверх всего (со своим TopAppBar, без дублирования).
+            // Подложка из обоев: предыдущее меню скрыто, фон — наши обои
             if (showGPUPerformance) {
-                GPUPerformanceScreen(onBack = { showGPUPerformance = false })
+                OverlayBackdrop(preferences) {
+                    GPUPerformanceScreen(onBack = { showGPUPerformance = false })
+                }
             }
             if (showDriverStore) {
-                DriverStoreScreen(
-                    onBack = { showDriverStore = false },
-                    onDriverInstalled = { adrenotoolsRefreshKey++ },
-                )
+                OverlayBackdrop(preferences) {
+                    DriverStoreScreen(
+                        onBack = { showDriverStore = false },
+                        onDriverInstalled = { adrenotoolsRefreshKey++ },
+                    )
+                }
             }
             if (showInstalledComponents) {
-                InstalledComponentsScreen(onBack = { showInstalledComponents = false })
+                OverlayBackdrop(preferences) {
+                    InstalledComponentsScreen(onBack = { showInstalledComponents = false })
+                }
             }
             if (showContainerEdit) {
-                ContainerEditScreen(
-                    containerManager = appContainerManager,
-                    containerId = editContainerId,
-                    isEditMode = isContainerEditMode,
-                    onBack = { showContainerEdit = false; containersRefreshKey++ },
-                )
+                OverlayBackdrop(preferences) {
+                    ContainerEditScreen(
+                        containerManager = appContainerManager,
+                        containerId = editContainerId,
+                        isEditMode = isContainerEditMode,
+                        onBack = { showContainerEdit = false; containersRefreshKey++ },
+                    )
+                }
             }
 
             if (showContainerImportInfo) {
@@ -577,24 +590,28 @@ fun WinlatorApp(
                 )
             }
             if (showImportGame) {
-                val container = appContainerManager.getContainerById(importGameContainerId)
-                if (container != null) {
-                    ImportGameScreen(
-                        container = container,
-                        onBack = { showImportGame = false; containersRefreshKey++ },
-                    )
+                OverlayBackdrop(preferences) {
+                    val container = appContainerManager.getContainerById(importGameContainerId)
+                    if (container != null) {
+                        ImportGameScreen(
+                            container = container,
+                            onBack = { showImportGame = false; containersRefreshKey++ },
+                        )
+                    }
                 }
             }
             if (showShortcutSettings) {
-                val shortcut = shortcutSettingsShortcut
-                if (shortcut != null) {
-                    ShortcutSettingsScreen(
-                        shortcut = shortcut,
-                        onBack = {
-                            showShortcutSettings = false
-                            containersRefreshKey++
-                        },
-                    )
+                OverlayBackdrop(preferences) {
+                    val shortcut = shortcutSettingsShortcut
+                    if (shortcut != null) {
+                        ShortcutSettingsScreen(
+                            shortcut = shortcut,
+                            onBack = {
+                                showShortcutSettings = false
+                                containersRefreshKey++
+                            },
+                        )
+                    }
                 }
             }
 
@@ -617,6 +634,42 @@ fun WinlatorApp(
             }
         }
     }
+    }
+}
+
+/**
+ * Подложка вложенного экрана: обои (или непрозрачный фон, если обоев нет),
+ * чтобы скрыть предыдущее меню и показать только обои.
+ */
+@Composable
+private fun OverlayBackdrop(
+    preferences: SharedPreferences,
+    content: @Composable () -> Unit,
+) {
+    val wpPath by preferences.observeString(com.winlator.cmod.ui.theme.ThemePrefs.UI_WALLPAPER, "")
+    val wpBlur by preferences.observeInt(com.winlator.cmod.ui.theme.ThemePrefs.UI_WALLPAPER_BLUR, 20)
+    val wpDarken by preferences.observeInt(com.winlator.cmod.ui.theme.ThemePrefs.UI_WALLPAPER_DARKEN, 40)
+    val wpLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val wpScale by preferences.observeFloat(com.winlator.cmod.ui.screens.wallpaperScaleKey(wpLandscape), 1f)
+    val wpOffX by preferences.observeFloat(com.winlator.cmod.ui.screens.wallpaperOffsetXKey(wpLandscape), 0f)
+    val wpOffY by preferences.observeFloat(com.winlator.cmod.ui.screens.wallpaperOffsetYKey(wpLandscape), 0f)
+
+    Box(Modifier.fillMaxSize()) {
+        if (wpPath.isNotEmpty()) {
+            com.winlator.cmod.ui.screens.WallpaperLayer(
+                path = wpPath,
+                blur = wpBlur,
+                darken = wpDarken,
+                scale = wpScale,
+                offsetRatioX = wpOffX,
+                offsetRatioY = wpOffY,
+                modifier = Modifier.fillMaxSize(),
+                allowVideo = false,
+            )
+        } else {
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 1f)))
+        }
+        content()
     }
 }
 

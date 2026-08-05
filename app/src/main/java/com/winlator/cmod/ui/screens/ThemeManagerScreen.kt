@@ -74,6 +74,19 @@ fun ThemeManagerScreen(
 
     BackHandler(onBack = onBack)
 
+    // Непрозрачная подложка из обоев: вложенный экран скрывает предыдущее меню
+    val wpLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    Box(modifier = Modifier.fillMaxSize()) {
+    com.winlator.cmod.ui.screens.WallpaperLayer(
+        path = prefs.getString(com.winlator.cmod.ui.theme.ThemePrefs.UI_WALLPAPER, "") ?: "",
+        blur = prefs.getInt(com.winlator.cmod.ui.theme.ThemePrefs.UI_WALLPAPER_BLUR, 20),
+        darken = prefs.getInt(com.winlator.cmod.ui.theme.ThemePrefs.UI_WALLPAPER_DARKEN, 40),
+        scale = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperScaleKey(wpLandscape), 1f),
+        offsetRatioX = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperOffsetXKey(wpLandscape), 0f),
+        offsetRatioY = prefs.getFloat(com.winlator.cmod.ui.screens.wallpaperOffsetYKey(wpLandscape), 0f),
+        modifier = Modifier.fillMaxSize(),
+        allowVideo = false,
+    )
     Scaffold(
         topBar = {
             TopAppBar(
@@ -187,6 +200,7 @@ fun ThemeManagerScreen(
             }
         )
     }
+    } // Box с непрозрачной подложкой
 }
 
 @Composable
