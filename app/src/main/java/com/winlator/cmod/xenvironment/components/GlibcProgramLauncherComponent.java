@@ -222,9 +222,6 @@ public class GlibcProgramLauncherComponent extends GuestProgramLauncherComponent
             envVars.putAll(this.envVars);
         }
 
-        // Настройка MangoHud с конфигурационным файлом для FPS лимита
-        setupMangoHudConfig(context, envVars);
-
         // Construct the command for Box64 with the guest executable
         String command = rootDir.getPath() + "/usr/local/bin/box64 " + guestExecutable;
 

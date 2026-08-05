@@ -401,10 +401,7 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
 
         envVars.put("LD_PRELOAD", ld_preload);
         
-        // Настройка MangoHud - вызываем ДО пользовательских переменных
-        setupMangoHudConfig(context, envVars);
-        
-        // Merge any additional environment variables from external sources ПОСЛЕ - они могут перезаписать MANGOHUD, если нужно
+        // Merge any additional environment variables from external sources
         if (this.envVars != null) {
             envVars.putAll(this.envVars);
         }
@@ -514,15 +511,5 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
         pid = execGuestProgram();
         Log.d("BionicProgramLauncherComponent", "Wine restarted successfully");
 
-    }
-    
-    /**
-     * Настраивает MangoHud с использованием конфигурационного файла
-     */
-    @Override
-    protected void setupMangoHudConfig(Context context, EnvVars envVars) {
-        // Используем реализацию базового класса: она пишет конфиг внутрь rootfs,
-        // чтобы он был доступен процессу внутри proot.
-        super.setupMangoHudConfig(context, envVars);
     }
 }

@@ -54,43 +54,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
     }
 
-    public static void updateMangoHudConfigFile(Context context, ImageFs imageFs, boolean prootLaunch) {
-        try {
-            com.winlator.cmod.widget.FpsCounterConfig fpsConfig = new com.winlator.cmod.widget.FpsCounterConfig(context);
-            int fpsLimit = fpsConfig.getFpsLimit();
-
-            File rootDir = imageFs.getRootDir();
-            File configFile = new File(rootDir, "home/xuser/mangohud.conf");
-            File parentDir = configFile.getParentFile();
-            if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
-
-            String configContent =
-                    "no_display=false\n" +
-                            "background_alpha=0.0\n" +
-                            "text_alpha=0.0\n" +
-                            "position=top-left\n" +
-                            "text_scale=1.0\n" +
-                            "fps_limit=" + (fpsLimit > 0 ? fpsLimit : 0) + "\n" +
-                            "fps=0\n" +
-                            "frametime=0\n" +
-                            "frame_timing=0\n" +
-                            "frametime_graph=0\n" +
-                            "histogram=0\n" +
-                            "cpu_stats=0\n" +
-                            "gpu_stats=0\n" +
-                            "ram_stats=0\n" +
-                            "vram=0\n";
-
-            java.io.FileWriter writer = new java.io.FileWriter(configFile);
-            writer.write(configContent);
-            writer.close();
-
-            android.util.Log.d("MangoHud", "Updated MangoHud config at: " + configFile.getAbsolutePath() + " fps_limit=" + fpsLimit);
-        } catch (Exception e) {
-            android.util.Log.e("MangoHud", "Failed to update MangoHud config", e);
-        }
-    }
-
     @Override
     public void start() {
         synchronized (lock) {
@@ -219,10 +182,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         if (!ldPreload.isEmpty()) envVars.put("LD_PRELOAD", ldPreload);
         
-        // Настройка MangoHud - вызываем ДО пользовательских переменных
-        setupMangoHudConfig(context, envVars);
-        
-        // Добавляем пользовательские переменные ПОСЛЕ - они могут перезаписать MANGOHUD, если нужно
+        // Добавляем пользовательские переменные окружения (могут перезаписать любые из вышеуказанных)
         if (this.envVars != null) envVars.putAll(this.envVars);
 
         boolean bindSHM = envVars.get("WINEESYNC").equals("1");
@@ -332,123 +292,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     public String execShellCommand(String command) {
         throw new UnsupportedOperationException("execShellCommand not implemented in base class.");
-    }
-    
-    /**
-     * Настраивает MangoHud с использованием конфигурационного файла
-     */
-    protected void setupMangoHudConfig(Context context, EnvVars envVars) {
-        try {
-            // Получаем FPS лимит из настроек
-            com.winlator.cmod.widget.FpsCounterConfig fpsConfig = new com.winlator.cmod.widget.FpsCounterConfig(context);
-            int fpsLimit = fpsConfig.getFpsLimit();
-            
-            // Важно: процесс игры запускается внутри proot (--rootfs=...),
-            // поэтому путь вида /data/user/0/... (context.getFilesDir) внутри rootfs НЕ доступен.
-            // Пишем конфиг внутрь imagefs, чтобы он был виден как /home/xuser/mangohud.conf.
-            ImageFs imageFs = environment.getImageFs();
-            File rootDir = imageFs.getRootDir();
-            String configPathInRootfs = "/home/xuser/mangohud.conf";
-            File configFile = new File(rootDir, "home/xuser/mangohud.conf");
-            File parentDir = configFile.getParentFile();
-            if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
-
-            String configPathForEnv = isProotLaunch() ? configPathInRootfs : configFile.getAbsolutePath();
-            
-            // Генерируем содержимое конфига
-            String configContent = 
-                "no_display=false\n" +
-                "background_alpha=0.0\n" + // По умолчанию полностью прозрачный
-                "text_alpha=0.0\n" +
-                "position=top-left\n" +
-                "text_scale=1.0\n" +
-                "fps_limit=" + (fpsLimit > 0 ? fpsLimit : 0) + "\n" +
-                "fps=0\n" +
-                "frametime=0\n" +
-                "frame_timing=0\n" +
-                "frametime_graph=0\n" +
-                "histogram=0\n" +
-                "cpu_stats=0\n" +
-                "gpu_stats=0\n" +
-                "ram_stats=0\n" +
-                "vram=0\n";
-            
-            java.io.FileWriter writer = new java.io.FileWriter(configFile);
-            writer.write(configContent);
-            writer.close();
-            
-            android.util.Log.d("MangoHud", "Created MangoHud config at: " + configFile.getAbsolutePath());
-            android.util.Log.d("MangoHud", "FPS Limit: " + fpsLimit);
-            
-            // Устанавливаем переменные окружения для MangoHud
-            // ВАЖНО: MANGOHUD=1 должен быть установлен для работы ограничения FPS
-            envVars.put("MANGOHUD", "1");
-            envVars.put("MANGOHUD_CONFIGFILE", configPathForEnv);
-            envVars.put("MANGOHUD_DLSYM", "1");
-
-            File mangoHudLib = new File(rootDir, "usr/lib/mangohud/libMangoHud.so");
-            if (!mangoHudLib.exists()) {
-                mangoHudLib = new File(rootDir, "usr/lib/libMangoHud.so");
-            }
-
-            String mangoHudLibForEnv = isProotLaunch()
-                    ? (mangoHudLib.getName().equals("libMangoHud.so") ? "/usr/lib/libMangoHud.so" : "/usr/lib/mangohud/libMangoHud.so")
-                    : mangoHudLib.getAbsolutePath();
-
-            if (mangoHudLib.exists()) {
-                String existingPreload = envVars.get("LD_PRELOAD");
-                if (existingPreload == null) existingPreload = "";
-
-                if (!existingPreload.contains(mangoHudLibForEnv)) {
-                    String newPreload = existingPreload.isEmpty()
-                            ? mangoHudLibForEnv
-                            : (existingPreload + ":" + mangoHudLibForEnv);
-                    envVars.put("LD_PRELOAD", newPreload);
-                }
-            } else {
-                android.util.Log.w("MangoHud", "libMangoHud.so not found in imagefs; fps_limit via MangoHud may not work.");
-            }
-
-            File mangoHudLayerJson = new File(rootDir, "usr/share/vulkan/implicit_layer.d/MangoHud.json");
-            if (!mangoHudLayerJson.exists()) {
-                mangoHudLayerJson = new File(rootDir, "usr/share/vulkan/explicit_layer.d/MangoHud.json");
-            }
-
-            if (mangoHudLayerJson.exists()) {
-                String layerName = "VK_LAYER_MANGOHUD_overlay";
-                String existingLayers = envVars.get("VK_INSTANCE_LAYERS");
-                if (existingLayers == null) existingLayers = "";
-
-                if (existingLayers.isEmpty()) {
-                    envVars.put("VK_INSTANCE_LAYERS", layerName);
-                } else if (!existingLayers.contains(layerName)) {
-                    envVars.put("VK_INSTANCE_LAYERS", existingLayers + ":" + layerName);
-                }
-            }
-            
-            android.util.Log.d("MangoHud", "MangoHud configured with MANGOHUD=1 and config file: " + configPathForEnv);
-            
-        } catch (Exception e) {
-            android.util.Log.e("GuestProgramLauncher", "Error setting up MangoHud config", e);
-        }
-    }
-    
-    /**
-     * Отправляет сигнал для обновления конфигурации MangoHud
-     */
-    public static void sendMangoHudReloadSignal() {
-        synchronized (lock) {
-            if (pid != -1) {
-                try {
-                    android.os.Process.sendSignal(pid, 10);
-                    android.util.Log.d("MangoHud", "Sent reload signal to game process: " + pid);
-                } catch (Exception e) {
-                    android.util.Log.e("MangoHud", "Error sending reload signal to process: " + pid, e);
-                }
-            } else {
-                android.util.Log.d("MangoHud", "No active process to send reload signal");
-            }
-        }
     }
 
 }

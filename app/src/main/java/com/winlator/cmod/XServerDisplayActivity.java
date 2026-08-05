@@ -3028,23 +3028,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             }
 
-
-
-            if (imageFs != null) {
-
-                com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent.updateMangoHudConfigFile(
-
-                        this,
-
-                        imageFs,
-
-                        false
-
-                );
-
-                com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent.sendMangoHudReloadSignal();
-
-            }
+            applyFpsLimitToRenderer();
 
         });
 
@@ -3064,13 +3048,18 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             frameRating.updateOrientation();
             frameRating.updateScaleAndTextSize();
         }
-        if (imageFs != null) {
-            com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent.updateMangoHudConfigFile(
-                    this,
-                    imageFs,
-                    false
-            );
-            com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent.sendMangoHudReloadSignal();
+        applyFpsLimitToRenderer();
+    }
+
+    /**
+     * РџСЂРёРјРµРЅСЏРµС‚ Р»РёРјРёС‚ FPS Рє СЂРµРЅРґРµСЂРµСЂСѓ: pacer РІ PresentExtension С‚РѕСЂРјРѕР·РёС‚
+     * РёРіСЂСѓ С‡РµСЂРµР· Р·Р°РґРµСЂР¶РєСѓ РѕСЃРІРѕР±РѕР¶РґРµРЅРёСЏ Р±СѓС„РµСЂР° (PresentIdleNotify).
+     */
+    private void applyFpsLimitToRenderer() {
+        if (xServerView != null && xServerView.getRenderer() != null) {
+            int fpsLimit = fpsCounterConfig.getFpsLimit();
+            xServerView.getRenderer().setFpsLimit(fpsLimit);
+            android.util.Log.d("FpsCounter", "FPS limit applied to renderer: " + fpsLimit);
         }
     }
 
@@ -4519,6 +4508,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         final XServerRenderer renderer = xServerView.getRenderer();
 
         renderer.setCursorVisible(false);
+
+        applyFpsLimitToRenderer();
 
         // Передаём информацию о выбранном драйвере в VulkanRenderer, чтобы
         // рендерер загрузил кастомный Vulkan-драйвер через adrenotools.

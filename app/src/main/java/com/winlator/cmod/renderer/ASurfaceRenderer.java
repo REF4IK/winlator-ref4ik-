@@ -58,6 +58,7 @@ public class ASurfaceRenderer implements WindowManager.OnWindowModificationListe
     private int cachedDesktopSrcW = 0, cachedDesktopSrcH = 0;
     private Window desktopWindow = null;
     private final ArrayList<RenderableWindow> renderList = new ArrayList<>();
+    private int fpsLimit = 0;
 
     private static class RenderableWindow {
         public Drawable content;
@@ -646,10 +647,10 @@ public class ASurfaceRenderer implements WindowManager.OnWindowModificationListe
     public boolean isNativeMode() { return true; }
 
     @Override
-    public void setFpsLimit(int limit) {}
+    public void setFpsLimit(int limit) { fpsLimit = Math.max(0, Math.min(limit, 1000)); }
 
     @Override
-    public int getFpsLimit() { return 0; }
+    public int getFpsLimit() { return fpsLimit; }
 
     @Override
     public void setFpsWindowId(int windowId) {}
