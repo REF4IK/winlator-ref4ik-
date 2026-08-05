@@ -211,6 +211,7 @@ Column(modifier = Modifier.fillMaxSize()) {
                 items(shortcuts, key = { it.hashCode() }) { shortcut ->
                     ShortcutLargeCard(
                         shortcut = shortcut,
+                        modifier = Modifier.animateItem(),
                         onClick = { runShortcut(ctx, shortcut) },
                         onLongClick = { shortcutForSteamInfo = shortcut },
                     )
@@ -226,6 +227,7 @@ Column(modifier = Modifier.fillMaxSize()) {
                 items(shortcuts) { shortcut ->
                     ShortcutCard(
                         shortcut = shortcut,
+                        modifier = Modifier.animateItem(),
                         onClick = { runShortcut(ctx, shortcut) },
                         onLongClick = { shortcutForSteamInfo = shortcut },
                     )
@@ -609,6 +611,7 @@ private fun GameInfoDialog(info: GameInfo, shortcut: Shortcut, onDismiss: () -> 
 @Composable
 private fun ShortcutCard(
     shortcut: Shortcut,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -640,7 +643,7 @@ private fun ShortcutCard(
     val gameInfo = rememberGameInfo(shortcut)
     var showGameInfo by remember(shortcut) { mutableStateOf(false) }
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clickable(onClick = onClick),
@@ -755,6 +758,7 @@ private fun ShortcutCard(
 @Composable
 private fun ShortcutLargeCard(
     shortcut: Shortcut,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -789,7 +793,7 @@ private fun ShortcutLargeCard(
     val gameInfo = rememberGameInfo(shortcut)
     var showGameInfo by remember(shortcut) { mutableStateOf(false) }
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),

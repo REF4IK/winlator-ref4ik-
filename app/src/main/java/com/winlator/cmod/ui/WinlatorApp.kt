@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -119,6 +121,20 @@ fun WinlatorApp(
         mutableStateOf(!imageFs.isValid() || imageFs.version < com.winlator.cmod.xenvironment.ImageFsInstaller.LATEST_VERSION)
     }
     var installProgress by remember { mutableIntStateOf(0) }
+
+    // ── Анимации переходов: стиль и длительность из настроек (реактивно) ──
+    var transitionAnim by remember { mutableStateOf(preferences.getString("transition_animation", "none") ?: "none") }
+    var animDurationMs by remember { mutableIntStateOf(preferences.getInt("animation_duration_ms", 350)) }
+    DisposableEffect(Unit) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+            when (key) {
+                "transition_animation" -> transitionAnim = prefs.getString(key, "none") ?: "none"
+                "animation_duration_ms" -> animDurationMs = prefs.getInt(key, 350)
+            }
+        }
+        com.winlator.cmod.core.MmkvPreferences.registerGlobalListener(listener)
+        onDispose { com.winlator.cmod.core.MmkvPreferences.unregisterGlobalListener(listener) }
+    }
 
     LaunchedEffect(isInstalling) {
         if (isInstalling) {
@@ -305,8 +321,12 @@ fun WinlatorApp(
                                 unselectedTextColor = MaterialTheme.colorScheme.onSurface
                             ),
                             onClick = {
-                                currentScreen = item.screen
-                                scope.launch { drawerState.close() }
+                                // Сначала закрываем drawer, потом меняем экран —
+                                // иначе анимация перехода протекает невидимо под drawer'ом
+                                scope.launch {
+                                    drawerState.close()
+                                    currentScreen = item.screen
+                                }
                                  when (item.screen) {
                                      Screen.Steam -> onOpenSteam()
                                      Screen.FileManager -> fileManagerContainerId = -1
@@ -386,7 +406,12 @@ fun WinlatorApp(
                         .fillMaxSize()
                         .padding(if (hideTopBarBySteamInfo) PaddingValues(0.dp) else padding),
                 ) {
-                    when (currentScreen) {
+                    AnimatedContent(
+                        targetState = currentScreen,
+                        transitionSpec = { screenTransition(transitionAnim, animDurationMs) },
+                        label = "screen-transition",
+                    ) { screen ->
+                        when (screen) {
                     Screen.Shortcuts -> ShortcutsScreen(
                         refreshKey = containersRefreshKey,
                         isGridView = isShortcutsGridView,
@@ -508,6 +533,7 @@ fun WinlatorApp(
                         subtitle = "Select a section from the menu",
                     )
                 }
+                    }
                 }
             }
 
@@ -593,3 +619,4 @@ fun WinlatorApp(
     }
     }
 }
+

@@ -1762,4 +1762,10 @@
     <!-- X-Server menu customization -->
     <string name="xserver_menu_section">X-Server Menu</string>
     <string name="xserver_menu_reset">Restore all items</string>
+
+    <!-- Animations -->
+    <string name="animation_section">Animations</string>
+    <string name="animation_transition">Screen transitions</string>
+    <string name="animation_duration">Animation duration</string>
+    <string name="animation_preview">Tap to preview</string>
 </resources>

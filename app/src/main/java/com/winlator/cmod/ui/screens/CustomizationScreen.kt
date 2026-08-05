@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -62,10 +63,24 @@ fun CustomizationScreen(
     var customSecondary by remember { mutableStateOf(prefs.getInt(ThemePrefs.CUSTOM_SECONDARY, 0xFF8CD5BC.toInt())) }
     var customBackground by remember { mutableStateOf(prefs.getInt(ThemePrefs.CUSTOM_BACKGROUND, 0xFF121212.toInt())) }
     var customSurface by remember { mutableStateOf(prefs.getInt(ThemePrefs.CUSTOM_SURFACE, 0xFF161616.toInt())) }
+    var transitionAnim by remember { mutableStateOf(prefs.getString("transition_animation", "none") ?: "none") }
+    var animDurationMs by remember { mutableStateOf(prefs.getInt("animation_duration_ms", 350)) }
 
     var showCornerRadiusDialog by remember { mutableStateOf(false) }
+    var showAnimDialog by remember { mutableStateOf(false) }
     var showColorPickerFor by remember { mutableStateOf<String?>(null) }
     var showThemeManager by remember { mutableStateOf(false) }
+
+    val animOptions = listOf(
+        "none" to "None",
+        "fade" to "Fade",
+        "slide_horizontal" to "Slide Horizontal",
+        "slide_vertical" to "Slide Vertical",
+        "zoom" to "Zoom",
+        "scale" to "Scale",
+        "slide_fade" to "Slide + Fade",
+    )
+    fun animLabel(v: String) = animOptions.firstOrNull { it.first == v }?.second ?: "None"
 
     val cornerRadiusOptions = listOf(
         "small" to ctx.getString(com.winlator.cmod.R.string.corner_radius_small),
@@ -282,6 +297,53 @@ fun CustomizationScreen(
                 )
             }
 
+            // Анимации
+            SectionHeader(stringResource(com.winlator.cmod.R.string.animation_section), Icons.Filled.AutoAwesome)
+            SettingsCard {
+                SettingsClickRow(
+                    icon = Icons.Filled.Movie,
+                    title = stringResource(com.winlator.cmod.R.string.animation_transition),
+                    subtitle = animLabel(transitionAnim),
+                    onClick = { showAnimDialog = true }
+                )
+                SettingsDivider()
+                SliderSettingRow(
+                    title = stringResource(com.winlator.cmod.R.string.animation_duration),
+                    value = animDurationMs.toFloat(),
+                    valueRange = 100f..600f,
+                    label = "$animDurationMs мс",
+                ) { animDurationMs = it.toInt(); saveInt("animation_duration_ms", it.toInt()) }
+                SettingsDivider()
+                // Превью выбранной анимации: проигрывается при смене стиля
+                // или по тапу на область
+                var previewTick by remember { mutableIntStateOf(0) }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .height(72.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+                        .clickable { previewTick++ },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = "$transitionAnim#$previewTick",
+                        transitionSpec = { com.winlator.cmod.ui.screenTransition(transitionAnim, animDurationMs) },
+                        label = "anim-preview",
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        Text(
+                            text = stringResource(com.winlator.cmod.R.string.animation_preview),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp),
+                        )
+                    }
+                }
+            }
+
             // Своя тема
             SectionHeader(stringResource(com.winlator.cmod.R.string.custom_color), Icons.Filled.Brush)
             SettingsCard {
@@ -451,6 +513,20 @@ fun CustomizationScreen(
                 cornerRadius = value
                 saveString(ThemePrefs.CORNER_RADIUS, value)
                 showCornerRadiusDialog = false
+            }
+        )
+    }
+
+    if (showAnimDialog) {
+        ChoiceDialog(
+            title = stringResource(com.winlator.cmod.R.string.animation_transition),
+            options = animOptions,
+            selected = transitionAnim,
+            onDismiss = { showAnimDialog = false },
+            onSelect = { value ->
+                transitionAnim = value
+                saveString("transition_animation", value)
+                showAnimDialog = false
             }
         )
     }

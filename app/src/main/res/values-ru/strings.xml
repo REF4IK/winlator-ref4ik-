@@ -1744,4 +1744,10 @@
     <!-- X-Server menu customization -->
     <string name="xserver_menu_section">Меню X-Server</string>
     <string name="xserver_menu_reset">Вернуть все пункты</string>
+
+    <!-- Animations -->
+    <string name="animation_section">Анимации</string>
+    <string name="animation_transition">Переходы между экранами</string>
+    <string name="animation_duration">Длительность анимаций</string>
+    <string name="animation_preview">Нажми для просмотра</string>
 </resources>
