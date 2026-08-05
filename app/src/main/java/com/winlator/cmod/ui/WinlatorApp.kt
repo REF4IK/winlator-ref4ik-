@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
+import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
 import com.winlator.cmod.core.AppUtils
@@ -70,6 +71,7 @@ private fun getScreenTitle(screen: Screen): String {
         Screen.GamepadTest -> stringResource(R.string.gamepad_test)
         Screen.IconManager -> stringResource(R.string.icon_manager)
         Screen.Terminal -> stringResource(R.string.terminal)
+        Screen.BigPicture -> stringResource(R.string.big_picture)
         else -> "Winlator CMOD"
     }
 }
@@ -251,6 +253,7 @@ fun WinlatorApp(
             drawerState.isOpen -> scope.launch { drawerState.close() }
             currentScreen == Screen.IconManager -> currentScreen = Screen.InputControls
             currentScreen == Screen.GamepadTest -> currentScreen = Screen.InputControls
+            currentScreen == Screen.BigPicture -> currentScreen = Screen.Shortcuts
             currentScreen != Screen.Containers -> currentScreen = Screen.Containers
         }
     }
@@ -322,7 +325,7 @@ fun WinlatorApp(
             Scaffold(
                 containerColor = Color.Transparent,
                 topBar = {
-                    if (!hideTopBarBySteamInfo) {
+                    if (!hideTopBarBySteamInfo && currentScreen != Screen.BigPicture) {
                         TopAppBar(
                             title = {
                                 Text(
@@ -340,6 +343,9 @@ fun WinlatorApp(
                             },
                             actions = {
                                 if (currentScreen == Screen.Shortcuts) {
+                                    IconButton(onClick = { currentScreen = Screen.BigPicture }) {
+                                        Icon(Icons.Filled.Tv, contentDescription = stringResource(R.string.big_picture))
+                                    }
                                     IconButton(onClick = { isShortcutsGridView = !isShortcutsGridView }) {
                                         Icon(
                                             if (isShortcutsGridView) Icons.Filled.GridOn else Icons.Filled.List,
@@ -467,6 +473,36 @@ fun WinlatorApp(
                         containerId = fileManagerContainerId,
                         onBack = { currentScreen = Screen.Containers }
                     )
+                    Screen.BigPicture -> {
+                        val shortcuts = remember(containersRefreshKey) { appContainerManager.loadShortcuts() }
+                        BigPictureScreen(
+                            shortcuts = shortcuts,
+                            onRun = { shortcut ->
+                                try {
+                                    val intent = android.content.Intent(context, XServerDisplayActivity::class.java)
+                                    intent.putExtra("container_id", shortcut.container.id)
+                                    intent.putExtra("shortcut_path", shortcut.file?.absolutePath ?: "")
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    AppUtils.showToast(context, "Cannot start: ${e.message}")
+                                }
+                            },
+                            onOpenShortcutSettings = { shortcut ->
+                                shortcutSettingsShortcut = shortcut
+                                showShortcutSettings = true
+                            },
+                            onOpenContainerSettings = { shortcut ->
+                                editContainerId = shortcut.container.id
+                                isContainerEditMode = true
+                                showContainerEdit = true
+                            },
+                            onOpenFileManager = {
+                                fileManagerContainerId = -1
+                                currentScreen = Screen.FileManager
+                            },
+                            onBack = { currentScreen = Screen.Shortcuts }
+                        )
+                    }
                     else -> PlaceholderScreen(
                         title = "Winlator CMOD",
                         subtitle = "Select a section from the menu",

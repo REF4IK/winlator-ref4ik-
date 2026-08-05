@@ -52,8 +52,8 @@ fun CustomizationScreen(
     // Реактивное наблюдение за текущей темой: секция «Своя тема» мгновенно
     // реагирует на выбор темы во вложенном «Менеджере тем».
     val themeId by prefs.observeString("theme_id", "midnight")
-    var uiScale by remember { mutableStateOf(prefs.getFloat(ThemePrefs.UI_SCALE, 1f)) }
-    var fontScale by remember { mutableStateOf(prefs.getFloat(ThemePrefs.FONT_SCALE, 1f)) }
+    var uiScale by remember { mutableStateOf(prefs.getFloat(ThemePrefs.UI_SCALE, 0.9f)) }
+    var fontScale by remember { mutableStateOf(prefs.getFloat(ThemePrefs.FONT_SCALE, 0.95f)) }
     var cornerRadius by remember { mutableStateOf(prefs.getString(ThemePrefs.CORNER_RADIUS, "small") ?: "small") }
     var uiWallpaper by remember { mutableStateOf(prefs.getString(ThemePrefs.UI_WALLPAPER, "") ?: "") }
     var uiWallpaperBlur by remember { mutableStateOf(prefs.getInt(ThemePrefs.UI_WALLPAPER_BLUR, 20)) }

@@ -1709,4 +1709,35 @@
     <string name="bundle_applied">Компоненты установлены</string>
     <string name="components">Компоненты</string>
     <string name="driver">Драйвер</string>
+
+    <!-- Big Picture -->
+    <string name="big_picture">Big Picture</string>
+    <string name="big_picture_desc">TV-режим запуска игр</string>
+    <string name="big_picture_empty">Пока нет игр</string>
+    <string name="big_picture_play">Играть</string>
+    <string name="big_picture_played">Играно %1$d×  ·  %2$s</string>
+    <string name="big_picture_game_options">Настройки игры</string>
+    <string name="big_picture_edit_shortcut">Изменить ярлык</string>
+    <string name="big_picture_container_settings">Настройки контейнера</string>
+    <string name="big_picture_change_cover">Сменить обложку</string>
+    <string name="big_picture_remove_cover">Убрать обложку</string>
+    <string name="big_picture_power">Выход</string>
+
+    <!-- Update manager -->
+    <string name="update_section">Обновления</string>
+    <string name="update_check">Проверить обновления</string>
+    <string name="update_notify">Уведомлять об обновлениях</string>
+    <string name="update_checking">Проверка обновлений…</string>
+    <string name="update_not_available">Установлена последняя версия</string>
+    <string name="update_available">Доступна новая версия: %1$s</string>
+    <string name="update_downloading">Загрузка обновления… %1$d%%</string>
+    <string name="update_downloaded">Обновление скачано. Установить сейчас?</string>
+    <string name="update_install">Установить</string>
+    <string name="update_download">Скачать</string>
+    <string name="update_skip">Пропустить эту версию</string>
+    <string name="update_error">Не удалось проверить обновления</string>
+    <string name="update_download_failed">Не удалось скачать обновление</string>
+    <string name="update_install_failed">Не удалось запустить установку</string>
+    <string name="update_notes">Что нового</string>
+    <string name="update_repo_missing">Укажите репозиторий в UpdateManager (UPDATE_REPO)</string>
 </resources>

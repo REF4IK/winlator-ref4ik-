@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.VideogameAsset
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -43,4 +44,5 @@ sealed class Screen(
     data object ContainerDetail : Screen("container_detail/{containerId}", "Container", Icons.Filled.Storage) {
         fun createRoute(containerId: Int = -1) = "container_detail/$containerId"
     }
+    data object BigPicture : Screen("big_picture", "Big Picture", Icons.Filled.Tv)
 }

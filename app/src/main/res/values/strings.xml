@@ -1727,4 +1727,35 @@
     <string name="bundle_applied">Components installed</string>
     <string name="components">Components</string>
     <string name="driver">Driver</string>
+
+    <!-- Big Picture -->
+    <string name="big_picture">Big Picture</string>
+    <string name="big_picture_desc">TV-style game launcher</string>
+    <string name="big_picture_empty">No games yet</string>
+    <string name="big_picture_play">Play</string>
+    <string name="big_picture_played">Played %1$d×  ·  %2$s</string>
+    <string name="big_picture_game_options">Game options</string>
+    <string name="big_picture_edit_shortcut">Edit shortcut</string>
+    <string name="big_picture_container_settings">Container settings</string>
+    <string name="big_picture_change_cover">Change cover art</string>
+    <string name="big_picture_remove_cover">Remove cover art</string>
+    <string name="big_picture_power">Exit</string>
+
+    <!-- Update manager -->
+    <string name="update_section">Updates</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_notify">Update notifications</string>
+    <string name="update_checking">Checking for updates...</string>
+    <string name="update_not_available">You are up to date</string>
+    <string name="update_available">New version available: %1$s</string>
+    <string name="update_downloading">Downloading update... %1$d%%</string>
+    <string name="update_downloaded">Update downloaded. Install now?</string>
+    <string name="update_install">Install</string>
+    <string name="update_download">Download</string>
+    <string name="update_skip">Skip this version</string>
+    <string name="update_error">Failed to check for updates</string>
+    <string name="update_download_failed">Failed to download update</string>
+    <string name="update_install_failed">Failed to start installation</string>
+    <string name="update_notes">What\'s new</string>
+    <string name="update_repo_missing">Set the repository in UpdateManager (UPDATE_REPO)</string>
 </resources>

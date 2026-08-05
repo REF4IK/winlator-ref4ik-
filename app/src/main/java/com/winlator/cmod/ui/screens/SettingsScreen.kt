@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.preference.PreferenceManager
 import androidx.compose.ui.graphics.Color
@@ -88,6 +89,17 @@ fun SettingsScreen(
     var showReinstallConfirm by remember { mutableStateOf(false) }
     var showBackupConfirm by remember { mutableStateOf(false) }
     var cursorSpeedSlider by remember { mutableStateOf((cursorSpeed * 100).toInt()) }
+
+    // ---- Состояния апдейтера ----
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var updateChecking by remember { mutableStateOf(false) }
+    var updateError by remember { mutableStateOf(false) }
+    var updateInfo by remember { mutableStateOf<com.winlator.cmod.core.UpdateManager.UpdateInfo?>(null) }
+    var updateDownloading by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableIntStateOf(0) }
+    var updateFile by remember { mutableStateOf<java.io.File?>(null) }
+    var updateNotify by remember { mutableStateOf(com.winlator.cmod.core.UpdateManager.isNotifyEnabled(ctx)) }
+    var showUpdateCheckDialog by remember { mutableStateOf(false) }
 
     // ---- Лаунчеры для файловых пикеров (реальные действия) ----
     val soundFontLauncher = rememberLauncherForActivityResult(
@@ -459,6 +471,44 @@ fun SettingsScreen(
                 )
             }
 
+            // 13. Updates
+            SectionHeader(stringResource(com.winlator.cmod.R.string.update_section), Icons.Filled.SystemUpdate)
+            SettingsCard {
+                SettingsButtonRow(
+                    icon = Icons.Filled.SystemUpdate,
+                    title = stringResource(com.winlator.cmod.R.string.update_check),
+                    onClick = {
+                        showUpdateCheckDialog = true
+                        updateChecking = true
+                        updateError = false
+                        updateInfo = null
+                        updateFile = null
+                        updateDownloading = false
+                        updateProgress = 0
+                        com.winlator.cmod.core.UpdateManager.check(ctx) { info ->
+                            (ctx as? android.app.Activity)?.runOnUiThread {
+                                updateChecking = false
+                                if (info == null) {
+                                    updateError = true
+                                } else {
+                                    updateInfo = info
+                                }
+                            }
+                        }
+                    }
+                )
+                SettingsDivider()
+                SettingsCheckRow(
+                    icon = Icons.Filled.Notifications,
+                    title = stringResource(com.winlator.cmod.R.string.update_notify),
+                    checked = updateNotify,
+                    onCheckedChange = {
+                        updateNotify = it
+                        com.winlator.cmod.core.UpdateManager.setNotifyEnabled(ctx, it)
+                    }
+                )
+            }
+
             Spacer(Modifier.height(88.dp))
         }
 
@@ -618,6 +668,124 @@ fun SettingsScreen(
                 }) { Text("Да") }
             },
             dismissButton = { TextButton(onClick = { showBackupConfirm = false }) { Text("Нет") } }
+        )
+    }
+
+    // ---- Диалог апдейтера ----
+    if (showUpdateCheckDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!updateDownloading) showUpdateCheckDialog = false
+            },
+            title = { Text(stringResource(com.winlator.cmod.R.string.update_check), fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    when {
+                        updateDownloading -> {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+                                Text(stringResource(com.winlator.cmod.R.string.update_downloading, updateProgress), style = MaterialTheme.typography.bodyMedium)
+                            }
+                            LinearProgressIndicator(
+                                progress = { updateProgress / 100f },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        updateChecking -> {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+                                Text(stringResource(com.winlator.cmod.R.string.update_checking), style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        updateError -> {
+                            Text(stringResource(com.winlator.cmod.R.string.update_error), color = MaterialTheme.colorScheme.error)
+                        }
+                        updateInfo != null && !updateInfo!!.isNewer -> {
+                            Text(stringResource(com.winlator.cmod.R.string.update_not_available))
+                        }
+                        updateInfo != null -> {
+                            val info = updateInfo!!
+                            if (com.winlator.cmod.core.UpdateManager.skippedVersion(ctx) == info.tagName) {
+                                Text(stringResource(com.winlator.cmod.R.string.update_not_available))
+                            } else {
+                                Text(stringResource(com.winlator.cmod.R.string.update_available, info.tagName), fontWeight = FontWeight.SemiBold)
+                                if (info.notes.isNotEmpty()) {
+                                    Text(stringResource(com.winlator.cmod.R.string.update_notes), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    Text(
+                                        info.notes,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 10,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 200.dp),
+                                    )
+                                }
+                                updateFile?.let {
+                                    Text(stringResource(com.winlator.cmod.R.string.update_downloaded))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                val info = updateInfo
+                when {
+                    updateDownloading || updateChecking -> {}
+                    updateFile != null -> {
+                        TextButton(onClick = {
+                            val ok = com.winlator.cmod.core.UpdateManager.installApk(ctx, updateFile!!)
+                            if (!ok) toast(com.winlator.cmod.R.string.update_install_failed)
+                        }) { Text(stringResource(com.winlator.cmod.R.string.update_install)) }
+                    }
+                    info != null && info.isNewer && com.winlator.cmod.core.UpdateManager.skippedVersion(ctx) != info.tagName -> {
+                        if (info.apkUrl != null) {
+                            TextButton(onClick = {
+                                updateDownloading = true
+                                updateProgress = 0
+                                com.winlator.cmod.core.UpdateManager.downloadApk(ctx, info.apkUrl, { p ->
+                                    (ctx as? android.app.Activity)?.runOnUiThread {
+                                        updateProgress = (p * 100).toInt().coerceIn(0, 100)
+                                    }
+                                }, { file ->
+                                    (ctx as? android.app.Activity)?.runOnUiThread {
+                                        updateDownloading = false
+                                        if (file != null) {
+                                            updateFile = file
+                                        } else {
+                                            toast(com.winlator.cmod.R.string.update_download_failed)
+                                        }
+                                    }
+                                })
+                            }) { Text(stringResource(com.winlator.cmod.R.string.update_download)) }
+                        } else {
+                            TextButton(onClick = {
+                                val url = "https://github.com/${com.winlator.cmod.core.UpdateManager.UPDATE_REPO}/releases/latest"
+                                val i = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                try { ctx.startActivity(i) } catch (_: Exception) { toast(com.winlator.cmod.R.string.update_download_failed) }
+                            }) { Text(stringResource(com.winlator.cmod.R.string.update_download)) }
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                Row {
+                    if (updateDownloading) {
+                        TextButton(onClick = {}) { Text("") }
+                    } else {
+                        val info = updateInfo
+                        if (info != null && info.isNewer && updateFile == null &&
+                            com.winlator.cmod.core.UpdateManager.skippedVersion(ctx) != info.tagName) {
+                            TextButton(onClick = {
+                                com.winlator.cmod.core.UpdateManager.skipVersion(ctx, info.tagName)
+                                showUpdateCheckDialog = false
+                            }) { Text(stringResource(com.winlator.cmod.R.string.update_skip)) }
+                        }
+                        TextButton(onClick = { showUpdateCheckDialog = false }) {
+                            Text(if (updateFile != null) stringResource(com.winlator.cmod.R.string.cancel) else stringResource(com.winlator.cmod.R.string.close))
+                        }
+                    }
+                }
+            },
         )
     }
 }
