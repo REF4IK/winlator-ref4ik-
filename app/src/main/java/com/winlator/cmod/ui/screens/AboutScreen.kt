@@ -1,5 +1,6 @@
 package com.winlator.cmod.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.ClickableText
@@ -12,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -90,8 +92,9 @@ fun AboutScreen() {
                         .height(140.dp)
                 )
                 Spacer(Modifier.height(8.dp))
+                val context = LocalContext.current
                 Text(
-                    text = "Version " + BuildConfig.VERSION_NAME,
+                    text = "Version " + getVersionFromApkName(context),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = bodyColor,
@@ -99,22 +102,29 @@ fun AboutScreen() {
             }
         }
 
-        // Creators
-        SectionCard(stringResource(R.string.credits_and_third_party_apps), buildAnnotatedString {
+        // About App and Mod Author
+        SectionCard(stringResource(R.string.about_app_and_mod_author), buildAnnotatedString {
             append("Winlator Bionic REF4IK MOD by ref4ik\n")
             append("Telegram: "); append(link("t.me/winlatorruu", "https://t.me/winlatorruu"))
-            append("\nGitHub: "); append(link("github.com/REF4IK/winlator-ref4ik-bionic", "https://github.com/REF4IK/winlator-ref4ik-bionic"))
-            append("\n\n")
-            append("BrunoSX – Creator Winlator ("); append(link("github.com/brunodev85", "https://github.com/brunodev85")); append(")")
-            append("\nCoffincolors – Winlator cmod ("); append(link("Fork", "https://github.com/coffincolors/winlator")); append(")")
-            append("\nPipetto-crypto – Winlator bionic ("); append(link("winlator_bionic", "https://github.com/Pipetto-crypto/winlator_bionic")); append(")")
-            append("\nDale Melvin Blevens III – Music ("); append(link("Fumer", "https://github.com/Fumer")); append(")")
+            append("\nGitHub: "); append(link("github.com/REF4IK/CronyX-", "https://github.com/REF4IK/CronyX-"))
+        })
+
+        // Creators
+        SectionCard(stringResource(R.string.credits_and_third_party_apps), buildAnnotatedString {
+            append(link("Winlator by brunodev85", "https://github.com/brunodev85/winlator")); append("\n")
+            append(link("Winlator Bionic by Pipetto-crypto", "https://github.com/Pipetto-crypto/winlator/tree/dev")); append("\n")
+            append(link("Winlator Cmod by Coffincolors", "https://github.com/coffincolors/winlator")); append("\n")
+            append(link("Winlator Bionic Ludashi by StevenMXZ", "https://github.com/StevenMXZ/Winlator-Ludashi")); append("\n")
+            append(link("Bannerlator by The412Banner", "https://github.com/The412Banner/Bannerlator")); append("\n")
+            append(link("WinNative by WinNative Organization", "https://github.com/WinNative-Emu")); append("\n")
+            append(link("GameNative by Utkarshdalal", "https://github.com/utkarshdalal/GameNative"))
         })
 
         // Components
         SectionCard("Components", buildAnnotatedString {
             append(link("Ubuntu RootFs (Focal Fossa)", "https://releases.ubuntu.com/20.04/")); append("\n")
             append(link("Wine (winehq.org)", "https://www.winehq.org/")); append("\n")
+            append(link("Wine Proton", "https://github.com/ValveSoftware/Proton")); append("\n")
             append("Box86/Box64 by "); append(link("ptitseb", "https://github.com/ptitseb")); append("\n")
             append(link("FEX-Emu", "https://github.com/FEX-Emu/FEX")); append("\n")
             append(link("PRoot", "https://proot-me.github.io/")); append("\n")
@@ -124,7 +134,9 @@ fun AboutScreen() {
             append(link("D8VK", "https://github.com/AlpyneDreams/d8vk")); append("\n")
             append(link("linux-fg", "https://github.com/xXJSONDeruloXx/linux-fg")); append("\n")
             append(link("CNC DDraw", "https://github.com/FunkyFr3sh/cnc-ddraw")); append("\n")
-            append(link("WinlatorWCFHub by Arihany", "https://github.com/Arihany/WinlatorWCFHub"))
+            append(link("WinlatorWCFHub by Arihany", "https://github.com/Arihany/WinlatorWCFHub")); append("\n")
+            append(link("GLIBC Patches by Termux Pacman", "https://github.com/termux-pacman/glibc-packages")); append("\n")
+            append(link("Leegao Wrapper by leegao", "https://github.com/leegao"))
         })
 
         // GPU Drivers
@@ -141,4 +153,20 @@ fun AboutScreen() {
             append("longjunyu2's ("); append(link("Fork", "https://github.com/longjunyu2")); append(")")
         })
     }
+}
+
+/**
+ * Версия из имени установленного APK (например "CronyX-7.1.5x-cmod.apk" → "7.1.5x"),
+ * чтобы версию можно было менять простым переименованием APK при подписи.
+ * Если в имени версии нет — фолбэк на BuildConfig.VERSION_NAME.
+ */
+private fun getVersionFromApkName(context: Context): String {
+    val fileName = try {
+        context.packageManager.getApplicationInfo(context.packageName, 0)
+            .sourceDir?.substringAfterLast('/') ?: ""
+    } catch (e: Exception) {
+        ""
+    }
+    val match = Regex("""\d+\.\d+(\.\d+)?[a-zA-Z]*""").find(fileName)
+    return match?.value ?: BuildConfig.VERSION_NAME
 }

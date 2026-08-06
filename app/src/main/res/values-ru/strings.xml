@@ -206,6 +206,7 @@
     <string name="copy">Копировать</string>
     <string name="creating_container">Создание контейнера…</string>
     <string name="credits_and_third_party_apps">Благодарности и сторонние приложения</string>
+    <string name="about_app_and_mod_author">О приложении и авторе модификации</string>
     <string name="csmt">CSMT (Многопоточная команда потока)</string>
     <string name="cursor_speed">Скорость курсора</string>
     <string name="custom_icons">Пользовательские иконки</string>

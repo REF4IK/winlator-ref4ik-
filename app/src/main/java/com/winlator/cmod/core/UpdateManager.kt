@@ -22,7 +22,7 @@ object UpdateManager {
     private const val TAG = "UpdateManager"
 
     // Репозиторий вида "user/repo"
-    const val UPDATE_REPO = "REF4IK/winlator-ref4ik-"
+    const val UPDATE_REPO = "REF4IK/CronyX-"
 
     private const val RELEASES_URL = "https://api.github.com/repos/$UPDATE_REPO/releases/latest"
     const val RELEASES_PAGE = "https://github.com/$UPDATE_REPO/releases/latest"

@@ -22,13 +22,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.preference.PreferenceManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.winlator.cmod.ui.components.UpdateCheckDialog
 
 /**
  * Полный перенос SettingsFragment.java на Jetpack Compose.
@@ -672,122 +672,19 @@ fun SettingsScreen(
     }
 
     // ---- Диалог апдейтера ----
-    if (showUpdateCheckDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!updateDownloading) showUpdateCheckDialog = false
-            },
-            title = { Text(stringResource(com.winlator.cmod.R.string.update_check), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    when {
-                        updateDownloading -> {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
-                                Text(stringResource(com.winlator.cmod.R.string.update_downloading, updateProgress), style = MaterialTheme.typography.bodyMedium)
-                            }
-                            LinearProgressIndicator(
-                                progress = { updateProgress / 100f },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        updateChecking -> {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
-                                Text(stringResource(com.winlator.cmod.R.string.update_checking), style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                        updateError -> {
-                            Text(stringResource(com.winlator.cmod.R.string.update_error), color = MaterialTheme.colorScheme.error)
-                        }
-                        updateInfo != null && !updateInfo!!.isNewer -> {
-                            Text(stringResource(com.winlator.cmod.R.string.update_not_available))
-                        }
-                        updateInfo != null -> {
-                            val info = updateInfo!!
-                            if (com.winlator.cmod.core.UpdateManager.skippedVersion(ctx) == info.tagName) {
-                                Text(stringResource(com.winlator.cmod.R.string.update_not_available))
-                            } else {
-                                Text(stringResource(com.winlator.cmod.R.string.update_available, info.tagName), fontWeight = FontWeight.SemiBold)
-                                if (info.notes.isNotEmpty()) {
-                                    Text(stringResource(com.winlator.cmod.R.string.update_notes), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                    Text(
-                                        info.notes,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 10,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 200.dp),
-                                    )
-                                }
-                                updateFile?.let {
-                                    Text(stringResource(com.winlator.cmod.R.string.update_downloaded))
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                val info = updateInfo
-                when {
-                    updateDownloading || updateChecking -> {}
-                    updateFile != null -> {
-                        TextButton(onClick = {
-                            val ok = com.winlator.cmod.core.UpdateManager.installApk(ctx, updateFile!!)
-                            if (!ok) toast(com.winlator.cmod.R.string.update_install_failed)
-                        }) { Text(stringResource(com.winlator.cmod.R.string.update_install)) }
-                    }
-                    info != null && info.isNewer && com.winlator.cmod.core.UpdateManager.skippedVersion(ctx) != info.tagName -> {
-                        if (info.apkUrl != null) {
-                            TextButton(onClick = {
-                                updateDownloading = true
-                                updateProgress = 0
-                                com.winlator.cmod.core.UpdateManager.downloadApk(ctx, info.apkUrl, { p ->
-                                    (ctx as? android.app.Activity)?.runOnUiThread {
-                                        updateProgress = (p * 100).toInt().coerceIn(0, 100)
-                                    }
-                                }, { file ->
-                                    (ctx as? android.app.Activity)?.runOnUiThread {
-                                        updateDownloading = false
-                                        if (file != null) {
-                                            updateFile = file
-                                        } else {
-                                            toast(com.winlator.cmod.R.string.update_download_failed)
-                                        }
-                                    }
-                                })
-                            }) { Text(stringResource(com.winlator.cmod.R.string.update_download)) }
-                        } else {
-                            TextButton(onClick = {
-                                val url = "https://github.com/${com.winlator.cmod.core.UpdateManager.UPDATE_REPO}/releases/latest"
-                                val i = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                try { ctx.startActivity(i) } catch (_: Exception) { toast(com.winlator.cmod.R.string.update_download_failed) }
-                            }) { Text(stringResource(com.winlator.cmod.R.string.update_download)) }
-                        }
-                    }
-                }
-            },
-            dismissButton = {
-                Row {
-                    if (updateDownloading) {
-                        TextButton(onClick = {}) { Text("") }
-                    } else {
-                        val info = updateInfo
-                        if (info != null && info.isNewer && updateFile == null &&
-                            com.winlator.cmod.core.UpdateManager.skippedVersion(ctx) != info.tagName) {
-                            TextButton(onClick = {
-                                com.winlator.cmod.core.UpdateManager.skipVersion(ctx, info.tagName)
-                                showUpdateCheckDialog = false
-                            }) { Text(stringResource(com.winlator.cmod.R.string.update_skip)) }
-                        }
-                        TextButton(onClick = { showUpdateCheckDialog = false }) {
-                            Text(if (updateFile != null) stringResource(com.winlator.cmod.R.string.cancel) else stringResource(com.winlator.cmod.R.string.close))
-                        }
-                    }
-                }
-            },
-        )
-    }
+    UpdateCheckDialog(
+        show = showUpdateCheckDialog,
+        checking = updateChecking,
+        error = updateError,
+        info = updateInfo,
+        downloading = updateDownloading,
+        progress = updateProgress,
+        file = updateFile,
+        onDismiss = { showUpdateCheckDialog = false },
+        setDownloading = { updateDownloading = it },
+        setProgress = { updateProgress = it },
+        setFile = { updateFile = it },
+    )
 }
 
 // ---- Вспомогательные Composable ----

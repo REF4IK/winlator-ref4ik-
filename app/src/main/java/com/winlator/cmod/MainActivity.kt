@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
         var PACKAGE_NAME: String = ""
 
         const val PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE: Byte = 1
+        const val PERMISSION_NOTIFICATIONS_REQUEST_CODE: Byte = 5
         const val OPEN_FILE_REQUEST_CODE: Byte = 2
         const val EDIT_INPUT_CONTROLS_REQUEST_CODE: Byte = 3
         const val OPEN_DIRECTORY_REQUEST_CODE: Byte = 4
@@ -169,6 +170,7 @@ class MainActivity : AppCompatActivity() {
                                     val intent = Intent(this@MainActivity, FileManagerActivity::class.java)
                                     startActivityForResult(intent, 1001)
                                 },
+                                onImageFsReady = { requestPermissionsAfterInstall() },
                             )
                         }
                     }
@@ -180,13 +182,6 @@ class MainActivity : AppCompatActivity() {
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
         ))
         setContentView(rootLayout)
-
-        // Request permissions
-        requestAppPermissions()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-            showAllFilesAccessDialog()
-        }
     }
 
     // ---------- Compatibility methods for old Java fragments ----------
@@ -215,11 +210,18 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray,
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE.toInt()) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                recreate()
-            } else {
-                finish()
+        when (requestCode) {
+            PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE.toInt() -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    permissionStep = 1
+                    requestNextPermission()
+                } else {
+                    finish()
+                }
+            }
+            PERMISSION_NOTIFICATIONS_REQUEST_CODE.toInt() -> {
+                permissionStep = 2
+                requestNextPermission()
             }
         }
     }
@@ -235,31 +237,65 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestAppPermissions(): Boolean {
-        val hasWritePermission = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.WRITE_EXTERNAL_STORAGE
-        ) == PackageManager.PERMISSION_GRANTED
-        val hasReadPermission = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.READ_EXTERNAL_STORAGE
-        ) == PackageManager.PERMISSION_GRANTED
-        val hasManageStoragePermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
-                Environment.isExternalStorageManager()
+    /**
+     * Запрос runtime-разрешений после завершения распаковки ImageFs и закрытия
+     * диалога первого запуска. Вызывается из Compose через onImageFsReady.
+     * Шаги строго по очереди, каждый следующий — только после ответа
+     * пользователя на предыдущий: память → уведомления (Android 13+) →
+     * доступ ко всем файлам (Android 11+).
+     */
+    private var permissionStep = 0
 
-        if (hasWritePermission && hasReadPermission && hasManageStoragePermission) {
-            return false
-        }
+    fun requestPermissionsAfterInstall() {
+        permissionStep = 0
+        requestNextPermission()
+    }
 
-        if (!hasWritePermission || !hasReadPermission) {
-            val perms = arrayOf(
-                Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-            )
-            ActivityCompat.requestPermissions(
-                this, perms,
-                PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE.toInt(),
-            )
+    private fun requestNextPermission() {
+        when (permissionStep) {
+            0 -> {
+                val hasWritePermission = ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+                val hasReadPermission = ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!hasWritePermission || !hasReadPermission) {
+                    ActivityCompat.requestPermissions(
+                        this,
+                        arrayOf(
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                        ),
+                        PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE.toInt(),
+                    )
+                } else {
+                    permissionStep = 1
+                    requestNextPermission()
+                }
+            }
+            1 -> {
+                val needNotifications = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(
+                            this, Manifest.permission.POST_NOTIFICATIONS
+                        ) != PackageManager.PERMISSION_GRANTED
+                if (needNotifications) {
+                    ActivityCompat.requestPermissions(
+                        this,
+                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                        PERMISSION_NOTIFICATIONS_REQUEST_CODE.toInt(),
+                    )
+                } else {
+                    permissionStep = 2
+                    requestNextPermission()
+                }
+            }
+            2 -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                    showAllFilesAccessDialog()
+                }
+            }
         }
-        return true
     }
 
     private fun showAllFilesAccessDialog() {

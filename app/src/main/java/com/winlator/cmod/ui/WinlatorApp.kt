@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -32,6 +33,7 @@ import com.winlator.cmod.container.Shortcut
 import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.ui.navigation.Screen
+import com.winlator.cmod.ui.components.UpdateCheckDialog
 import com.winlator.cmod.ui.screens.*
 import com.winlator.cmod.ui.theme.observeFloat
 import com.winlator.cmod.ui.theme.observeInt
@@ -93,6 +95,7 @@ fun WinlatorApp(
     onLanguageChange: (String) -> Unit,
     onOpenSteam: () -> Unit,
     onOpenFileManager: () -> Unit,
+    onImageFsReady: () -> Unit = {},
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(initialScreen) }
     var showGPUPerformance by remember { mutableStateOf(false) }
@@ -118,6 +121,15 @@ fun WinlatorApp(
     // First launch dialog state
     var showFirstLaunchDialog by remember { mutableStateOf(false) }
     var firstLaunchDarkMode by remember { mutableStateOf(false) }
+
+    // ── Авто-проверка обновлений при запуске ──
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var updateChecking by remember { mutableStateOf(false) }
+    var updateError by remember { mutableStateOf(false) }
+    var updateInfo by remember { mutableStateOf<com.winlator.cmod.core.UpdateManager.UpdateInfo?>(null) }
+    var updateDownloading by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableIntStateOf(0) }
+    var updateFile by remember { mutableStateOf<java.io.File?>(null) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val imageFs = remember { com.winlator.cmod.xenvironment.ImageFs.find(context) }
@@ -157,6 +169,17 @@ fun WinlatorApp(
         }
     }
 
+    // Уведомляем хост о готовности ImageFs (один раз на сессию), чтобы запросить
+    // разрешения уже после распаковки и после закрытия диалога первого запуска.
+    // rememberSaveable — защита от повторного вызова при recreate() Activity.
+    var permissionsRequested by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(isInstalling, showFirstLaunchDialog) {
+        if (!isInstalling && !showFirstLaunchDialog && !permissionsRequested) {
+            permissionsRequested = true
+            onImageFsReady()
+        }
+    }
+
     // После завершения установки ImageFs проверяем, нужно ли показать диалог первого запуска
     val isFirstLaunch = remember {
         !preferences.getBoolean("first_launch_completed", false)
@@ -166,6 +189,25 @@ fun WinlatorApp(
         if (!isInstalling && isFirstLaunch) {
             firstLaunchDarkMode = false
             showFirstLaunchDialog = true
+        }
+    }
+
+    // Авто-проверка обновлений: после установки ImageFs и закрытия диалога первого запуска,
+    // если в настройках включено уведомление. Колбэк приходит с фонового потока — свитчим на UI.
+    LaunchedEffect(isInstalling, showFirstLaunchDialog) {
+        if (isInstalling || showFirstLaunchDialog) return@LaunchedEffect
+        if (!com.winlator.cmod.core.UpdateManager.isNotifyEnabled(context)) return@LaunchedEffect
+        updateChecking = true
+        com.winlator.cmod.core.UpdateManager.check(context) { info ->
+            (context as? android.app.Activity)?.runOnUiThread {
+                updateChecking = false
+                if (info != null && info.isNewer &&
+                    com.winlator.cmod.core.UpdateManager.skippedVersion(context) != info.tagName
+                ) {
+                    updateInfo = info
+                    showUpdateDialog = true
+                }
+            }
         }
     }
 
@@ -632,6 +674,21 @@ fun WinlatorApp(
                     },
                 )
             }
+
+            // Диалог обновления (авто-проверка) — поверх всего
+            UpdateCheckDialog(
+                show = showUpdateDialog,
+                checking = updateChecking,
+                error = updateError,
+                info = updateInfo,
+                downloading = updateDownloading,
+                progress = updateProgress,
+                file = updateFile,
+                onDismiss = { showUpdateDialog = false },
+                setDownloading = { updateDownloading = it },
+                setProgress = { updateProgress = it },
+                setFile = { updateFile = it },
+            )
         }
     }
     }
