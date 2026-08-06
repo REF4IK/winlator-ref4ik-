@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="loggo.png" width="376" height="128" alt="Win Logo" />
+<img src="log.png" width="376" height="128" alt="Win Logo" />
 
 # CronyX 
 
