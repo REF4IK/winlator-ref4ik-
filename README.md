@@ -2,7 +2,7 @@
 
 <img src="loggo.png" width="376" height="128" alt="Win Logo" />
 
-# CornyX 
+# CronyX 
 
 **Run Windows (x86_64) applications on Android using Wine and Box86/Box64**
 
