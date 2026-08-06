@@ -2,7 +2,7 @@
 
 <img src="logo.png" width="376" height="128" alt="Winlator Logo" />
 
-# Winlator ref4ik mod 
+# CornyX 
 
 **Run Windows (x86_64) applications on Android using Wine and Box86/Box64**
 
