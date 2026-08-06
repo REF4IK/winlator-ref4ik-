@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" width="376" height="128" alt="Winlator Logo" />
+<img src="loggo.png" width="376" height="128" alt="Win Logo" />
 
 # CornyX 
 
@@ -29,7 +29,7 @@
 
 ## 📥 Installation
 
-1. Download the APK file (`Winlator.apk`) from the [GitHub Releases](https://github.com/REF4IK/winlator-ref4ik-/releases) page
+1. Download the APK file (`CornyX.apk`) from the [GitHub Releases](https://github.com/REF4IK/winlator-ref4ik-/releases) page
 2. Install the app on your device
 3. Launch it and wait for the installation process to finish
 
