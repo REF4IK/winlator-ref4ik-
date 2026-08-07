@@ -23,6 +23,7 @@
 - [Community Tests](#-community-tests)
 - [Useful Tips](#-useful-tips)
 - [Project Information](#ℹ️-project-information)
+- [Disclaimer / Support Policy](#️-disclaimer--support-policy)
 - [Credits and Third-party Projects](#-credits-and-third-party-projects)
 
 ---
@@ -75,6 +76,15 @@ This project was originally based on the **Winlator Bionic** codebase by **[Pipe
 
 Since then, **ref4ik mod** has grown into an **independent project** — it develops its own original features while also integrating useful features from other Winlator-based projects, along with its own fixes and improvements. It is no longer a simple fork that mirrors upstream — it follows its own development path and release schedule.
 
+---
+
+## ⚠️ Disclaimer / Support Policy
+
+- This project is built **entirely with the help of AI tools (neural networks)**.
+- The app is tested on **one device only**. There is **no guarantee** that all features will work correctly on other devices, GPUs, or Android versions.
+- **No official support and no obligation** to fix something that works on my device but not on yours. If a feature works on my device, it's not broken.
+- Development happens **in my free time, not on a fixed schedule** — releases may be irregular and there's no guaranteed timeline.
+- **Stability between versions is not guaranteed** — something that works in one version may break in the next, and rollbacks/fixes for older versions are not guaranteed either.
 
 ---
 
