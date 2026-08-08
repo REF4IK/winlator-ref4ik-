@@ -896,6 +896,14 @@
     <string name="registry_cpu_spoof_hint">Пресет выбран автоматически под архитектуру Wine: %1$s</string>
     <string name="registry_cpu_spoof_clear">Очистить</string>
     <string name="registry_cpu_spoof_cleared">Значения спуфинга CPU удалены</string>
+    <string name="registry_computer">Компьютер</string>
+    <string name="registry_search">Поиск ключей</string>
+    <string name="registry_search_results">Результаты: %1$d</string>
+    <string name="registry_search_empty">Ничего не найдено</string>
+    <string name="registry_copied">Скопировано: %1$s</string>
+    <string name="registry_values">Значения</string>
+    <string name="registry_key_no_values_hint">Здесь значений нет. Подключей: %1$d — раскройте их, чтобы увидеть значения</string>
+    <string name="registry_open_subkey">Открыть</string>
     <string name="reinstall_imagefs">Переустановить Imagefs</string>
     <string name="relative_mouse_movement">Относительное движение мыши</string>
     <string name="remove">Удалить</string>

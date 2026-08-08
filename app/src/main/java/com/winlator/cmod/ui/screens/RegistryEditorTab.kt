@@ -1,13 +1,19 @@
 package com.winlator.cmod.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
@@ -35,6 +42,20 @@ private const val PREFS_SPOOF_IDENTIFIER = "reg_spoof_identifier"
 private const val PREFS_SPOOF_VENDOR = "reg_spoof_vendor"
 private const val PREFS_SPOOF_MHZ = "reg_spoof_mhz"
 private const val PREFS_SPOOF_FEATURESET = "reg_spoof_featureset"
+
+private data class HiveRoot(
+    val name: String,
+    val hive: Int,
+    val path: String = "",
+)
+
+private val HIVE_ROOTS = listOf(
+    HiveRoot("HKEY_CURRENT_USER", HIVE_USER),
+    HiveRoot("HKEY_LOCAL_MACHINE", HIVE_SYSTEM),
+    HiveRoot("HKEY_CLASSES_ROOT", HIVE_SYSTEM, "Software\\Classes"),
+    HiveRoot("HKEY_USERS", HIVE_USER),
+    HiveRoot("HKEY_CURRENT_CONFIG", HIVE_SYSTEM, "System\\CurrentControlSet\\Hardware Profiles\\Current"),
+)
 
 private data class CpuSpoofPreset(
     val name: String,
@@ -60,6 +81,7 @@ private val PRESET_INTEL = CpuSpoofPreset(
     featureSet = "2b7bbfff",
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RegistryEditorTab(
     containerRootDir: File?,
@@ -69,6 +91,10 @@ fun RegistryEditorTab(
 ) {
     val ctx = LocalContext.current
     val sp = remember { MmkvPreferences() }
+    val scope = rememberCoroutineScope()
+
+    // Корневой экран (Computer) или открытый хайв
+    var selectedRoot by remember { mutableStateOf<HiveRoot?>(null) }
     var hive by remember { mutableStateOf(HIVE_USER) }
     var currentPath by remember { mutableStateOf("") }
     var refreshKey by remember { mutableStateOf(0) }
@@ -79,21 +105,105 @@ fun RegistryEditorTab(
     }
     val hivePrefix = if (hive == HIVE_USER) "HKEY_CURRENT_USER" else "HKEY_LOCAL_MACHINE"
 
-    var subKeys by remember { mutableStateOf<List<String>>(emptyList()) }
     var values by remember { mutableStateOf<List<WineRegistryEditor.RegValue>>(emptyList()) }
     var fileExists by remember { mutableStateOf(false) }
 
     LaunchedEffect(regFile, currentPath, refreshKey) {
         if (regFile == null || !regFile.isFile) {
-            subKeys = emptyList()
             values = emptyList()
             fileExists = false
             return@LaunchedEffect
         }
         fileExists = true
         WineRegistryEditor(regFile).use { reg ->
-            subKeys = reg.getSubKeys(currentPath)
             values = reg.getValues(currentPath)
+        }
+    }
+
+    // Дерево: загруженные подключи по пути + раскрытые узлы
+    var loadedChildren by remember { mutableStateOf<Map<String, List<String>>>(emptyMap()) }
+    var expandedPaths by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    fun loadChildren(path: String) {
+        if (loadedChildren.containsKey(path)) return
+        scope.launch(Dispatchers.IO) {
+            val children = regFile?.let { WineRegistryEditor(it).use { r -> r.getSubKeys(path) } } ?: emptyList()
+            loadedChildren = loadedChildren + (path to children)
+        }
+    }
+
+    fun toggleNode(path: String) {
+        if (path in expandedPaths) {
+            expandedPaths = expandedPaths - path
+        } else {
+            expandedPaths = expandedPaths + path
+            loadChildren(path)
+        }
+    }
+
+    val visibleTreeNodes = remember(loadedChildren, expandedPaths) {
+        val result = mutableListOf<Pair<String, Int>>()
+        fun walk(path: String, depth: Int) {
+            val children = loadedChildren[path] ?: return
+            for (child in children) {
+                val childPath = if (path.isEmpty()) child else "$path\\$child"
+                result.add(childPath to depth)
+                if (childPath in expandedPaths) walk(childPath, depth + 1)
+            }
+        }
+        walk("", 0)
+        result
+    }
+
+    fun enterRoot(root: HiveRoot) {
+        selectedRoot = root
+        hive = root.hive
+        currentPath = root.path
+        loadedChildren = emptyMap()
+        expandedPaths = emptySet()
+        refreshKey++
+        val file = containerRootDir?.let { dir ->
+            File(dir, if (root.hive == HIVE_USER) ".wine/user.reg" else ".wine/system.reg")
+        }
+        scope.launch(Dispatchers.IO) {
+            if (file == null || !file.isFile) return@launch
+            val newChildren = mutableMapOf<String, List<String>>()
+            val newExpanded = mutableSetOf<String>()
+            val segments = root.path.split("\\").filter { it.isNotEmpty() }
+            var path = ""
+            WineRegistryEditor(file).use { reg ->
+                newChildren[""] = reg.getSubKeys("")
+                if (root.path.isNotEmpty()) newExpanded.add("")
+                for (segment in segments) {
+                    path = if (path.isEmpty()) segment else "$path\\$segment"
+                    newChildren[path] = reg.getSubKeys(path)
+                    newExpanded.add(path)
+                }
+            }
+            loadedChildren = newChildren
+            expandedPaths = newExpanded
+            refreshKey++
+        }
+    }
+
+    fun exitToComputer() {
+        selectedRoot = null
+        currentPath = ""
+        loadedChildren = emptyMap()
+        expandedPaths = emptySet()
+        values = emptyList()
+    }
+
+    // Поиск
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<String>?>(null) }
+
+    fun runSearch() {
+        val q = searchQuery.trim()
+        if (q.isEmpty() || regFile == null) return
+        scope.launch(Dispatchers.IO) {
+            val results = WineRegistryEditor(regFile).use { it.searchKeys(q, 300) }
+            searchResults = results
         }
     }
 
@@ -103,7 +213,13 @@ fun RegistryEditorTab(
     var deleteKeyConfirm by remember { mutableStateOf<String?>(null) }
     var deleteValueConfirm by remember { mutableStateOf<WineRegistryEditor.RegValue?>(null) }
     var showSpoofDialog by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+
+    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+    fun copyToClipboard(text: String) {
+        clipboard.setPrimaryClip(ClipData.newPlainText("registry", text))
+        onToast(ctx.getString(R.string.registry_copied, text))
+    }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri == null || regFile == null) return@rememberLauncherForActivityResult
@@ -145,7 +261,7 @@ fun RegistryEditorTab(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (regFile == null) {
+        if (containerRootDir == null) {
             Text(
                 stringResource(R.string.registry_created),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -162,185 +278,337 @@ fun RegistryEditorTab(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
             )
 
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = hive == HIVE_USER,
-                    onClick = { hive = HIVE_USER; currentPath = "" },
-                    label = { Text(stringResource(R.string.registry_hive_user)) },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterChip(
-                    selected = hive == HIVE_SYSTEM,
-                    onClick = { hive = HIVE_SYSTEM; currentPath = "" },
-                    label = { Text(stringResource(R.string.registry_hive_system)) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            if (!fileExists) {
-                Text(
-                    stringResource(R.string.registry_file_not_found),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp)
-                )
-                return@SectionCard
-            }
-
-            // Хлебные крошки
-            val pathParts = if (currentPath.isEmpty()) emptyList() else currentPath.split("\\")
+            // Поиск (по текущему хайву)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val scrollState = rememberScrollState()
-                Row(Modifier.horizontalScroll(scrollState), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.registry_root),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { currentPath = "" }.padding(4.dp)
-                    )
-                    pathParts.forEachIndexed { index, part ->
-                        Text(">", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        val targetPath = pathParts.subList(0, index + 1).joinToString("\\")
-                        val isLast = index == pathParts.size - 1
-                        Text(
-                            part,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isLast) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
-                            fontWeight = if (isLast) androidx.compose.ui.text.font.FontWeight.Bold else null,
-                            modifier = if (isLast) Modifier.padding(4.dp) else Modifier.clickable { currentPath = targetPath }.padding(4.dp)
-                        )
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text(stringResource(R.string.registry_search)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(6.dp))
+                FilledIconButton(onClick = { runSearch() }) {
+                    Icon(Icons.Filled.Search, contentDescription = "Search")
+                }
+                if (searchResults != null) {
+                    Spacer(Modifier.width(6.dp))
+                    IconButton(onClick = { searchResults = null; searchQuery = "" }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Clear")
                     }
                 }
             }
 
-            // Кнопки действий: ключи/значения
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(onClick = { showAddKeyDialog = true }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.CreateNewFolder, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.registry_add_key), maxLines = 1)
+            if (searchResults != null) {
+                val results = searchResults!!
+                Text(
+                    stringResource(R.string.registry_search_results, results.size),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+                if (results.isEmpty()) {
+                    Text(
+                        stringResource(R.string.registry_search_empty),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    results.forEach { keyPath ->
+                        Card(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
+                                .clickable {
+                                    searchResults = null
+                                    searchQuery = ""
+                                    val root = if (hive == HIVE_USER) HIVE_ROOTS[0] else HIVE_ROOTS[1]
+                                    enterRoot(root)
+                                    currentPath = keyPath
+                                    refreshKey++
+                                },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(keyPath, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
                 }
-                OutlinedButton(onClick = { addingValue = true }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.registry_add_value), maxLines = 1)
+            } else if (selectedRoot == null) {
+                // ==== Экран Computer: корневые папки ====
+                if (!fileExists && regFile != null && regFile.isFile) fileExists = true
+                Text(
+                    stringResource(R.string.registry_computer),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+                HIVE_ROOTS.forEach { root ->
+                    Card(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
+                            .clickable { enterRoot(root) },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.Storage,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(root.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace)
+                                Text(
+                                    when (root.hive) {
+                                        HIVE_USER -> "user.reg" + if (root.path.isNotEmpty()) " / $root.path" else ""
+                                        else -> "system.reg" + if (root.path.isNotEmpty()) " / $root.path" else ""
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(Icons.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
-            }
-            // Кнопки действий: импорт/экспорт/спуфинг
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(onClick = { importLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.FileOpen, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.registry_import), maxLines = 1)
-                }
-                OutlinedButton(onClick = { exportLauncher.launch("registry_export.reg") }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.FileDownload, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.registry_export), maxLines = 1)
-                }
-            }
-            if (hive == HIVE_SYSTEM) {
+
+                // Кнопки: импорт/экспорт (корневой экран — применяется к выбранному по умолчанию user.reg)
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(onClick = { showSpoofDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Memory, null, modifier = Modifier.size(18.dp))
+                    OutlinedButton(onClick = { hive = HIVE_USER; importLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.FileOpen, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.registry_cpu_spoof), maxLines = 1)
+                        Text(stringResource(R.string.registry_import), maxLines = 1)
+                    }
+                    OutlinedButton(onClick = { exportLauncher.launch("registry_export.reg") }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.FileDownload, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.registry_export), maxLines = 1)
                     }
                 }
-            }
+            } else {
+                // ==== Дерево хайва ====
+                val root = selectedRoot!!
+                // Breadcrumb: Computer > HKEY_... > путь
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.registry_computer),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { exitToComputer() }.padding(4.dp)
+                    )
+                    Text(">", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        root.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(4.dp)
+                    )
+                }
+                val pathParts = if (currentPath.isEmpty()) emptyList() else currentPath.split("\\")
+                if (pathParts.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val scrollState = rememberScrollState()
+                        Row(Modifier.horizontalScroll(scrollState), verticalAlignment = Alignment.CenterVertically) {
+                            pathParts.forEachIndexed { index, part ->
+                                Text(">", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                val targetPath = pathParts.subList(0, index + 1).joinToString("\\")
+                                val isLast = index == pathParts.size - 1
+                                Text(
+                                    part,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isLast) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
+                                    fontWeight = if (isLast) FontWeight.Bold else null,
+                                    modifier = if (isLast) Modifier.padding(4.dp) else Modifier.clickable { currentPath = targetPath; refreshKey++ }.padding(4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
 
-            // Подключи
-            if (subKeys.isNotEmpty()) {
+                // Кнопки действий
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(onClick = { showAddKeyDialog = true }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.CreateNewFolder, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.registry_add_key), maxLines = 1)
+                    }
+                    OutlinedButton(onClick = { addingValue = true }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.registry_add_value), maxLines = 1)
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(onClick = { importLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.FileOpen, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.registry_import), maxLines = 1)
+                    }
+                    OutlinedButton(onClick = { exportLauncher.launch("registry_export.reg") }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.FileDownload, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.registry_export), maxLines = 1)
+                    }
+                    if (hive == HIVE_SYSTEM) {
+                        OutlinedButton(onClick = { showSpoofDialog = true }, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Filled.Memory, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(stringResource(R.string.registry_cpu_spoof), maxLines = 1)
+                        }
+                    }
+                }
+
+                // Дерево
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(max = 360.dp).verticalScroll(rememberScrollState())
+                ) {
+                    if (visibleTreeNodes.isEmpty()) {
+                        Text(
+                            stringResource(R.string.registry_empty),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                    visibleTreeNodes.forEach { (nodePath, depth) ->
+                        val nodeName = nodePath.substringAfterLast("\\")
+                        val isExpanded = nodePath in expandedPaths
+                        val hasLoaded = loadedChildren.containsKey(nodePath)
+                        val loadedEmpty = hasLoaded && loadedChildren[nodePath]!!.isEmpty()
+                        val isSelected = nodePath == currentPath
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .padding(start = (depth * 16).dp, end = 4.dp)
+                                .combinedClickable(
+                                    onClick = {
+                                        currentPath = nodePath
+                                        if (!loadedEmpty) toggleNode(nodePath)
+                                        refreshKey++
+                                    },
+                                    onLongClick = { copyToClipboard(nodePath) }
+                                )
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (loadedEmpty) {
+                                Spacer(Modifier.width(28.dp))
+                            } else {
+                                IconButton(onClick = { toggleNode(nodePath) }, modifier = Modifier.size(28.dp)) {
+                                    Icon(
+                                        if (isExpanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowRight,
+                                        null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Icon(
+                                if (isExpanded) Icons.Filled.FolderOpen else Icons.Filled.Folder,
+                                null,
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                nodeName + (if (hasLoaded) " (${loadedChildren[nodePath]!!.size})" else ""),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = if (isSelected) FontWeight.Bold else null,
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                // Значения выбранного ключа
+                HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                val currentChildren = loadedChildren[currentPath]
                 Text(
-                    "Subkeys (${subKeys.size})",
+                    "${stringResource(R.string.registry_values)} (${values.size})",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
-                subKeys.forEach { subKey ->
-                    Card(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
-                            .clickable { currentPath = if (currentPath.isEmpty()) subKey else "$currentPath\\$subKey" },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                if (values.isEmpty()) {
+                    Text(
+                        if (currentChildren != null && currentChildren.isNotEmpty())
+                            stringResource(R.string.registry_key_no_values_hint, currentChildren.size)
+                        else
+                            stringResource(R.string.registry_empty),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    values.forEach { value ->
+                        Card(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
+                                .combinedClickable(
+                                    onClick = { editingValue = value },
+                                    onLongClick = { copyToClipboard("${value.name ?: "(Default)"} = ${value.value}") }
+                                ),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
-                            Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(subKey, style = MaterialTheme.typography.bodyMedium, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-
-            // Значения
-            Text(
-                "Values (${values.size})",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-            if (values.isEmpty()) {
-                Text(
-                    stringResource(R.string.registry_empty),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp)
-                )
-            } else {
-                values.forEach { value ->
-                    Card(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
-                            .clickable { editingValue = value },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    value.name ?: stringResource(R.string.registry_default_value),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                                Text(
-                                    "${value.type}: ${value.value.ifEmpty { "(empty)" }}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontFamily = FontFamily.Monospace,
-                                    maxLines = 2
-                                )
-                            }
-                            IconButton(onClick = { deleteValueConfirm = value }) {
-                                Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error)
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        value.name ?: stringResource(R.string.registry_default_value),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    Text(
+                                        "${value.type}: ${value.value.ifEmpty { "(empty)" }}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 2
+                                    )
+                                }
+                                IconButton(onClick = { deleteValueConfirm = value }) {
+                                    Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            if (currentPath.isNotEmpty()) {
-                TextButton(
-                    onClick = { deleteKeyConfirm = currentPath },
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                ) {
-                    Icon(Icons.Filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.registry_delete_key), color = MaterialTheme.colorScheme.error)
+                if (currentPath.isNotEmpty()) {
+                    TextButton(
+                        onClick = { deleteKeyConfirm = currentPath },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    ) {
+                        Icon(Icons.Filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.registry_delete_key), color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }

@@ -912,6 +912,14 @@
     <string name="registry_cpu_spoof_hint">Preset auto-selected for Wine arch: %1$s</string>
     <string name="registry_cpu_spoof_clear">Clear</string>
     <string name="registry_cpu_spoof_cleared">CPU spoof values removed</string>
+    <string name="registry_computer">Computer</string>
+    <string name="registry_search">Search keys</string>
+    <string name="registry_search_results">Results: %1$d</string>
+    <string name="registry_search_empty">Nothing found</string>
+    <string name="registry_copied">Copied: %1$s</string>
+    <string name="registry_values">Values</string>
+    <string name="registry_key_no_values_hint">No values here. Subkeys: %1$d — open them to see values</string>
+    <string name="registry_open_subkey">Open</string>
     <string name="reinstall_imagefs">Reinstall Imagefs</string>
     <string name="relative_mouse_movement">Relative Mouse Movement</string>
     <string name="remove">Remove</string>
