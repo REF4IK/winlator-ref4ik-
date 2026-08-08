@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 
 public class WineRegistryEditor implements Closeable {
@@ -39,6 +40,18 @@ public class WineRegistryEditor implements Closeable {
 
         public int length() {
             return end - start;
+        }
+    }
+
+    public static class RegValue {
+        public final String name;
+        public final String type;
+        public final String value;
+
+        public RegValue(String name, String type, String value) {
+            this.name = name;
+            this.type = type;
+            this.value = value;
         }
     }
 
@@ -162,6 +175,139 @@ public class WineRegistryEditor implements Closeable {
         setRawValue(key, name, "dword:" + String.format("%08x", value));
     }
 
+    public void setQwordValue(String key, String name, long value) {
+        setRawValue(key, name, String.format(Locale.ENGLISH, "hex(b):%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",
+                value & 0xff, (value >> 8) & 0xff, (value >> 16) & 0xff, (value >> 24) & 0xff,
+                (value >> 32) & 0xff, (value >> 40) & 0xff, (value >> 48) & 0xff, (value >> 56) & 0xff));
+    }
+
+    public boolean keyExists(String key) {
+        lastParentKeyPosition = 0;
+        return getKeyLocation(key) != null;
+    }
+
+    public String getHexValue(String key, String name) {
+        return getHexValue(key, name, null);
+    }
+
+    public String getHexValue(String key, String name, String fallback) {
+        String value = getRawValue(key, name);
+        if (value == null) return fallback;
+        int start = value.indexOf(":");
+        if (start == -1) return fallback;
+        return value.substring(start + 1).replace("\\", "").replace("\n", "").replace(" ", "");
+    }
+
+    public List<String> getSubKeys(String key) {
+        ArrayList<String> subKeys = new ArrayList<>();
+        String escapedKey = escape(key);
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(cloneFile), StreamUtils.BUFFER_SIZE)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.startsWith("[")) continue;
+                int endIndex = line.indexOf(']');
+                if (endIndex <= 1) continue;
+                String fullKey = line.substring(1, endIndex);
+                if (key.isEmpty()) {
+                    if (fullKey.indexOf('\\') == -1) subKeys.add(unescape(fullKey));
+                } else if (fullKey.startsWith(escapedKey + "\\\\")) {
+                    String rest = fullKey.substring(escapedKey.length() + 2);
+                    if (rest.indexOf('\\') == -1 && !rest.isEmpty()) subKeys.add(unescape(rest));
+                }
+            }
+        } catch (IOException e) {
+        }
+        return subKeys;
+    }
+
+    public List<RegValue> getValues(String key) {
+        ArrayList<RegValue> values = new ArrayList<>();
+        lastParentKeyPosition = 0;
+        Location keyLocation = getKeyLocation(key);
+        if (keyLocation == null) return values;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(cloneFile), StreamUtils.BUFFER_SIZE)) {
+            reader.skip(keyLocation.start);
+            String line;
+            int totalLength = 0;
+            String currentName = null;
+            String currentRaw = null;
+            StringBuilder currentValue = null;
+
+            while ((line = reader.readLine()) != null && totalLength < keyLocation.length()) {
+                if (line.startsWith("[")) break;
+                String trimmed = line.trim();
+                if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith(";")) {
+                    if (currentName != null && currentValue != null) {
+                        values.add(buildRegValue(currentName, currentRaw, currentValue.toString()));
+                        currentName = null;
+                        currentRaw = null;
+                        currentValue = null;
+                    }
+                    totalLength += line.length() + 1;
+                    continue;
+                }
+                if (trimmed.startsWith("\"") || trimmed.startsWith("@")) {
+                    if (currentName != null && currentValue != null) {
+                        values.add(buildRegValue(currentName, currentRaw, currentValue.toString()));
+                    }
+                    int eqIndex = trimmed.indexOf('=');
+                    if (eqIndex == -1) continue;
+                    String namePart = trimmed.substring(0, eqIndex).trim();
+                    currentName = null;
+                    if (namePart.startsWith("\"")) {
+                        currentName = unescape(namePart.substring(1, Math.max(namePart.length() - 1, 1)));
+                        if (currentName.isEmpty()) currentName = null;
+                    }
+                    currentRaw = trimmed.substring(eqIndex + 1).trim();
+                    currentValue = new StringBuilder();
+                } else if (currentValue != null) {
+                    if (currentValue.length() > 0 && currentRaw != null && !currentRaw.endsWith("\\") &&
+                            currentValue.charAt(currentValue.length() - 1) != ',' && !trimmed.startsWith(",")) {
+                        currentValue.append(",");
+                    }
+                    currentValue.append(trimmed);
+                }
+                totalLength += line.length() + 1;
+            }
+            if (currentName != null && currentValue != null) {
+                values.add(buildRegValue(currentName, currentRaw, currentValue.toString()));
+            }
+        } catch (IOException e) {
+        }
+        return values;
+    }
+
+    private static RegValue buildRegValue(String name, String raw, String value) {
+        String type;
+        String result;
+        if (raw != null && raw.startsWith("dword:")) {
+            type = "Dword";
+            result = raw.substring(6);
+        } else if (raw != null && raw.startsWith("hex(b):")) {
+            type = "Qword";
+            result = raw.substring(7).replace("\\", "").replace(" ", "");
+        } else if (raw != null && raw.startsWith("hex(2):")) {
+            type = "ExpandString";
+            result = raw.substring(7);
+        } else if (raw != null && raw.startsWith("hex(7):")) {
+            type = "MultiString";
+            result = raw.substring(7);
+        } else if (raw != null && raw.startsWith("hex:")) {
+            type = "Hex";
+            result = raw.substring(4).replace("\\", "").replace(" ", "");
+        } else if (raw != null && raw.startsWith("\"")) {
+            type = "String";
+            int end = raw.lastIndexOf('"');
+            result = end > 1 ? unescape(raw.substring(1, end)) : value;
+        } else {
+            type = "Other";
+            result = value;
+        }
+        return new RegValue(name, type, result);
+    }
+
     public void setHexValue(String key, String name, String value) {
         int start = (int) Mathf.roundTo(name.length(), 2) + 7;
         StringBuilder lines = new StringBuilder();
@@ -257,6 +403,53 @@ public class WineRegistryEditor implements Closeable {
 
     public boolean removeKey(String key) {
         return removeKey(key, false);
+    }
+
+    public List<String> getAllSubKeys(String key) {
+        ArrayList<String> result = new ArrayList<>();
+        collectSubKeys(key, result);
+        return result;
+    }
+
+    private void collectSubKeys(String key, List<String> result) {
+        result.add(key);
+        for (String subKey : getSubKeys(key)) {
+            collectSubKeys(key.isEmpty() ? subKey : key + "\\" + subKey, result);
+        }
+    }
+
+    public String exportReg(String key, String hive) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Windows Registry Editor Version 5.00\n\n");
+        for (String currentKey : getAllSubKeys(key)) {
+            String exportPath = hive + (currentKey.isEmpty() ? "" : "\\" + currentKey);
+            sb.append("[").append(exportPath).append("]\n");
+            for (RegValue value : getValues(currentKey)) {
+                String namePart = value.name != null ? "\"" + escape(value.name) + "\"" : "@";
+                switch (value.type) {
+                    case "Dword":
+                        sb.append(namePart).append("=dword:").append(value.value).append("\n");
+                        break;
+                    case "Qword":
+                        sb.append(namePart).append("=hex(b):").append(value.value).append("\n");
+                        break;
+                    case "ExpandString":
+                        sb.append(namePart).append("=hex(2):").append(value.value).append("\n");
+                        break;
+                    case "MultiString":
+                        sb.append(namePart).append("=hex(7):").append(value.value).append("\n");
+                        break;
+                    case "Hex":
+                        sb.append(namePart).append("=hex:").append(value.value).append("\n");
+                        break;
+                    default:
+                        sb.append(namePart).append("=\"").append(escape(value.value)).append("\"\n");
+                        break;
+                }
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 
     public boolean removeKey(String key, boolean removeTree) {
@@ -423,5 +616,100 @@ public class WineRegistryEditor implements Closeable {
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Импорт текстового .reg файла (формат "Windows Registry Editor Version 5.00" / "WINE REGISTRY Version 2").
+     * Поддерживаются: строковые значения, dword, hex, hex(b) (QWORD), hex(2), hex(7).
+     * Префиксы HKEY_* отрезаются — ключи применяются к текущему файлу как есть.
+     */
+    public void importRegFile(String regText) {
+        if (regText == null || regText.isEmpty()) return;
+        String[] lines = regText.replace("\r\n", "\n").replace('\r', '\n').split("\n");
+        String currentKey = null;
+        String currentName = null;
+        String currentRaw = null;
+        StringBuilder currentValue = null;
+
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+            if (line.isEmpty()) continue;
+            if (line.startsWith(";") || line.startsWith("#") || line.startsWith("WINE REGISTRY") ||
+                    line.startsWith("Windows Registry Editor")) continue;
+            if (line.startsWith("[") && line.endsWith("]")) {
+                if (currentKey != null && currentRaw != null) {
+                    applyImportedValue(currentKey, currentName, currentRaw, currentValue.toString());
+                }
+                currentKey = stripHivePrefix(line.substring(1, line.length() - 1));
+                ensureKey(currentKey);
+                currentName = null;
+                currentRaw = null;
+                currentValue = null;
+                continue;
+            }
+            if (line.startsWith("\"") || line.startsWith("@")) {
+                if (currentKey != null && currentRaw != null) {
+                    applyImportedValue(currentKey, currentName, currentRaw, currentValue.toString());
+                }
+                int eqIndex = line.indexOf('=');
+                if (eqIndex == -1) continue;
+                String namePart = line.substring(0, eqIndex).trim();
+                currentName = null;
+                if (namePart.startsWith("\"")) {
+                    currentName = unescape(namePart.substring(1, Math.max(namePart.length() - 1, 1)));
+                    if (currentName.isEmpty()) currentName = null;
+                }
+                currentRaw = line.substring(eqIndex + 1).trim();
+                int colonIndex = currentRaw.indexOf(':');
+                currentValue = new StringBuilder(colonIndex != -1 ? currentRaw.substring(colonIndex + 1) : "");
+            } else if (currentValue != null) {
+                if (currentValue.length() > 0 && currentRaw != null && !currentRaw.endsWith("\\") &&
+                        currentValue.charAt(currentValue.length() - 1) != ',' && !line.startsWith(",")) {
+                    currentValue.append(",");
+                }
+                currentValue.append(line);
+            }
+        }
+        if (currentKey != null && currentRaw != null) {
+            applyImportedValue(currentKey, currentName, currentRaw, currentValue.toString());
+        }
+    }
+
+    private void ensureKey(String key) {
+        if (key == null || key.isEmpty() || keyExists(key)) return;
+        String[] parts = key.split("\\\\");
+        StringBuilder current = new StringBuilder();
+        for (String part : parts) {
+            if (current.length() > 0) current.append("\\");
+            current.append(part);
+            if (!keyExists(current.toString())) createKey(current.toString());
+        }
+    }
+
+    private void applyImportedValue(String key, String name, String raw, String value) {
+        if (raw.startsWith("\"")) {
+            setStringValue(key, name, unescape(raw.substring(1, Math.max(raw.lastIndexOf('"'), 1))));
+        } else if (raw.startsWith("dword:")) {
+            try {
+                setDwordValue(key, name, (int) Long.parseLong(raw.substring(6), 16));
+            } catch (NumberFormatException e) {
+            }
+        } else if (raw.startsWith("hex")) {
+            String data = value.replace("\\", "").replace(" ", "");
+            int colonIndex = raw.indexOf(':');
+            String prefix = colonIndex != -1 ? raw.substring(0, colonIndex + 1) : "hex:";
+            setRawValue(key, name, prefix + data);
+        } else {
+            setStringValue(key, name, raw);
+        }
+    }
+
+    private static String stripHivePrefix(String key) {
+        if (key.equals("HKEY_LOCAL_MACHINE") || key.equals("HKEY_CURRENT_USER")) return "";
+        String[] prefixes = {"HKEY_LOCAL_MACHINE\\", "HKEY_CURRENT_USER\\", "HKEY_USERS\\.DEFAULT\\", "HKEY_USERS\\"};
+        for (String prefix : prefixes) {
+            if (key.startsWith(prefix)) return key.substring(prefix.length());
+        }
+        return key;
     }
 }

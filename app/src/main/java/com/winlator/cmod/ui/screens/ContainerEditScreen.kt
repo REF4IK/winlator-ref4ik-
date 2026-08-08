@@ -202,7 +202,8 @@ fun ContainerEditScreen(
         stringResource(R.string.environment_variables) to 2,
         stringResource(R.string.drives) to 3,
         stringResource(R.string.advanced) to 4,
-        stringResource(R.string.xr) to 5,
+        stringResource(R.string.registry_editor) to 5,
+        stringResource(R.string.xr) to 6,
     )
 
     var showPreloader by remember { mutableStateOf(false) }
@@ -649,7 +650,13 @@ fun ContainerEditScreen(
                     onBox64VersionDownload = { showBox64Download = true },
                     onFexcoreVersionDownload = { showFexcoreDownload = true }
                 )
-                5 -> XRTab(
+                5 -> RegistryEditorTab(
+                    containerRootDir = container?.rootDir,
+                    wineVersion = wineVersion,
+                    wineArch = wineInfo.getArch(),
+                    onToast = { AppUtils.showToast(ctx, it) },
+                )
+                6 -> XRTab(
                     primaryController = primaryController, onPrimaryControllerChange = { primaryController = it },
                     controllerMapping = controllerMapping, onControllerMappingChange = { controllerMapping = it },
                 )
