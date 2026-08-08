@@ -46,8 +46,8 @@ if not exist "%ANDROID_SDK_ROOT%\platforms" (
 
 set "PATH=%JAVA_HOME%\bin;%PATH%"
 
-rem Give Gradle/Kotlin more heap on large Winlator asset sets
-if not defined GRADLE_OPTS set "GRADLE_OPTS=-Xmx12288m -Dfile.encoding=UTF-8 -Dkotlin.daemon.jvm.options=-Xmx3072m"
+rem Give Gradle/Kotlin heap (не больше 4+2GB: на 15GB-машине больше = OOM/crash daemon)
+if not defined GRADLE_OPTS set "GRADLE_OPTS=-Xmx4096m -Dfile.encoding=UTF-8 -Dkotlin.daemon.jvm.options=-Xmx2048m"
 if not defined JAVA_TOOL_OPTIONS set "JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8"
 
 rem Keep Gradle caches inside the project to avoid permission issues in locked user profiles

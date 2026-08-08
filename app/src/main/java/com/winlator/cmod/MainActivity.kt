@@ -19,6 +19,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.core.MmkvPreferences
 import com.google.android.material.appbar.MaterialToolbar
@@ -81,6 +84,55 @@ class MainActivity : AppCompatActivity() {
             PACKAGE_NAME = packageName
         }
 
+        // Тема читается сразу — нужна для настройки окна ниже
+        preferences = MmkvPreferences()
+        isDarkMode = preferences.getBoolean("dark_mode", false)
+
+        // Настройка окна ДО создания первого кадра: edge-to-edge + скрытый статус-бар.
+        // Делается до setContentView, чтобы при старте не было relayout'а и скачка меню.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            val controller = WindowInsetsControllerCompat(window, window.decorView)
+            controller.hide(WindowInsetsCompat.Type.statusBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.isAppearanceLightNavigationBars = !isDarkMode
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            )
+        }
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+
+        // Фон окна сразу по теме — иначе при тёмной теме первый кадр рождается
+        // со светлым windowBackground из AppTheme (вспышка белого при старте)
+        val windowBg = ContextCompat.getColor(
+            this,
+            if (isDarkMode) R.color.md_theme_dark_background else R.color.md_theme_light_background,
+        )
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(windowBg))
+
+        // Навигационная панель сразу по теме (иначе первый кадр с системным цветом).
+        // Значения совпадают с теми, что Compose ставит в LaunchedEffect(isDarkMode),
+        // чтобы при старте панель не перекрашивалась
+        window.navigationBarColor = if (isDarkMode) {
+            android.graphics.Color.parseColor("#121212")
+        } else {
+            android.graphics.Color.WHITE
+        }
+        if (Build.VERSION.SDK_INT in Build.VERSION_CODES.O..Build.VERSION_CODES.Q) {
+            @Suppress("DEPRECATION")
+            var navFlags = window.decorView.systemUiVisibility
+            navFlags = if (isDarkMode) {
+                navFlags and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            } else {
+                navFlags or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            }
+            window.decorView.systemUiVisibility = navFlags
+        }
+
         // Корневой layout: скрытый Toolbar + ComposeView
         // Toolbar нужен, чтобы старые Java-фрагменты могли вызывать
         // getSupportActionBar() без NullPointerException
@@ -97,10 +149,7 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(hiddenToolbar)
         supportActionBar?.hide()
 
-        preferences = MmkvPreferences()
         containerManager = ContainerManager(this)
-
-        isDarkMode = preferences.getBoolean("dark_mode", false)
 
         val editInputControls = intent.getBooleanExtra("edit_input_controls", false)
         val selectedProfileId = intent.getIntExtra("selected_profile_id", 0)
@@ -185,6 +234,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------- Compatibility methods for old Java fragments ----------
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // На Android < 11 флаги fullscreen применяются только после relayout
+        // декора — дублируем при получении фокуса, чтобы статус-бар не успел
+        // нарисоваться и «подкинуть» меню при старте
+        if (hasFocus && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            )
+        }
+    }
 
     fun onSaveAdded() {
         // Called from SaveEditDialog/SaveSettingsDialog after save operation

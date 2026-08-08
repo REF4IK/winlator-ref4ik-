@@ -211,35 +211,9 @@ fun WinlatorApp(
         }
     }
 
-    // Скрываем только верхний статус-бар (часы, батарея), нижний навигационный бар оставляем видимым, поддерживая вырез (notch)
+    // Окно (edge-to-edge, скрытый статус-бар) настраивается в MainActivity ДО создания
+    // первого кадра — здесь только реактивные цвета навигационной панели при смене темы.
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-    DisposableEffect(Unit) {
-        if (activity != null) {
-            // Разрешаем отображение под вырезом (notch)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                val layoutParams = activity.window.attributes
-                layoutParams.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                activity.window.attributes = layoutParams
-            }
-            activity.window.statusBarColor = android.graphics.Color.TRANSPARENT
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                activity.window.setDecorFitsSystemWindows(false)
-                val controller = activity.window.decorView.windowInsetsController
-                if (controller != null) {
-                    controller.hide(android.view.WindowInsets.Type.statusBars())
-                    controller.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                }
-            } else {
-                @Suppress("DEPRECATION")
-                activity.window.decorView.systemUiVisibility = (
-                    android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
-                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                )
-            }
-        }
-        onDispose { }
-    }
     LaunchedEffect(isDarkMode) {
         if (activity != null) {
             val window = activity.window

@@ -665,10 +665,9 @@ fun WinlatorTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-            // Статус-бар всегда непрозрачный (иначе просвечивает белый window background)
-            window.statusBarColor = colorScheme.surface.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !effectiveDark
+            // Цвет статус-бара задан прозрачным в MainActivity (edge-to-edge),
+            // здесь только светлая/тёмная иконография
+            WindowCompat.getInsetsController((view.context as Activity).window, view).isAppearanceLightStatusBars = !effectiveDark
         }
     }
 
