@@ -2,7 +2,11 @@ package com.winlator.cmod.core
 
 import android.app.Activity
 import android.app.Dialog
+import android.content.Context
 import android.graphics.Bitmap
+import android.hardware.input.InputManager
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -10,11 +14,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -25,12 +34,16 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
 import com.winlator.cmod.R
+import com.winlator.cmod.inputcontrols.ExternalController
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import coil.compose.AsyncImage
@@ -96,29 +109,10 @@ class PreloaderDialog(private val activity: Activity) {
     @Composable
     private fun SteamDeckBootScreen() {
         var visible by remember { mutableStateOf(false) }
-        var stageAlpha by remember { mutableStateOf(1f) }
-        var prevStage by remember { mutableStateOf("") }
 
         LaunchedEffect(Unit) {
             visible = true
         }
-
-        LaunchedEffect(stageText) {
-            stageText?.let { prevStage = it.toString() }
-            stageAlpha = 0f
-            delay(50)
-            stageAlpha = 1f
-        }
-
-        val infiniteTransition = rememberInfiniteTransition()
-        val glowAlpha by infiniteTransition.animateFloat(
-            initialValue = 0.3f,
-            targetValue = 0.7f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(2000, easing = EaseInOutCubic),
-                repeatMode = RepeatMode.Reverse
-            )
-        )
 
         Box(
             modifier = Modifier
@@ -127,7 +121,7 @@ class PreloaderDialog(private val activity: Activity) {
         ) {
             val appId = _steamAppId?.toIntOrNull()
 
-            // Full-screen background: Steam Hero Image or Local Cover Art
+            // Subtle blurred background (Steam Hero / local cover) — не перетягивает внимание
             if (appId != null && appId > 0) {
                 val heroUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/library_hero.jpg"
                 val capsuleUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/capsule_616x353.jpg"
@@ -136,9 +130,7 @@ class PreloaderDialog(private val activity: Activity) {
                 LaunchedEffect(appId) {
                     if (heroFile == null) {
                         heroFile = SteamImageCache.downloadIfNeeded(activity, heroUrl)
-                        if (heroFile == null) {
-                            heroFile = SteamImageCache.downloadIfNeeded(activity, capsuleUrl)
-                        }
+                            ?: SteamImageCache.downloadIfNeeded(activity, capsuleUrl)
                     }
                 }
 
@@ -146,7 +138,10 @@ class PreloaderDialog(private val activity: Activity) {
                     AsyncImage(
                         model = file,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(48.dp)
+                            .alpha(0.35f),
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -156,177 +151,292 @@ class PreloaderDialog(private val activity: Activity) {
                         bitmap = bmp.asImageBitmap(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(48.dp)
+                            .alpha(0.35f)
                     )
                 }
             }
 
-            // Full-screen gradient overlay (transparent top → dark bottom)
+            // Радиальный виньетный градиент (центр ярче, края темнее) — фокус на анимации
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.verticalGradient(
+                        Brush.radialGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.05f),
-                                Color.Black.copy(alpha = 0.25f),
-                                Color.Black.copy(alpha = 0.65f),
-                                Color(0xDD0F1016)
-                            )
+                                Color(0x00000000),
+                                Color(0x66000000),
+                                Color(0xCC0F1016)
+                            ),
+                            radius = 1200f
                         )
                     )
             )
 
-            // Game logo overlay (if Steam App ID is present)
-            if (appId != null && appId > 0) {
-                val logoUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/logo.png"
-                var logoFile by remember(appId) { mutableStateOf<java.io.File?>(SteamImageCache.getCachedFile(activity, logoUrl)) }
+            // Уведомление о контроллере — плавно выплывает справа сверху
+            ControllerHintToast(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 32.dp, end = 20.dp)
+            )
 
-                LaunchedEffect(appId) {
-                    if (logoFile == null) {
-                        logoFile = SteamImageCache.downloadIfNeeded(activity, logoUrl)
-                    }
-                }
-
-                logoFile?.let { file ->
-                    AsyncImage(
-                        model = file,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .height(72.dp)
-                            .fillMaxWidth(0.5f)
-                            .align(Alignment.TopStart)
-                            .padding(start = 24.dp, top = 24.dp),
-                        contentScale = ContentScale.Fit
+            // Центральная композиция (иконка Windows → стрелка → миниатюра обложки)
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600)) + scaleIn(initialScale = 0.92f, animationSpec = tween(600, easing = EaseOutCubic)),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    BootCenterRow(
+                        bitmap = coverArtBitmap,
+                        appId = appId,
+                        activity = activity
                     )
                 }
             }
 
-            // Content Column (aligned to BottomStart for that premium Steam Deck overlay look)
+            // Нижняя панель: полоска прогресса + стадия
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 32.dp, vertical = 48.dp),
-                horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.Bottom
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp, vertical = 56.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = fadeIn(tween(800)) + scaleIn(initialScale = 0.95f, animationSpec = tween(800, easing = EaseOutCubic))
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.Start,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        val displayTitle = titleText?.toString() ?: activity.getString(R.string.app_name)
-                        val displaySubtitle = subtitleText?.toString()
+                val displayStage = stageText?.toString() ?: ""
 
-                        // Only show title if we don't have a Steam logo (to avoid duplicate title display)
-                        if (appId == null || appId <= 0) {
-                            Text(
-                                text = displayTitle,
-                                style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    shadow = Shadow(
-                                        color = Color.Black.copy(alpha = 0.9f),
-                                        offset = Offset(2f, 4f),
-                                        blurRadius = 8f
-                                    )
-                                ),
-                                fontSize = 36.sp,
-                                color = Color.White,
-                                maxLines = 2,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                        }
-
-                        if (!displaySubtitle.isNullOrEmpty()) {
-                            Text(
-                                text = displaySubtitle,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontWeight = FontWeight.Medium,
-                                    shadow = Shadow(
-                                        color = Color.Black.copy(alpha = 0.9f),
-                                        offset = Offset(1f, 2f),
-                                        blurRadius = 4f
-                                    )
-                                ),
-                                fontSize = 18.sp,
-                                color = Color(0xFFD3E0F6),
-                                letterSpacing = 0.3.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(40.dp))
-
-                        // Loading bar
-                        LoadingBar()
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        val displayStage = stageText?.toString() ?: ""
-                        AnimatedContent(
-                            targetState = displayStage,
-                            transitionSpec = {
-                                fadeIn(tween(300)) togetherWith fadeOut(tween(200))
-                            }
-                        ) { stage ->
-                            if (stage.isNotEmpty()) {
-                                Text(
-                                    text = stage,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        shadow = Shadow(
-                                            color = Color.Black.copy(alpha = 0.9f),
-                                            offset = Offset(1f, 2f),
-                                            blurRadius = 4f
-                                        )
-                                    ),
-                                    color = Color.White.copy(alpha = 0.6f),
-                                    letterSpacing = 0.5.sp
+                AnimatedContent(
+                    targetState = displayStage,
+                    transitionSpec = {
+                        (fadeIn(tween(280)) + slideInVertically(animationSpec = tween(280)) { it / 4 })
+                            .togetherWith(fadeOut(tween(180)) + slideOutVertically(animationSpec = tween(180)) { -it / 4 })
+                    },
+                    label = "stage"
+                ) { stage ->
+                    if (stage.isNotEmpty()) {
+                        Text(
+                            text = stage,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                shadow = Shadow(
+                                    color = Color.Black.copy(alpha = 0.85f),
+                                    offset = Offset(1f, 2f),
+                                    blurRadius = 4f
                                 )
-                            }
+                            ),
+                            color = Color.White.copy(alpha = 0.85f),
+                            letterSpacing = 0.4.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        // Резервируем высоту, чтобы колонка не «прыгала» при первой стадии
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                LoadingBar()
+            }
+        }
+    }
+
+    /**
+     * Плавающее уведомление в правом верхнем углу: какой контроллер используется.
+     * Если подключён физический геймпад — показывает его модель.
+     * Если нет — показывает «Виртуальные кнопки».
+     */
+    @Composable
+    private fun ControllerHintToast(modifier: Modifier = Modifier) {
+        val context = LocalContext.current
+        var controllerName by remember { mutableStateOf<String?>(null) }
+
+        DisposableEffect(Unit) {
+            val inputManager = context.getSystemService(Context.INPUT_SERVICE) as InputManager
+            val refresh = {
+                controllerName = ExternalController.getControllers().firstOrNull()?.name
+            }
+            val listener = object : InputManager.InputDeviceListener {
+                override fun onInputDeviceAdded(deviceId: Int) = refresh()
+                override fun onInputDeviceRemoved(deviceId: Int) = refresh()
+                override fun onInputDeviceChanged(deviceId: Int) = refresh()
+            }
+            refresh()
+            inputManager.registerInputDeviceListener(listener, Handler(Looper.getMainLooper()))
+            onDispose { inputManager.unregisterInputDeviceListener(listener) }
+        }
+
+        val show = controllerName != null
+        val text = controllerName ?: context.getString(R.string.controller_virtual)
+
+        AnimatedVisibility(
+            visible = true,
+            enter = slideInHorizontally(tween(300)) { it } + fadeIn(tween(300)),
+            exit = slideOutHorizontally(tween(220)) { it } + fadeOut(tween(220)),
+            modifier = modifier
+        ) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color.Black.copy(alpha = 0.55f),
+                shadowElevation = 10.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SportsEsports,
+                        contentDescription = null,
+                        tint = if (show) Color(0xFF00A5FF) else Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = text,
+                        color = Color.White.copy(alpha = 0.92f),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.7f),
+                                offset = Offset(1f, 1f),
+                                blurRadius = 3f
+                            )
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Центральный ряд: иконка Windows → стрелка → квадратная миниатюра обложки.
+     * Если обложки нет — показываем стилизованный плейсхолдер.
+     */
+    @Composable
+    private fun BootCenterRow(
+        bitmap: Bitmap?,
+        appId: Int?,
+        activity: Activity
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Иконка Windows — статичная, без мигания
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .shadow(elevation = 16.dp, shape = RoundedCornerShape(16.dp), ambientColor = Color(0xFF00A5FF), spotColor = Color(0xFF00A5FF))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(Color(0xFF1B2233), Color(0xFF0B0F1A))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_windows_10),
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+
+            // Стрелка перехода
+            Box(
+                modifier = Modifier.size(28.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = Color(0xFF00A5FF),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            // Миниатюра обложки (Steam hero / local bitmap / placeholder)
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .shadow(elevation = 14.dp, shape = RoundedCornerShape(12.dp), ambientColor = Color.Black, spotColor = Color.Black)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF1B2233))
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (appId != null && appId > 0) {
+                    val capsuleUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/capsule_231x87.jpg"
+                    var capsuleFile by remember(appId) { mutableStateOf<java.io.File?>(SteamImageCache.getCachedFile(activity, capsuleUrl)) }
+                    LaunchedEffect(appId) {
+                        if (capsuleFile == null) {
+                            capsuleFile = SteamImageCache.downloadIfNeeded(activity, capsuleUrl)
                         }
                     }
+                    if (capsuleFile != null) {
+                        AsyncImage(
+                            model = capsuleFile,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        ThumbnailPlaceholder()
+                    }
+                } else {
+                    ThumbnailPlaceholder()
                 }
             }
         }
     }
 
     @Composable
-    private fun LoadingBar() {
-        val infiniteTransition = rememberInfiniteTransition()
-        val offset by infiniteTransition.animateFloat(
-            initialValue = -200f,
-            targetValue = 200f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = EaseInOutCubic),
-                repeatMode = RepeatMode.Restart
-            )
-        )
-
+    private fun ThumbnailPlaceholder() {
         Box(
             modifier = Modifier
-                .width(160.dp)
-                .height(2.dp)
-                .background(Color(0xFF1E2230))
-        ) {
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(offset.roundToInt(), 0) }
-                    .width(60.dp)
-                    .height(2.dp)
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0x0000A5FF),
-                                Color(0xFF00A5FF),
-                                Color(0x0000A5FF)
-                            )
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF243049),
+                            Color(0xFF111521)
                         )
                     )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Computer,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.45f),
+                modifier = Modifier.size(32.dp)
             )
         }
+    }
+
+    @Composable
+    private fun LoadingBar() {
+        LinearProgressIndicator(
+            modifier = Modifier
+                .width(220.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = Color(0xFF00A5FF),
+            trackColor = Color(0xFF1B2130)
+        )
     }
 
     @Synchronized

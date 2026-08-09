@@ -34,6 +34,8 @@
     <string name="active_windows">Активные окна</string>
     <string name="minimized">Свернуто</string>
     <string name="add">Добавить</string>
+    <string name="controller_virtual">Виртуальные кнопки</string>
+    <string name="controller_connected">Геймпад подключён: %s</string>
     <string name="add_custom_icon">Добавить пользовательскую иконку</string>
     <string name="add_save">Добавить сохранение</string>
     <string name="add_to_home_screen">Добавить на главный экран</string>

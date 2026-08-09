@@ -19,10 +19,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import kotlin.math.roundToInt
 import com.winlator.cmod.FileManagerActivity
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
@@ -50,8 +55,6 @@ fun ContainersScreen(
     var containers by remember(refreshKey) { mutableStateOf(manager.containers?.toList() ?: emptyList()) }
     var showPreloader by remember { mutableStateOf(false) }
     var preloaderText by remember { mutableStateOf("") }
-    var showMenu by remember { mutableStateOf(false) }
-    var menuContainer by remember { mutableStateOf<Container?>(null) }
     var confirmAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var confirmTitle by remember { mutableStateOf("") }
     var showStorageInfoContainer by remember { mutableStateOf<Container?>(null) }
@@ -87,74 +90,58 @@ fun ContainersScreen(
                     ContainerCard(
                         container = container,
                         onRun = { runContainer(ctx, container) },
-                        onMenu = { menuContainer = container; showMenu = true },
+                        onEdit = { onEditContainer(container.id) },
+                        onDuplicate = {
+                            confirmTitle = ctx.getString(R.string.do_you_want_to_duplicate_this_container)
+                            confirmAction = {
+                                showPreloader = true; preloaderText = ctx.getString(R.string.duplicating_container)
+                                manager.duplicateContainerAsync(container) {
+                                    (ctx as? Activity)?.runOnUiThread { showPreloader = false; reload() }
+                                }
+                            }
+                        },
+                        onRemove = {
+                            confirmTitle = ctx.getString(R.string.do_you_want_to_remove_this_container)
+                            confirmAction = {
+                                showPreloader = true; preloaderText = ctx.getString(R.string.removing_container)
+                                for (shortcut in manager.loadShortcuts()) {
+                                    if (shortcut.container == container) {
+                                        com.winlator.cmod.ShortcutsFragment.disableShortcutOnScreen(ctx, shortcut)
+                                    }
+                                }
+                                manager.removeContainerAsync(container) {
+                                    (ctx as? Activity)?.runOnUiThread { showPreloader = false; reload() }
+                                }
+                            }
+                        },
+                        onStorageInfo = { showStorageInfoContainer = container },
+                        onFileManager = {
+                            if (container.rootDir == null || !container.rootDir.isDirectory) {
+                                AppUtils.showToast(ctx, R.string.container_file_manager_unavailable)
+                            } else {
+                                onOpenFileBrowser(container.id)
+                            }
+                        },
+                        onReconfigure = {
+                            confirmTitle = ctx.getString(R.string.do_you_want_to_reconfigure_wine)
+                            confirmAction = { File(container.rootDir, ".wine/.update-timestamp").delete() }
+                        },
+                        onExport = {
+                            showPreloader = true; preloaderText = ctx.getString(R.string.exporting_container)
+                            manager.exportContainer(container) {
+                                (ctx as? Activity)?.runOnUiThread {
+                                    showPreloader = false
+                                    val backupDir = File(
+                                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                                        "Winlator/Backups/Containers"
+                                    )
+                                    AppUtils.showToast(ctx, "Container exported successfully to ${backupDir.path}")
+                                }
+                            }
+                        }
                     )
                 }
             }
-        }
-    }
-
-    if (showMenu && menuContainer != null) {
-        val c = menuContainer!!
-        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.edit)) }, onClick = {
-                showMenu = false; onEditContainer(c.id)
-            })
-            DropdownMenuItem(text = { Text(stringResource(R.string.duplicate)) }, onClick = {
-                showMenu = false
-                confirmTitle = ctx.getString(R.string.do_you_want_to_duplicate_this_container)
-                confirmAction = {
-                    showPreloader = true; preloaderText = ctx.getString(R.string.duplicating_container)
-                    manager.duplicateContainerAsync(c) {
-                        (ctx as? Activity)?.runOnUiThread { showPreloader = false; reload() }
-                    }
-                }
-            })
-            DropdownMenuItem(text = { Text(stringResource(R.string.remove)) }, onClick = {
-                showMenu = false
-                confirmTitle = ctx.getString(R.string.do_you_want_to_remove_this_container)
-                confirmAction = {
-                    showPreloader = true; preloaderText = ctx.getString(R.string.removing_container)
-                    for (shortcut in manager.loadShortcuts()) {
-                        if (shortcut.container == c) {
-                            com.winlator.cmod.ShortcutsFragment.disableShortcutOnScreen(ctx, shortcut)
-                        }
-                    }
-                    manager.removeContainerAsync(c) {
-                        (ctx as? Activity)?.runOnUiThread { showPreloader = false; reload() }
-                    }
-                }
-            })
-            DropdownMenuItem(text = { Text(stringResource(R.string.storage_info)) }, onClick = {
-                showMenu = false; showStorageInfoContainer = c
-            })
-            DropdownMenuItem(text = { Text(stringResource(R.string.container_file_manager)) }, onClick = {
-                showMenu = false
-                if (c.rootDir == null || !c.rootDir.isDirectory) {
-                    AppUtils.showToast(ctx, R.string.container_file_manager_unavailable)
-                } else {
-                    onOpenFileBrowser(c.id)
-                }
-            })
-            DropdownMenuItem(text = { Text(stringResource(R.string.reconfigure)) }, onClick = {
-                showMenu = false
-                confirmTitle = ctx.getString(R.string.do_you_want_to_reconfigure_wine)
-                confirmAction = { File(c.rootDir, ".wine/.update-timestamp").delete() }
-            })
-            DropdownMenuItem(text = { Text(stringResource(R.string.export_container)) }, onClick = {
-                showMenu = false
-                showPreloader = true; preloaderText = ctx.getString(R.string.exporting_container)
-                manager.exportContainer(c) {
-                    (ctx as? Activity)?.runOnUiThread {
-                        showPreloader = false
-                        val backupDir = File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                            "Winlator/Backups/Containers"
-                        )
-                        AppUtils.showToast(ctx, "Container exported successfully to ${backupDir.path}")
-                    }
-                }
-            })
         }
     }
 
@@ -198,8 +185,16 @@ private fun runContainer(ctx: android.content.Context, container: Container) {
 fun ContainerCard(
     container: Container,
     onRun: () -> Unit,
-    onMenu: () -> Unit,
+    onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
+    onRemove: () -> Unit,
+    onStorageInfo: () -> Unit,
+    onFileManager: () -> Unit,
+    onReconfigure: () -> Unit,
+    onExport: () -> Unit,
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -237,10 +232,72 @@ fun ContainerCard(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-            ) {
-                Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(24.dp))
+            ) { Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(24.dp)) }
+
+            // Анкор для меню — кнопка ⋮; меню выпадает справа, прижато к правому краю экрана
+            Box {
+                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, null) }
+
+                if (menuOpen) {
+                    val density = LocalDensity.current
+                    Popup(
+                        alignment = Alignment.TopEnd,
+                        offset = with(density) { IntOffset(0, 52.dp.roundToPx()) },
+                        properties = PopupProperties(focusable = true),
+                        onDismissRequest = { menuOpen = false }
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    shape = RoundedCornerShape(14.dp)
+                                )
+                        ) {
+                            Column(Modifier.width(IntrinsicSize.Max)) {
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary) },
+                                    text = { Text(stringResource(R.string.container_file_manager)) },
+                                    onClick = { menuOpen = false; onFileManager() }
+                                )
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Filled.Edit, null, tint = MaterialTheme.colorScheme.primary) },
+                                    text = { Text(stringResource(R.string.edit)) },
+                                    onClick = { menuOpen = false; onEdit() }
+                                )
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Filled.ContentCopy, null, tint = MaterialTheme.colorScheme.primary) },
+                                    text = { Text(stringResource(R.string.duplicate)) },
+                                    onClick = { menuOpen = false; onDuplicate() }
+                                )
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                                    text = { Text(stringResource(R.string.remove)) },
+                                    onClick = { menuOpen = false; onRemove() }
+                                )
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Filled.Info, null, tint = MaterialTheme.colorScheme.primary) },
+                                    text = { Text(stringResource(R.string.storage_info)) },
+                                    onClick = { menuOpen = false; onStorageInfo() }
+                                )
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Filled.Refresh, null, tint = MaterialTheme.colorScheme.primary) },
+                                    text = { Text(stringResource(R.string.reconfigure)) },
+                                    onClick = { menuOpen = false; onReconfigure() }
+                                )
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Filled.Download, null, tint = MaterialTheme.colorScheme.primary) },
+                                    text = { Text(stringResource(R.string.export_container)) },
+                                    onClick = { menuOpen = false; onExport() }
+                                )
+                            }
+                        }
+                    }
+                }
             }
-            IconButton(onClick = onMenu) { Icon(Icons.Filled.MoreVert, null) }
         }
     }
 }
