@@ -34,6 +34,8 @@
     <string name="active_windows">Активные окна</string>
     <string name="minimized">Свернуто</string>
     <string name="add">Добавить</string>
+    <string name="exiting_container">Выход из контейнера…</string>
+    <string name="cleaning_up_wine">Очистка Wine…</string>
     <string name="controller_virtual">Виртуальные кнопки</string>
     <string name="controller_connected">Геймпад подключён: %s</string>
     <string name="add_custom_icon">Добавить пользовательскую иконку</string>

@@ -424,7 +424,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     private String vkbasaltConfig = "";
 
-    PreloaderDialog preloaderDialog = null;
+    PreloaderDialog preloaderDialog = new PreloaderDialog(this);
 
     private Runnable configChangedCallback = null;
 
@@ -2053,6 +2053,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (isExiting) return;
         isExiting = true;
 
+        // Показываем экран выхода (обложка → стрелка влево → Windows)
+        runOnUiThread(() -> {
+            preloaderDialog.setExitModeEnabled(true);
+            preloaderDialog.show(R.string.exiting_container);
+            preloaderDialog.setStageOnUiThread(getString(R.string.cleaning_up_wine));
+        });
+
         // Тяжёлую работу (сохранение, убийство wine-процессов, очистку рендерера)
         // выполняем в фоновом потоке, чтобы UI не «зависал» при выходе из контейнера
         Executors.newSingleThreadExecutor().execute(() -> {
@@ -2094,6 +2101,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             // UI-действия — только на главном потоке
             runOnUiThread(() -> {
                 if (xServerView != null) xServerView.setVisibility(View.GONE);
+                // Закрываем диалог выхода ДО finish — иначе WindowLeaked
+                // (окно диалога остаётся в WindowManager после закрытия активити)
                 if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.close();
 
                 if (returnToSteamLibraryIfNeeded()) {
@@ -2101,7 +2110,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                     return;
                 }
 
-                AppUtils.restartApplication(this);
+                // Возврат в главное меню БЕЗ перезапуска процесса:
+                // AppUtils.restartApplication делает Runtime.exit(0) → чёрный экран + холодный старт.
+                // MainActivity уже в бэкстеке — поднимаем её наверх и плавно закрываем игровой экран.
+                Intent mainIntent = new Intent(this, MainActivity.class);
+                mainIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(mainIntent);
+                finish();
             });
         });
     }

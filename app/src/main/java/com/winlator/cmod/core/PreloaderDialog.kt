@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.SportsEsports
@@ -58,6 +59,7 @@ class PreloaderDialog(private val activity: Activity) {
     private var stageText by mutableStateOf<CharSequence?>(null)
     private var coverArtBitmap by mutableStateOf<Bitmap?>(null)
     private var _steamAppId by mutableStateOf<String?>(null)
+    private var exitMode by mutableStateOf(false)
 
     private var exitTriggered by mutableStateOf(false)
     private var onFadeOutComplete: (() -> Unit)? = null
@@ -218,7 +220,8 @@ class PreloaderDialog(private val activity: Activity) {
                     BootCenterRow(
                         bitmap = coverArtBitmap,
                         appId = appId,
-                        activity = activity
+                        activity = activity,
+                        exit = exitMode
                     )
                 }
             }
@@ -346,88 +349,107 @@ class PreloaderDialog(private val activity: Activity) {
     }
 
     /**
-     * Центральный ряд: иконка Windows → стрелка → квадратная миниатюра обложки.
-     * Если обложки нет — показываем стилизованный плейсхолдер.
+     * Центральный ряд: вход — иконка Windows → стрелка → обложка;
+     * выход — обложка → стрелка (влево) → иконка Windows.
      */
     @Composable
     private fun BootCenterRow(
         bitmap: Bitmap?,
         appId: Int?,
-        activity: Activity
+        activity: Activity,
+        exit: Boolean = false
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Иконка Windows — статичная, без мигания
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .shadow(elevation = 16.dp, shape = RoundedCornerShape(16.dp), ambientColor = Color(0xFF00A5FF), spotColor = Color(0xFF00A5FF))
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(Color(0xFF1B2233), Color(0xFF0B0F1A))
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
+            if (exit) {
+                // ВЫХОД: слева обложка игры, стрелка влево, справа Windows
+                ThumbnailBox(bitmap = bitmap, appId = appId, activity = activity)
+                ArrowBox(back = true)
+                WindowsIconBox()
+            } else {
+                // ВХОД: слева Windows, стрелка вправо, справа обложка
+                WindowsIconBox()
+                ArrowBox(back = false)
+                ThumbnailBox(bitmap = bitmap, appId = appId, activity = activity)
+            }
+        }
+    }
+
+    @Composable
+    private fun WindowsIconBox() {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .shadow(elevation = 16.dp, shape = RoundedCornerShape(16.dp), ambientColor = Color(0xFF00A5FF), spotColor = Color(0xFF00A5FF))
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(Color(0xFF1B2233), Color(0xFF0B0F1A))
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_windows_10),
+                contentDescription = null,
+                modifier = Modifier.size(40.dp)
+            )
+        }
+    }
+
+    @Composable
+    private fun ArrowBox(back: Boolean) {
+        Box(
+            modifier = Modifier.size(28.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (back) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = Color(0xFF00A5FF),
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+
+    @Composable
+    private fun ThumbnailBox(bitmap: Bitmap?, appId: Int?, activity: Activity) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .shadow(elevation = 14.dp, shape = RoundedCornerShape(12.dp), ambientColor = Color.Black, spotColor = Color.Black)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF1B2233))
+        ) {
+            if (bitmap != null) {
                 Image(
-                    painter = painterResource(R.drawable.ic_windows_10),
+                    bitmap = bitmap.asImageBitmap(),
                     contentDescription = null,
-                    modifier = Modifier.size(40.dp)
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
-            }
-
-            // Стрелка перехода
-            Box(
-                modifier = Modifier.size(28.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = Color(0xFF00A5FF),
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            // Миниатюра обложки (Steam hero / local bitmap / placeholder)
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .shadow(elevation = 14.dp, shape = RoundedCornerShape(12.dp), ambientColor = Color.Black, spotColor = Color.Black)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1B2233))
-            ) {
-                if (bitmap != null) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
+            } else if (appId != null && appId > 0) {
+                val capsuleUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/capsule_231x87.jpg"
+                var capsuleFile by remember(appId) { mutableStateOf<java.io.File?>(SteamImageCache.getCachedFile(activity, capsuleUrl)) }
+                LaunchedEffect(appId) {
+                    if (capsuleFile == null) {
+                        capsuleFile = SteamImageCache.downloadIfNeeded(activity, capsuleUrl)
+                    }
+                }
+                if (capsuleFile != null) {
+                    AsyncImage(
+                        model = capsuleFile,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                } else if (appId != null && appId > 0) {
-                    val capsuleUrl = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$appId/capsule_231x87.jpg"
-                    var capsuleFile by remember(appId) { mutableStateOf<java.io.File?>(SteamImageCache.getCachedFile(activity, capsuleUrl)) }
-                    LaunchedEffect(appId) {
-                        if (capsuleFile == null) {
-                            capsuleFile = SteamImageCache.downloadIfNeeded(activity, capsuleUrl)
-                        }
-                    }
-                    if (capsuleFile != null) {
-                        AsyncImage(
-                            model = capsuleFile,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        ThumbnailPlaceholder()
-                    }
                 } else {
                     ThumbnailPlaceholder()
                 }
+            } else {
+                ThumbnailPlaceholder()
             }
         }
     }
@@ -512,6 +534,11 @@ class PreloaderDialog(private val activity: Activity) {
     }
 
     @Synchronized
+    fun setExitModeEnabled(exit: Boolean) {
+        this.exitMode = exit
+    }
+
+    @Synchronized
     fun updateText(text: String?) {
         setStage(text)
     }
@@ -535,6 +562,7 @@ class PreloaderDialog(private val activity: Activity) {
         val d = dialog
         dialog = null
         isVisible = false
+        exitMode = false
         try {
             d?.dismiss()
         } catch (ignored: Exception) {

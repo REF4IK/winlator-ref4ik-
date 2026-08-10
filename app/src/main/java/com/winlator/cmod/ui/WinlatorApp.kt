@@ -25,7 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.container.ContainerManager
@@ -107,6 +110,20 @@ fun WinlatorApp(
     var isContainerEditMode by remember { mutableStateOf(false) }
     var containersRefreshKey by remember { mutableStateOf(0) }
     var adrenotoolsRefreshKey by remember { mutableStateOf(0) }
+
+    // При возврате в приложение (выход из контейнера/игры) — обновляем список
+    // контейнеров и ярлыков. Раньше это делал полный перезапуск процесса,
+    // теперь MainActivity просто выходит на передний план (без чёрного экрана).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                containersRefreshKey++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var showContainerImportInfo by remember { mutableStateOf(false) }
     var showImportGame by remember { mutableStateOf(false) }
     var importGameContainerId by remember { mutableStateOf(0) }
