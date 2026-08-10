@@ -41,6 +41,7 @@ public final class SystemSensorPaths {
 
     public static final String[] GPU_LOAD_FILES = {
         "/sys/class/kgsl/kgsl-3d0/gpubusy",
+        "/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage",
         "/sys/class/kgsl/kgsl-3d0/devfreq/gpu_load",
         "/sys/class/kgsl/kgsl-3d0/busy_percentage",
         "/sys/class/kgsl/kgsl-3d0/load",
@@ -52,13 +53,34 @@ public final class SystemSensorPaths {
         "/sys/class/misc/mali0/device/utilization",
         "/sys/class/misc/mali0/device/gpu_utilization",
         "/sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/gpubusy",
-        "/sys/kernel/gpu/gpu_busy"
+        "/sys/kernel/gpu/gpu_busy",
+        "/sys/devices/platform/mali/utilization",
+        "/sys/devices/platform/gpusysfs/gpu_busy",          // Exynos Mali vendor node
+        "/sys/class/misc/pvrsrvkm/device/utilisation",      // PowerVR (Rogue)
+        "/sys/class/pvr/utilisation",
+        "/sys/class/pvr/gpu_utilisation",
+        "/sys/class/drm/card0/device/gpu_busy_percent"      // amdgpu / Samsung Xclipse (sgpu)
     };
 
     public static final String[] GPU_LOAD_FILE_NAMES = {
-        "gpubusy", "gpu_busy", "gpu_load", "load", "busy_percentage",
+        "gpubusy", "gpu_busy", "gpu_busy_percentage", "gpu_busy_percent",
+        "gpu_load", "load", "busy_percentage",
         "utilisation", "utilization", "gpu_utilization"
     };
+
+    /** Маркеры имени GPU-узла для walk по /sys/devices/platform и devfreq (по образцу HudMetrics). */
+    public static final String[] GPU_NODE_TOKENS = {
+        "gpu", "mali", "g3d", "kgsl", "panfrost", "pvr", "powervr", "xclipse", "sgpu"
+    };
+
+    /** Второй корень thermal zones (часть вендоров дублирует /sys/class/thermal). */
+    public static final String VIRTUAL_THERMAL_DIR = "/sys/devices/virtual/thermal";
+
+    /** Walk-корень для vendor-узлов GPU с хэшированными именами (13000000.mali и т.п.). */
+    public static final String PLATFORM_DIR = "/sys/devices/platform";
+
+    /** Второй корень devfreq (Samsung/Exynos часто публикуют сюда). */
+    public static final String VIRTUAL_DEVFREQ_DIR = "/sys/devices/virtual/devfreq";
 
     public static final String MALI_GPU_INFO_PATH = "/sys/class/misc/mali0/device/gpuinfo";
 
@@ -68,11 +90,13 @@ public final class SystemSensorPaths {
         "/sys/class/kgsl/kgsl-3d0/temp",
         "/sys/class/kgsl/kgsl-3d0/gpu_temp",
         "/sys/class/kgsl/kgsl-3d0/device/temp",
+        "/sys/class/kgsl/kgsl-3d0/devfreq/temp",
         "/sys/class/devfreq/gpu/temp",
         "/sys/class/devfreq/gpu/temperature",
         "/sys/class/devfreq/gpufreq/temp",
         "/sys/class/misc/mali0/device/temp",
         "/sys/class/misc/mali0/device/temperature",
+        "/sys/kernel/gpu/temp",
         "/sys/class/thermal/thermal_zone10/temp",
         "/sys/devices/virtual/thermal/thermal_zone10/temp"
     };
@@ -123,7 +147,8 @@ public final class SystemSensorPaths {
 
     public static final String[] BATTERY_POWER_FILES = {
         "/sys/class/power_supply/battery/power_now",
-        "/sys/class/power_supply/bms/power_now"
+        "/sys/class/power_supply/bms/power_now",
+        "/sys/class/power_supply/main/power_now"
     };
 
     public static final String HWMON_DIR = "/sys/class/hwmon";

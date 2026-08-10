@@ -10,6 +10,7 @@ import java.io.FileReader;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -26,6 +27,18 @@ public class SensorReader {
     private long lastCpuIdle = -1L;
     private long lastMaliGpuInfoMs = -1L;
     private long lastMaliGpuInfoWallMs = 0L;
+
+    // Кэш discovery путей (по образцу HudMetrics из Bannerlator) — GPU/thermal зоны не меняются на лету.
+    private List<String> gpuLoadPathsCache = null;
+    private List<String[]> thermalZonesCache = null; // каждая запись: {type, tempPath}
+
+    // Сглаженный остаток времени от батареи (charge_counter / current_now).
+    private Double smoothedBatteryRuntimeHours = null;
+    private static final double MAX_RUNTIME_HOURS = 72.0;
+    private static final double RUNTIME_SMOOTHING_OLD_WEIGHT = 0.65;
+    private static final double RUNTIME_SMOOTHING_NEW_WEIGHT = 0.35;
+
+    private interface ThermalZoneRanker { Integer rank(String type); }
 
     public String getCpuTemperature() {
         for (String path : SystemSensorPaths.CPU_TEMP_FILES) {
@@ -60,21 +73,122 @@ public class SensorReader {
     }
 
     public String getGpuLoad() {
-        for (String path : SystemSensorPaths.GPU_LOAD_FILES) {
-            String parsed = parseGpuLoad(readFirstLine(path));
+        for (String path : discoverGpuLoadPaths()) {
+            String parsed = parseGpuLoadFile(path);
             if (parsed != null) return parsed;
         }
-        String maliDelta = getMaliDeltaGpuLoad();
-        if (maliDelta != null) return maliDelta;
-        String dynamicLoad = getDynamicGpuLoad();
-        if (dynamicLoad != null) return dynamicLoad;
         return "N/A";
+    }
+
+    /**
+     * Дискавери читаемых GPU-узлов с кэшем: статические пути → walk /sys/devices/platform
+     * (vendor-узлы с хэшированными именами типа 13000000.mali, gpusysfs, panfrost, sgpu) →
+     * walk /sys/class/devfreq + /sys/devices/virtual/devfreq. По образцу HudMetrics.
+     */
+    private List<String> discoverGpuLoadPaths() {
+        if (gpuLoadPathsCache != null) return gpuLoadPathsCache;
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+
+        for (String p : SystemSensorPaths.GPU_LOAD_FILES) {
+            if (new File(p).canRead()) candidates.add(p);
+        }
+
+        File platformDir = new File(SystemSensorPaths.PLATFORM_DIR);
+        File[] platformNodes = platformDir.listFiles(File::isDirectory);
+        if (platformNodes != null) {
+            for (File node : platformNodes) {
+                String name = node.getName().toLowerCase(Locale.ENGLISH);
+                boolean looksLikeGpu = false;
+                for (String t : SystemSensorPaths.GPU_NODE_TOKENS) {
+                    if (name.contains(t)) { looksLikeGpu = true; break; }
+                }
+                if (!looksLikeGpu) continue;
+                for (String fileName : SystemSensorPaths.GPU_LOAD_FILE_NAMES) {
+                    File f = new File(node, fileName);
+                    if (f.canRead()) candidates.add(f.getPath());
+                }
+            }
+        }
+
+        File[] devfreqRoots = {
+                new File(SystemSensorPaths.DEVFREQ_DIR),
+                new File(SystemSensorPaths.VIRTUAL_DEVFREQ_DIR),
+        };
+        for (File root : devfreqRoots) {
+            if (!root.isDirectory()) continue;
+            File[] nodeDirs = root.listFiles(File::isDirectory);
+            if (nodeDirs == null) continue;
+            for (File node : nodeDirs) {
+                String nodePath = node.getPath().toLowerCase(Locale.ENGLISH);
+                boolean looksLikeGpu = false;
+                for (String t : SystemSensorPaths.GPU_NODE_TOKENS) {
+                    if (nodePath.contains(t)) { looksLikeGpu = true; break; }
+                }
+                for (String fileName : SystemSensorPaths.GPU_LOAD_FILE_NAMES) {
+                    File f = new File(node, fileName);
+                    if (!f.canRead()) continue;
+                    if (looksLikeGpu || fileName.equals("gpu_busy_percentage")
+                            || fileName.equals("gpu_busy_percent") || fileName.equals("gpuinfo")) {
+                        candidates.add(f.getPath());
+                    }
+                }
+            }
+        }
+
+        gpuLoadPathsCache = new ArrayList<>(candidates);
+        return gpuLoadPathsCache;
+    }
+
+    /**
+     * Парсер по имени файла: gpubusy — busy/total; gpuinfo (Mali) — delta ms против wall-clock;
+     * остальные — процентное число.
+     */
+    private String parseGpuLoadFile(String path) {
+        String fileName = path.substring(path.lastIndexOf('/') + 1);
+        switch (fileName) {
+            case "gpubusy": {
+                String raw = readFirstLine(path);
+                if (raw == null) return null;
+                String[] parts = raw.trim().split("\\s+");
+                if (parts.length < 2) return null;
+                Long busy = parseLong(parts[0]);
+                Long total = parseLong(parts[1]);
+                if (busy == null || total == null || total <= 0L) return null;
+                int pct = (int) Math.max(0L, Math.min(100L, (busy * 100L) / total));
+                return String.format(Locale.ENGLISH, "%d%%", pct);
+            }
+            case "gpuinfo":
+                return getMaliDeltaGpuLoad(path);
+            default:
+                return parseGpuLoad(readFirstLine(path));
+        }
+    }
+
+    private String getMaliDeltaGpuLoad(String path) {
+        String raw = readNthLine(path, 1);
+        if (raw == null) return null;
+        String[] parts = raw.trim().split("\\s+");
+        if (parts.length == 0) return null;
+        long gpuMs;
+        try { gpuMs = Long.parseLong(parts[parts.length - 1]); } catch (NumberFormatException e) { return null; }
+        long now = SystemClock.elapsedRealtime();
+        long prevMs = lastMaliGpuInfoMs;
+        long prevWall = lastMaliGpuInfoWallMs;
+        lastMaliGpuInfoMs = gpuMs;
+        lastMaliGpuInfoWallMs = now;
+        if (prevMs < 0 || prevWall <= 0) return null;
+        long wallDelta = now - prevWall;
+        if (wallDelta <= 0) return null;
+        long gpuDelta = Math.max(0L, gpuMs - prevMs);
+        int pct = (int) Math.min(100L, (gpuDelta * 100L) / wallDelta);
+        return String.format(Locale.ENGLISH, "%d%%", pct);
     }
 
     public String getCpuLoad() {
         CpuTimes cpuTimes = readCpuTimes();
         if (cpuTimes == null) {
-            return "N/A";
+            // /proc/stat может быть ограничен (некоторые вендоры) — fallback по частотам ядер.
+            return getCpuLoadFromFrequency();
         }
 
         if (lastCpuTotal < 0L || lastCpuIdle < 0L) {
@@ -127,6 +241,102 @@ public class SensorReader {
         return -1.0f;
     }
 
+    /** Заряд батареи 0..100, или -1 если недоступен. BatteryManager-property + sysfs fallback. */
+    public int getBatteryPercent(BatteryManager batteryManager) {
+        if (batteryManager != null) {
+            int capacity = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+            if (capacity >= 0 && capacity <= 100) return capacity;
+        }
+        for (String path : new String[]{
+                "/sys/class/power_supply/battery/capacity",
+                "/sys/class/power_supply/bms/capacity",
+                "/sys/class/power_supply/main/capacity"}) {
+            Long v = readLong(path);
+            if (v != null && v >= 0L && v <= 100L) return v.intValue();
+        }
+        return -1;
+    }
+
+    /** Статус батареи (BatteryManager.BATTERY_STATUS_*), или UNKNOWN. Property API 28+ + sysfs fallback. */
+    public int getBatteryStatus(BatteryManager batteryManager) {
+        if (batteryManager != null) {
+            int status = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
+            if (status != Integer.MIN_VALUE) return status;
+        }
+        String raw = readFirstLine("/sys/class/power_supply/battery/status");
+        if (raw != null) {
+            String s = raw.trim().toLowerCase(Locale.ENGLISH);
+            if (s.contains("charging")) return BatteryManager.BATTERY_STATUS_CHARGING;
+            if (s.contains("full")) return BatteryManager.BATTERY_STATUS_FULL;
+            if (s.contains("discharging")) return BatteryManager.BATTERY_STATUS_DISCHARGING;
+            if (s.contains("not charging")) return BatteryManager.BATTERY_STATUS_NOT_CHARGING;
+        }
+        return BatteryManager.BATTERY_STATUS_UNKNOWN;
+    }
+
+    public boolean isCharging(BatteryManager batteryManager) {
+        int status = getBatteryStatus(batteryManager);
+        return status == BatteryManager.BATTERY_STATUS_CHARGING
+                || status == BatteryManager.BATTERY_STATUS_FULL;
+    }
+
+    /**
+     * Оценка остатка времени от батареи: charge_counter / current_now, сглаженная экспоненциально
+     * (по образцу GameNative PerformanceHudView). "LEFT CHG" при зарядке, null если данных нет.
+     */
+    public String getBatteryRuntimeText(BatteryManager batteryManager) {
+        if (batteryManager == null) return null;
+        if (isCharging(batteryManager)) {
+            smoothedBatteryRuntimeHours = null;
+            return "LEFT CHG";
+        }
+        long chargeCounter = batteryManager.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER);
+        long currentMicroAmps = Math.abs(batteryManager.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW));
+        if (chargeCounter == Long.MIN_VALUE || chargeCounter <= 0L) chargeCounter = readSysfsChargeCounter();
+        if (currentMicroAmps == Long.MIN_VALUE || currentMicroAmps <= 0L) {
+            currentMicroAmps = Math.abs(readSysfsCurrentMicroAmps());
+        }
+        if (currentMicroAmps <= 0L || chargeCounter <= 0L) return null;
+        double rawHours = (double) chargeCounter / (double) currentMicroAmps;
+        if (!Double.isFinite(rawHours) || rawHours <= 0.0 || rawHours > MAX_RUNTIME_HOURS) return null;
+        double smoothed = smoothedBatteryRuntimeHours != null
+                ? (smoothedBatteryRuntimeHours * RUNTIME_SMOOTHING_OLD_WEIGHT) + (rawHours * RUNTIME_SMOOTHING_NEW_WEIGHT)
+                : rawHours;
+        smoothedBatteryRuntimeHours = smoothed;
+        return "LEFT " + formatRuntimeHours(smoothed);
+    }
+
+    private long readSysfsChargeCounter() {
+        for (String path : new String[]{
+                "/sys/class/power_supply/battery/charge_counter",
+                "/sys/class/power_supply/bms/charge_counter",
+                "/sys/class/power_supply/main/charge_counter"}) {
+            Long v = readLong(path);
+            if (v != null && v > 0L) return v;
+        }
+        return -1L;
+    }
+
+    private long readSysfsCurrentMicroAmps() {
+        for (String path : SystemSensorPaths.BATTERY_CURRENT_FILES) {
+            Long v = readLong(path);
+            if (v != null && v != 0L) return Math.abs(v);
+        }
+        return -1L;
+    }
+
+    private static String formatRuntimeHours(double hours) {
+        int totalMinutes = (int) Math.round(hours * 60);
+        if (totalMinutes < 60) return totalMinutes + "m";
+        int h = totalMinutes / 60;
+        int m = totalMinutes % 60;
+        return h + "h " + m + "m";
+    }
+
+    public void resetBatteryRuntimeState() {
+        smoothedBatteryRuntimeHours = null;
+    }
+
     public void resetCpuState() {
         lastCpuTotal = -1L;
         lastCpuIdle = -1L;
@@ -140,6 +350,7 @@ public class SensorReader {
     public void reset() {
         resetCpuState();
         resetMaliState();
+        resetBatteryRuntimeState();
     }
 
     public static Float parseTempCelsius(String formatted) {
@@ -161,107 +372,121 @@ public class SensorReader {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Thermal zones с приоритетом (по образцу HudMetrics): cpu-silicon > cpu-0 > cpuss/mtktscpu/cpu >
+     * s5p-tmu > soc > cputop > tsens > cluster > big/little. GPU-зоны исключены.
+     */
     private String getDynamicCpuTemperature() {
-        File thermalDir = new File(SystemSensorPaths.THERMAL_ZONE_DIR);
-        File[] entries = thermalDir.listFiles();
-        if (entries == null) return null;
-        List<String>[] buckets = new List[5];
-        for (int i = 0; i < buckets.length; i++) buckets[i] = new ArrayList<>();
-        for (File entry : entries) {
-            if (!entry.getName().startsWith("thermal_zone")) continue;
-            String type = readFirstLine(new File(entry, "type").getAbsolutePath());
-            if (type == null) continue;
-            int priority = cpuThermalZonePriority(type.toLowerCase(Locale.ENGLISH));
-            if (priority >= 0 && priority < buckets.length) {
-                buckets[priority].add(new File(entry, "temp").getAbsolutePath());
-            }
-        }
-        for (List<String> bucket : buckets) {
-            for (String path : bucket) {
-                String temp = parseTemperature(readFirstLine(path));
-                if (temp != null) return temp;
-            }
-        }
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private String getDynamicGpuTemperature() {
-        File thermalDir = new File(SystemSensorPaths.THERMAL_ZONE_DIR);
-        File[] entries = thermalDir.listFiles();
-        if (entries != null) {
-            List<String>[] buckets = new List[4];
-            for (int i = 0; i < buckets.length; i++) buckets[i] = new ArrayList<>();
-            for (File entry : entries) {
-                if (!entry.getName().startsWith("thermal_zone")) continue;
-                String type = readFirstLine(new File(entry, "type").getAbsolutePath());
-                if (type == null) continue;
-                int priority = gpuThermalZonePriority(type.toLowerCase(Locale.ENGLISH));
-                if (priority >= 0 && priority < buckets.length) {
-                    buckets[priority].add(new File(entry, "temp").getAbsolutePath());
-                }
-            }
-            for (List<String> bucket : buckets) {
-                for (String path : bucket) {
-                    String temp = parseTemperature(readFirstLine(path));
-                    if (temp != null) return temp;
-                }
-            }
-        }
-
-        File devfreqDir = new File(SystemSensorPaths.DEVFREQ_DIR);
-        File[] devfreqEntries = devfreqDir.listFiles();
-        if (devfreqEntries == null) return "N/A";
-        for (File entry : devfreqEntries) {
-            String name = entry.getName().toLowerCase(Locale.ENGLISH);
-            if (!name.contains("gpu") && !name.contains("kgsl") && !name.contains("mali") && !name.contains("g3d")) continue;
-            String temperature = parseTemperature(readFirstLine(new File(entry, "temp").getAbsolutePath()));
-            if (temperature == null) {
-                temperature = parseTemperature(readFirstLine(new File(entry, "temperature").getAbsolutePath()));
-            }
-            if (temperature != null) return temperature;
-        }
-        return "N/A";
-    }
-
-    private String getMaliDeltaGpuLoad() {
-        String raw = readNthLine(SystemSensorPaths.MALI_GPU_INFO_PATH, 1);
-        if (raw == null) return null;
-        String[] parts = raw.trim().split("\\s+");
-        if (parts.length == 0) return null;
-        long gpuMs;
-        try { gpuMs = Long.parseLong(parts[parts.length - 1]); } catch (NumberFormatException e) { return null; }
-        long now = SystemClock.elapsedRealtime();
-        long prevMs = lastMaliGpuInfoMs;
-        long prevWall = lastMaliGpuInfoWallMs;
-        lastMaliGpuInfoMs = gpuMs;
-        lastMaliGpuInfoWallMs = now;
-        if (prevMs < 0 || prevWall <= 0) return null;
-        long wallDelta = now - prevWall;
-        if (wallDelta <= 0) return null;
-        long gpuDelta = Math.max(0L, gpuMs - prevMs);
-        int pct = (int) Math.min(100L, (gpuDelta * 100L) / wallDelta);
-        return String.format(Locale.ENGLISH, "%d%%", pct);
-    }
-
-    private String getDynamicGpuLoad() {
-        File devfreqDir = new File(SystemSensorPaths.DEVFREQ_DIR);
-        File[] entries = devfreqDir.listFiles();
-        if (entries == null) {
+        return readTemperatureFromPaths(prioritizeThermalPaths(type -> {
+            if (type.contains("gpu")) return null;             // никогда не путать GPU-зону с CPU
+            if (type.contains("cpu-silicon")) return 0;
+            if (type.contains("cpu-0")) return 1;
+            if (type.contains("cpuss")) return 2;              // Qualcomm cpuss composite
+            if (type.contains("mtktscpu")) return 2;           // MediaTek CPU thermal
+            if (type.contains("cpu")) return 2;                // cpu, cpu-*-usr, cpu_thermal, cpu_center
+            if (type.contains("s5p-tmu")) return 3;            // Exynos TMU
+            if (type.contains("soc")) return 4;
+            if (type.contains("cputop")) return 5;
+            if (type.contains("tsens")) return 6;              // Qualcomm tsens aggregate
+            if (type.contains("cluster")) return 7;
+            if (type.contains("big") || type.contains("little")) return 8;
             return null;
-        }
-        for (File entry : entries) {
-            String name = entry.getName().toLowerCase(Locale.ENGLISH);
-            if (!name.contains("gpu") && !name.contains("kgsl") && !name.contains("mali") && !name.contains("g3d")) {
-                continue;
-            }
-            for (String fileName : SystemSensorPaths.GPU_LOAD_FILE_NAMES) {
-                String parsed = parseGpuLoad(readFirstLine(new File(entry, fileName).getAbsolutePath()));
-                if (parsed != null) {
-                    return parsed;
+        }));
+    }
+
+    /**
+     * GPU-температура: прямые статические пути (kgsl/mali) → thermal zones с приоритетом
+     * (gpu-silicon > gpuss/mtktsgpu > gpu-virt > gpu > g3d > kgsl > mali > xclipse) →
+     * devfreq-узлы GPU (temp / temperature).
+     */
+    private String getDynamicGpuTemperature() {
+        ArrayList<String> paths = new ArrayList<>();
+        for (String p : SystemSensorPaths.GPU_TEMP_FILES) paths.add(p);
+        paths.addAll(prioritizeThermalPaths(type -> {
+            if (type.contains("gpu-silicon")) return 0;
+            if (type.contains("gpuss")) return 1;              // Qualcomm gpuss
+            if (type.contains("mtktsgpu")) return 1;           // MediaTek GPU thermal
+            if (type.contains("gpu-virt")) return 2;
+            if (type.contains("gpu")) return 2;
+            if (type.contains("g3d")) return 3;                // Exynos Mali (g3d)
+            if (type.contains("kgsl")) return 4;
+            if (type.contains("mali")) return 5;
+            if (type.contains("xclipse") || type.contains("sgpu")) return 6;
+            return null;
+        }));
+        File[] devfreqRoots = {
+                new File(SystemSensorPaths.DEVFREQ_DIR),
+                new File(SystemSensorPaths.VIRTUAL_DEVFREQ_DIR),
+        };
+        for (File root : devfreqRoots) {
+            File[] entries = root.listFiles();
+            if (entries == null) continue;
+            for (File entry : entries) {
+                String name = entry.getName().toLowerCase(Locale.ENGLISH);
+                boolean looksLikeGpu = false;
+                for (String t : SystemSensorPaths.GPU_NODE_TOKENS) {
+                    if (name.contains(t)) { looksLikeGpu = true; break; }
                 }
+                if (!looksLikeGpu) continue;
+                paths.add(new File(entry, "temp").getAbsolutePath());
+                paths.add(new File(entry, "temperature").getAbsolutePath());
             }
+        }
+        String result = readTemperatureFromPaths(paths);
+        return result != null ? result : "N/A";
+    }
+
+    /**
+     * Читает все thermal zones из обоих корней (/sys/class/thermal + /sys/devices/virtual/thermal),
+     * кэширует пары {type, tempPath}.
+     */
+    private List<String[]> discoverAllThermalZones() {
+        if (thermalZonesCache != null) return thermalZonesCache;
+        ArrayList<String[]> zones = new ArrayList<>();
+        LinkedHashSet<String> seenPaths = new LinkedHashSet<>();
+        File[] thermalDirs = {
+                new File(SystemSensorPaths.THERMAL_ZONE_DIR),
+                new File(SystemSensorPaths.VIRTUAL_THERMAL_DIR),
+        };
+        for (File dir : thermalDirs) {
+            File[] zoneDirs = dir.listFiles((d, name) -> name.startsWith("thermal_zone"));
+            if (zoneDirs == null) continue;
+            for (File zone : zoneDirs) {
+                if (!zone.isDirectory()) continue;
+                String type = readFirstLine(new File(zone, "type").getAbsolutePath());
+                if (type == null) continue;
+                type = type.trim().toLowerCase(Locale.ENGLISH);
+                String tempPath = new File(zone, "temp").getAbsolutePath();
+                if (seenPaths.add(tempPath)) zones.add(new String[]{type, tempPath});
+            }
+        }
+        thermalZonesCache = zones;
+        return zones;
+    }
+
+    /** Сортирует зоны по рангу (меньше = важнее), затем по пути для детерминизма. */
+    private List<String> prioritizeThermalPaths(ThermalZoneRanker ranker) {
+        List<String[]> zones = discoverAllThermalZones();
+        ArrayList<int[]> order = new ArrayList<>(); // {index, rank}
+        for (int i = 0; i < zones.size(); i++) {
+            Integer r = ranker.rank(zones.get(i)[0]);
+            if (r != null) order.add(new int[]{i, r});
+        }
+        order.sort((a, b) -> {
+            if (a[1] != b[1]) return Integer.compare(a[1], b[1]);
+            return zones.get(a[0])[1].compareTo(zones.get(b[0])[1]);
+        });
+        ArrayList<String> result = new ArrayList<>();
+        for (int[] e : order) result.add(zones.get(e[0])[1]);
+        return result;
+    }
+
+    private String readTemperatureFromPaths(List<String> paths) {
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        for (String path : paths) {
+            if (!seen.add(path)) continue;
+            String temp = parseTemperature(readFirstLine(path));
+            if (temp != null) return temp;
         }
         return null;
     }
@@ -350,21 +575,24 @@ public class SensorReader {
         }
     }
 
-    private static int cpuThermalZonePriority(String type) {
-        if (type.contains("cpu-silicon")) return 0;
-        if (type.contains("cpu-0"))       return 1;
-        if (type.contains("cpu") && !type.contains("gpu")) return 2;
-        if (type.contains("cputop"))      return 3;
-        if (type.contains("tsens") || type.contains("soc") || type.contains("ap")) return 4;
-        return -1;
-    }
-
-    private static int gpuThermalZonePriority(String type) {
-        if (type.contains("gpu-silicon")) return 0;
-        if (type.contains("gpu"))         return 1;
-        if (type.contains("kgsl"))        return 2;
-        if (type.contains("mali") || type.contains("g3d")) return 3;
-        return -1;
+    /**
+     * Оценка CPU load по частотам ядер: сумма scaling_cur_freq / сумма cpuinfo_max_freq.
+     * Используется как fallback, когда /proc/stat недоступен (по образцу HudMetrics).
+     */
+    private String getCpuLoadFromFrequency() {
+        long currentTotal = 0L, maxTotal = 0L;
+        int cores = Runtime.getRuntime().availableProcessors();
+        for (int i = 0; i < cores; i++) {
+            Long cur = readLong(SystemSensorPaths.cpuCurFreqPath(i));
+            Long max = readLong(SystemSensorPaths.cpuMaxFreqPath(i));
+            if (cur != null && max != null && max > 0L) {
+                currentTotal += Math.max(0L, Math.min(cur, max));
+                maxTotal += max;
+            }
+        }
+        if (maxTotal <= 0L) return "N/A";
+        int pct = (int) Math.max(0L, Math.min(100L, (currentTotal * 100L) / maxTotal));
+        return String.format(Locale.ENGLISH, "%d%%", pct);
     }
 
     private CpuTimes readCpuTimes() {
@@ -502,6 +730,15 @@ public class SensorReader {
             return Long.parseLong(raw.trim());
         } catch (NumberFormatException e) {
             Log.d(TAG, "Failed to parse long from " + path + ": " + raw);
+            return null;
+        }
+    }
+
+    private static Long parseLong(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return null;
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException e) {
             return null;
         }
     }
