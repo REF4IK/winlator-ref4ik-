@@ -2053,46 +2053,57 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (isExiting) return;
         isExiting = true;
 
-        saveRuntimeSettingsToShortcut();
-
-        ProcessHelper.terminateAllWineProcesses();
-
-        long start = System.currentTimeMillis();
-        while (!ProcessHelper.listRunningWineProcesses().isEmpty()) {
-            long elapsed = System.currentTimeMillis() - start;
-            if (elapsed >= 3000) break;
-            try { Thread.sleep(50); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); break; }
-        }
-
-        ProcessHelper.killAllWineProcesses();
-
-        if (xServerView != null) {
+        // Тяжёлую работу (сохранение, убийство wine-процессов, очистку рендерера)
+        // выполняем в фоновом потоке, чтобы UI не «зависал» при выходе из контейнера
+        Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                xServerView.getRenderer().forceCleanup();
+                saveRuntimeSettingsToShortcut();
+
+                ProcessHelper.terminateAllWineProcesses();
+
+                long start = System.currentTimeMillis();
+                while (!ProcessHelper.listRunningWineProcesses().isEmpty()) {
+                    long elapsed = System.currentTimeMillis() - start;
+                    if (elapsed >= 1500) break;
+                    try { Thread.sleep(50); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); break; }
+                }
+
+                ProcessHelper.killAllWineProcesses();
+
+                if (xServerView != null) {
+                    try {
+                        xServerView.getRenderer().forceCleanup();
+                    } catch (Exception e) {
+                        Log.w("XServerDisplayActivity", "forceCleanup failed", e);
+                    }
+                }
+
+                if (midiHandler != null) midiHandler.stop();
+
+                if (sensorManager != null) sensorManager.unregisterListener(gyroListener);
+
+                if (environment != null) environment.stopEnvironmentComponents();
+
+                if (winHandler != null) winHandler.stop();
+
+                if (wineRequestHandler != null) wineRequestHandler.stop();
             } catch (Exception e) {
-                Log.w("XServerDisplayActivity", "forceCleanup failed", e);
+                Log.w("XServerDisplayActivity", "exit cleanup failed", e);
             }
-            xServerView.setVisibility(View.GONE);
-        }
 
-        if (midiHandler != null) midiHandler.stop();
+            // UI-действия — только на главном потоке
+            runOnUiThread(() -> {
+                if (xServerView != null) xServerView.setVisibility(View.GONE);
+                if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.close();
 
-        if (sensorManager != null) sensorManager.unregisterListener(gyroListener);
+                if (returnToSteamLibraryIfNeeded()) {
+                    super.finish();
+                    return;
+                }
 
-        if (environment != null) environment.stopEnvironmentComponents();
-
-        if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.close();
-
-        if (winHandler != null) winHandler.stop();
-
-        if (wineRequestHandler != null) wineRequestHandler.stop();
-
-        if (returnToSteamLibraryIfNeeded()) {
-            super.finish();
-            return;
-        }
-
-        AppUtils.restartApplication(this);
+                AppUtils.restartApplication(this);
+            });
+        });
     }
 
 

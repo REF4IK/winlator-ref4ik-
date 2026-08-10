@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.IntOffset
 import com.winlator.cmod.R
 import com.winlator.cmod.inputcontrols.ExternalController
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import coil.compose.AsyncImage
 
@@ -81,6 +82,28 @@ class PreloaderDialog(private val activity: Activity) {
             window?.let { win ->
                 win.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
                 win.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+
+                // Полный экран: скрыть статус-бар и навигационный бар
+                win.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                win.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+                win.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
+
+                // Контент под системными барами, immersive
+                win.decorView.systemUiVisibility =
+                    android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                    android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                    android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+
+                // Покрыть вырез камеры (notch) контентом
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    val lp = win.attributes
+                    lp.layoutInDisplayCutoutMode =
+                        android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    win.attributes = lp
+                }
             }
 
             try {
@@ -274,18 +297,25 @@ class PreloaderDialog(private val activity: Activity) {
         val show = controllerName != null
         val text = controllerName ?: context.getString(R.string.controller_virtual)
 
-        AnimatedVisibility(
-            visible = true,
-            enter = slideInHorizontally(tween(300)) { it } + fadeIn(tween(300)),
-            exit = slideOutHorizontally(tween(220)) { it } + fadeOut(tween(220)),
-            modifier = modifier
+        // Плавный выезд справа: стартуем за экраном, после появления диалога выезжаем
+        val slide = remember { Animatable(1f) }
+        val fade = remember { Animatable(0f) }
+        LaunchedEffect(Unit) {
+            delay(400)
+            launch { slide.animateTo(0f, tween(450, easing = EaseOutCubic)) }
+            launch { fade.animateTo(1f, tween(450, easing = EaseOutCubic)) }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color.Black.copy(alpha = 0.55f),
+            shadowElevation = 10.dp,
+            modifier = modifier.graphicsLayer {
+                translationX = slide.value * 240.dp.toPx()
+                alpha = fade.value
+            }
         ) {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = Color.Black.copy(alpha = 0.55f),
-                shadowElevation = 10.dp
-            ) {
-                Row(
+            Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -312,7 +342,6 @@ class PreloaderDialog(private val activity: Activity) {
                         softWrap = false
                     )
                 }
-            }
         }
     }
 

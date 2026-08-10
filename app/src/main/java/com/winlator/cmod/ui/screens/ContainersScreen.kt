@@ -51,8 +51,8 @@ fun ContainersScreen(
     onOpenFileBrowser: (Int) -> Unit = {},
 ) {
     val ctx = LocalContext.current
-    val manager = containerManager ?: remember(ctx, refreshKey) { ContainerManager(ctx) }
-    var containers by remember(refreshKey) { mutableStateOf(manager.containers?.toList() ?: emptyList()) }
+    val manager = containerManager ?: remember(ctx) { ContainerManager(ctx) }
+    var containers by remember { mutableStateOf(manager.containers?.toList() ?: emptyList()) }
     var showPreloader by remember { mutableStateOf(false) }
     var preloaderText by remember { mutableStateOf("") }
     var confirmAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -68,6 +68,9 @@ fun ContainersScreen(
 
     Scaffold(
         containerColor = Color.Transparent,
+        // Внешний Scaffold (WinlatorApp) уже даёт отступы от системных баров —
+        // здесь убираем, чтобы не было двойного отступа снизу и «подскока» списка
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {},
         floatingActionButton = {
             FloatingActionButton(

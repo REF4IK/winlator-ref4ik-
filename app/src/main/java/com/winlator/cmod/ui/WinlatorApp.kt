@@ -372,6 +372,9 @@ fun WinlatorApp(
                                     text = getScreenTitle(currentScreen)
                                 )
                             },
+                            // Статус-бар скрыт в MainActivity — не добавляем под него отступ,
+                            // иначе меню «прыгает» вниз при возврате из контейнера
+                            windowInsets = WindowInsets(0, 0, 0, 0),
                             navigationIcon = {
                                 IconButton(onClick = {
                                     scope.launch {
