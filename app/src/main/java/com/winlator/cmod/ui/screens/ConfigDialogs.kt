@@ -32,6 +32,7 @@ import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.DriverResolver
 import com.winlator.cmod.core.GPUInformation
 import com.winlator.cmod.core.FileUtils
+import com.winlator.cmod.core.StringUtils
 import org.json.JSONArray
 import org.json.JSONObject
 import com.winlator.cmod.widget.SeekBar
@@ -1502,20 +1503,22 @@ fun DXVKConfigDialogCompose(
                 }
 
                 // Framerate
+                val framerateOptions = context.resources.getStringArray(R.array.dxvk_framerate_entries).toList()
                 DxvkRowWithHelp(
                     title = stringResource(R.string.frame_rate),
                     helpResId = 0,
-                    spinnerItems = numOptions,
-                    selectedIndex = numOptions.indexOf(framerate).coerceAtLeast(0),
-                    onSelected = { framerate = numOptions[it] },
+                    spinnerItems = framerateOptions,
+                    selectedIndex = framerateOptions.indexOfFirst { StringUtils.parseNumber(it) == framerate }.coerceAtLeast(0),
+                    onSelected = { framerate = StringUtils.parseNumber(framerateOptions[it]) },
                 )
                 // Max Device Memory
+                val memoryOptions = context.resources.getStringArray(R.array.dxvk_max_device_memory_entries).toList()
                 DxvkRowWithHelp(
                     title = stringResource(R.string.max_device_memory),
                     helpResId = 0,
-                    spinnerItems = numOptions,
-                    selectedIndex = numOptions.indexOf(maxDeviceMemory).coerceAtLeast(0),
-                    onSelected = { maxDeviceMemory = numOptions[it] },
+                    spinnerItems = memoryOptions,
+                    selectedIndex = memoryOptions.indexOfFirst { StringUtils.parseNumber(it) == maxDeviceMemory }.coerceAtLeast(0),
+                    onSelected = { maxDeviceMemory = StringUtils.parseNumber(memoryOptions[it]) },
                 )
                 // Async
                 if (showAsync) {
