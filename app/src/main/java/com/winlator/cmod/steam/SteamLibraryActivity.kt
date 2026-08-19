@@ -1305,17 +1305,18 @@ private fun SteamCoverArt(
     targetSize: Pair<Int, Int>,
     initialsStyle: androidx.compose.ui.text.TextStyle,
     modifier: Modifier = Modifier,
+    imageUrl: String = game.capsuleUrl,
 ) {
     val context = LocalContext.current
     val accent = remember(game.appId) { steamAccentFor(game.appId) }
-    var artFailed by remember(game.appId, game.capsuleUrl) { mutableStateOf(false) }
+    var artFailed by remember(game.appId, imageUrl) { mutableStateOf(false) }
 
-    val request = remember(game.appId, game.capsuleUrl, cacheKey) {
+    val request = remember(game.appId, imageUrl, cacheKey) {
         ImageRequest.Builder(context)
-            .data(game.capsuleUrl)
+            .data(imageUrl)
             .crossfade(180)
             .memoryCacheKey("$cacheKey-${game.appId}")
-            .diskCacheKey(game.capsuleUrl)
+            .diskCacheKey(imageUrl)
             .size(targetSize.first, targetSize.second)
             .build()
     }
@@ -1326,7 +1327,7 @@ private fun SteamCoverArt(
         ),
         contentAlignment = Alignment.Center,
     ) {
-        if (game.capsuleUrl.isBlank() || artFailed) {
+        if (imageUrl.isBlank() || artFailed) {
             Text(
                 text = steamInitials(game.name),
                 color = Color.White.copy(alpha = 0.92f),
@@ -1478,6 +1479,7 @@ private fun SteamGameListCard(game: SteamLibraryGameUi, onClick: () -> Unit) {
             cacheKey = "steam-list",
             targetSize = 230 to 108,
             initialsStyle = MaterialTheme.typography.titleMedium,
+            imageUrl = game.smallCapsuleUrl,
             modifier = Modifier
                 .width(96.dp)
                 .height(45.dp)
@@ -1536,7 +1538,7 @@ private fun SteamGameCapsuleCard(game: SteamLibraryGameUi, onClick: () -> Unit) 
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
     ) {
         Box(modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f)) {
-            SteamCoverArt(game = game, cacheKey = "steam-capsule", targetSize = 300 to 450, initialsStyle = MaterialTheme.typography.titleLarge, modifier = Modifier.fillMaxSize())
+            SteamCoverArt(game = game, cacheKey = "steam-capsule", targetSize = 300 to 450, initialsStyle = MaterialTheme.typography.titleLarge, imageUrl = game.libraryCapsuleUrl, modifier = Modifier.fillMaxSize())
             if (game.isDownloading) LinearProgressIndicator(progress = { game.downloadProgress }, modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp))
             if (game.installed && !game.isDownloading) Box(modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
         }
@@ -1577,6 +1579,7 @@ private fun SteamGameCompactCard(game: SteamLibraryGameUi, onClick: () -> Unit) 
             cacheKey = "steam-compact",
             targetSize = 138 to 64,
             initialsStyle = MaterialTheme.typography.labelSmall,
+            imageUrl = game.smallCapsuleUrl,
             modifier = Modifier
                 .width(58.dp)
                 .height(27.dp)

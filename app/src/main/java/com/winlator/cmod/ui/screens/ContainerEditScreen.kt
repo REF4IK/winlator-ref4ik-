@@ -947,7 +947,9 @@ private fun WrapperDownloadDialog(
                                                 val id = com.winlator.cmod.contents.WrapperCatalogDownloader.install(ctx, e) { p -> progress = p }
                                                 if (id != null) {
                                                     com.winlator.cmod.core.AppUtils.showToast(ctx, "Установлен: $id")
-                                                    onInstalled(id)
+                                                    // Передаём label (e.name), а не id файла — иначе в списке
+                                                    // выбранный драйвер не совпадёт с элементом (дубль "-_-")
+                                                    onInstalled(e.name)
                                                     onDismiss()
                                                 } else {
                                                     errorMsg = "Ошибка загрузки ${e.name}"

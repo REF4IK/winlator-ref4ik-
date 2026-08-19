@@ -58,9 +58,10 @@ public class WrapperManager {
                         }
                     } catch (Exception ignored) {}
                 }
+                // Добавляем только display (label из мета-файла или id).
+                // Раньше добавлялись и display, и id — из-за этого после скачивания
+                // появлялся дубль (например "Turnip" и "turnip-_-wrapper").
                 if (!list.contains(display)) list.add(display);
-                // also add id if different from display for lookup?
-                if (!display.equals(id) && !list.contains(id)) list.add(id);
             }
         }
         return list;
@@ -132,7 +133,10 @@ public class WrapperManager {
     public String importWrapper(Uri srcUri, String displayName, String catalogId, int version) {
         if (srcUri == null) return null;
         String label = displayName != null && !displayName.isEmpty() ? displayName : (catalogId != null ? catalogId : "wrapper-custom");
-        String identifier = StringUtils.parseIdentifier(label);
+        // Идентификатор файла берём из catalogId (чистый, без спецсимволов),
+        // а не из label — иначе в имени появляются "-_-" и дубли в списке.
+        String identifier = catalogId != null && !catalogId.isEmpty() ? catalogId : label;
+        identifier = StringUtils.parseIdentifier(identifier);
         if (identifier == null || identifier.isEmpty()) identifier = "wrapper-custom";
         // sanitize
         identifier = identifier.replaceAll("[^A-Za-z0-9._-]", "_");

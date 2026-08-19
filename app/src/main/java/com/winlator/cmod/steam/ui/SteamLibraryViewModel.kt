@@ -55,6 +55,10 @@ data class SteamLibraryGameUi(
     val appType: AppType,
     /** The 460x215 header art — the shape every library tile is built around. */
     val capsuleUrl: String,
+    /** Lightweight 231x87 horizontal capsule — used by list/compact rows. */
+    val smallCapsuleUrl: String,
+    /** Vertical 600x900 poster — used by the capsule grid. */
+    val libraryCapsuleUrl: String,
     val heroUrl: String,
     val logoUrl: String,
     val installed: Boolean,
@@ -529,6 +533,8 @@ class SteamLibraryViewModel : ViewModel() {
             ).joinToString(" / "),
             appType = app.type,
             capsuleUrl = app.getCapsuleUrl(),
+            smallCapsuleUrl = app.getSmallCapsuleUrl(),
+            libraryCapsuleUrl = app.getLibraryCapsuleUrl(),
             heroUrl = app.getHeroUrl(),
             logoUrl = app.getLogoUrl(),
             installed = installed,
