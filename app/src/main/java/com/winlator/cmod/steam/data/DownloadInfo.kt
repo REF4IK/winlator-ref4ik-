@@ -198,16 +198,28 @@ class DownloadInfo(
         if (timestampMs - lastSpeedSampleMs >= SPEED_SAMPLE_INTERVAL_MS) {
             lastSpeedSampleMs = timestampMs
             addSpeedSample(timestampMs, currentBytes.coerceAtLeast(0L))
+            // update EMA instantly so notifications have fresh speed
+            val raw = getSpeedOverWindow(ETA_SPEED_WINDOW_MS)
+            if (raw != null && raw > 0.0) {
+                if (!hasEtaEmaSpeed || etaEmaSpeedBytesPerSec <= 0.0) {
+                    hasEtaEmaSpeed = true
+                    etaEmaSpeedBytesPerSec = raw
+                } else {
+                    val alpha = 0.3
+                    etaEmaSpeedBytesPerSec = alpha * raw + (1.0 - alpha) * etaEmaSpeedBytesPerSec
+                }
+            }
         }
-        // Update notification periodically
+        // Update notification periodically — use EMA if available else current window speed
         val progress = getProgress()
         if (progress > 0f && progress < 1f && timestampMs - lastSpeedSampleMs < 2000L) {
+            val speedForNotify = if (hasEtaEmaSpeed && etaEmaSpeedBytesPerSec > 0.0) etaEmaSpeedBytesPerSec else (getSpeedOverWindow(CURRENT_SPEED_WINDOW_MS) ?: 0.0)
             onProgressUpdate?.invoke(
                 gameName,
                 progress,
                 formatBytes(bytesDownloaded.get()),
                 formatBytes(totalExpectedBytes.get()),
-                formatSpeed(etaEmaSpeedBytesPerSec),
+                formatSpeed(speedForNotify),
             )
         }
     }
@@ -367,16 +379,18 @@ class DownloadInfo(
 
     fun getCurrentDownloadSpeed(): Long? {
         if (!isActive) return null
-        val speed = getSpeedOverWindow(CURRENT_SPEED_WINDOW_MS) ?: return null
+        // allow speed even when status is VERIFYING/PREPARING if bytes are moving recently
+        val speed = getSpeedOverWindow(CURRENT_SPEED_WINDOW_MS) ?: run {
+            // fallback to ETA window if current window empty but recent bytes exist
+            val lastAge = getLastSampleAgeMs() ?: return null
+            if (lastAge > 10_000L) return null
+            getSpeedOverWindow(ETA_SPEED_WINDOW_MS) ?: return null
+        }
         return speed.toLong()
     }
 
     fun getEstimatedTimeRemaining(): Long? {
         if (!isActive) return null
-        val currentStatus = status.value
-        if (currentStatus != DownloadPhase.UNKNOWN && currentStatus != DownloadPhase.DOWNLOADING) {
-            return null
-        }
         val total = totalExpectedBytes.get()
         val downloaded = bytesDownloaded.get()
         if (total <= 0L) return null
@@ -392,7 +406,7 @@ class DownloadInfo(
                     etaEmaSpeedBytesPerSec = rawSpeedBytesPerSec
                     rawSpeedBytesPerSec
                 } else {
-                    val alpha = 0.2
+                    val alpha = 0.3
                     etaEmaSpeedBytesPerSec =
                         alpha * rawSpeedBytesPerSec + (1.0 - alpha) * etaEmaSpeedBytesPerSec
                     etaEmaSpeedBytesPerSec
@@ -452,11 +466,11 @@ class DownloadInfo(
 
 
     companion object {
-        private const val SPEED_SAMPLE_RETENTION_MS = 120_000L
+        private const val SPEED_SAMPLE_RETENTION_MS = 60_000L
         private const val SPEED_SAMPLE_INTERVAL_MS = 250L
         private const val CURRENT_SPEED_WINDOW_MS = 5_000L
-        private const val ETA_SPEED_WINDOW_MS = 60_000L
-        private const val ETA_SAMPLE_STALE_TIMEOUT_MS = 120_000L
+        private const val ETA_SPEED_WINDOW_MS = 30_000L
+        private const val ETA_SAMPLE_STALE_TIMEOUT_MS = 60_000L
         private const val PERSISTENCE_DIR = ".DownloadInfo"
         private const val PERSISTENCE_FILE = "depot_bytes.json"
         private const val PROGRESS_SNAPSHOT_MIN_INTERVAL_MS = 1_000L

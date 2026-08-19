@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
@@ -42,6 +43,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Полный перенос ContainerDetailFragment.java на Jetpack Compose.
@@ -88,6 +92,8 @@ fun ContainerEditScreen(
 
     var graphicsDriver by remember { mutableStateOf(container?.graphicsDriver ?: Container.DEFAULT_GRAPHICS_DRIVER) }
     var graphicsDriverConfig by remember { mutableStateOf(container?.graphicsDriverConfig ?: Container.DEFAULT_GRAPHICSDRIVERCONFIG) }
+    var wrapperEntries by remember { mutableStateOf(com.winlator.cmod.contents.WrapperManager.driverEntries(ctx)) }
+    var showWrapperDownload by remember { mutableStateOf(false) }
     val displayRendererEntries = remember { ctx.resources.getStringArray(R.array.displayrenderers_entries).map { it.lowercase(Locale.ENGLISH) } }
     var displayRenderer by remember { mutableStateOf(container?.displayRenderer ?: Container.DEFAULT_DISPLAY_RENDERER) }
     var sfCompatMode by remember { mutableStateOf(container?.sfCompatMode ?: true) }
@@ -475,11 +481,12 @@ fun ContainerEditScreen(
                     entries = wineVersions, selected = wineVersion, enabled = !isEditMode,
                     onSelected = { wineVersion = it },
                 )
-                ContainerSpinnerRowWithConfig(
+                ContainerSpinnerRowWithConfigAndDownload(
                     label = stringResource(R.string.graphics_driver),
-                    entries = ctx.resources.getStringArray(R.array.graphics_driver_entries).toList(),
+                    entries = wrapperEntries,
                     selected = graphicsDriver, onSelected = { graphicsDriver = it },
                     onConfigClick = { showGraphicsConfigDialog = true },
+                    onDownloadClick = { showWrapperDownload = true },
                 )
                 ContainerSpinnerRowWithConfig(
                     label = stringResource(R.string.dxwrapper),
@@ -772,6 +779,16 @@ fun ContainerEditScreen(
         )
     }
 
+    if (showWrapperDownload) {
+        WrapperDownloadDialog(
+            onDismiss = { showWrapperDownload = false },
+            onInstalled = { id ->
+                wrapperEntries = com.winlator.cmod.contents.WrapperManager.driverEntries(ctx)
+                graphicsDriver = id
+            }
+        )
+    }
+
     if (showProfilePreviewDialog != null) {
         val settings = showProfilePreviewDialog!!
         AlertDialog(
@@ -866,6 +883,91 @@ private fun showDxWrapperConfigDialog(
 private fun showAudioDriverConfigDialog(
     ctx: Context, currentConfig: String, onResult: (String) -> Unit
 ) { /* вызов перенесён в ContainerEditScreen через state showAudioConfigDialog */ }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WrapperDownloadDialog(
+    onDismiss: () -> Unit,
+    onInstalled: (String) -> Unit,
+) {
+    val ctx = LocalContext.current
+    var entries by remember { mutableStateOf<List<com.winlator.cmod.contents.WrapperCatalogEntry>?>(null) }
+    var source by remember { mutableStateOf(com.winlator.cmod.contents.WrapperCatalog.Source.NONE) }
+    var downloadingId by remember { mutableStateOf<String?>(null) }
+    var progress by remember { mutableStateOf(0) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val res = com.winlator.cmod.contents.WrapperCatalog.loadCached(ctx)
+            entries = res.entries
+            source = res.source
+            if (res.entries.isEmpty() && res.source == com.winlator.cmod.contents.WrapperCatalog.Source.NONE) {
+                errorMsg = "Каталог пуст или нет сети"
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Скачать враппер") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                if (entries == null) {
+                    Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                } else if (entries!!.isEmpty()) {
+                    Text(errorMsg ?: "Нет доступных врапперов", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (source != com.winlator.cmod.contents.WrapperCatalog.Source.NONE) {
+                        Text("Источник: $source", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Text("Источник: $source", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    entries!!.forEach { e ->
+                        val isDownloading = downloadingId == e.id
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(e.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                if (e.description.isNotBlank()) Text(e.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Автор: ${e.author} • v${e.version} • ${e.fileSize/1024} KB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.height(6.dp))
+                                if (isDownloading) {
+                                    LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth())
+                                    Text("$progress%", style = MaterialTheme.typography.bodySmall)
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            downloadingId = e.id
+                                            progress = 0
+                                            errorMsg = null
+                                            kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
+                                                val id = com.winlator.cmod.contents.WrapperCatalogDownloader.install(ctx, e) { p -> progress = p }
+                                                if (id != null) {
+                                                    com.winlator.cmod.core.AppUtils.showToast(ctx, "Установлен: $id")
+                                                    onInstalled(id)
+                                                    onDismiss()
+                                                } else {
+                                                    errorMsg = "Ошибка загрузки ${e.name}"
+                                                    downloadingId = null
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) { Text("Скачать") }
+                                }
+                            }
+                        }
+                    }
+                    if (errorMsg != null) Text(errorMsg!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Закрыть") } }
+    )
+}
 
 // ---- Загрузка данных ----
 

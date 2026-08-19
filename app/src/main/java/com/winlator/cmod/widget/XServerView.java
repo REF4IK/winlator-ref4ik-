@@ -30,6 +30,12 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback {
         if (displayRenderer != null && displayRenderer.equalsIgnoreCase("surfaceflinger")) {
             Drawable.DRAWABLE_ASR_MODE(true);
             renderer = new ASurfaceRenderer(this, xServer);
+        } else if (displayRenderer != null && (displayRenderer.equalsIgnoreCase("gl") || displayRenderer.equalsIgnoreCase("opengl"))) {
+            // GL renderer was removed earlier — fallback to Vulkan for now, but keep selection stored
+            // TODO: replace with real GLRenderer when native GL libs are restored
+            android.util.Log.w("XServerView", "GL renderer requested but not implemented, falling back to Vulkan");
+            Drawable.DRAWABLE_ASR_MODE(false);
+            renderer = new VulkanRenderer(this, xServer);
         } else {
             Drawable.DRAWABLE_ASR_MODE(false);
             renderer = new VulkanRenderer(this, xServer);

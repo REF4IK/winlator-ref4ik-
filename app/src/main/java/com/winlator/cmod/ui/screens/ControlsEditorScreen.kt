@@ -91,6 +91,7 @@ fun ControlsEditorScreen(
 
     var showQuickAdd by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
     var bindingPickerTarget by remember { mutableStateOf<Pair<ControlElement, Int>?>(null) }
     var refreshTick by remember { mutableStateOf(0) }
     val refresh: () -> Unit = { refreshTick = refreshTick + 1 }
@@ -172,6 +173,7 @@ fun ControlsEditorScreen(
                     if (element != null) showSettings = true
                     else AppUtils.showToast(ctx, R.string.no_control_element_selected)
                 }
+                ToolbarIconButton(Icons.Filled.Palette, "Тема") { showThemeDialog = true }
                 VerticalDivider(modifier = Modifier.height(32.dp), color = Color(0xff444444))
                 ToolbarIconButton(Icons.Filled.Close, stringResource(R.string.cancel)) { onExit() }
             }
@@ -210,6 +212,16 @@ fun ControlsEditorScreen(
         } else {
             LaunchedEffect(Unit) { showSettings = false }
         }
+    }
+
+    // ---- Theme Picker ----
+    if (showThemeDialog) {
+        ThemePickerDialog(
+            profile = profile,
+            view = inputControlsView,
+            onChanged = refresh,
+            onDismiss = { showThemeDialog = false }
+        )
     }
 
     // ---- Binding Picker ----
@@ -767,6 +779,60 @@ private fun SettingsSliderRow(
             modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+// ---------------------------------------------------------------------------
+// Theme Picker
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ThemePickerDialog(
+    profile: ControlsProfile,
+    view: InputControlsView,
+    onChanged: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(profile.visualStyle) }
+    val themes = listOf("Original" to 0, "Glass" to 1, "Shadow" to 2)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Тема кнопок") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Выбери стиль отрисовки экранных кнопок", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                themes.forEach { (name, idx) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { selected = idx }.padding(8.dp)
+                    ) {
+                        RadioButton(selected = selected == idx, onClick = { selected = idx })
+                        Spacer(Modifier.width(8.dp))
+                        Text(name, modifier = Modifier.weight(1f))
+                        // превью кружок в выбранном стиле
+                        Box(
+                            Modifier.size(28.dp).clip(CircleShape).background(
+                                when (idx) {
+                                    0 -> Color(0x33000000)
+                                    1 -> Color(0x8CFFFFFF)
+                                    else -> Color(0xff1b1b26)
+                                }
+                            ).border(1.dp, Color.White.copy(alpha = 0.6f), CircleShape)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                profile.visualStyle = selected
+                profile.save()
+                view.invalidate()
+                onChanged()
+                onDismiss()
+            }) { Text("Применить") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
+    )
 }
 
 // ---------------------------------------------------------------------------

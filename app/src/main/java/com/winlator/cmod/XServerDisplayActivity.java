@@ -5500,6 +5500,24 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         }
 
+        // Custom wrapper support (Bannerlator)
+        try {
+            String selDriver = graphicsDriver;
+            if (shortcut != null) {
+                String sd = shortcut.getExtra("graphicsDriver", null);
+                if (sd != null && !sd.isEmpty()) selDriver = sd;
+            }
+            if (selDriver != null && com.winlator.cmod.contents.WrapperManager.isCustomWrapper(this, selDriver)) {
+                java.io.File customFile = com.winlator.cmod.contents.WrapperManager.getWrapperFile(this, selDriver);
+                if (customFile != null && customFile.exists()) {
+                    android.util.Log.i("WrapperManager", "Extracting custom wrapper: " + customFile.getName() + " for driver " + selDriver);
+                    com.winlator.cmod.core.TarCompressorUtils.extract(com.winlator.cmod.core.TarCompressorUtils.Type.ZSTD, customFile, rootDir);
+                    // also extract extra_libs again to ensure libs
+                    com.winlator.cmod.core.TarCompressorUtils.extract(com.winlator.cmod.core.TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs.tzst", rootDir);
+                }
+            }
+        } catch (Exception e) { android.util.Log.w("WrapperManager", "custom wrapper extract failed", e); }
+
 
 
         if (adrenoToolsDriverId != "System") {

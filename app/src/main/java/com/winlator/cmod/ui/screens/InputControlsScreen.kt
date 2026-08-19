@@ -103,7 +103,15 @@ fun InputControlsScreen(
     }
 
     val controllers = remember(currentProfile?.id, controllersKey) {
-        currentProfile?.loadControllers() ?: arrayListOf()
+        val saved = currentProfile?.loadControllers() ?: arrayListOf()
+        val merged = ArrayList(saved)
+        try {
+            val connected = com.winlator.cmod.inputcontrols.ExternalController.getControllers()
+            for (c in connected) {
+                if (merged.none { it.id == c.id }) merged.add(c)
+            }
+        } catch (_: Exception) {}
+        merged
     }
 
     Column(
@@ -321,28 +329,45 @@ fun InputControlsScreen(
             )
         } else {
             controllers.forEach { controller ->
+                val isConnected = try { controller.isConnected() } catch (_: Exception) { false }
+                val isSaved = currentProfile?.loadControllers()?.any { it.id == controller.id } == true
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        if (currentProfile != null) {
+                            val intent = android.content.Intent(ctx, com.winlator.cmod.ExternalControllerBindingsActivity::class.java).apply {
+                                putExtra("profile_id", currentProfile!!.id)
+                                putExtra("controller_id", controller.id)
+                            }
+                            ctx.startActivity(intent)
+                        } else {
+                            com.winlator.cmod.core.AppUtils.showToast(ctx, R.string.no_profile_selected)
+                        }
+                    },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Gamepad, null, modifier = Modifier.size(24.dp))
+                        Icon(
+                            Icons.Filled.Gamepad, null, modifier = Modifier.size(24.dp),
+                            tint = if (isConnected) MaterialTheme.colorScheme.primary else ComposeColor(0xFFE57373)
+                        )
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(controller.getName(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                             Text(
-                                "${controller.getControllerBindingCount()} ${stringResource(R.string.bindings)}",
+                                "${controller.getControllerBindingCount()} ${stringResource(R.string.bindings)}" + if (!isConnected) " • ${stringResource(R.string.not_connected)}" else "",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        IconButton(onClick = {
-                            ContentDialog.confirm(ctx, R.string.do_you_want_to_remove_this_controller) {
-                                currentProfile?.let { p ->
-                                    p.removeController(controller); p.save()
+                        if (isSaved && controller.getControllerBindingCount() > 0) {
+                            IconButton(onClick = {
+                                ContentDialog.confirm(ctx, R.string.do_you_want_to_remove_this_controller) {
+                                    currentProfile?.let { p ->
+                                        p.removeController(controller); p.save(); reloadProfiles()
+                                    }
                                 }
-                            }
-                        }) { Icon(Icons.Filled.Delete, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.error) }
+                            }) { Icon(Icons.Filled.Delete, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.error) }
+                        }
                     }
                 }
             }
@@ -406,7 +431,9 @@ fun InputControlsScreen(
                 onDismissRequest = { showDownloadDialog = false; downloadProfilesList = null },
                 title = { Text("Download Profiles") },
                 text = {
-                    Column {
+                    Column(
+                        modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())
+                    ) {
                         downloadProfilesList!!.forEachIndexed { i, name ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                 Checkbox(

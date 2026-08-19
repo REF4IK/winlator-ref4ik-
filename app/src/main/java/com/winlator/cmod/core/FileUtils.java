@@ -604,6 +604,32 @@ public abstract class FileUtils {
         }
     }
 
+    public interface ProgressCallback { void onProgress(long copied, long total); }
+    public static boolean copyWithProgress(File src, File dst, ProgressCallback cb) {
+        try {
+            long total = getSizeInternal(src);
+            long[] copied = {0};
+            return copyWithProgressInternal(src, dst, total, copied, cb);
+        } catch (Exception e) { return false; }
+    }
+    private static boolean copyWithProgressInternal(File src, File dst, long total, long[] copied, ProgressCallback cb) {
+        try {
+            if (src.isDirectory()) {
+                if (!dst.exists() && !dst.mkdirs()) return false;
+                File[] ch = src.listFiles(); if (ch != null) for (File c : ch) if (!copyWithProgressInternal(c, new File(dst, c.getName()), total, copied, cb)) return false;
+                return true;
+            } else {
+                try (java.io.InputStream in = new java.io.FileInputStream(src); java.io.OutputStream out = new java.io.FileOutputStream(dst)) {
+                    byte[] buf = new byte[8192]; int n; while ((n = in.read(buf)) != -1) { out.write(buf, 0, n); copied[0] += n; if (cb != null) cb.onProgress(copied[0], total); }
+                }
+                return true;
+            }
+        } catch (Exception e) { return false; }
+    }
+    private static long getSizeInternal(File f) {
+        if (f.isFile()) return f.length(); long s=0; File[] ch=f.listFiles(); if(ch!=null) for(File c: ch) s+=getSizeInternal(c); return s;
+    }
+
     public static boolean writeToBinaryFile(String filename, int position, int data) {
         try (RandomAccessFile file = new RandomAccessFile(filename, "rw")) {
            file.seek(position);

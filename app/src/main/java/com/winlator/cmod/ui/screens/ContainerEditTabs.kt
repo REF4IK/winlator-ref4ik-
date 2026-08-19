@@ -200,6 +200,70 @@ fun ContainerSpinnerRowWithConfig(
 }
 
 @Composable
+fun ContainerSpinnerRowWithConfigAndDownload(
+    label: String,
+    entries: List<String>,
+    selected: String,
+    enabled: Boolean = true,
+    onSelected: (String) -> Unit,
+    onConfigClick: () -> Unit = {},
+    onDownloadClick: () -> Unit = {},
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val trimmed = selected.trim()
+    val displaySelected = if (trimmed.isEmpty()) selected else
+        entries.firstOrNull { it.equals(trimmed, ignoreCase = true) }
+        ?: entries.firstOrNull { it.startsWith(trimmed, ignoreCase = true) || trimmed.startsWith(it, ignoreCase = true) || it.contains(trimmed, ignoreCase = true) || trimmed.contains(it, ignoreCase = true) }
+        ?: selected
+
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { if (enabled) expanded = true },
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(displaySelected, modifier = Modifier.weight(1f))
+                    Icon(Icons.Filled.ArrowDropDown, null)
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    entries.forEach { entry ->
+                        DropdownMenuItem(
+                            text = { Text(entry) },
+                            onClick = { onSelected(entry); expanded = false }
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            FilledIconButton(
+                onClick = onConfigClick,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                ),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.configuration))
+            }
+            Spacer(Modifier.width(8.dp))
+            FilledIconButton(
+                onClick = onDownloadClick,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Filled.Download, contentDescription = "Download")
+            }
+        }
+    }
+}
+
+@Composable
 fun ButtonRow(label: String, onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,

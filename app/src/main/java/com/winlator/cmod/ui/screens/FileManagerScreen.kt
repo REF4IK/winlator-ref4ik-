@@ -89,7 +89,12 @@ fun FileManagerScreen(
     var allEntries by remember { mutableStateOf<List<FMFileEntry>>(emptyList()) }
     var currentQuery by remember { mutableStateOf("") }
     var sortBy by remember { mutableStateOf(FMSortBy.NAME) }
-    var gridMode by remember { mutableStateOf(false) }
+    var sortDesc by remember { mutableStateOf(false) }
+    var showHidden by remember { mutableStateOf(com.winlator.cmod.core.MmkvPreferences().getBoolean("fmShowHidden", false)) }
+    var gridMode by remember { mutableStateOf(com.winlator.cmod.core.MmkvPreferences().getBoolean("fmGridView", false)) }
+    var isOpRunning by remember { mutableStateOf(false) }
+    var opProgress by remember { mutableStateOf(0f) }
+    var opLabel by remember { mutableStateOf("") }
 
     // Clipboard
     var clipboardFile by remember { mutableStateOf<File?>(null) }
@@ -132,7 +137,8 @@ fun FileManagerScreen(
                 }
             } else {
                 val dir = currentDir ?: Environment.getExternalStorageDirectory()
-                val children = dir.listFiles() ?: emptyArray()
+                var children = dir.listFiles() ?: emptyArray()
+                if (!showHidden) children = children.filter { !it.name.startsWith(".") }.toTypedArray()
                 val list = children.map { child ->
                     val type = if (child.isDirectory) FMEntryType.DIRECTORY else FMEntryType.FILE
                     val subtitle = if (child.isDirectory) {
@@ -151,11 +157,12 @@ fun FileManagerScreen(
                     if (left.type != right.type) {
                         if (left.type == FMEntryType.DIRECTORY || left.type == FMEntryType.DRIVE) -1 else 1
                     } else {
-                        when (sortBy) {
+                        val cmp = when (sortBy) {
                             FMSortBy.DATE -> right.modifiedAt.compareTo(left.modifiedAt)
                             FMSortBy.SIZE -> right.size.compareTo(left.size)
                             FMSortBy.NAME -> left.title.compareTo(right.title, ignoreCase = true)
                         }
+                        if (sortDesc) -cmp else cmp
                     }
                 }
 
@@ -167,7 +174,7 @@ fun FileManagerScreen(
     }
 
     // Trigger initial load and reload on changes
-    LaunchedEffect(currentDir, showingDriveRoot, sortBy) {
+    LaunchedEffect(currentDir, showingDriveRoot, sortBy, sortDesc, showHidden) {
         reloadCurrentLocation()
     }
 
@@ -233,7 +240,22 @@ fun FileManagerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { gridMode = !gridMode }) {
+                    IconButton(onClick = {
+                        showHidden = !showHidden
+                        com.winlator.cmod.core.MmkvPreferences().edit().putBoolean("fmShowHidden", showHidden).apply()
+                    }) {
+                        Icon(if (showHidden) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = "Hidden")
+                    }
+                    IconButton(onClick = {
+                        sortDesc = !sortDesc
+                        com.winlator.cmod.core.MmkvPreferences().edit().putBoolean("fmSortDesc", sortDesc).apply()
+                    }) {
+                        Icon(if (sortDesc) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward, contentDescription = "Sort Desc")
+                    }
+                    IconButton(onClick = {
+                        gridMode = !gridMode
+                        com.winlator.cmod.core.MmkvPreferences().edit().putBoolean("fmGridView", gridMode).apply()
+                    }) {
                         Icon(if (gridMode) Icons.Filled.List else Icons.Filled.GridOn, contentDescription = "Toggle Layout")
                     }
                     var showSortMenu by remember { mutableStateOf(false) }
@@ -290,13 +312,13 @@ fun FileManagerScreen(
                                     index++
                                 } while (dest.exists())
                             }
-
+                            isOpRunning = true; opProgress = 0f; opLabel = if (clipboardMove) "Перемещение..." else "Копирование..."
                             val success = if (clipboardMove) {
                                 source.renameTo(dest)
                             } else {
-                                copyRecursively(source, dest)
+                                com.winlator.cmod.core.FileUtils.copyWithProgress(source, dest) { c, t -> opProgress = if (t>0) c.toFloat()/t else 0f }
                             }
-
+                            isOpRunning = false
                             withContext(Dispatchers.Main) {
                                 if (success) {
                                     AppUtils.showToast(ctx, if (clipboardMove) R.string.fm_paste_success_move else R.string.fm_paste_success_copy)
@@ -338,6 +360,12 @@ fun FileManagerScreen(
                 )
             )
 
+            if (isOpRunning) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(opLabel, style = MaterialTheme.typography.bodySmall)
+                    LinearProgressIndicator(progress = { opProgress }, modifier = Modifier.fillMaxWidth())
+                }
+            }
             // Current location breadcrumb
             if (!showingDriveRoot) {
                 val rootLimit = if (activeContainer != null) File(activeContainer.rootDir, ".wine/drive_c") else Environment.getExternalStorageDirectory()
@@ -371,7 +399,10 @@ fun FileManagerScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(R.string.no_items_to_display), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.no_items_to_display), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (!showHidden) TextButton(onClick = { showHidden = true }) { Text("Показать скрытые") }
+                    }
                 }
             } else {
                 if (gridMode) {

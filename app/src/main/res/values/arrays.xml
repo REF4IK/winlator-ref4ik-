@@ -51,6 +51,7 @@
         <item>WineD3D</item>
     </string-array>
     <string-array name="displayrenderers_entries">
+        <item>GL</item>
         <item>Vulkan</item>
         <item>SurfaceFlinger</item>
     </string-array>
