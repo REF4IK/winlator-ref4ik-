@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class ASurfaceRenderer implements WindowManager.OnWindowModificationListener,
+public class ASurfaceRenderer implements HostRenderer, WindowManager.OnWindowModificationListener,
                                           Pointer.OnPointerMotionListener,
                                           XServerRenderer {
     static {
@@ -699,3 +699,4 @@ public class ASurfaceRenderer implements WindowManager.OnWindowModificationListe
     @Override
     public void setForceFullscreenWMClass(String wmClass) { this.forceFullscreenWMClass = wmClass; }
 }
+

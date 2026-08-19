@@ -21,7 +21,7 @@ import com.winlator.cmod.xserver.XServer;
 
 import java.util.ArrayList;
 
-public class VulkanRenderer implements XServerRenderer,
+public class VulkanRenderer implements XServerRenderer, HostRenderer,
                                        WindowManager.OnWindowModificationListener,
                                        Pointer.OnPointerMotionListener {
 
@@ -171,16 +171,16 @@ public class VulkanRenderer implements XServerRenderer,
                             releaseScanoutSurfaces();
                             if (android.os.Build.VERSION.SDK_INT >= 29) {
                                 try {
-                                    android.view.SurfaceControl xsc = xServerView.getSurfaceControl();
+                                    android.view.SurfaceControl xsc = (android.view.SurfaceControl) xServerView.getSurfaceControl();
                                     scanoutGameSC = new android.view.SurfaceControl.Builder()
                                         .setParent(xsc).setName("winlator_game").setOpaque(true).build();
                                     scanoutGameSurface = new android.view.Surface(scanoutGameSC);
                                     scanoutCursorSC = new android.view.SurfaceControl.Builder()
                                         .setParent(xsc).setName("winlator_cursor").setFormat(1).build();
                                     scanoutCursorSurface = new android.view.Surface(scanoutCursorSC);
-                                    // BUG FIX: если активны эффекты экрана (scanoutBlockedForEffects=true),
-                                    // НЕ делаем SurfaceControl слои видимыми — иначе они накладываются
-                                    // поверх рендера с эффектами и создают "двойной экран".
+                                    // BUG FIX: Р ВµРЎРѓР В»Р С‘ Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎвЂ№ РЎРЊРЎвЂћРЎвЂћР ВµР С”РЎвЂљРЎвЂ№ РЎРЊР С”РЎР‚Р В°Р Р…Р В° (scanoutBlockedForEffects=true),
+                                    // Р СњР вЂў Р Т‘Р ВµР В»Р В°Р ВµР С SurfaceControl РЎРѓР В»Р С•Р С‘ Р Р†Р С‘Р Т‘Р С‘Р СРЎвЂ№Р СР С‘ РІР‚вЂќ Р С‘Р Р…Р В°РЎвЂЎР Вµ Р С•Р Р…Р С‘ Р Р…Р В°Р С”Р В»Р В°Р Т‘РЎвЂ№Р Р†Р В°РЎР‹РЎвЂљРЎРѓРЎРЏ
+                                    // Р С—Р С•Р Р†Р ВµРЎР‚РЎвЂ¦ РЎР‚Р ВµР Р…Р Т‘Р ВµРЎР‚Р В° РЎРѓ РЎРЊРЎвЂћРЎвЂћР ВµР С”РЎвЂљР В°Р СР С‘ Р С‘ РЎРѓР С•Р В·Р Т‘Р В°РЎР‹РЎвЂљ "Р Т‘Р Р†Р С•Р в„–Р Р…Р С•Р в„– РЎРЊР С”РЎР‚Р В°Р Р…".
                                     boolean scVisible = !scanoutBlockedForEffects;
                                     new android.view.SurfaceControl.Transaction()
                                         .setLayer(scanoutGameSC,   1)
@@ -649,7 +649,7 @@ public class VulkanRenderer implements XServerRenderer,
             xServerView.post(() -> {
                 if (android.os.Build.VERSION.SDK_INT >= 29) {
                     try {
-                        android.view.SurfaceControl xsc = xServerView.getSurfaceControl();
+                        android.view.SurfaceControl xsc = (android.view.SurfaceControl) xServerView.getSurfaceControl();
                         scanoutGameSC = new android.view.SurfaceControl.Builder()
                             .setParent(xsc).setName("winlator_game").setOpaque(true).build();
                         scanoutGameSurface = new android.view.Surface(scanoutGameSC);
@@ -860,8 +860,8 @@ public class VulkanRenderer implements XServerRenderer,
                 nativeClearEffects(nativeHandle);
             }
         }
-        // BUG FIX: когда эффекты очищаются, нужно вернуть видимость SurfaceControl слоёв
-        // если nativeMode активен, иначе scanout не возобновится (экран останется пустым).
+        // BUG FIX: Р С”Р С•Р С–Р Т‘Р В° РЎРЊРЎвЂћРЎвЂћР ВµР С”РЎвЂљРЎвЂ№ Р С•РЎвЂЎР С‘РЎвЂ°Р В°РЎР‹РЎвЂљРЎРѓРЎРЏ, Р Р…РЎС“Р В¶Р Р…Р С• Р Р†Р ВµРЎР‚Р Р…РЎС“РЎвЂљРЎРЉ Р Р†Р С‘Р Т‘Р С‘Р СР С•РЎРѓРЎвЂљРЎРЉ SurfaceControl РЎРѓР В»Р С•РЎвЂР Р†
+        // Р ВµРЎРѓР В»Р С‘ nativeMode Р В°Р С”РЎвЂљР С‘Р Р†Р ВµР Р…, Р С‘Р Р…Р В°РЎвЂЎР Вµ scanout Р Р…Р Вµ Р Р†Р С•Р В·Р С•Р В±Р Р…Р С•Р Р†Р С‘РЎвЂљРЎРѓРЎРЏ (РЎРЊР С”РЎР‚Р В°Р Р… Р С•РЎРѓРЎвЂљР В°Р Р…Р ВµРЎвЂљРЎРѓРЎРЏ Р С—РЎС“РЎРѓРЎвЂљРЎвЂ№Р С).
         if (nativeMode && android.os.Build.VERSION.SDK_INT >= 29) {
             xServerView.post(() -> {
                 try {
@@ -885,3 +885,4 @@ public class VulkanRenderer implements XServerRenderer,
         public RenderableWindow(Drawable c, int x, int y) { content=c; rootX=x; rootY=y; }
     }
 }
+

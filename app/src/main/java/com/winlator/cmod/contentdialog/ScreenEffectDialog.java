@@ -24,6 +24,8 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.XServerDisplayActivity;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.KeyValueSet;
+import com.winlator.cmod.renderer.EffectComposer;
+import com.winlator.cmod.renderer.HostRenderer;
 import com.winlator.cmod.renderer.VulkanRenderer;
 import com.winlator.cmod.widget.SeekBar;
 
@@ -87,7 +89,7 @@ public class ScreenEffectDialog extends ContentDialog {
         applyDialogThemeOverrides();
 
 
-        VulkanRenderer renderer = (VulkanRenderer) activity.getXServerView().getRenderer();
+        com.winlator.cmod.renderer.HostRenderer renderer = activity.getXServerView().getRenderer();
         if (renderer == null) {
             Log.e(TAG, "Renderer is null in ScreenEffectDialog initialization!");
             return;
@@ -426,7 +428,7 @@ public class ScreenEffectDialog extends ContentDialog {
             .apply();
     }
 
-    public void applyVulkanEffects(VulkanRenderer renderer) {
+    public void applyVulkanEffects(HostRenderer renderer) {
         Log.d(TAG, "applyVulkanEffects() called");
 
         float brightness = sbBrightness.getValue();
@@ -448,38 +450,38 @@ public class ScreenEffectDialog extends ContentDialog {
         // Save current settings
         saveEffectSettingsToPrefs();
 
-        // Build effect list for VulkanRenderer
+        // Build effect list for the active renderer (Vulkan or GL)
         ArrayList<Integer> types = new ArrayList<>();
         ArrayList<float[]> paramsList = new ArrayList<>();
 
         // ColorEffect: brightness, contrast, gamma (only if non-default)
         if (brightness != 0 || contrast != 0 || gamma != 1.0f) {
-            types.add(VulkanRenderer.EFFECT_COLOR);
+            types.add(EffectComposer.EFFECT_COLOR);
             paramsList.add(new float[]{brightness / 100f, contrast / 100f, gamma, 0, 0, 0, 0, 0});
         }
 
         if (enableHDR) {
-            types.add(VulkanRenderer.EFFECT_HDR);
+            types.add(EffectComposer.EFFECT_HDR);
             paramsList.add(new float[]{0.4f, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableFXAA) {
-            types.add(VulkanRenderer.EFFECT_FXAA);
+            types.add(EffectComposer.EFFECT_FXAA);
             paramsList.add(new float[]{0, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableCRT) {
-            types.add(VulkanRenderer.EFFECT_CRT);
+            types.add(EffectComposer.EFFECT_CRT);
             paramsList.add(new float[]{0, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableToon) {
-            types.add(VulkanRenderer.EFFECT_TOON);
+            types.add(EffectComposer.EFFECT_TOON);
             paramsList.add(new float[]{0, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableNTSC) {
-            types.add(VulkanRenderer.EFFECT_NTSC);
+            types.add(EffectComposer.EFFECT_NTSC);
             // params: frameCount, textureSizeX, textureSizeY
             int screenW = renderer.getSurfaceWidth();
             int screenH = renderer.getSurfaceHeight();
@@ -487,48 +489,47 @@ public class ScreenEffectDialog extends ContentDialog {
         }
 
         if (enableVignette) {
-            types.add(VulkanRenderer.EFFECT_VIGNETTE);
+            types.add(EffectComposer.EFFECT_VIGNETTE);
             paramsList.add(new float[]{0.5f, 0.5f, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableSepia) {
-            types.add(VulkanRenderer.EFFECT_SEPIA);
+            types.add(EffectComposer.EFFECT_SEPIA);
             paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableBlur) {
-            types.add(VulkanRenderer.EFFECT_BLUR);
+            types.add(EffectComposer.EFFECT_BLUR);
             paramsList.add(new float[]{2.0f, 5.0f, 0, 0, 0, 0, 0, 0});
         }
 
         if (enablePixelate) {
-            types.add(VulkanRenderer.EFFECT_PIXELATE);
+            types.add(EffectComposer.EFFECT_PIXELATE);
             paramsList.add(new float[]{4.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableGrayscale) {
-            types.add(VulkanRenderer.EFFECT_GRAYSCALE);
+            types.add(EffectComposer.EFFECT_GRAYSCALE);
             paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableSharpen) {
-            types.add(VulkanRenderer.EFFECT_SHARPEN);
+            types.add(EffectComposer.EFFECT_SHARPEN);
             paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (enableSmooth) {
-            types.add(VulkanRenderer.EFFECT_SMOOTH);
+            types.add(EffectComposer.EFFECT_SMOOTH);
             paramsList.add(new float[]{1.0f, 0, 0, 0, 0, 0, 0, 0});
         }
 
         if (types.isEmpty()) {
-            // РќРµС‚ СЌС„С„РµРєС‚РѕРІ вЂ” РїСЂРѕСЃС‚Рѕ РѕС‡РёС‰Р°РµРј, scanout РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЃСЏ СЃР°Рј
             renderer.clearEffects();
             Log.d(TAG, "No effects enabled, cleared all effects.");
         } else {
-            // BUG FIX: disableScanoutForEffects() РІС‹Р·С‹РІР°РµРј РўРћР›Р¬РљРћ РєРѕРіРґР° СЂРµР°Р»СЊРЅРѕ
-            // РІРєР»СЋС‡Р°РµРј СЌС„С„РµРєС‚С‹, РёРЅР°С‡Рµ РїСЂРё СЃР±СЂРѕСЃРµ РЅР°СЃС‚СЂРѕРµРє scanout РЅРµ РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°Р»СЃСЏ.
-            renderer.disableScanoutForEffects();
+            if (renderer instanceof VulkanRenderer) {
+                ((VulkanRenderer) renderer).disableScanoutForEffects();
+            }
             int[] typeArr = new int[types.size()];
             float[][] paramsArr = new float[types.size()][];
             for (int i = 0; i < types.size(); i++) {
@@ -536,7 +537,7 @@ public class ScreenEffectDialog extends ContentDialog {
                 paramsArr[i] = paramsList.get(i);
             }
             renderer.setEffects(typeArr, paramsArr);
-            Log.d(TAG, "Applied " + types.size() + " effects to VulkanRenderer.");
+            Log.d(TAG, "Applied " + types.size() + " effects to renderer.");
         }
 
         saveProfile(sProfile);
@@ -546,8 +547,8 @@ public class ScreenEffectDialog extends ContentDialog {
     // Backwards-compatible overload - no longer used but kept for compatibility
     public void applyEffects(Object colorEffect, Object renderer, Object fxaaEffect, Object crtEffect, Object toonEffect, Object ntscEffect,
                              Object vignetteEffect, Object sepiaEffect, Object blurEffect, Object pixelateEffect, Object grayscaleEffect, Object sharpenEffect, Object smoothEffect, Object hdrEffect) {
-        if (renderer instanceof VulkanRenderer) {
-            applyVulkanEffects((VulkanRenderer) renderer);
+        if (renderer instanceof HostRenderer) {
+            applyVulkanEffects((HostRenderer) renderer);
         }
     }
 

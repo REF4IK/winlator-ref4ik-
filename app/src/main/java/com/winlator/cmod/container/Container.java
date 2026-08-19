@@ -48,6 +48,25 @@ public class Container {
     public static final byte STARTUP_SELECTION_ESSENTIAL = 1;
     public static final byte STARTUP_SELECTION_AGGRESSIVE = 2;
     public static final byte MAX_DRIVE_LETTERS = 26;
+    // Fullscreen aspect-ratio mode (issue #71). Replaces the old fullscreenStretched boolean.
+    public static final int FULLSCREEN_OFF = 0;
+    public static final int FULLSCREEN_FIT = 1;
+    public static final int FULLSCREEN_STRETCH = 2;
+    public static final int FULLSCREEN_FILL = 3;
+    public static final int FULLSCREEN_INTEGER = 4;
+    private int fullscreenMode = FULLSCREEN_OFF;
+    public int getFullscreenMode() { return fullscreenMode; }
+    public void setFullscreenMode(int mode) { this.fullscreenMode = mode; }
+    public static int nextFullscreenMode(int mode) {
+        switch (mode) {
+            case FULLSCREEN_OFF: return FULLSCREEN_FIT;
+            case FULLSCREEN_FIT: return FULLSCREEN_STRETCH;
+            case FULLSCREEN_STRETCH: return FULLSCREEN_FILL;
+            case FULLSCREEN_FILL: return FULLSCREEN_INTEGER;
+            case FULLSCREEN_INTEGER: return FULLSCREEN_OFF;
+            default: return FULLSCREEN_OFF;
+        }
+    }
     public final int id;
     private String name;
     private String screenSize = DEFAULT_SCREEN_SIZE;
@@ -243,7 +262,7 @@ public class Container {
         this.isRelativeMouseMovement = isRelativeMouseMovement;
     }
 
-    public boolean isFullscreenStretched() { return fullscreenStretched; }
+    public boolean isFullscreenStretched() { return fullscreenMode == FULLSCREEN_STRETCH || fullscreenStretched; }
 
     public boolean isUseUnixLibs() { return useUnixLibs; }
 
@@ -253,7 +272,10 @@ public class Container {
         return showFPS;
     }
 
-    public void setFullscreenStretched(boolean fullscreenStretched) { this.fullscreenStretched = fullscreenStretched; }
+    public void setFullscreenStretched(boolean fullscreenStretched) {
+        this.fullscreenStretched = fullscreenStretched;
+        this.fullscreenMode = fullscreenStretched ? FULLSCREEN_STRETCH : FULLSCREEN_OFF;
+    }
 
     public void setShowFPS(boolean showFPS) {
         this.showFPS = showFPS;
@@ -472,6 +494,7 @@ public class Container {
             data.put("drives", drives);
             data.put("showFPS", showFPS);
             data.put("relativeMouseMovement", isRelativeMouseMovement);
+            data.put("fullscreenMode", fullscreenMode);
             data.put("fullscreenStretched", fullscreenStretched);
             data.put("useUnixLibs", useUnixLibs);
             data.put("inputType", inputType);
@@ -553,8 +576,11 @@ public class Container {
                 case "relativeMouseMovement":
                     setRelativeMouseMovement(data.getBoolean(key));
                     break;
+                case "fullscreenMode" :
+                    setFullscreenMode(data.getInt(key));
+                    break;
                 case "fullscreenStretched" :
-                    setFullscreenStretched(data.getBoolean(key));
+                    if (!data.has("fullscreenMode")) setFullscreenStretched(data.getBoolean(key));
                     break;
                 case "useUnixLibs" :
                     setUseUnixLibs(data.getBoolean(key));

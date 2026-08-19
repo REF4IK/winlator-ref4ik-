@@ -198,6 +198,9 @@ import com.winlator.cmod.midi.MidiHandler;
 
 import com.winlator.cmod.midi.MidiManager;
 
+import com.winlator.cmod.renderer.EffectComposer;
+import com.winlator.cmod.renderer.GLRenderer;
+import com.winlator.cmod.renderer.HostRenderer;
 import com.winlator.cmod.renderer.VulkanRenderer;
 import com.winlator.cmod.renderer.XServerRenderer;
 import com.winlator.cmod.renderer.ASurfaceRenderer;
@@ -2520,7 +2523,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
     public void handleXServerMenuAction(int itemId) {
-        final XServerRenderer renderer = xServerView.getRenderer();
+        final HostRenderer renderer = xServerView.getRenderer();
 
         switch (itemId) {
             case R.id.main_menu_keyboard:
@@ -2541,6 +2544,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             case R.id.main_menu_toggle_fullscreen:
                 if (renderer instanceof VulkanRenderer) {
                     ((VulkanRenderer) renderer).toggleFullscreen();
+                } else if (renderer instanceof GLRenderer) {
+                    ((GLRenderer) renderer).toggleFullscreen();
                 }
                 closeXServerMenu();
                 touchpadView.toggleFullscreen();
@@ -2548,12 +2553,23 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                     preferences.edit().putBoolean("effect_sharpen", true).apply();
                     ((VulkanRenderer) renderer).disableScanoutForEffects();
                     ((VulkanRenderer) renderer).setEffects(
-                        new int[]{VulkanRenderer.EFFECT_SHARPEN},
+                        new int[]{EffectComposer.EFFECT_SHARPEN},
                         new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
                     );
                 } else if (renderer instanceof VulkanRenderer) {
                     preferences.edit().putBoolean("effect_sharpen", false).apply();
                     ((VulkanRenderer) renderer).clearEffects();
+                } else if (renderer instanceof GLRenderer) {
+                    if (((GLRenderer) renderer).isFullscreen()) {
+                        preferences.edit().putBoolean("effect_sharpen", true).apply();
+                        ((GLRenderer) renderer).setEffects(
+                            new int[]{EffectComposer.EFFECT_SHARPEN},
+                            new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
+                        );
+                    } else {
+                        preferences.edit().putBoolean("effect_sharpen", false).apply();
+                        ((GLRenderer) renderer).clearEffects();
+                    }
                 }
                 break;
 
@@ -4527,11 +4543,16 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         xServerRootView = rootView;
 
         String displayRenderer = container != null ? container.getDisplayRenderer() : "vulkan";
-        Drawable.DRAWABLE_ASR_MODE(displayRenderer.equalsIgnoreCase("surfaceflinger"));
 
-        xServerView = new XServerView(this, xServer, displayRenderer);
+        xServerView = new XServerView(this, xServer);
+        xServerView.initRenderer(displayRenderer);
 
-        final XServerRenderer renderer = xServerView.getRenderer();
+        final com.winlator.cmod.renderer.HostRenderer renderer = xServerView.getRenderer();
+        // Vulkan/ASurface/GL все реализуют XServerRenderer — ставим напрямую,
+        // чтобы DrawableManager мог вызвать getXServerView().
+        if (renderer instanceof XServerRenderer) {
+            xServer.setRenderer((XServerRenderer) renderer);
+        }
 
         renderer.setCursorVisible(false);
 
@@ -4589,8 +4610,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (renderer instanceof ASurfaceRenderer) {
             ((ASurfaceRenderer) renderer).setSfCompatMode(container != null && container.getSfCompatMode());
         }
-
-        xServer.setRenderer(renderer);
 
         rootView.addView(xServerView);
 
@@ -4729,7 +4748,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 preferences.edit().putBoolean("effect_sharpen", true).apply();
                 ((VulkanRenderer) renderer).disableScanoutForEffects();
                 ((VulkanRenderer) renderer).setEffects(
-                    new int[]{VulkanRenderer.EFFECT_SHARPEN},
+                    new int[]{EffectComposer.EFFECT_SHARPEN},
+                    new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
+                );
+            } else if (renderer instanceof GLRenderer) {
+                preferences.edit().putBoolean("effect_sharpen", true).apply();
+                ((GLRenderer) renderer).setEffects(
+                    new int[]{EffectComposer.EFFECT_SHARPEN},
                     new float[][]{{1.0f, 0, 0, 0, 0, 0, 0, 0}}
                 );
             }

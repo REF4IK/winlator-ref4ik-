@@ -39,6 +39,7 @@ import com.winlator.cmod.core.KeyValueSet
 import com.winlator.cmod.core.LsfgVkManager
 import com.winlator.cmod.core.LsfgQuickMenuHelper
 import com.winlator.cmod.inputcontrols.ControlsProfile
+import com.winlator.cmod.renderer.EffectComposer
 import com.winlator.cmod.renderer.VulkanRenderer
 import com.winlator.cmod.xserver.Window
 import com.winlator.cmod.xserver.XLock
@@ -395,7 +396,8 @@ fun ScreenEffectDialogCompose(
     }
 
     fun applyVulkanEffects() {
-        val renderer = (activity.xServerView?.renderer as? com.winlator.cmod.renderer.VulkanRenderer) ?: return
+        val renderer = activity.xServerView?.renderer ?: return
+        val isVulkan = renderer is com.winlator.cmod.renderer.VulkanRenderer
         
         preferences.edit()
             .putFloat("effect_brightness", brightness)
@@ -419,76 +421,78 @@ fun ScreenEffectDialogCompose(
         val paramsList = ArrayList<FloatArray>()
 
         if (brightness != 0f || contrast != 0f || gamma != 1.0f) {
-            types.add(VulkanRenderer.EFFECT_COLOR)
+            types.add(EffectComposer.EFFECT_COLOR)
             paramsList.add(floatArrayOf(brightness / 100f, contrast / 100f, gamma, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableHDR) {
-            types.add(VulkanRenderer.EFFECT_HDR)
+            types.add(EffectComposer.EFFECT_HDR)
             paramsList.add(floatArrayOf(0.4f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableFXAA) {
-            types.add(VulkanRenderer.EFFECT_FXAA)
+            types.add(EffectComposer.EFFECT_FXAA)
             paramsList.add(floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableCRT) {
-            types.add(VulkanRenderer.EFFECT_CRT)
+            types.add(EffectComposer.EFFECT_CRT)
             paramsList.add(floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableToon) {
-            types.add(VulkanRenderer.EFFECT_TOON)
+            types.add(EffectComposer.EFFECT_TOON)
             paramsList.add(floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableNTSC) {
-            types.add(VulkanRenderer.EFFECT_NTSC)
+            types.add(EffectComposer.EFFECT_NTSC)
             val screenW = renderer.surfaceWidth.toFloat()
             val screenH = renderer.surfaceHeight.toFloat()
             paramsList.add(floatArrayOf(0f, screenW, screenH, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableVignette) {
-            types.add(VulkanRenderer.EFFECT_VIGNETTE)
+            types.add(EffectComposer.EFFECT_VIGNETTE)
             paramsList.add(floatArrayOf(0.5f, 0.5f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableSepia) {
-            types.add(VulkanRenderer.EFFECT_SEPIA)
+            types.add(EffectComposer.EFFECT_SEPIA)
             paramsList.add(floatArrayOf(1.0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableBlur) {
-            types.add(VulkanRenderer.EFFECT_BLUR)
+            types.add(EffectComposer.EFFECT_BLUR)
             paramsList.add(floatArrayOf(2.0f, 5.0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enablePixelate) {
-            types.add(VulkanRenderer.EFFECT_PIXELATE)
+            types.add(EffectComposer.EFFECT_PIXELATE)
             paramsList.add(floatArrayOf(4.0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableGrayscale) {
-            types.add(VulkanRenderer.EFFECT_GRAYSCALE)
+            types.add(EffectComposer.EFFECT_GRAYSCALE)
             paramsList.add(floatArrayOf(1.0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableSharpen) {
-            types.add(VulkanRenderer.EFFECT_SHARPEN)
+            types.add(EffectComposer.EFFECT_SHARPEN)
             paramsList.add(floatArrayOf(1.0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (enableSmooth) {
-            types.add(VulkanRenderer.EFFECT_SMOOTH)
+            types.add(EffectComposer.EFFECT_SMOOTH)
             paramsList.add(floatArrayOf(1.0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
         }
 
         if (types.isEmpty()) {
             renderer.clearEffects()
         } else {
-            renderer.disableScanoutForEffects()
+            if (isVulkan) {
+                (renderer as com.winlator.cmod.renderer.VulkanRenderer).disableScanoutForEffects()
+            }
             val typeArr = types.toIntArray()
             val paramsArr = paramsList.toTypedArray()
             renderer.setEffects(typeArr, paramsArr)

@@ -84,6 +84,17 @@ public class XServer {
         this.renderer = renderer;
     }
 
+    // HostRenderer support for GL (Bannerlator full port)
+    public void setHostRenderer(com.winlator.cmod.renderer.HostRenderer host) {
+        if (host instanceof XServerRenderer) {
+            this.renderer = (XServerRenderer) host;
+        } else {
+            // GL path uses its own listeners; keep X renderer null but store for debug
+            this.renderer = null;
+        }
+        // keep reference for isNativeMode etc if needed
+    }
+
     public void setRenderingEnabled(boolean enabled) {
         // Used by VulkanRenderer to pause/resume X rendering during native scanout
     }
