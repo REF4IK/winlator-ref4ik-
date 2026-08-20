@@ -159,19 +159,139 @@ public class Drawable extends XResource {
         copyArea(srcX, srcY, dstX, dstY, width, height, drawable, GraphicsContext.Function.COPY);
     }
 
+    private void ensureDataLocked(Drawable d) {
+        Texture t = d.texture;
+        if (t instanceof GPUImage) {
+            GPUImage g = (GPUImage) t;
+            ByteBuffer vd = g.getVirtualData();
+            if (vd == null) {
+                // Buffer was unlocked for scanout (presentScanout) - re-lock to make it valid
+                g.lock();
+                vd = g.getVirtualData();
+            }
+            if (vd != null && vd != d.data) d.data = vd;
+            // If still null, fallback to keep old data but it will be stale -> caller will skip copy
+        } else if (t instanceof NativeTexture) {
+            ByteBuffer vd = ((NativeTexture) t).getVirtualData();
+            if (vd != null && vd != d.data) d.data = vd;
+        }
+    }
+
     public void copyArea(short srcX, short srcY, short dstX, short dstY, short width, short height, Drawable drawable, GraphicsContext.Function gcFunction) {
+        if (width <= 0 || height <= 0) return;
+        if (drawable == null || this.data == null || drawable.data == null) return;
+
+        // Lock ordering to avoid deadlock, synchronize on both renderLocks during the whole copy
+        // This prevents race with VulkanRenderer/GLRenderer.presentScanout which does unlock/lock under same lock
+        Drawable src = drawable;
+        Drawable dst = this;
+        if (src == dst) {
+            synchronized (dst.renderLock) {
+                copyAreaLocked(srcX, srcY, dstX, dstY, width, height, src, gcFunction);
+            }
+        } else {
+            Object lock1 = src.renderLock;
+            Object lock2 = dst.renderLock;
+            Object first = System.identityHashCode(lock1) < System.identityHashCode(lock2) ? lock1 : lock2;
+            Object second = first == lock1 ? lock2 : lock1;
+            synchronized (first) {
+                synchronized (second) {
+                    copyAreaLocked(srcX, srcY, dstX, dstY, width, height, src, gcFunction);
+                }
+            }
+        }
+    }
+
+    private void copyAreaLocked(short srcX, short srcY, short dstX, short dstY, short width, short height, Drawable drawable, GraphicsContext.Function gcFunction) {
+        // Ensure GPUImage buffers are locked and data references are up-to-date (fixes 0x7c18c00000 fault)
+        ensureDataLocked(drawable);
+        ensureDataLocked(this);
+        if (this.data == null || drawable.data == null) return;
+        // If either buffer is still null after lock attempt (e.g. failed lock), skip
+        if (drawable.getTexture() instanceof GPUImage && ((GPUImage)drawable.getTexture()).getVirtualData() == null) return;
+        if (this.getTexture() instanceof GPUImage && ((GPUImage)this.getTexture()).getVirtualData() == null) return;
+
+        // --- Clip src against drawable (source) bounds, adjust dst accordingly ---
+        if (srcX < 0) {
+            int d = -srcX;
+            if (d >= width) return;
+            width = (short)(width - d);
+            dstX = (short)(dstX + d);
+            srcX = 0;
+        }
+        if (srcY < 0) {
+            int d = -srcY;
+            if (d >= height) return;
+            height = (short)(height - d);
+            dstY = (short)(dstY + d);
+            srcY = 0;
+        }
+        if (srcX + width > drawable.width) {
+            if (srcX >= drawable.width) return;
+            width = (short)(drawable.width - srcX);
+        }
+        if (srcY + height > drawable.height) {
+            if (srcY >= drawable.height) return;
+            height = (short)(drawable.height - srcY);
+        }
+        short srcStride = drawable.getStride();
+        if (srcX + width > srcStride) {
+            if (srcX >= srcStride) return;
+            width = (short)(srcStride - srcX);
+        }
+
+        // --- Clip dst against this bounds, adjust src accordingly ---
+        if (dstX < 0) {
+            int d = -dstX;
+            if (d >= width) return;
+            width = (short)(width - d);
+            srcX = (short)(srcX + d);
+            dstX = 0;
+        }
+        if (dstY < 0) {
+            int d = -dstY;
+            if (d >= height) return;
+            height = (short)(height - d);
+            srcY = (short)(srcY + d);
+            dstY = 0;
+        }
         dstX = (short)Mathf.clamp(dstX, 0, this.width-1);
         dstY = (short)Mathf.clamp(dstY, 0, this.height-1);
-        if ((dstX + width) > this.width) width = (short)(this.width - dstX);
-        if ((dstY + height) > this.height) height = (short)(this.height - dstY);
-
-        if (gcFunction == GraphicsContext.Function.COPY) {
-            copyArea(srcX, srcY, dstX, dstY, width, height, drawable.getStride(), this.getStride(), drawable.data, this.data);
+        if ((dstX + width) > this.width) width = (short)((this.width - dstX));
+        if ((dstY + height) > this.height) height = (short)((this.height - dstY));
+        short dstStride = this.getStride();
+        if (dstX + width > dstStride) {
+            if (dstX >= dstStride) return;
+            width = (short)(dstStride - dstX);
         }
-        else copyAreaOp(srcX, srcY, dstX, dstY, width, height, drawable.getStride(), this.getStride(), drawable.data, this.data, gcFunction.ordinal());
 
-        this.data.rewind();
-        drawable.data.rewind();
+        if (width <= 0 || height <= 0) return;
+
+        int srcCap = drawable.data.capacity();
+        int dstCap = this.data.capacity();
+        if (srcCap <= 0 || dstCap <= 0) return;
+        long srcEnd = ((long)srcX + (long)(srcY + height - 1) * srcStride + width) * 4L;
+        long dstEnd = ((long)dstX + (long)(dstY + height - 1) * dstStride + width) * 4L;
+        if (srcEnd > srcCap || dstEnd > dstCap) return;
+        if (srcEnd <= 0 || dstEnd <= 0) return;
+
+        // Final null check for DirectByteBuffer address validity
+        if (!drawable.data.isDirect() || !this.data.isDirect()) return;
+
+        try {
+            if (gcFunction == GraphicsContext.Function.COPY) {
+                copyArea(srcX, srcY, dstX, dstY, width, height, srcStride, dstStride, drawable.data, this.data);
+            } else {
+                copyAreaOp(srcX, srcY, dstX, dstY, width, height, srcStride, dstStride, drawable.data, this.data, gcFunction.ordinal());
+            }
+        } catch (Exception e) {
+            // Catch any JNI exception to avoid crashing X thread
+            android.util.Log.e("Drawable", "copyArea failed: " + e);
+            return;
+        }
+
+        try { this.data.rewind(); } catch (Exception ignored) {}
+        try { drawable.data.rewind(); } catch (Exception ignored) {}
 
         texture.setNeedsUpdate(true);
         markDirty(dstX, dstY, width, height);

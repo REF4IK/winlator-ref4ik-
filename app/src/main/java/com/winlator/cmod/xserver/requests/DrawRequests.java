@@ -104,6 +104,11 @@ public abstract class DrawRequests {
         short width = inputStream.readShort();
         short height = inputStream.readShort();
 
+        // Guard: X11 width/height are CARD16 unsigned, but Java reads signed short.
+        // Negative values (e.g. 0xFFFF = -1) would cause OOB memcpy -> SIGSEGV 0x7c08000000.
+        // Treat 0 or negative as no-op instead of crash.
+        if (width <= 0 || height <= 0) return;
+
         Drawable srcDrawable = client.xServer.drawableManager.getDrawable(srcDrawableId);
         if (srcDrawable == null) throw new BadDrawable(srcDrawableId);
         if (srcDrawable.getData() == null) {

@@ -95,10 +95,14 @@ Java_com_winlator_cmod_xserver_Drawable_drawBitmap(JNIEnv *env, jclass obj,
 
 JNIEXPORT void JNICALL
 Java_com_winlator_cmod_xserver_Drawable_copyArea(JNIEnv *env, jclass obj, jshort srcX,
-                                            jshort srcY, jshort dstX, jshort dstY,
-                                            jshort width, jshort height, jshort srcStride,
-                                            jshort dstStride, jobject srcData,
-                                            jobject dstData) {
+                                             jshort srcY, jshort dstX, jshort dstY,
+                                             jshort width, jshort height, jshort srcStride,
+                                             jshort dstStride, jobject srcData,
+                                             jobject dstData) {
+    // --- Guard against invalid dimensions (fixes SIGSEGV 0x7c08000000, width*height*4=0x7e9000) ---
+    if (width <= 0 || height <= 0) return;
+    if (srcStride <= 0 || dstStride <= 0) return;
+
     uint8_t *srcDataAddr = (*env)->GetDirectBufferAddress(env, srcData);
     uint8_t *dstDataAddr = (*env)->GetDirectBufferAddress(env, dstData);
 
@@ -109,9 +113,37 @@ Java_com_winlator_cmod_xserver_Drawable_copyArea(JNIEnv *env, jclass obj, jshort
 
     jlong srcLength = (*env)->GetDirectBufferCapacity(env, srcData);
     jlong dstLength = (*env)->GetDirectBufferCapacity(env, dstData);
+    if (srcLength <= 0 || dstLength <= 0) return;
+
+    // Validate that copy fits inside buffers, prevents OOB memcpy on FUSE/exec edge cases
+    // Use 32-bit ints for arithmetic to avoid short overflow (short max 32767, real stride up to ~4096)
+    int iWidth = (int)width;
+    int iHeight = (int)height;
+    int iSrcX = (int)srcX;
+    int iSrcY = (int)srcY;
+    int iDstX = (int)dstX;
+    int iDstY = (int)dstY;
+    int iSrcStride = (int)srcStride;
+    int iDstStride = (int)dstStride;
+
+    if (iSrcX < 0 || iSrcY < 0 || iDstX < 0 || iDstY < 0) return;
+    if (iSrcX + iWidth > iSrcStride) return;
+    if (iDstX + iWidth > iDstStride) return;
+
+    jlong srcEnd = ((jlong)iSrcX + (jlong)(iSrcY + iHeight - 1) * iSrcStride + iWidth) * 4;
+    jlong dstEnd = ((jlong)iDstX + (jlong)(iDstY + iHeight - 1) * iDstStride + iWidth) * 4;
+    if (srcEnd > srcLength || dstEnd > dstLength) return;
+    if (srcEnd <= 0 || dstEnd <= 0) return;
+
+    // Full-buffer fast path only when truly whole buffer and offsets zero
+    if (iSrcX == 0 && iSrcY == 0 && iDstX == 0 && iDstY == 0 && srcLength == dstLength && iWidth == iSrcStride && iWidth == iDstStride && (jlong)iHeight * iDstStride * 4 == dstLength) {
+        memcpy(dstDataAddr, srcDataAddr, dstLength);
+        return;
+    }
 
     if (srcX != 0 || srcY != 0 || dstX != 0 || dstY != 0 || srcLength != dstLength) {
         int copyAmount = width * 4;
+        // copyAmount also validated: iWidth*4 <= srcLength/dstLength already via srcEnd/dstEnd
         for (int16_t y = 0; y < height; y++) {
             memcpy(dstDataAddr + (dstX + (y + dstY) * dstStride) * 4,
                    srcDataAddr + (srcX + (y + srcY) * srcStride) * 4, copyAmount);
@@ -123,10 +155,13 @@ Java_com_winlator_cmod_xserver_Drawable_copyArea(JNIEnv *env, jclass obj, jshort
 
 JNIEXPORT void JNICALL
 Java_com_winlator_cmod_xserver_Drawable_copyAreaOp(JNIEnv *env, jclass obj, jshort srcX,
-                                              jshort srcY, jshort dstX, jshort dstY,
-                                              jshort width, jshort height, jshort srcStride,
-                                              jshort dstStride, jobject srcData,
-                                              jobject dstData, int gcFunction) {
+                                               jshort srcY, jshort dstX, jshort dstY,
+                                               jshort width, jshort height, jshort srcStride,
+                                               jshort dstStride, jobject srcData,
+                                               jobject dstData, int gcFunction) {
+    if (width <= 0 || height <= 0) return;
+    if (srcStride <= 0 || dstStride <= 0) return;
+
     uint8_t *srcDataAddr = (*env)->GetDirectBufferAddress(env, srcData);
     uint8_t *dstDataAddr = (*env)->GetDirectBufferAddress(env, dstData);
 
@@ -134,6 +169,25 @@ Java_com_winlator_cmod_xserver_Drawable_copyAreaOp(JNIEnv *env, jclass obj, jsho
         printf("Error: NULL buffer address in copyAreaOp\n");
         return;
     }
+
+    jlong srcLength = (*env)->GetDirectBufferCapacity(env, srcData);
+    jlong dstLength = (*env)->GetDirectBufferCapacity(env, dstData);
+    if (srcLength <= 0 || dstLength <= 0) return;
+
+    int iWidth = (int)width;
+    int iHeight = (int)height;
+    int iSrcX = (int)srcX;
+    int iSrcY = (int)srcY;
+    int iDstX = (int)dstX;
+    int iDstY = (int)dstY;
+    int iSrcStride = (int)srcStride;
+    int iDstStride = (int)dstStride;
+    if (iSrcX < 0 || iSrcY < 0 || iDstX < 0 || iDstY < 0) return;
+    if (iSrcX + iWidth > iSrcStride) return;
+    if (iDstX + iWidth > iDstStride) return;
+    jlong srcEnd = ((jlong)iSrcX + (jlong)(iSrcY + iHeight - 1) * iSrcStride + iWidth) * 4;
+    jlong dstEnd = ((jlong)iDstX + (jlong)(iDstY + iHeight - 1) * iDstStride + iWidth) * 4;
+    if (srcEnd > srcLength || dstEnd > dstLength) return;
 
     for (int16_t y = 0; y < height; y++) {
         for (int16_t x = 0; x < width; x++) {
