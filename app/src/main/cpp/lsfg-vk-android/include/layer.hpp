@@ -220,16 +220,6 @@ namespace Layer {
         uint32_t regionCount,
         const VkImageBlit* pRegions,
         VkFilter filter);
-    /// Call to the original vkCmdCopyImage function.
-    /// Used instead of Blit when extents match (cheaper on tiled mobile GPUs).
-    void ovkCmdCopyImage(
-        VkCommandBuffer commandBuffer,
-        VkImage srcImage,
-        VkImageLayout srcImageLayout,
-        VkImage dstImage,
-        VkImageLayout dstImageLayout,
-        uint32_t regionCount,
-        const VkImageCopy* pRegions);
 
     /// Call to the original vkAcquireNextImageKHR function.
     VkResult ovkAcquireNextImageKHR(

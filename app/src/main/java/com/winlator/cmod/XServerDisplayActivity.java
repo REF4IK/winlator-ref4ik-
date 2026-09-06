@@ -205,7 +205,6 @@ import com.winlator.cmod.renderer.VulkanRenderer;
 import com.winlator.cmod.renderer.XServerRenderer;
 import com.winlator.cmod.renderer.ASurfaceRenderer;
 import com.winlator.cmod.xserver.Drawable;
-import com.winlator.cmod.xserver.extensions.PresentExtension;
 import com.winlator.cmod.widget.XServerView;
 
 import com.winlator.cmod.steam.SteamLibraryActivity;
@@ -3001,9 +3000,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                     }
 
-                    syncLsfgFramePacing();
-                    applyLsfgNativeOutput();
-
                     Toast.makeText(this, getString(R.string.lsfg_applied, enabled ? multiplier + "x" : "Off"), Toast.LENGTH_SHORT).show();
 
                 })
@@ -3105,44 +3101,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             xServerView.getRenderer().setFpsLimit(fpsLimit);
             android.util.Log.d("FpsCounter", "FPS limit applied to renderer: " + fpsLimit);
         }
-        syncLsfgFramePacing();
-    }
-
-    /**
-     * LSFG: игра пейсится на базовой частоте (лимит / множитель),
-     * дисплей показывает умноженные кадры. Без делителя слой голодает:
-     * pacer душил бы игру под частоту дисплея вместо базовой.
-     */
-    private void syncLsfgFramePacing() {
-        if (xServer == null) return;
-        try {
-            PresentExtension present = xServer.getExtension(PresentExtension.MAJOR_OPCODE);
-            if (present == null) return;
-            int divisor = 1;
-            if (container != null && LsfgVkManager.isArmed(container))
-                divisor = Math.max(2, LsfgVkManager.multiplier(container));
-            present.setFrameGenDivisor(divisor);
-        } catch (Throwable ignored) {}
-    }
-
-    /**
-     * LSFG: короткий путь вывода. VulkanRenderer включает scanout ЛЕНИВО —
-     * по первому AHB-кадру (см. maybeEnableLsfgScanout): включать сразу
-     * нельзя, пустой opaque SC даст черный экран на CPU/GDI-контенте.
-     * ASurfaceRenderer уже нативный — ему только убрать конверт-копию.
-     */
-    private void applyLsfgNativeOutput() {
-        if (xServerView == null || xServerView.getRenderer() == null || container == null) return;
-        try {
-            boolean armed = LsfgVkManager.isArmed(container);
-            HostRenderer renderer = xServerView.getRenderer();
-            if (renderer instanceof VulkanRenderer) {
-                ((VulkanRenderer) renderer).setLsfgArmed(armed);
-            }
-            if (renderer instanceof ASurfaceRenderer) {
-                ((ASurfaceRenderer) renderer).setSfCompatMode(container.getSfCompatMode() && !armed);
-            }
-        } catch (Throwable ignored) {}
     }
 
 
@@ -4650,11 +4608,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (renderer instanceof ASurfaceRenderer) {
             ((ASurfaceRenderer) renderer).setSfCompatMode(container != null && container.getSfCompatMode());
         }
-
-        // LSFG armed: scanout вместо композита (Vulkan), без конверт-копии (ASR),
-        // pacer на базовой частоте. Повторно выставляется и из LSFG-диалога.
-        applyLsfgNativeOutput();
-        syncLsfgFramePacing();
 
         rootView.addView(xServerView);
 

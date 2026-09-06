@@ -50,17 +50,6 @@ public class PresentExtension implements Extension, XResourceManager.OnResourceL
     private final PriorityBlockingQueue<PendingIdle> idleQueue =
             new PriorityBlockingQueue<>(16, (a, b) -> Long.compare(a.fireNs, b.fireNs));
     private volatile Thread pacerThread;
-    // Frame-generation divisor: when LSFG multiplies presents inside the guest,
-    // the game itself must be paced at displayLimit / multiplier (base rate).
-    // 1 = no frame generation, pacing unchanged.
-    private volatile int frameGenDivisor = 1;
-
-    /** LSFG: pace the game at base rate while the display runs multiplied. */
-    public void setFrameGenDivisor(int divisor) {
-        frameGenDivisor = Math.max(1, divisor);
-    }
-
-    public int getFrameGenDivisor() { return frameGenDivisor; }
 
     private static abstract class ClientOpcodes {
         private static final byte QUERY_VERSION = 0;
@@ -255,8 +244,6 @@ public class PresentExtension implements Extension, XResourceManager.OnResourceL
         final VulkanRenderer vr = (xr instanceof VulkanRenderer) ? (VulkanRenderer) xr : null;
         final ASurfaceRenderer asr = (xr instanceof ASurfaceRenderer) ? (ASurfaceRenderer) xr : null;
         int targetFps = xr != null ? xr.getFpsLimit() : 0;
-        // LSFG armed: game runs at base rate, display shows multiplied frames.
-        if (targetFps > 0 && frameGenDivisor > 1) targetFps = Math.max(1, targetFps / frameGenDivisor);
 
         long ust = System.nanoTime() / 1000;
         long msc = ust / (targetFps > 0 ? (1_000_000L / targetFps) : (1_000_000L / 60));

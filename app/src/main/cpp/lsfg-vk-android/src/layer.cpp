@@ -61,7 +61,6 @@ namespace {
     PFN_vkQueueSubmit next_vkQueueSubmit{};
     PFN_vkCmdPipelineBarrier next_vkCmdPipelineBarrier{};
     PFN_vkCmdBlitImage next_vkCmdBlitImage{};
-    PFN_vkCmdCopyImage next_vkCmdCopyImage{};
     PFN_vkAcquireNextImageKHR next_vkAcquireNextImageKHR{};
 
     template<typename T>
@@ -238,9 +237,6 @@ namespace {
             success &= initDeviceFunc(*pDevice, "vkQueueSubmit", &next_vkQueueSubmit);
             success &= initDeviceFunc(*pDevice, "vkCmdPipelineBarrier", &next_vkCmdPipelineBarrier);
             success &= initDeviceFunc(*pDevice, "vkCmdBlitImage", &next_vkCmdBlitImage);
-            // vkCmdCopyImage is optional: older wrappers may not expose it.
-            // Missing pointer = callers fall back to Blit.
-            initDeviceFunc(*pDevice, "vkCmdCopyImage", &next_vkCmdCopyImage);
             success &= initDeviceFunc(*pDevice, "vkAcquireNextImageKHR", &next_vkAcquireNextImageKHR);
             if (!success)
                 throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED,
@@ -548,38 +544,6 @@ namespace Layer {
             const VkImageBlit* pRegions,
             VkFilter filter) {
         next_vkCmdBlitImage(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, filter);
-    }
-    void ovkCmdCopyImage(
-            VkCommandBuffer commandBuffer,
-            VkImage srcImage,
-            VkImageLayout srcImageLayout,
-            VkImage dstImage,
-            VkImageLayout dstImageLayout,
-            uint32_t regionCount,
-            const VkImageCopy* pRegions) {
-        // Fall back to Blit when the driver didn't expose Copy.
-        if (!next_vkCmdCopyImage) {
-            for (uint32_t i = 0; i < regionCount; ++i) {
-                const VkImageBlit blit{
-                    .srcSubresource = pRegions[i].srcSubresource,
-                    .srcOffsets = {
-                        pRegions[i].srcOffset,
-                        { pRegions[i].srcOffset.x + static_cast<int32_t>(pRegions[i].extent.width),
-                          pRegions[i].srcOffset.y + static_cast<int32_t>(pRegions[i].extent.height),
-                          pRegions[i].srcOffset.z + static_cast<int32_t>(pRegions[i].extent.depth) } },
-                    .dstSubresource = pRegions[i].dstSubresource,
-                    .dstOffsets = {
-                        pRegions[i].dstOffset,
-                        { pRegions[i].dstOffset.x + static_cast<int32_t>(pRegions[i].extent.width),
-                          pRegions[i].dstOffset.y + static_cast<int32_t>(pRegions[i].extent.height),
-                          pRegions[i].dstOffset.z + static_cast<int32_t>(pRegions[i].extent.depth) } },
-                };
-                next_vkCmdBlitImage(commandBuffer, srcImage, srcImageLayout,
-                    dstImage, dstImageLayout, 1, &blit, VK_FILTER_NEAREST);
-            }
-            return;
-        }
-        next_vkCmdCopyImage(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
     }
 
     VkResult ovkAcquireNextImageKHR(
