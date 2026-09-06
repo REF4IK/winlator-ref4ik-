@@ -39,7 +39,7 @@ target_include_directories(lsfg-vk-framegen
 target_link_libraries(lsfg-vk-framegen
     PUBLIC volk)
 
-if(ANDROID)
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
     target_link_libraries(lsfg-vk-framegen PUBLIC log)
 endif()
 

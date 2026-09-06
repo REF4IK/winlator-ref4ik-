@@ -1331,6 +1331,7 @@
     <string name="steam_library_download_install_available">%1$s / %2$s   Доступно: %3$s</string>
     <string name="steam_library_delete_game">Удалить игру</string>
     <string name="steam_library_content_types_title">Типы контента</string>
+    <string name="steam_library_content_filter_all">Все</string>
     <string name="steam_library_content_filter_games">Игры</string>
     <string name="steam_library_content_filter_dlc">DLC</string>
     <string name="steam_library_content_filter_applications">Приложения</string>

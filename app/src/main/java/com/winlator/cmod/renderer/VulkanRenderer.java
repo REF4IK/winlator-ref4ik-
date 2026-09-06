@@ -49,6 +49,7 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
     private Drawable rootCursorDrawable;
     private Cursor lastCursor = null;
     private boolean xRenderingPausedForScanout = false;
+    private volatile boolean lsfgArmed = false;
     private int[] pendingEffectTypes = null;
     private float[][] pendingEffectParams = null;
     private boolean scanoutBlockedForEffects = false;
@@ -486,6 +487,7 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
                     GPUImage g = (GPUImage) pixmap.getTexture();
                     long ahbPtr = g.getHardwareBufferPtr();
                     if (ahbPtr != 0) {
+                        maybeEnableLsfgScanout(pixmap.isDirectScanout());
                         if (nativeMode && pixmap.isDirectScanout() && nativeIsScanoutActive(nativeHandle) && !scanoutBlockedForEffects) {
                             int fence = g.unlock();
                             nativeScanoutSetBuffer(nativeHandle, ahbPtr,
@@ -533,6 +535,7 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
                     GPUImage g = (GPUImage) drawable.getTexture();
                     long ahbPtr = g.getHardwareBufferPtr();
                     if (ahbPtr != 0) {
+                        maybeEnableLsfgScanout(drawable.isDirectScanout());
                         boolean scanoutNow = nativeMode && nativeIsScanoutActive(nativeHandle) && !scanoutBlockedForEffects;
                         if (nativeMode && drawable.isDirectScanout() && scanoutNow) {
                             boolean wasDelivered = nativeIsGameFrameDelivered(nativeHandle);
@@ -704,6 +707,21 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
     }
 
     public boolean isNativeMode() { return nativeMode; }
+
+    /**
+     * LSFG armed: нативный вывод включается ЛЕНИВО — по первому AHB-кадру
+     * в scanout-ветках ниже, а не сразу. Иначе пустой opaque SC ложится
+     * поверх композита (черный экран) для CPU/GDI-контента без scanout-кадров.
+     */
+    public void setLsfgArmed(boolean armed) { lsfgArmed = armed; }
+
+    public boolean isLsfgArmed() { return lsfgArmed; }
+
+    private void maybeEnableLsfgScanout(boolean scanoutEligible) {
+        if (lsfgArmed && !nativeMode && !scanoutBlockedForEffects && scanoutEligible) {
+            setNativeMode(true);
+        }
+    }
 
     public void disableScanoutForEffects() {
         scanoutBlockedForEffects = true;

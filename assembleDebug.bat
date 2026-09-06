@@ -5,8 +5,8 @@ rem Root directory of this project (where this .bat is located)
 set "PROJECT_DIR=%~dp0"
 if "%PROJECT_DIR:~-1%"=="\" set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
 
-set "LOCAL_JAVA_HOME=%PROJECT_DIR%\jdk-17.0.2"
-set "LOCAL_ANDROID_SDK_ROOT=%PROJECT_DIR%\android-sdk"
+set "LOCAL_JAVA_HOME=D:\procect vscode\sdkkkk\jdk-17.0.2"
+set "LOCAL_ANDROID_SDK_ROOT=D:\procect vscode\sdkkkk\android-sdk"
 
 if exist "%LOCAL_JAVA_HOME%\bin\java.exe" (
   set "JAVA_HOME=%LOCAL_JAVA_HOME%"
@@ -32,14 +32,14 @@ set "ANDROID_HOME=%ANDROID_SDK_ROOT%"
 
 if not exist "%JAVA_HOME%\bin\java.exe" (
   echo ERROR: JAVA_HOME not found: %JAVA_HOME%
-  echo Put JDK 17 into: %PROJECT_DIR%\jdk-17.0.2
+  echo Put JDK 17 into: D:\procect vscode\sdkkkk\jdk-17.0.2
   echo or set JAVA_HOME to an existing JDK 17 installation.
   exit /b 1
 )
 
 if not exist "%ANDROID_SDK_ROOT%\platforms" (
   echo ERROR: ANDROID_SDK_ROOT not found: %ANDROID_SDK_ROOT%
-  echo Put Android SDK into: %PROJECT_DIR%\android-sdk
+  echo Put Android SDK into: D:\procect vscode\sdkkkk\android-sdk
   echo or set ANDROID_SDK_ROOT/ANDROID_HOME to an existing SDK.
   exit /b 1
 )
@@ -50,17 +50,17 @@ rem Give Gradle/Kotlin heap (не больше 4+2GB: на 15GB-машине б�
 if not defined GRADLE_OPTS set "GRADLE_OPTS=-Xmx4096m -Dfile.encoding=UTF-8 -Dkotlin.daemon.jvm.options=-Xmx2048m"
 if not defined JAVA_TOOL_OPTIONS set "JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8"
 
-rem Keep Gradle caches inside the project to avoid permission issues in locked user profiles
-set "GRADLE_USER_HOME=%PROJECT_DIR%\.gradle-local"
+rem Keep Gradle caches outside project (moved to sdkkkk to avoid indexing 1.9GB cache)
+set "GRADLE_USER_HOME=D:\procect vscode\sdkkkk\.gradle-local"
 if not exist "%GRADLE_USER_HOME%" mkdir "%GRADLE_USER_HOME%" >nul 2>&1
 
-rem Keep Android user state inside the project as well
-set "ANDROID_USER_HOME=%PROJECT_DIR%\.android-home"
+rem Keep Android user state outside project as well
+set "ANDROID_USER_HOME=D:\procect vscode\sdkkkk\.android-home"
 if not exist "%ANDROID_USER_HOME%" mkdir "%ANDROID_USER_HOME%" >nul 2>&1
 
 rem Some Android tooling still resolves through HOME/USERPROFILE or user.home
-set "HOME=%PROJECT_DIR%"
-set "USERPROFILE=%PROJECT_DIR%"
+set "HOME=D:\procect vscode\sdkkkk"
+set "USERPROFILE=D:\procect vscode\sdkkkk"
 
 rem Detect NDK folder under android-sdk\ndk\*
 set "NDK_DIR="
@@ -118,5 +118,5 @@ if not "%ERR%"=="0" (
 echo.
 echo BUILD OK
 echo APK should be here:
-echo %PROJECT_DIR%\app\build-win\outputs\apk\debug\app-debug.apk
+echo D:\procect vscode\sdkkkk\build-win\outputs\apk\debug\app-debug.apk
 exit /b 0

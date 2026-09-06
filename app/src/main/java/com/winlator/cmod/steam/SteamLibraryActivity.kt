@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -143,6 +144,13 @@ import com.winlator.cmod.steam.ui.SteamGameDetailUi
 import com.winlator.cmod.steam.ui.SteamLibraryGameUi
 import com.winlator.cmod.steam.ui.SteamLibraryUiState
 import com.winlator.cmod.steam.ui.SteamLibraryViewModel
+import com.winlator.cmod.steam.store.SteamStoreViewModel
+import com.winlator.cmod.steam.store.StoreUiState
+import com.winlator.cmod.steam.store.ui.LibraryHomeSections
+import com.winlator.cmod.steam.store.ui.StoreDetailScreen
+import com.winlator.cmod.steam.store.ui.StoreHomeScreen
+import com.winlator.cmod.steam.store.ui.StoreSearchResults
+import com.winlator.cmod.steam.store.ui.StoreStripForGame
 import com.winlator.cmod.steam.utils.PrefManager
 import com.winlator.cmod.steam.utils.getAvatarURL
 import com.winlator.cmod.steam.workshop.WorkshopManager
@@ -160,11 +168,13 @@ import kotlinx.coroutines.withContext
 enum class SteamViewMode { GRID, GRID_CAPSULE, LIST, COMPACT, CAROUSEL }
 
 private enum class SteamTab {
-    DOWNLOADS,
+    STORE,
     STEAM,
+    DOWNLOADS,
 }
 
 private enum class SteamContentFilter {
+    ALL,
     GAMES,
     DLC,
     APPLICATIONS,
@@ -411,8 +421,9 @@ private fun SteamLibraryScreen(
 ) {
     val context = LocalContext.current
     var tab by rememberSaveable { mutableStateOf(SteamTab.STEAM) }
-    var contentFilter by rememberSaveable { mutableStateOf(SteamContentFilter.GAMES) }
+    var contentFilter by rememberSaveable { mutableStateOf(SteamContentFilter.ALL) }
     var selectedOverlayGameId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var storeDetailAppId by rememberSaveable { mutableStateOf<Int?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
     var loginPlaceholderUnlocked by rememberSaveable { mutableStateOf(false) }
     var searchVisible by rememberSaveable { mutableStateOf(false) }
@@ -421,12 +432,15 @@ private fun SteamLibraryScreen(
     var showProfileDialog by remember { mutableStateOf(false) }
     var showAchievements by remember { mutableStateOf<Int?>(null) }
     var viewMode by rememberSaveable { mutableStateOf(SteamViewMode.GRID) }
+    val storeViewModel: SteamStoreViewModel = viewModel()
+    val storeState by storeViewModel.ui.collectAsState()
 
     val tabGames = when (tab) {
         SteamTab.DOWNLOADS -> state.games.filter { it.isDownloading || it.installed }
-        SteamTab.STEAM -> state.games
+        else -> state.games
     }
     val visibleGames = tabGames
+        .distinctBy { it.appId }
         .filter { it.matchesContentFilter(contentFilter) }
         .filter { game ->
             searchQuery.isBlank() ||
@@ -437,6 +451,9 @@ private fun SteamLibraryScreen(
     val selectedContainerId = state.selectedGame?.assignedContainerId ?: state.selectedContainerId
     val selectedGame = state.selectedGame?.takeIf { it.appId == selectedOverlayGameId }
     val profileName = state.profile.name.ifBlank { "Steam" }
+    val profileOnline = state.profile.isOnline
+    val profileStatus = state.profile.status
+    val profileGame = state.profile.currentGame
     val hasOfflineLibrary = state.games.isNotEmpty()
     val hasStoredSession = remember(state.isLoggedIn, state.isOfflineMode) {
         state.isLoggedIn || state.isOfflineMode || SteamService.hasStoredCredentials(context)
@@ -482,35 +499,52 @@ private fun SteamLibraryScreen(
         )
 
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             SteamTopBar(
                 tab = tab,
                 isLoggedIn = state.isLoggedIn,
-                steamCount = filteredSteamCount,
-                canSearch = state.isLoggedIn || hasOfflineLibrary,
+                steamCount = state.totalGamesCount,
+                canSearch = state.isLoggedIn || hasOfflineLibrary || tab == SteamTab.STORE,
                 viewMode = viewMode,
+                profileName = profileName,
+                avatarUrl = state.profile.avatarUrl,
+                profileOnline = state.profile.isOnline,
+                profileStatus = state.profile.status,
+                profileGame = state.profile.currentGame,
                 onBack = onBack,
-                onRefresh = onRefresh,
-                onSelectTab = { tab = it },
+                onRefresh = {
+                    if (tab == SteamTab.STORE) storeViewModel.refreshHome()
+                    else onRefresh()
+                },
+                onSelectTab = {
+                    tab = it
+                    storeDetailAppId = null
+                },
                 onSearchClick = {
                     searchVisible = !searchVisible
                     if (!searchVisible) {
                         searchQuery = ""
+                        storeViewModel.setSearchQuery("")
                     }
                 },
                 onMenuClick = { menuExpanded = true },
+                onProfileClick = { if (state.isLoggedIn) showProfileDialog = true },
                 onViewModeChange = { viewMode = it },
             )
 
             if (searchVisible) {
                 SteamSearchField(
                     query = searchQuery,
-                    onQueryChange = { searchQuery = it },
+                    onQueryChange = {
+                        searchQuery = it
+                        if (tab == SteamTab.STORE) storeViewModel.setSearchQuery(it)
+                    },
                     onClose = {
                         searchQuery = ""
                         searchVisible = false
+                        storeViewModel.setSearchQuery("")
                     },
                 )
             }
@@ -620,74 +654,35 @@ private fun SteamLibraryScreen(
             }
 
             if (state.isLoggedIn || hasOfflineLibrary || hasStoredSession) {
+                // Ник + статус в одну строку под тулбаром — компактно
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable { if (state.isLoggedIn) showProfileDialog = true },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Row(
+                    Text(
+                        text = profileName,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "·",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Text(
+                        text = if (state.isLoggedIn && profileOnline && profileGame?.isNotBlank() == true) "В игре: $profileGame" else profileStatus,
+                        color = if (profileOnline) Color(0xFF3DDC84) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(modifier = Modifier.size(32.dp)) {
-                            Box(
-                                modifier = Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)).border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (state.profile.avatarUrl.isNotBlank()) {
-                                    AsyncImage(
-                                        model = state.profile.avatarUrl,
-                                        contentDescription = profileName,
-                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
-                                        contentScale = ContentScale.Crop,
-                                    )
-                                } else {
-                                    Icon(Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                }
-                            }
-                            if (state.isLoggedIn) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .size(10.dp)
-                                        .clip(CircleShape)
-                                        .background(if (state.profile.isOnline) Color(0xFF3DDC84) else MaterialTheme.colorScheme.onSurfaceVariant)
-                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                                )
-                            }
-                        }
-                        Column {
-                            Text(
-                                text = profileName,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = if (state.isLoggedIn && state.profile.isOnline && state.profile.currentGame?.isNotBlank() == true) "В игре: ${state.profile.currentGame}" else state.profile.status,
-                                color = if (state.profile.isOnline) Color(0xFF3DDC84) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                    if (state.isLoggedIn) {
-                        val onlineCount = SteamService.friendsList.value.count { it.isOnline }
-                        Box(modifier = Modifier.clip(CircleShape).clickable { showProfileDialog = true }.padding(6.dp)) {
-                            Icon(Icons.Filled.Person, contentDescription = stringResource(R.string.steam_friends_title), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-                            if (onlineCount > 0) {
-                                Badge(modifier = Modifier.align(Alignment.TopEnd).size(14.dp), containerColor = MaterialTheme.colorScheme.primary) {
-                                    Text(text = onlineCount.toString(), color = MaterialTheme.colorScheme.onPrimary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
+                    )
                     if (state.isRefreshing) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                     }
                 }
             }
@@ -699,129 +694,92 @@ private fun SteamLibraryScreen(
                 )
             }
 
-            when {
-                state.containers.isEmpty() -> SteamPlaceholder(
-                    title = stringResource(R.string.steam_no_containers),
-                    body = stringResource(R.string.steam_library_no_containers_message),
-                )
-                shouldShowStartupLoader -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(34.dp),
-                        strokeWidth = 3.dp,
+            // Разделы витрины поверх библиотечной сетки
+            if (tab == SteamTab.STORE) {
+                if (storeDetailAppId != null) {
+                    StoreDetailScreen(
+                        appId = storeDetailAppId!!,
+                        onBack = { storeDetailAppId = null },
+                        onFindInLibrary = { appId ->
+                            storeDetailAppId = null
+                            tab = SteamTab.STEAM
+                            val target = state.games.firstOrNull { it.appId == appId }
+                            if (target != null) {
+                                selectedOverlayGameId = target.appId
+                                onSelectGame(target.appId)
+                            }
+                        },
+                        viewModel = storeViewModel,
+                    )
+                } else if (searchQuery.isNotBlank()) {
+                    StoreSearchResults(
+                        state = storeState,
+                        onOpenDetail = { storeDetailAppId = it },
+                    )
+                } else {
+                    StoreHomeScreen(
+                        onOpenDetail = { storeDetailAppId = it },
+                        viewModel = storeViewModel,
                     )
                 }
-                !state.isLoggedIn && !hasOfflineLibrary && !hasStoredSession -> SteamPlaceholder(
-                    title = stringResource(R.string.steam_library_login_title),
-                    body = stringResource(R.string.steam_library_login_hint),
-                    actionLabel = stringResource(R.string.steam_library_login_button),
-                    onAction = onLogin,
+            } else {
+                LibraryGridContent(
+                    state = state,
+                    tab = tab,
+                    searchQuery = searchQuery,
+                    viewMode = viewMode,
+                    visibleGames = visibleGames,
+                    shouldShowStartupLoader = shouldShowStartupLoader,
+                    hasOfflineLibrary = hasOfflineLibrary,
+                    hasStoredSession = hasStoredSession,
+                    storeState = storeState,
+                    onLogin = onLogin,
+                    onOpenGame = { appId ->
+                        selectedOverlayGameId = appId
+                        onSelectGame(appId)
+                    },
+                    onOpenStoreDetail = { appId ->
+                        storeDetailAppId = appId
+                        tab = SteamTab.STORE
+                    },
                 )
-                visibleGames.isEmpty() -> SteamPlaceholder(
-                    title = stringResource(R.string.steam_library_empty_title),
-                    body = stringResource(R.string.steam_library_empty_filtered),
-                )
-                else -> Box(modifier = Modifier.fillMaxSize()) {
-                    when (viewMode) {
-                        SteamViewMode.GRID -> {
-                            LazyVerticalGrid(
-                                columns = GridCells.Adaptive(182.dp),
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 20.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(visibleGames, key = { it.appId }) { game ->
-                                    SteamGameCard(
-                                        game = game,
-                                        onClick = {
-                                            selectedOverlayGameId = game.appId
-                                            onSelectGame(game.appId)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                        SteamViewMode.GRID_CAPSULE -> {
-                            LazyVerticalGrid(
-                                columns = GridCells.Adaptive(122.dp),
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 20.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(visibleGames, key = { it.appId }) { game ->
-                                    SteamGameCapsuleCard(
-                                        game = game,
-                                        onClick = {
-                                            selectedOverlayGameId = game.appId
-                                            onSelectGame(game.appId)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                        SteamViewMode.LIST -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                items(visibleGames, key = { it.appId }) { game ->
-                                    SteamGameListCard(
-                                        game = game,
-                                        onClick = {
-                                            selectedOverlayGameId = game.appId
-                                            onSelectGame(game.appId)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                        SteamViewMode.COMPACT -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                items(visibleGames, key = { it.appId }) { game ->
-                                    SteamGameCompactCard(
-                                        game = game,
-                                        onClick = {
-                                            selectedOverlayGameId = game.appId
-                                            onSelectGame(game.appId)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                        SteamViewMode.CAROUSEL -> {
-                            LazyRow(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            ) {
-                                items(visibleGames, key = { it.appId }) { game ->
-                                    SteamGameCarouselCard(
-                                        game = game,
-                                        onClick = {
-                                            selectedOverlayGameId = game.appId
-                                            onSelectGame(game.appId)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
 
         if (selectedOverlayGameId != null) {
+            // Оверлей ждёт деталь из ViewModel; если её нет (офлайн/гонка) —
+            // строим минимальную из списка, чтобы тап всегда открывал карточку
+            val overlayGame = selectedGame ?: state.games
+                .firstOrNull { it.appId == selectedOverlayGameId }
+                ?.let {
+                    com.winlator.cmod.steam.ui.SteamGameDetailUi(
+                        appId = it.appId,
+                        name = it.name,
+                        subtitle = it.subtitle,
+                        appType = it.appType,
+                        capsuleUrl = it.capsuleUrl,
+                        heroUrl = it.heroUrl,
+                        logoUrl = it.logoUrl,
+                        installed = it.installed,
+                        isDownloading = it.isDownloading,
+                        downloadPhase = it.downloadPhase,
+                        downloadProgress = it.downloadProgress,
+                        statusLine = it.statusLine,
+                        installPath = "",
+                        downloadSizeBytes = 0L,
+                        installSizeBytes = 0L,
+                        availableBytes = 0L,
+                        downloadedBytes = 0L,
+                        totalBytes = 0L,
+                        speedBytesPerSec = null,
+                        etaMs = null,
+                        currentFileName = null,
+                        releaseDateSeconds = 0L,
+                        assignedContainerId = it.assignedContainerId,
+                    )
+                }
             SteamGameOverlay(
-                game = selectedGame,
+                game = overlayGame,
                 activeTab = tab,
                 containers = state.containers,
                 selectedContainerId = selectedContainerId,
@@ -870,87 +828,306 @@ private fun SteamTopBar(
     steamCount: Int,
     canSearch: Boolean,
     viewMode: SteamViewMode,
+    profileName: String,
+    avatarUrl: String,
+    profileOnline: Boolean,
+    profileStatus: String,
+    profileGame: String?,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onSelectTab: (SteamTab) -> Unit,
     onSearchClick: () -> Unit,
     onMenuClick: () -> Unit,
+    onProfileClick: () -> Unit,
     onViewModeChange: (SteamViewMode) -> Unit,
 ) {
+    // Одна строка: назад + табы + поиск/обновление/меню + аватар в углу.
+    // Высота тулбара ужата: кнопки 36dp, табы без лишних паддингов.
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(max = 44.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RoundActionButton(Icons.AutoMirrored.Filled.ArrowBack, onBack, size = 42)
-
-        // Segmented control — one track, a single moving selection.
+        RoundActionButton(Icons.AutoMirrored.Filled.ArrowBack, onBack, size = 36)
         Row(
             modifier = Modifier
+                .weight(1f)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                .padding(3.dp),
+                .padding(3.dp)
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            SteamTabButton(
+            SteamTabIcon(
+                icon = Icons.Filled.Home,
+                label = "Магазин",
+                selected = tab == SteamTab.STORE,
+                onClick = { onSelectTab(SteamTab.STORE) },
+            )
+            SteamTabIcon(
+                icon = Icons.Filled.GridView,
+                label = "STEAM",
+                badge = steamCount.takeIf { it > 0 }?.toString(),
+                selected = tab == SteamTab.STEAM,
+                onClick = { onSelectTab(SteamTab.STEAM) },
+            )
+            SteamTabIcon(
+                icon = Icons.Filled.CloudDownload,
                 label = stringResource(R.string.steam_library_tab_downloads),
                 selected = tab == SteamTab.DOWNLOADS,
                 onClick = { onSelectTab(SteamTab.DOWNLOADS) },
             )
-            SteamTabButton(
-                label = if (steamCount > 0) {
-                    stringResource(R.string.steam_library_tab_steam_count, steamCount)
-                } else {
-                    stringResource(R.string.steam_library_tab_steam)
-                },
-                selected = tab == SteamTab.STEAM,
-                onClick = { onSelectTab(SteamTab.STEAM) },
-            )
         }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // View-mode switch, grouped on its own track so it reads as one control.
-        if (tab == SteamTab.STEAM) {
-            Row(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                    .padding(3.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                SteamViewButton(
-                    icon = Icons.Filled.GridView,
-                    selected = viewMode == SteamViewMode.GRID,
-                    onClick = { onViewModeChange(SteamViewMode.GRID) },
+        RoundActionButton(Icons.Filled.Search, onSearchClick, enabled = canSearch, size = 36)
+        RoundActionButton(Icons.Filled.Refresh, onRefresh, size = 36)
+        RoundActionButton(Icons.Filled.Tune, onMenuClick, size = 36)
+        // Профиль — аватар в правом углу тулбара
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), CircleShape)
+                .clickable(onClick = onProfileClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (avatarUrl.isNotBlank()) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = profileName,
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    contentScale = ContentScale.Crop,
                 )
-                SteamViewButton(
-                    icon = Icons.Filled.Image,
-                    selected = viewMode == SteamViewMode.GRID_CAPSULE,
-                    onClick = { onViewModeChange(SteamViewMode.GRID_CAPSULE) },
-                )
-                SteamViewButton(
-                    icon = Icons.Filled.FormatListBulleted,
-                    selected = viewMode == SteamViewMode.LIST,
-                    onClick = { onViewModeChange(SteamViewMode.LIST) },
-                )
-                SteamViewButton(
-                    icon = Icons.Filled.ViewCompact,
-                    selected = viewMode == SteamViewMode.COMPACT,
-                    onClick = { onViewModeChange(SteamViewMode.COMPACT) },
-                )
-                SteamViewButton(
-                    icon = Icons.Filled.Slideshow,
-                    selected = viewMode == SteamViewMode.CAROUSEL,
-                    onClick = { onViewModeChange(SteamViewMode.CAROUSEL) },
+            } else {
+                Icon(Icons.Filled.Person, contentDescription = profileName, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            }
+            if (isLoggedIn) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(if (profileOnline) Color(0xFF3DDC84) else MaterialTheme.colorScheme.onSurfaceVariant)
+                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
                 )
             }
-            Spacer(modifier = Modifier.width(2.dp))
         }
+    }
 
-        RoundActionButton(Icons.Filled.Search, onSearchClick, enabled = canSearch, size = 42)
-        RoundActionButton(Icons.Filled.Refresh, onRefresh, size = 42)
-        RoundActionButton(Icons.Filled.Tune, onMenuClick, size = 42)
+    // Переключатель вида — только на табе STEAM, в одну строку с отступом 0
+    if (tab == SteamTab.STEAM) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 4.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                .padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            SteamViewButton(
+                icon = Icons.Filled.GridView,
+                selected = viewMode == SteamViewMode.GRID,
+                onClick = { onViewModeChange(SteamViewMode.GRID) },
+            )
+            SteamViewButton(
+                icon = Icons.Filled.Image,
+                selected = viewMode == SteamViewMode.GRID_CAPSULE,
+                onClick = { onViewModeChange(SteamViewMode.GRID_CAPSULE) },
+            )
+            SteamViewButton(
+                icon = Icons.Filled.FormatListBulleted,
+                selected = viewMode == SteamViewMode.LIST,
+                onClick = { onViewModeChange(SteamViewMode.LIST) },
+            )
+            SteamViewButton(
+                icon = Icons.Filled.ViewCompact,
+                selected = viewMode == SteamViewMode.COMPACT,
+                onClick = { onViewModeChange(SteamViewMode.COMPACT) },
+            )
+            SteamViewButton(
+                icon = Icons.Filled.Slideshow,
+                selected = viewMode == SteamViewMode.CAROUSEL,
+                onClick = { onViewModeChange(SteamViewMode.CAROUSEL) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SteamTabIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    badge: String? = null,
+) {
+    val container by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "tabIconContainer",
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "tabIconContent",
+    )
+    Box(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(container)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = label, tint = content, modifier = Modifier.size(18.dp))
+            Text(
+                text = label,
+                color = content,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+            if (badge != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(content.copy(alpha = 0.22f))
+                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        text = badge,
+                        color = content,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryGridContent(
+    state: SteamLibraryUiState,
+    tab: SteamTab,
+    searchQuery: String,
+    viewMode: SteamViewMode,
+    visibleGames: List<SteamLibraryGameUi>,
+    shouldShowStartupLoader: Boolean,
+    hasOfflineLibrary: Boolean,
+    hasStoredSession: Boolean,
+    storeState: StoreUiState,
+    onLogin: () -> Unit,
+    onOpenGame: (Int) -> Unit,
+    onOpenStoreDetail: (Int) -> Unit,
+) {
+    when {
+        state.containers.isEmpty() -> SteamPlaceholder(
+            title = stringResource(R.string.steam_no_containers),
+            body = stringResource(R.string.steam_library_no_containers_message),
+        )
+        shouldShowStartupLoader -> Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(34.dp), strokeWidth = 3.dp)
+        }
+        !state.isLoggedIn && !hasOfflineLibrary && !hasStoredSession -> SteamPlaceholder(
+            title = stringResource(R.string.steam_library_login_title),
+            body = stringResource(R.string.steam_library_login_hint),
+            actionLabel = stringResource(R.string.steam_library_login_button),
+            onAction = onLogin,
+        )
+        visibleGames.isEmpty() -> SteamPlaceholder(
+            title = stringResource(R.string.steam_library_empty_title),
+            body = stringResource(R.string.steam_library_empty_filtered),
+        )
+        else -> Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            if (tab == SteamTab.STEAM && searchQuery.isBlank()) {
+                LibraryHomeSections(
+                    games = state.games,
+                    news = storeState.news,
+                    onOpenGame = onOpenGame,
+                    onOpenStoreDetail = onOpenStoreDetail,
+                )
+                Text(
+                    text = stringResource(R.string.steam_library_tab_steam),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+            Box(modifier = Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                when (viewMode) {
+                    SteamViewMode.GRID -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(182.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(visibleGames, key = { it.appId }) { game ->
+                                SteamGameCard(game = game, onClick = { onOpenGame(game.appId) })
+                            }
+                        }
+                    }
+                    SteamViewMode.GRID_CAPSULE -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(122.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(visibleGames, key = { it.appId }) { game ->
+                                SteamGameCapsuleCard(game = game, onClick = { onOpenGame(game.appId) })
+                            }
+                        }
+                    }
+                    SteamViewMode.LIST -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(visibleGames, key = { it.appId }) { game ->
+                                SteamGameListCard(game = game, onClick = { onOpenGame(game.appId) })
+                            }
+                        }
+                    }
+                    SteamViewMode.COMPACT -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            items(visibleGames, key = { it.appId }) { game ->
+                                SteamGameCompactCard(game = game, onClick = { onOpenGame(game.appId) })
+                            }
+                        }
+                    }
+                    SteamViewMode.CAROUSEL -> {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth().height(240.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            items(visibleGames, key = { it.appId }) { game ->
+                                SteamGameCarouselCard(game = game, onClick = { onOpenGame(game.appId) })
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1624,7 +1801,8 @@ private fun SteamGameCompactCard(game: SteamLibraryGameUi, onClick: () -> Unit) 
 
 private fun SteamLibraryGameUi.matchesContentFilter(filter: SteamContentFilter): Boolean {
     return when (filter) {
-        SteamContentFilter.GAMES -> appType == AppType.game || appType == AppType.demo
+        SteamContentFilter.ALL -> true
+        SteamContentFilter.GAMES -> appType == AppType.game || appType == AppType.demo || appType == AppType.invalid
         SteamContentFilter.DLC -> appType == AppType.dlc
         SteamContentFilter.APPLICATIONS -> appType == AppType.application
         SteamContentFilter.TOOLS -> appType == AppType.tool
@@ -1634,6 +1812,7 @@ private fun SteamLibraryGameUi.matchesContentFilter(filter: SteamContentFilter):
 @Composable
 private fun SteamContentFilter.label(): String {
     return when (this) {
+        SteamContentFilter.ALL -> stringResource(R.string.steam_library_content_filter_all)
         SteamContentFilter.GAMES -> stringResource(R.string.steam_library_content_filter_games)
         SteamContentFilter.DLC -> stringResource(R.string.steam_library_content_filter_dlc)
         SteamContentFilter.APPLICATIONS -> stringResource(R.string.steam_library_content_filter_applications)
@@ -1805,32 +1984,56 @@ private fun SteamGameOverlay(
                 Box(modifier = Modifier.align(Alignment.TopEnd).padding(14.dp)) {
                     RoundActionButton(Icons.Filled.Close, onClose, size = 40)
                 }
-                // Game info at top-left
+                // Game info at top-left — hero-баннер в стиле десктопа:
+                // логотип + имя + разработчик + статус-пилюли поверх арта
                 Column(
                     modifier = Modifier.align(Alignment.TopStart).padding(horizontal = 18.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (game.logoUrl.isNotBlank()) {
                         AsyncImage(
                             model = game.logoUrl,
                             contentDescription = game.name,
                             modifier = Modifier
-                                .height(36.dp)
-                                .fillMaxWidth(0.42f),
+                                .height(44.dp)
+                                .fillMaxWidth(0.5f),
                             contentScale = ContentScale.Fit,
                         )
                     }
                     Text(
                         game.name,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = Color.White,
                         style = if (compactLayout) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     if (game.subtitle.isNotBlank()) {
                         Text(
                             game.subtitle,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = Color.White.copy(alpha = 0.75f),
                             style = if (compactLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    // Статус-пилюли: установлен / загрузка / обновление
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (showInstalledActions) {
+                            StatusBadge(text = game.statusLine, solid = true)
+                        } else if (isDownloadSession) {
+                            StatusBadge(text = game.statusLine, solid = true)
+                        } else {
+                            StatusBadge(text = stringResource(R.string.steam_library_tab_steam), solid = true)
+                        }
+                        if (updatePending == true) {
+                            StatusBadge(text = stringResource(R.string.steam_library_update_pending_badge))
+                        }
+                    }
+                    // Наиграно / последний запуск прямо под именем
+                    if (showInstalledActions) {
+                        Text(
+                            "$playtimeText • $lastPlayedText",
+                            color = Color.White.copy(alpha = 0.65f),
+                            style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -1928,6 +2131,7 @@ private fun SteamGameOverlay(
                                 )
                             }
                         } else {
+                            // Не установлена: размер + место + путь + прогресс
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1952,6 +2156,8 @@ private fun SteamGameOverlay(
                             if (game.isDownloading || game.downloadProgress > 0f) {
                                 DownloadProgressCard(game = game, compactLayout = compactLayout)
                             }
+                            // Магазинная полоса: цена/скидка/отзывы из Store API
+                            StoreStripForGame(appId = game.appId)
                         }
                     }
 

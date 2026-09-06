@@ -2,8 +2,8 @@
 setlocal
 
 set "ROOT=%~dp0"
-set "APK=%ROOT%app\build-win\outputs\apk\debug\app-debug.apk"
-set "ADB=%ROOT%android-sdk\platform-tools\adb.exe"
+set "APK=D:\procect vscode\sdkkkk\build-win\outputs\apk\debug\app-debug.apk"
+set "ADB=D:\procect vscode\sdkkkk\android-sdk\platform-tools\adb.exe"
 
 if not exist "%APK%" (
     echo APK not found: %APK%

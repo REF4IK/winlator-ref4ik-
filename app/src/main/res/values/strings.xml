@@ -1348,6 +1348,7 @@
     <string name="steam_library_content_types_title">Content types</string>
     <string name="steam_library_go_offline">Go offline</string>
     <string name="steam_library_go_online">Go online</string>
+    <string name="steam_library_content_filter_all">All</string>
     <string name="steam_library_content_filter_games">Games</string>
     <string name="steam_library_content_filter_dlc">DLC</string>
     <string name="steam_library_content_filter_applications">Applications</string>

@@ -123,30 +123,27 @@ void Utils::copyImage(VkCommandBuffer buf,
         0, nullptr, 0, nullptr,
         static_cast<uint32_t>(barriers.size()), barriers.data());
 
-    const VkImageBlit imageBlit{
+    // Full-size 1:1 copy: vkCmdCopyImage is cheaper than Blit on tiled
+    // mobile GPUs (no sampler/filter setup). Extents always match here —
+    // LSFG copies whole frames of identical size (swapchain extent).
+    const VkImageCopy imageCopy{
         .srcSubresource = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1
         },
-        .srcOffsets = {
-            { 0, 0, 0 },
-            { static_cast<int32_t>(width), static_cast<int32_t>(height), 1 }
-        },
+        .srcOffset = { 0, 0, 0 },
         .dstSubresource = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1
         },
-        .dstOffsets = {
-            { 0, 0, 0 },
-            { static_cast<int32_t>(width), static_cast<int32_t>(height), 1 }
-        }
+        .dstOffset = { 0, 0, 0 },
+        .extent = { width, height, 1 }
     };
-    Layer::ovkCmdBlitImage(
+    Layer::ovkCmdCopyImage(
         buf,
         src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1, &imageBlit,
-        VK_FILTER_NEAREST
+        1, &imageCopy
     );
 
     if (makeSrcPresentable) {

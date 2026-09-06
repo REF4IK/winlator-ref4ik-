@@ -346,17 +346,13 @@ VkResult LsContext::present(const Hooks::DeviceInfo& info, const void* pNext, Vk
         gameRenderSemaphores2.emplace_back(this->passInfos.at((this->frameIdx - 1) % 8)
             .preCopySemaphores.at(1).handle());
 
-    // Submit the copy and wait for it to complete synchronously.
-    // On Android we need the copy to finish before calling presentContext
-    // because there's no FD-based cross-device semaphore to chain them.
+    // Submit the copy. Same-queue submission order already guarantees the
+    // copy runs after the game's work signalled via gameRenderSemaphores2 —
+    // no extra barrier submit needed. presentContext below + waitIdle() then
+    // sync framegen's internal device before we read the output images.
     pass.preCopyBuf.submit(info.queue.second,
         gameRenderSemaphores2,
         { pass.preCopySemaphores.at(1).handle() });
-
-    // Wait for the pre-copy to finish before telling framegen to start.
-    // This is a device-wide idle wait — heavier than semaphore-based sync
-    // but necessary because OPAQUE_FD is not available on Android.
-    Layer::ovkQueueSubmit(info.queue.second, 0, nullptr, VK_NULL_HANDLE);
 
     // 2. Tell framegen to generate intermediary frames
     //    presentContext(id, -1, {}) — no semaphore FDs, synchronous

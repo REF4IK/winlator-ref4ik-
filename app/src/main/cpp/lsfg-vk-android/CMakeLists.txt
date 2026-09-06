@@ -13,30 +13,32 @@ if(LSFGVK_ANDROID_WINE)
     add_compile_definitions(LSFGVK_ANDROID_WINE=1)
 endif()
 
-# Android: включить platform-типы/указатели Vulkan (VkAndroidHardwareBuffer*,
-# vkGetAndroidHardwareBufferPropertiesANDROID) — нужны lsfg-vk-framegen
-# (AHardwareBuffer-путь в image.cpp). Передаётся PUBLIC через volk всем
-# потребителям. Должно быть задано ДО add_subdirectory(thirdparty/volk).
-if(ANDROID)
-    set(VOLK_STATIC_DEFINES "VK_USE_PLATFORM_ANDROID_KHR" CACHE STRING "" FORCE)
-endif()
+# (VOLK_STATIC_DEFINES задаётся ниже, после project())
 
-# subprojects
+# subprojects — ПОСЛЕ project(): тулчейн (ANDROID/CMAKE_SYSTEM_NAME)
+# подхватывается только в project(), проверки до него всегда false.
 add_compile_options(-fPIC
     -Wno-deprecated-declarations
     -Wno-unused-template)
-
-add_subdirectory(thirdparty/dxbc EXCLUDE_FROM_ALL)
-add_subdirectory(thirdparty/pe-parse/pe-parser-library EXCLUDE_FROM_ALL)
-add_subdirectory(thirdparty/toml11 EXCLUDE_FROM_ALL)
-add_subdirectory(thirdparty/volk EXCLUDE_FROM_ALL)
-add_subdirectory(framegen)
 
 # main project
 project(lsfg-vk
     VERSION 1.0.0
     DESCRIPTION "Lossless Scaling Frame Generation on Linux"
     LANGUAGES CXX)
+
+# Android: platform-типы Vulkan (VkAndroidHardwareBuffer* и др.) для
+# lsfg-vk-framegen. Через volk PUBLIC всем потребителям.
+# ДО add_subdirectory(thirdparty/volk), но ПОСЛЕ project().
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(VOLK_STATIC_DEFINES "VK_USE_PLATFORM_ANDROID_KHR" CACHE STRING "" FORCE)
+endif()
+
+add_subdirectory(thirdparty/dxbc EXCLUDE_FROM_ALL)
+add_subdirectory(thirdparty/pe-parse/pe-parser-library EXCLUDE_FROM_ALL)
+add_subdirectory(thirdparty/toml11 EXCLUDE_FROM_ALL)
+add_subdirectory(thirdparty/volk EXCLUDE_FROM_ALL)
+add_subdirectory(framegen)
 
 file(GLOB SOURCES
     "src/config/*.cpp"
@@ -59,7 +61,7 @@ target_link_libraries(lsfg-vk PRIVATE
     lsfg-vk-framegen
     c++_shared)
 
-if(ANDROID)
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
     target_link_libraries(lsfg-vk PRIVATE android)
     target_include_directories(lsfg-vk PRIVATE "${ANDROID_NDK}/sources/android/native_app_glue")
 endif()
