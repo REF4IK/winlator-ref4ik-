@@ -2722,7 +2722,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         final int[] mults = {0, 2, 3, 4};
         final String[] labels = {"Off", "2x", "3x", "4x"};
-        int curMult = container.getFrameGenMultiplier();
+        // Live state, not the saved preset: launch always starts disarmed.
+        int curMult = getLastFgMult();
         int checked = 0;
         for (int i = 0; i < mults.length; i++) if (mults[i] == curMult) checked = i;
 
@@ -2850,6 +2851,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         VulkanRenderer vkr = vulkanRendererOrNull();
         if (vkr == null) {
             Log.w("XServerDisplayActivity", "applyLsfgNative(" + multiplier + ") ignored - no Vulkan renderer");
+            lastFgMult = 0;
             return;
         }
         Log.i("XServerDisplayActivity", "applyLsfgNative: multiplier=" + multiplier
@@ -2858,6 +2860,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 com.winlator.cmod.core.LsfgNative.cacheFile(this).getAbsolutePath());
         vkr.setFrameGenTuning(flowScale, currentDisplayRefreshHz());
         vkr.setFrameGenArmed(multiplier >= 2, multiplier);
+        lastFgMult = multiplier >= 2 ? multiplier : 0;
         applyEffectivePresentMode();
         if (xServerView != null) {
             xServerView.setDisplayFrameRate(multiplier >= 2 ? currentDisplayRefreshHz() : 0f, 0);
@@ -2885,9 +2888,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private android.os.Handler lsfgStatsHandler;
     private Runnable lsfgStatsTick;
     private volatile String fgReadout = "";
+    // Live armed multiplier (0 = off). Dialogs show THIS, not the saved
+    // container preset: launch always starts disarmed.
+    private volatile int lastFgMult = 0;
 
     /** Latest readout line for the in-game frame-gen menu (polled by Compose). */
     public String getFgReadout() { return fgReadout; }
+
+    /** Live armed multiplier for menus (0 = currently off). */
+    public int getLastFgMult() { return lastFgMult; }
 
     private void startLsfgStatsReadout() {
         if (lsfgStatsHandler != null) return;
@@ -2911,7 +2920,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                             text += String.format(java.util.Locale.US, "  %.1f ms/frame GPU", st[5]);
                     }
                     fgReadout = text;
-                    if (frameRating != null) frameRating.setPresentedFps(shownFps);
+                    // HUD shows the same engine numbers as the FG menu.
+                    if (frameRating != null) frameRating.setFrameGenFps(realFps, shownFps);
                 }
                 if (lsfgStatsHandler != null) lsfgStatsHandler.postDelayed(this, 1000);
             }
@@ -2920,7 +2930,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     }
 
     private void stopLsfgStatsReadout() {
-        if (frameRating != null) frameRating.setPresentedFps(0f);
+        if (frameRating != null) frameRating.setFrameGenFps(0f, 0f);
         fgReadout = "";
         if (lsfgStatsHandler != null && lsfgStatsTick != null)
             lsfgStatsHandler.removeCallbacks(lsfgStatsTick);

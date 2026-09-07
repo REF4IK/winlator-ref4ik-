@@ -103,9 +103,9 @@ fun XServerMenuOverlay(
     var showFrameGenDialog by remember { mutableStateOf(false) }
     var showInputControlsDialog by remember { mutableStateOf(false) }
 
-    // Frame-gen status (native engine armed with multiplier >= 2)
+    // Frame-gen status dot: live armed state (launch always starts disarmed).
     val container = remember { activity.getContainer() }
-    val lsfgActive = container != null && container.isLsfgNative() && container.getFrameGenMultiplier() >= 2
+    val lsfgActive = container != null && container.isLsfgNative() && activity.getLastFgMult() >= 2
 
     // List of menu items to render
     data class XMenuItem(

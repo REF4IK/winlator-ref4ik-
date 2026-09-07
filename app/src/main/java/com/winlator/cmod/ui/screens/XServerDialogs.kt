@@ -648,7 +648,7 @@ fun FrameGenerationDialogCompose(
         return
     }
 
-    var multiplier by remember { mutableStateOf(container.getFrameGenMultiplier()) }
+    var multiplier by remember { mutableStateOf(activity.getLastFgMult()) }
     var flowScale by remember { mutableFloatStateOf(container.getFrameGenFlowScale()) }
     var readout by remember { mutableStateOf(activity.getFgReadout()) }
     LaunchedEffect(Unit) {

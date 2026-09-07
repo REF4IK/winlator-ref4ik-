@@ -56,6 +56,13 @@ class FrameRating @JvmOverloads constructor(
         private const val TARGET_60_FPS_MS = 16.67f
         private const val TARGET_30_FPS_MS = 33.33f
         private const val DEFAULT_SAMPLE_COUNT = 40
+
+        // Native LSFG presented fps (real + generated). Global so it survives
+        // HUD recreation and reset(); only the stats readout owns it (0 on stop).
+        @Volatile private var presentedFpsGlobal: Float = 0f
+        // Engine-measured real fps (same source as the FG menu readout).
+        // >= 0: HUD shows the engine pair real->shown; < 0: fallback to guest.
+        @Volatile private var fgRealFpsGlobal: Float = -1f
     }
 
     private val config = FpsCounterConfig(context)
@@ -1011,10 +1018,16 @@ class FrameRating @JvmOverloads constructor(
 
     // Native LSFG: presented (real + generated) fps from the compositor.
     // Shown as "real -> shown" next to the guest-rate counter; 0 = plain mode.
-    @Volatile private var presentedFps: Float = 0f
-
     fun setPresentedFps(fps: Float) {
-        presentedFps = fps
+        presentedFpsGlobal = fps
+        fgRealFpsGlobal = -1f
+    }
+
+    // Native LSFG: feed BOTH engine numbers (same source as the FG menu).
+    // While shown > 0 the HUD displays the engine pair, not the guest rate.
+    fun setFrameGenFps(realFps: Float, shownFps: Float) {
+        fgRealFpsGlobal = realFps
+        presentedFpsGlobal = shownFps
     }
 
     fun setGpuName(gpuName: String?) {
@@ -1168,9 +1181,15 @@ class FrameRating @JvmOverloads constructor(
         if (!overlayVisible) return
 
         if (config.isModuleVisible(FpsCounterConfig.Module.FPS)) {
-            val shown = presentedFps
-            fpsState = if (shown > 0f) String.format(Locale.ENGLISH, "%.1f→%.1f", lastFPS, shown)
-                       else String.format(Locale.ENGLISH, "%.1f", lastFPS)
+            val shown = presentedFpsGlobal
+            fpsState = if (shown > 0f) {
+                // Frame gen on: same numbers as the FG menu (engine-measured).
+                val real = fgRealFpsGlobal
+                if (real >= 0f) String.format(Locale.ENGLISH, "%.1f→%.1f", real, shown)
+                else String.format(Locale.ENGLISH, "%.1f→%.1f", lastFPS, shown)
+            } else {
+                String.format(Locale.ENGLISH, "%.1f", lastFPS)
+            }
         }
         if (config.isModuleVisible(FpsCounterConfig.Module.RENDERER)) {
             rendererState = renderer ?: "OpenGL"
