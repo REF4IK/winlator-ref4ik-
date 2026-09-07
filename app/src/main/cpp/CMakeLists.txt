@@ -31,10 +31,7 @@ add_subdirectory(OpenXR-SDK)
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
 add_subdirectory(asurfacerenderer)
-
-# lsfg-vk-android: build LSFG Vulkan layer from source
-set(LSFGVK_ANDROID_WINE ON CACHE BOOL "Build for Wine-on-Android" FORCE)
-add_subdirectory(lsfg-vk-android)
+add_subdirectory(thirdparty/dxbc)
 
 # MMKV: high-performance key-value storage (built from Tencent/MMKV source)
 add_subdirectory(mmkv)
@@ -122,10 +119,30 @@ foreach(EFFECT ${EFFECT_SHADERS})
 endforeach()
 
 # Vulkan renderer shared library
+# + lsfg-native: host-side LSFG frame generation (Lossless Scaling compute
+# chain, ported from Bannerlator feat/lsfg-native-compositor). Runs inside
+# the host compositor on already-imported VkImages — no guest layer.
 add_library(vulkan_renderer SHARED
         winlator/vulkan_jni.cpp
         winlator/VulkanRendererContext.cpp
         winlator/VulkanRendererScanout.cpp
+        winlator/lsfg/lsfg_probe.cpp
+        winlator/lsfg/lsfg_dll.cpp
+        winlator/lsfg/lsfg_dxbc.cpp
+        winlator/lsfg/lsfg_vkd.cpp
+        winlator/lsfg/lsfg_common.cpp
+        winlator/lsfg/lsfg_shaders.cpp
+        winlator/lsfg/lsfg_mipmaps.cpp
+        winlator/lsfg/lsfg_alpha.cpp
+        winlator/lsfg/lsfg_beta.cpp
+        winlator/lsfg/lsfg_gamma.cpp
+        winlator/lsfg/lsfg_delta.cpp
+        winlator/lsfg/lsfg_generate.cpp
+        winlator/lsfg/lsfg_chain.cpp
+        winlator/lsfg/lsfg_pacer.cpp
+        winlator/lsfg/lsfg_engine.cpp
+        winlator/lsfg/lsfg_governor.cpp
+        winlator/lsfg/lsfg_jni.cpp
 
         ${CMAKE_CURRENT_BINARY_DIR}/window_vert.h
         ${CMAKE_CURRENT_BINARY_DIR}/window_frag.h
@@ -142,6 +159,7 @@ target_link_libraries(vulkan_renderer
         android
         vulkan
         adrenotools
+        dxbc
         dl
         atomic
         c++_shared

@@ -154,10 +154,6 @@ import com.winlator.cmod.core.GPUInformation;
 
 import com.winlator.cmod.core.KeyValueSet;
 
-import com.winlator.cmod.core.LsfgQuickMenuHelper;
-
-import com.winlator.cmod.core.LsfgVkManager;
-
 import com.winlator.cmod.core.OnExtractFileListener;
 
 import com.winlator.cmod.core.PreloaderDialog;
@@ -1347,7 +1343,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 Bitmap coverBitmap = null;
 
-                // 1. Landscape cover (grid card — 920x430)
+                // 1. Landscape cover (grid card вЂ” 920x430)
                 if (coverBitmap == null && shortcutNameForCover != null) {
                     java.io.File landscapeFile = new java.io.File(
                             getFilesDir(), "coverArtCache/" + shortcutNameForCover + "_l.png");
@@ -1361,7 +1357,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                     coverBitmap = BitmapFactory.decodeFile(customCoverPath);
                 }
 
-                // 3. Portrait cover (game info card — 600x900)
+                // 3. Portrait cover (game info card вЂ” 600x900)
                 if (coverBitmap == null && shortcutNameForCover != null) {
                     java.io.File portraitFile = new java.io.File(
                             getFilesDir(), "coverArtCache/" + shortcutNameForCover + ".png");
@@ -2056,15 +2052,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (isExiting) return;
         isExiting = true;
 
-        // Показываем экран выхода (обложка → стрелка влево → Windows)
+        // РџРѕРєР°Р·С‹РІР°РµРј СЌРєСЂР°РЅ РІС‹С…РѕРґР° (РѕР±Р»РѕР¶РєР° в†’ СЃС‚СЂРµР»РєР° РІР»РµРІРѕ в†’ Windows)
         runOnUiThread(() -> {
             preloaderDialog.setExitModeEnabled(true);
             preloaderDialog.show(R.string.exiting_container);
             preloaderDialog.setStageOnUiThread(getString(R.string.cleaning_up_wine));
         });
 
-        // Тяжёлую работу (сохранение, убийство wine-процессов, очистку рендерера)
-        // выполняем в фоновом потоке, чтобы UI не «зависал» при выходе из контейнера
+        // РўСЏР¶С‘Р»СѓСЋ СЂР°Р±РѕС‚Сѓ (СЃРѕС…СЂР°РЅРµРЅРёРµ, СѓР±РёР№СЃС‚РІРѕ wine-РїСЂРѕС†РµСЃСЃРѕРІ, РѕС‡РёСЃС‚РєСѓ СЂРµРЅРґРµСЂРµСЂР°)
+        // РІС‹РїРѕР»РЅСЏРµРј РІ С„РѕРЅРѕРІРѕРј РїРѕС‚РѕРєРµ, С‡С‚РѕР±С‹ UI РЅРµ В«Р·Р°РІРёСЃР°Р»В» РїСЂРё РІС‹С…РѕРґРµ РёР· РєРѕРЅС‚РµР№РЅРµСЂР°
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
                 saveRuntimeSettingsToShortcut();
@@ -2101,11 +2097,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 Log.w("XServerDisplayActivity", "exit cleanup failed", e);
             }
 
-            // UI-действия — только на главном потоке
+            // UI-РґРµР№СЃС‚РІРёСЏ вЂ” С‚РѕР»СЊРєРѕ РЅР° РіР»Р°РІРЅРѕРј РїРѕС‚РѕРєРµ
             runOnUiThread(() -> {
                 if (xServerView != null) xServerView.setVisibility(View.GONE);
-                // Закрываем диалог выхода ДО finish — иначе WindowLeaked
-                // (окно диалога остаётся в WindowManager после закрытия активити)
+                // Р—Р°РєСЂС‹РІР°РµРј РґРёР°Р»РѕРі РІС‹С…РѕРґР° Р”Рћ finish вЂ” РёРЅР°С‡Рµ WindowLeaked
+                // (РѕРєРЅРѕ РґРёР°Р»РѕРіР° РѕСЃС‚Р°С‘С‚СЃСЏ РІ WindowManager РїРѕСЃР»Рµ Р·Р°РєСЂС‹С‚РёСЏ Р°РєС‚РёРІРёС‚Рё)
                 if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.close();
 
                 if (returnToSteamLibraryIfNeeded()) {
@@ -2113,9 +2109,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                     return;
                 }
 
-                // Возврат в главное меню БЕЗ перезапуска процесса:
-                // AppUtils.restartApplication делает Runtime.exit(0) → чёрный экран + холодный старт.
-                // MainActivity уже в бэкстеке — поднимаем её наверх и плавно закрываем игровой экран.
+                // Р’РѕР·РІСЂР°С‚ РІ РіР»Р°РІРЅРѕРµ РјРµРЅСЋ Р‘Р•Р— РїРµСЂРµР·Р°РїСѓСЃРєР° РїСЂРѕС†РµСЃСЃР°:
+                // AppUtils.restartApplication РґРµР»Р°РµС‚ Runtime.exit(0) в†’ С‡С‘СЂРЅС‹Р№ СЌРєСЂР°РЅ + С…РѕР»РѕРґРЅС‹Р№ СЃС‚Р°СЂС‚.
+                // MainActivity СѓР¶Рµ РІ Р±СЌРєСЃС‚РµРєРµ вЂ” РїРѕРґРЅРёРјР°РµРј РµС‘ РЅР°РІРµСЂС… Рё РїР»Р°РІРЅРѕ Р·Р°РєСЂС‹РІР°РµРј РёРіСЂРѕРІРѕР№ СЌРєСЂР°РЅ.
                 Intent mainIntent = new Intent(this, MainActivity.class);
                 mainIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 startActivity(mainIntent);
@@ -2711,332 +2707,233 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
     private void showFrameGenerationDialog() {
-
         if (container == null) {
-
             Toast.makeText(this, "Container is not ready", Toast.LENGTH_SHORT).show();
-
             return;
-
+        }
+        if (!com.winlator.cmod.core.LsfgNative.isDllAvailable(this)) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.lsfg_title)
+                    .setMessage(R.string.lsfg_not_in_library)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+            return;
         }
 
-
-
-        if (LsfgVkManager.containerDllPath(container) == null
-
-                && !LsfgVkManager.isGlobalDllAvailable(this)
-
-                && !LsfgVkManager.isBundledDllAvailable(this)
-
-                && !LsfgVkManager.isDllAvailable()) {
-
-            boolean ownsLosslessScaling = LsfgVkManager.ownsLosslessScaling();
-
-            AlertDialog.Builder builder = new AlertDialog.Builder(this)
-
-                    .setTitle(ownsLosslessScaling ? R.string.lsfg_install_title : R.string.lsfg_title)
-
-                    .setMessage(ownsLosslessScaling ? R.string.lsfg_install_message : R.string.lsfg_not_in_library)
-
-                    .setNegativeButton(android.R.string.cancel, null);
-
-            if (ownsLosslessScaling) {
-
-                builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
-
-                    Object downloadInfo = com.winlator.cmod.steam.service.SteamService.Companion.downloadApp(LsfgVkManager.LOSSLESS_SCALING_APP_ID);
-
-                    Toast.makeText(this,
-
-                            downloadInfo != null ? getString(R.string.lsfg_installing) : getString(R.string.lsfg_install_prompt),
-
-                            Toast.LENGTH_SHORT).show();
-
-                });
-
-            }
-
-            else {
-
-                builder.setPositiveButton(android.R.string.ok, null);
-
-            }
-
-            builder.show();
-
-            return;
-
-        }
-
-
-
-        final int[] selectedMultiplier = {LsfgVkManager.multiplier(container)};
-
-        final float[] selectedFlowScale = {LsfgVkManager.flowScale(container)};
-
-        final boolean[] selectedPerformanceMode = {LsfgVkManager.performanceMode(container)};
-
-        final String[] selectedPresentMode = {LsfgVkManager.presentMode(container)};
-
-
-
-        final android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        final int[] mults = {0, 2, 3, 4};
+        final String[] labels = {"Off", "2x", "3x", "4x"};
+        int curMult = container.getFrameGenMultiplier();
+        int checked = 0;
+        for (int i = 0; i < mults.length; i++) if (mults[i] == curMult) checked = i;
 
         android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
-
         layout.setOrientation(android.widget.LinearLayout.VERTICAL);
-
-        int padding = (int)(16 * getResources().getDisplayMetrics().density);
-
-        layout.setPadding(padding, padding / 2, padding, 0);
-
-        scrollView.addView(layout);
-
-
-
-        TextView description = new TextView(this);
-
-        description.setText(getString(R.string.lsfg_description));
-
-        layout.addView(description);
-
-
-
-        android.widget.RadioGroup multiplierGroup = new android.widget.RadioGroup(this);
-
-        multiplierGroup.setOrientation(android.widget.RadioGroup.HORIZONTAL);
-
-        int[] multiplierValues = {0, 2, 3, 4};
-
-        for (int value : multiplierValues) {
-
-            android.widget.RadioButton radioButton = new android.widget.RadioButton(this);
-
-            radioButton.setId(View.generateViewId());
-
-            radioButton.setTag(value);
-
-            radioButton.setText(value == 0 ? "Off" : value + "x");
-
-            radioButton.setChecked(selectedMultiplier[0] == value || (value == 0 && selectedMultiplier[0] < 2));
-
-            multiplierGroup.addView(radioButton);
-
-        }
-
-        multiplierGroup.setOnCheckedChangeListener((group, checkedId) -> {
-
-            View checked = group.findViewById(checkedId);
-
-            if (checked != null && checked.getTag() instanceof Integer) {
-
-                selectedMultiplier[0] = (Integer)checked.getTag();
-
-            }
-
-        });
-
-        layout.addView(multiplierGroup);
-
-
-
-        TextView flowLabel = new TextView(this);
-
-        flowLabel.setPadding(0, padding, 0, 0);
-
-        flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", selectedFlowScale[0]));
-
-        layout.addView(flowLabel);
-
-
-
-        android.widget.SeekBar flowScaleSeekBar = new android.widget.SeekBar(this);
-
-        flowScaleSeekBar.setMax(15);
-
-        flowScaleSeekBar.setProgress(Math.round((selectedFlowScale[0] - 0.25f) / 0.05f));
-
-        flowScaleSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
-
-            @Override
-
-            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
-
-                selectedFlowScale[0] = Math.max(0.25f, Math.min(1.0f, 0.25f + progress * 0.05f));
-
-                flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", selectedFlowScale[0]));
-
-            }
-
-
-
-            @Override
-
-            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
-
-
-
-            @Override
-
-            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
-
-        });
-
-        layout.addView(flowScaleSeekBar);
-
-
-
-        CheckBox performanceModeCheckBox = new CheckBox(this);
-
-        performanceModeCheckBox.setText(getString(R.string.lsfg_performance_mode));
-
-        performanceModeCheckBox.setChecked(selectedPerformanceMode[0]);
-
-        performanceModeCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> selectedPerformanceMode[0] = isChecked);
-
-        layout.addView(performanceModeCheckBox);
-
-
-
-        final String[] PRESENT_MODE_BY_INDEX = {
-
-                LsfgVkManager.PRESENT_MODE_FIFO,
-
-                LsfgVkManager.PRESENT_MODE_MAILBOX,
-
-                LsfgVkManager.PRESENT_MODE_IMMEDIATE
-
-        };
-
-        // Present mode (Vulkan swapchain mode). fifo = v-sync, mailbox = low-latency, immediate = no v-sync.
-
-        TextView presentModeLabel = new TextView(this);
-
-        presentModeLabel.setPadding(0, padding, 0, 0);
-
-        presentModeLabel.setText("Present mode (Vulkan)");
-
-        layout.addView(presentModeLabel);
-
-
-
-        final String[] presentModeLabels = {"FIFO (v-sync)", "Mailbox (low latency)", "Immediate (no v-sync)"};
-
-        android.widget.Spinner presentModeSpinner = new android.widget.Spinner(this);
-
-        android.widget.ArrayAdapter<String> presentModeAdapter = new android.widget.ArrayAdapter<>(
-
-                this, android.R.layout.simple_spinner_item, presentModeLabels);
-
-        presentModeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
-        presentModeSpinner.setAdapter(presentModeAdapter);
-
-        int currentPresentIdx = 0;
-
-        if (LsfgVkManager.PRESENT_MODE_MAILBOX.equals(selectedPresentMode[0])) currentPresentIdx = 1;
-
-        else if (LsfgVkManager.PRESENT_MODE_IMMEDIATE.equals(selectedPresentMode[0])) currentPresentIdx = 2;
-
-        presentModeSpinner.setSelection(currentPresentIdx);
-
-        presentModeSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-
-            @Override
-
-            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-
-                selectedPresentMode[0] = PRESENT_MODE_BY_INDEX[Math.max(0, Math.min(2, position))];
-
-            }
-
-            @Override
-
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-
-        });
-
-        layout.addView(presentModeSpinner);
-
-
-
-        AlertDialog lsfgDialog = new AlertDialog.Builder(this)
-
-                .setTitle(R.string.lsfg_title)
-
-                .setView(scrollView)
-
-                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-
-                    int multiplier = selectedMultiplier[0];
-
-                    boolean enabled = multiplier > 0;
-
-                    LsfgQuickMenuHelper.applySettings(
-
-                            container,
-
-                            new LsfgQuickMenuHelper.Settings(
-
-                                    multiplier,
-
-                                    selectedFlowScale[0],
-
-                                    selectedPerformanceMode[0],
-
-                                    false,
-
-                                    selectedPresentMode[0],
-
-                                    false)
-
-                    );
-
-                    if (enabled) {
-
-                        LsfgVkManager.ensureRuntimeInstalled(this, container);
-
-                        LsfgVkManager.writeConfig(container);
-
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad, pad, pad, pad);
+
+        android.widget.TextView status = new android.widget.TextView(this);
+        status.setText(getFgStatusText());
+        layout.addView(status);
+
+        final int[] selected = {checked};
+        for (int i = 0; i < mults.length; i++) {
+            final int idx = i;
+            android.widget.RadioButton rb = new android.widget.RadioButton(this);
+            rb.setText(labels[i]);
+            rb.setChecked(i == checked);
+            rb.setOnClickListener(v -> {
+                selected[0] = idx;
+                for (int j = 0; j < layout.getChildCount(); j++) {
+                    android.view.View ch = layout.getChildAt(j);
+                    if (ch instanceof android.widget.RadioButton) {
+                        ((android.widget.RadioButton) ch).setChecked(layout.getChildAt(j) == v);
                     }
-
-                    Toast.makeText(this, getString(R.string.lsfg_applied, enabled ? multiplier + "x" : "Off"), Toast.LENGTH_SHORT).show();
-
-                })
-
-                .setNegativeButton(android.R.string.cancel, null)
-
-                .create();
-
-        lsfgDialog.show();
-
-        // Force a comfortable width so the controls don't clip in landscape phones.
-
-        try {
-
-            if (lsfgDialog.getWindow() != null) {
-
-                int dp560 = (int) (560 * getResources().getDisplayMetrics().density);
-
-                int screenWidth = getResources().getDisplayMetrics().widthPixels;
-
-                int desired = Math.min(dp560, (int) (screenWidth * 0.92f));
-
-                lsfgDialog.getWindow().setLayout(desired, android.view.WindowManager.LayoutParams.WRAP_CONTENT);
-
-            }
-
-        } catch (Throwable e) {
-            Log.e("XServerDisplayActivity", "Failed to resize LSFG dialog window", e);
+                }
+            });
+            layout.addView(rb);
         }
 
+        android.widget.TextView flowLabel = new android.widget.TextView(this);
+        final float[] flow = {container.getFrameGenFlowScale()};
+        flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", flow[0]));
+        layout.addView(flowLabel);
+        android.widget.SeekBar flowBar = new android.widget.SeekBar(this);
+        flowBar.setMax(75);
+        flowBar.setProgress(Math.round((flow[0] - 0.25f) * 100));
+        flowBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar b, int p, boolean fromUser) {
+                flow[0] = 0.25f + p / 100f;
+                flowLabel.setText(getString(R.string.lsfg_flow_scale) + ": " + String.format(java.util.Locale.US, "%.2f", flow[0]));
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar b) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar b) {}
+        });
+        layout.addView(flowBar);
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.lsfg_title)
+                .setView(layout)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    int m = mults[selected[0]];
+                    container.setFrameGenMultiplier(m);
+                    container.setFrameGenFlowScale(flow[0]);
+                    container.setFrameGenEngine(m > 0 ? "lsfg-native" : "off");
+                    container.saveData();
+                    prepareLsfgNative();
+                    applyLsfgNative(m, flow[0]);
+                    Toast.makeText(this, getString(R.string.lsfg_applied, m > 0 ? m + "x" : "Off"), Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
+
+    private String getFgStatusText() {
+        com.winlator.cmod.renderer.HostRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+        if (r instanceof VulkanRenderer) {
+            VulkanRenderer vr = (VulkanRenderer) r;
+            if (!vr.isLsfgNativeSupported()) return vr.getLsfgCapsReason();
+            float[] st = vr.getFrameGenStats();
+            if (st != null && st[3] > 0f) {
+                return String.format(java.util.Locale.US, "%.0f real -> %.0f shown", st[2], st[3]);
+            }
+            return vr.isFrameGenArmed() ? "Armed, warming up..." : getString(R.string.lsfg_description);
+        }
+        return getString(R.string.lsfg_not_supported);
+    }
+
+    private VulkanRenderer vulkanRendererOrNull() {
+        com.winlator.cmod.renderer.HostRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+        return (r instanceof VulkanRenderer) ? (VulkanRenderer) r : null;
+    }
+
+    private float currentDisplayRefreshHz() {
+        try {
+            if (xServerView != null && xServerView.getDisplay() != null) {
+                return xServerView.getDisplay().getRefreshRate();
+            }
+        } catch (Throwable ignored) {}
+        return 60f;
+    }
+
+    /**
+     * Build the SPIR-V cache from the user's Lossless.dll if needed.
+     * Slow on first run (DXBC translated on device) вЂ” off the main thread.
+     * Every launch starts disarmed; the user arms from the in-game menu.
+     */
+    private void prepareLsfgNative() {
+        if (container == null || !container.isLsfgNative()) return;
+        if (!com.winlator.cmod.core.LsfgNative.isDllAvailable(this)) {
+            Log.w("XServerDisplayActivity", "LSFG Native selected but no Lossless.dll imported - leaving frame gen off");
+            return;
+        }
+        final float flow = container.getFrameGenFlowScale();
+        new Thread(() -> {
+            final int status = com.winlator.cmod.core.LsfgNative.ensureCache(
+                    XServerDisplayActivity.this, false);
+            runOnUiThread(() -> {
+                if (status != com.winlator.cmod.core.LsfgNative.STATUS_OK) {
+                    Log.e("XServerDisplayActivity", "LSFG Native unavailable: "
+                            + com.winlator.cmod.core.LsfgNative.explain(status));
+                    return;
+                }
+                VulkanRenderer vkr = vulkanRendererOrNull();
+                if (vkr != null) {
+                    vkr.setLsfgCachePath(
+                            com.winlator.cmod.core.LsfgNative.cacheFile(XServerDisplayActivity.this).getAbsolutePath());
+                }
+            });
+        }, "lsfg-native-cache").start();
+    }
+
+    /** Point the renderer at the cache and arm it at `multiplier` (0 = off). */
+    public void applyLsfgNative(int multiplier, float flowScale) {
+        VulkanRenderer vkr = vulkanRendererOrNull();
+        if (vkr == null) {
+            Log.w("XServerDisplayActivity", "applyLsfgNative(" + multiplier + ") ignored - no Vulkan renderer");
+            return;
+        }
+        Log.i("XServerDisplayActivity", "applyLsfgNative: multiplier=" + multiplier
+                + " flow=" + flowScale + " refresh=" + currentDisplayRefreshHz());
+        vkr.setLsfgCachePath(
+                com.winlator.cmod.core.LsfgNative.cacheFile(this).getAbsolutePath());
+        vkr.setFrameGenTuning(flowScale, currentDisplayRefreshHz());
+        vkr.setFrameGenArmed(multiplier >= 2, multiplier);
+        applyEffectivePresentMode();
+        if (xServerView != null) {
+            xServerView.setDisplayFrameRate(multiplier >= 2 ? currentDisplayRefreshHz() : 0f, 0);
+        }
+        if (multiplier >= 2) startLsfgStatsReadout(); else stopLsfgStatsReadout();
+    }
+
+    /** FIFO while multiplying (mailbox would collapse the burst), else the user's choice. */
+    private void applyEffectivePresentMode() {
+        VulkanRenderer vkr = vulkanRendererOrNull();
+        if (vkr == null) return;
+        boolean armed = vkr.isFrameGenArmed();
+        int mode = 2;
+        if (!armed && graphicsDriverConfig != null) {
+            String pm = graphicsDriverConfig.get("presentMode");
+            if (pm != null) {
+                String n = pm.trim().toLowerCase();
+                if (n.equals("mailbox")) mode = 1;
+                else if (n.equals("immediate")) mode = 0;
+            }
+        }
+        vkr.setVkPresentMode(mode);
+    }
+
+    private android.os.Handler lsfgStatsHandler;
+    private Runnable lsfgStatsTick;
+    private volatile String fgReadout = "";
+
+    /** Latest readout line for the in-game frame-gen menu (polled by Compose). */
+    public String getFgReadout() { return fgReadout; }
+
+    private void startLsfgStatsReadout() {
+        if (lsfgStatsHandler != null) return;
+        lsfgStatsHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        lsfgStatsTick = new Runnable() {
+            @Override public void run() {
+                VulkanRenderer vkr = vulkanRendererOrNull();
+                float[] st = (vkr != null) ? vkr.getFrameGenStats() : null;
+                if (st != null && st.length >= 5) {
+                    final int trusted = (int) st[1];
+                    final float realFps = st[2], shownFps = st[3];
+                    String text;
+                    if (shownFps <= 0f) {
+                        text = "measuring...";
+                    } else {
+                        text = String.format(java.util.Locale.US,
+                                "%.0f real -> %.0f shown (%dx", realFps, shownFps, trusted + 1);
+                        if (st[4] >= 3f) text += ", throttling";
+                        text += ")";
+                        if (st.length >= 6 && st[5] > 0f)
+                            text += String.format(java.util.Locale.US, "  %.1f ms/frame GPU", st[5]);
+                    }
+                    fgReadout = text;
+                    if (frameRating != null) frameRating.setPresentedFps(shownFps);
+                }
+                if (lsfgStatsHandler != null) lsfgStatsHandler.postDelayed(this, 1000);
+            }
+        };
+        lsfgStatsHandler.postDelayed(lsfgStatsTick, 1000);
+    }
+
+    private void stopLsfgStatsReadout() {
+        if (frameRating != null) frameRating.setPresentedFps(0f);
+        fgReadout = "";
+        if (lsfgStatsHandler != null && lsfgStatsTick != null)
+            lsfgStatsHandler.removeCallbacks(lsfgStatsTick);
+        lsfgStatsHandler = null;
+        lsfgStatsTick = null;
+    }
+
 
     
 
     /**
 
-     * РџРѕРєР°Р·С‹РІР°РµС‚ РґРёР°Р»РѕРі РЅР°СЃС‚СЂРѕРµРє FPS СЃС‡РµС‚С‡РёРєР°
+     * Р СџР С•Р С”Р В°Р В·РЎвЂ№Р Р†Р В°Р ВµРЎвЂљ Р Т‘Р С‘Р В°Р В»Р С•Р С– Р Р…Р В°РЎРѓРЎвЂљРЎР‚Р С•Р ВµР С” FPS РЎРѓРЎвЂЎР ВµРЎвЂљРЎвЂЎР С‘Р С”Р В°
 
      */
 
@@ -3050,13 +2947,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             android.util.Log.d("FpsCounter", "FPS Counter config changed");
 
-            // РћР±РЅРѕРІР»СЏРµРј РІРёРґРёРјРѕСЃС‚СЊ FPS СЃС‡РµС‚С‡РёРєР°
+            // Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С Р Р†Р С‘Р Т‘Р С‘Р СР С•РЎРѓРЎвЂљРЎРЉ FPS РЎРѓРЎвЂЎР ВµРЎвЂљРЎвЂЎР С‘Р С”Р В°
 
             updateFpsCounterVisibility();
 
             
 
-            // Р•СЃР»Рё FPS СЃС‡РµС‚С‡РёРє РІРёРґРёРј, РѕР±РЅРѕРІР»СЏРµРј РІРёРґРёРјРѕСЃС‚СЊ РјРѕРґСѓР»РµР№, РѕСЂРёРµРЅС‚Р°С†РёСЋ, РјР°СЃС€С‚Р°Р± Рё СЂР°Р·РјРµСЂ С‚РµРєСЃС‚Р°
+            // Р вЂўРЎРѓР В»Р С‘ FPS РЎРѓРЎвЂЎР ВµРЎвЂљРЎвЂЎР С‘Р С” Р Р†Р С‘Р Т‘Р С‘Р С, Р С•Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С Р Р†Р С‘Р Т‘Р С‘Р СР С•РЎРѓРЎвЂљРЎРЉ Р СР С•Р Т‘РЎС“Р В»Р ВµР в„–, Р С•РЎР‚Р С‘Р ВµР Р…РЎвЂљР В°РЎвЂ Р С‘РЎР‹, Р СР В°РЎРѓРЎв‚¬РЎвЂљР В°Р В± Р С‘ РЎР‚Р В°Р В·Р СР ВµРЎР‚ РЎвЂљР ВµР С”РЎРѓРЎвЂљР В°
 
             if (frameRating != null) {
 
@@ -3077,8 +2974,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     }
 
     /**
-     * Р’С‹Р·С‹РІР°РµС‚СЃСЏ РёР· Compose-РґРёР°Р»РѕРіР° FPS СЃС‡С‘С‚С‡РёРєР° РїРѕСЃР»Рµ СЃРѕС…СЂР°РЅРµРЅРёСЏ РЅР°СЃС‚СЂРѕРµРє.
-     * РћР±РЅРѕРІР»СЏРµС‚ РІРёРґРёРјРѕСЃС‚СЊ, РјРѕРґСѓР»Рё, РѕСЂРёРµРЅС‚Р°С†РёСЋ Рё РјР°СЃС€С‚Р°Р± РѕРІРµСЂР»РµСЏ.
+     * Р вЂ™РЎвЂ№Р В·РЎвЂ№Р Р†Р В°Р ВµРЎвЂљРЎРѓРЎРЏ Р С‘Р В· Compose-Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В° FPS РЎРѓРЎвЂЎРЎвЂРЎвЂљРЎвЂЎР С‘Р С”Р В° Р С—Р С•РЎРѓР В»Р Вµ РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…Р ВµР Р…Р С‘РЎРЏ Р Р…Р В°РЎРѓРЎвЂљРЎР‚Р С•Р ВµР С”.
+     * Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµРЎвЂљ Р Р†Р С‘Р Т‘Р С‘Р СР С•РЎРѓРЎвЂљРЎРЉ, Р СР С•Р Т‘РЎС“Р В»Р С‘, Р С•РЎР‚Р С‘Р ВµР Р…РЎвЂљР В°РЎвЂ Р С‘РЎР‹ Р С‘ Р СР В°РЎРѓРЎв‚¬РЎвЂљР В°Р В± Р С•Р Р†Р ВµРЎР‚Р В»Р ВµРЎРЏ.
      */
     public void onFpsCounterConfigChangedFromCompose() {
         android.util.Log.d("FpsCounter", "FPS Counter config changed from Compose dialog");
@@ -3092,8 +2989,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     }
 
     /**
-     * РџСЂРёРјРµРЅСЏРµС‚ Р»РёРјРёС‚ FPS Рє СЂРµРЅРґРµСЂРµСЂСѓ: pacer РІ PresentExtension С‚РѕСЂРјРѕР·РёС‚
-     * РёРіСЂСѓ С‡РµСЂРµР· Р·Р°РґРµСЂР¶РєСѓ РѕСЃРІРѕР±РѕР¶РґРµРЅРёСЏ Р±СѓС„РµСЂР° (PresentIdleNotify).
+     * Р СџРЎР‚Р С‘Р СР ВµР Р…РЎРЏР ВµРЎвЂљ Р В»Р С‘Р СР С‘РЎвЂљ FPS Р С” РЎР‚Р ВµР Р…Р Т‘Р ВµРЎР‚Р ВµРЎР‚РЎС“: pacer Р Р† PresentExtension РЎвЂљР С•РЎР‚Р СР С•Р В·Р С‘РЎвЂљ
+     * Р С‘Р С–РЎР‚РЎС“ РЎвЂЎР ВµРЎР‚Р ВµР В· Р В·Р В°Р Т‘Р ВµРЎР‚Р В¶Р С”РЎС“ Р С•РЎРѓР Р†Р С•Р В±Р С•Р В¶Р Т‘Р ВµР Р…Р С‘РЎРЏ Р В±РЎС“РЎвЂћР ВµРЎР‚Р В° (PresentIdleNotify).
      */
     private void applyFpsLimitToRenderer() {
         if (xServerView != null && xServerView.getRenderer() != null) {
@@ -3107,7 +3004,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     /**
 
-     * РћР±РЅРѕРІР»СЏРµС‚ РІРёРґРёРјРѕСЃС‚СЊ FPS СЃС‡РµС‚С‡РёРєР° РЅР° РѕСЃРЅРѕРІРµ РЅР°СЃС‚СЂРѕРµРє
+     * Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµРЎвЂљ Р Р†Р С‘Р Т‘Р С‘Р СР С•РЎРѓРЎвЂљРЎРЉ FPS РЎРѓРЎвЂЎР ВµРЎвЂљРЎвЂЎР С‘Р С”Р В° Р Р…Р В° Р С•РЎРѓР Р…Р С•Р Р†Р Вµ Р Р…Р В°РЎРѓРЎвЂљРЎР‚Р С•Р ВµР С”
 
      */
 
@@ -3509,7 +3406,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-            // Merge in containerвЂ™s environment variables
+            // Merge in containerРІР‚в„ўs environment variables
 
             envVars.putAll(container.getEnvVars());
 
@@ -4496,11 +4393,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        // 3. Add your final вЂњexecвЂќ line
+        // 3. Add your final РІР‚СљexecРІР‚Сњ line
 
         //    For example, run wine explorer.exe /desktop=shell wfm ...
 
-        //    Also note if you need box64 or notвЂ”depends on your environment.
+        //    Also note if you need box64 or notРІР‚вЂќdepends on your environment.
 
         String box64Path = imageFs.getRootDir().getPath() + "/usr/local/bin/box64";
 
@@ -4546,8 +4443,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         xServerView.initRenderer(displayRenderer);
 
         final com.winlator.cmod.renderer.HostRenderer renderer = xServerView.getRenderer();
-        // Vulkan/ASurface/GL все реализуют XServerRenderer — ставим напрямую,
-        // чтобы DrawableManager мог вызвать getXServerView().
+        // Vulkan/ASurface/GL РІСЃРµ СЂРµР°Р»РёР·СѓСЋС‚ XServerRenderer вЂ” СЃС‚Р°РІРёРј РЅР°РїСЂСЏРјСѓСЋ,
+        // С‡С‚РѕР±С‹ DrawableManager РјРѕРі РІС‹Р·РІР°С‚СЊ getXServerView().
         if (renderer instanceof XServerRenderer) {
             xServer.setRenderer((XServerRenderer) renderer);
         }
@@ -4556,9 +4453,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         applyFpsLimitToRenderer();
 
-        // Передаём информацию о выбранном драйвере в VulkanRenderer, чтобы
-        // рендерер загрузил кастомный Vulkan-драйвер через adrenotools.
-        // Драйвер определяется из graphicsDriverConfig ("version") контейнера/shortcut.
+        // РџРµСЂРµРґР°С‘Рј РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РІС‹Р±СЂР°РЅРЅРѕРј РґСЂР°Р№РІРµСЂРµ РІ VulkanRenderer, С‡С‚РѕР±С‹
+        // СЂРµРЅРґРµСЂРµСЂ Р·Р°РіСЂСѓР·РёР» РєР°СЃС‚РѕРјРЅС‹Р№ Vulkan-РґСЂР°Р№РІРµСЂ С‡РµСЂРµР· adrenotools.
+        // Р”СЂР°Р№РІРµСЂ РѕРїСЂРµРґРµР»СЏРµС‚СЃСЏ РёР· graphicsDriverConfig ("version") РєРѕРЅС‚РµР№РЅРµСЂР°/shortcut.
         if (renderer instanceof VulkanRenderer) {
             try {
                 String rendererDriverId = "";
@@ -4608,6 +4505,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (renderer instanceof ASurfaceRenderer) {
             ((ASurfaceRenderer) renderer).setSfCompatMode(container != null && container.getSfCompatMode());
         }
+
+        // Native LSFG: build the shader cache in background (starts disarmed).
+        prepareLsfgNative();
 
         rootView.addView(xServerView);
 
@@ -4659,13 +4559,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        // РРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј FPS СЃС‡РµС‚С‡РёРє С‚РѕР»СЊРєРѕ РµСЃР»Рё РєРѕРЅС‚РµР№РЅРµСЂ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ FPS
+        // Р ВР Р…Р С‘РЎвЂ Р С‘Р В°Р В»Р С‘Р В·Р С‘РЎР‚РЎС“Р ВµР С FPS РЎРѓРЎвЂЎР ВµРЎвЂљРЎвЂЎР С‘Р С” РЎвЂљР С•Р В»РЎРЉР С”Р С• Р ВµРЎРѓР В»Р С‘ Р С”Р С•Р Р…РЎвЂљР ВµР в„–Р Р…Р ВµРЎР‚ Р С—Р С•Р Т‘Р Т‘Р ВµРЎР‚Р В¶Р С‘Р Р†Р В°Р ВµРЎвЂљ FPS
 
         if (container != null) {
 
             frameRating = new FrameRating(this, container);
 
-            frameRating.setVisibility(View.GONE);  // РР·РЅР°С‡Р°Р»СЊРЅРѕ СЃРєСЂС‹С‚
+            frameRating.setVisibility(View.GONE);  // Р ВР В·Р Р…Р В°РЎвЂЎР В°Р В»РЎРЉР Р…Р С• РЎРѓР С”РЎР‚РЎвЂ№РЎвЂљ
 
             if (xServerView != null) xServerView.getRenderer().setFrameRating(frameRating);
 
@@ -4683,7 +4583,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             
 
-            // РћР±РЅРѕРІР»СЏРµРј РІРёРґРёРјРѕСЃС‚СЊ РЅР° РѕСЃРЅРѕРІРµ РЅР°СЃС‚СЂРѕРµРє
+            // Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С Р Р†Р С‘Р Т‘Р С‘Р СР С•РЎРѓРЎвЂљРЎРЉ Р Р…Р В° Р С•РЎРѓР Р…Р С•Р Р†Р Вµ Р Р…Р В°РЎРѓРЎвЂљРЎР‚Р С•Р ВµР С”
 
             updateFpsCounterVisibility();
 
@@ -4691,7 +4591,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
-        // Р’РѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµРј РїР°РЅРµР»СЊ Р±С‹СЃС‚СЂРѕРіРѕ РґРѕСЃС‚СѓРїР° РµСЃР»Рё Р±С‹Р»Р° РІРєР»СЋС‡РµРЅР°
+        // Р вЂ™Р С•РЎРѓРЎРѓРЎвЂљР В°Р Р…Р В°Р Р†Р В»Р С‘Р Р†Р В°Р ВµР С Р С—Р В°Р Р…Р ВµР В»РЎРЉ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚Р С•Р С–Р С• Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р В° Р ВµРЎРѓР В»Р С‘ Р В±РЎвЂ№Р В»Р В° Р Р†Р С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р В°
 
         boolean quickAccessEnabled = preferences.getBoolean("quick_access_panel_enabled", false);
 
@@ -6696,7 +6596,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
                 updateFpsCounterVisibility();
 
-                // РћР±РЅРѕРІР»СЏРµРј СЃС‡РµС‚С‡РёРє С‚РѕР»СЊРєРѕ РµСЃР»Рё РѕРЅ РІРєР»СЋС‡РµРЅ
+                // Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С РЎРѓРЎвЂЎР ВµРЎвЂљРЎвЂЎР С‘Р С” РЎвЂљР С•Р В»РЎРЉР С”Р С• Р ВµРЎРѓР В»Р С‘ Р С•Р Р… Р Р†Р С”Р В»РЎР‹РЎвЂЎР ВµР Р…
 
                 if (fpsCounterConfig.isEnabled() && frameRating != null) {
 
@@ -6728,7 +6628,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
 
-            // РќРµ РїСЂРёРЅСѓРґРёС‚РµР»СЊРЅРѕ СЃРєСЂС‹РІР°РµРј - РѕСЃС‚Р°РІР»СЏРµРј СѓРїСЂР°РІР»РµРЅРёРµ Р·Р° updateFpsCounterVisibility
+            // Р СњР Вµ Р С—РЎР‚Р С‘Р Р…РЎС“Р Т‘Р С‘РЎвЂљР ВµР В»РЎРЉР Р…Р С• РЎРѓР С”РЎР‚РЎвЂ№Р Р†Р В°Р ВµР С - Р С•РЎРѓРЎвЂљР В°Р Р†Р В»РЎРЏР ВµР С РЎС“Р С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С‘Р Вµ Р В·Р В° updateFpsCounterVisibility
 
             if (frameRating != null) frameRating.reset();
 

@@ -23,7 +23,6 @@ import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.container.Container
-import com.winlator.cmod.core.LsfgVkManager
 import com.winlator.cmod.ui.screens.FpsCounterSettingsDialog
 import com.winlator.cmod.ui.screens.ActiveWindowsDialogCompose
 import com.winlator.cmod.ui.screens.ScreenEffectDialogCompose
@@ -104,10 +103,9 @@ fun XServerMenuOverlay(
     var showFrameGenDialog by remember { mutableStateOf(false) }
     var showInputControlsDialog by remember { mutableStateOf(false) }
 
-    // LSFG status
+    // Frame-gen status (native engine armed with multiplier >= 2)
     val container = remember { activity.getContainer() }
-    val lsfgStatus = remember(container) { if (container != null) LsfgVkManager.getStatus(activity, container) else "no_container" }
-    val lsfgActive = lsfgStatus == "armed"
+    val lsfgActive = container != null && container.isLsfgNative() && container.getFrameGenMultiplier() >= 2
 
     // List of menu items to render
     data class XMenuItem(

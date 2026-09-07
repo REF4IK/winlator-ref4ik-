@@ -1009,6 +1009,14 @@ class FrameRating @JvmOverloads constructor(
         this.renderer = renderer
     }
 
+    // Native LSFG: presented (real + generated) fps from the compositor.
+    // Shown as "real -> shown" next to the guest-rate counter; 0 = plain mode.
+    @Volatile private var presentedFps: Float = 0f
+
+    fun setPresentedFps(fps: Float) {
+        presentedFps = fps
+    }
+
     fun setGpuName(gpuName: String?) {
         this.gpuName = gpuName
     }
@@ -1160,7 +1168,9 @@ class FrameRating @JvmOverloads constructor(
         if (!overlayVisible) return
 
         if (config.isModuleVisible(FpsCounterConfig.Module.FPS)) {
-            fpsState = String.format(Locale.ENGLISH, "%.1f", lastFPS)
+            val shown = presentedFps
+            fpsState = if (shown > 0f) String.format(Locale.ENGLISH, "%.1f→%.1f", lastFPS, shown)
+                       else String.format(Locale.ENGLISH, "%.1f", lastFPS)
         }
         if (config.isModuleVisible(FpsCounterConfig.Module.RENDERER)) {
             rendererState = renderer ?: "OpenGL"

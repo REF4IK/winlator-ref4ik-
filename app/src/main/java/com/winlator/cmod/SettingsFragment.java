@@ -56,7 +56,7 @@ import com.winlator.cmod.core.Callback;
 import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.GPUPerformanceManager;
-import com.winlator.cmod.core.LsfgVkManager;
+import com.winlator.cmod.core.LsfgNative;
 import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.core.StringUtils;
 import com.winlator.cmod.core.TarCompressorUtils;
@@ -670,12 +670,9 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
         TextView statusView = view.findViewById(R.id.TVGlobalLosslessDllStatus);
         if (statusView == null) return;
 
-        String dllPath = LsfgVkManager.globalDllPath(requireContext());
+        String dllPath = LsfgNative.globalDllPath(requireContext());
         if (dllPath != null) {
             statusView.setText(getString(R.string.lsfg_global_lossless_dll_installed, dllPath));
-        }
-        else if (LsfgVkManager.isBundledDllAvailable(requireContext())) {
-            statusView.setText(R.string.lsfg_global_lossless_dll_bundled);
         }
         else {
             statusView.setText(R.string.lsfg_global_lossless_dll_missing);
@@ -1065,7 +1062,7 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
                         catch (Throwable ignored) {
                         }
 
-                        boolean imported = LsfgVkManager.importGlobalLosslessDll(requireContext(), uri);
+                        boolean imported = LsfgNative.importGlobalLosslessDll(requireContext(), uri);
                         AppUtils.showToast(getContext(), imported ? R.string.lsfg_lossless_dll_imported : R.string.lsfg_lossless_dll_import_failed);
                         updateGlobalLosslessDllStatus(getView());
                         break;

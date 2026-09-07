@@ -36,9 +36,8 @@ import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.core.KeyValueSet
-import com.winlator.cmod.core.LsfgVkManager
-import com.winlator.cmod.core.LsfgQuickMenuHelper
 import com.winlator.cmod.inputcontrols.ControlsProfile
+import kotlinx.coroutines.delay
 import com.winlator.cmod.renderer.EffectComposer
 import com.winlator.cmod.renderer.VulkanRenderer
 import com.winlator.cmod.xserver.Window
@@ -637,46 +636,27 @@ fun FrameGenerationDialogCompose(
     val ctx = LocalContext.current
     val container = activity.getContainer() ?: return
 
-    val lsfgAvailable = remember {
-        LsfgVkManager.containerDllPath(container) != null ||
-        LsfgVkManager.isGlobalDllAvailable(activity) ||
-        LsfgVkManager.isBundledDllAvailable(activity) ||
-        LsfgVkManager.isDllAvailable()
-    }
-
-    if (!lsfgAvailable) {
-        val ownsLosslessScaling = remember { LsfgVkManager.ownsLosslessScaling() }
+    if (!com.winlator.cmod.core.LsfgNative.isDllAvailable(activity)) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text(stringResource(if (ownsLosslessScaling) R.string.lsfg_install_title else R.string.lsfg_title)) },
-            text = { Text(stringResource(if (ownsLosslessScaling) R.string.lsfg_install_message else R.string.lsfg_not_in_library)) },
+            title = { Text(stringResource(R.string.lsfg_title)) },
+            text = { Text(stringResource(R.string.lsfg_not_in_library)) },
             confirmButton = {
-                if (ownsLosslessScaling) {
-                    TextButton(onClick = {
-                        com.winlator.cmod.steam.service.SteamService.Companion.downloadApp(LsfgVkManager.LOSSLESS_SCALING_APP_ID)
-                        Toast.makeText(ctx, ctx.getString(R.string.lsfg_installing), Toast.LENGTH_SHORT).show()
-                        onDismiss()
-                    }) { Text(stringResource(R.string.ok)) }
-                } else {
-                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
             }
         )
         return
     }
 
-    var multiplier by remember { mutableStateOf(LsfgVkManager.multiplier(container)) }
-    var flowScale by remember { mutableFloatStateOf(LsfgVkManager.flowScale(container)) }
-    var performanceMode by remember { mutableStateOf(LsfgVkManager.performanceMode(container)) }
-    var presentMode by remember { mutableStateOf(LsfgVkManager.presentMode(container)) }
-
-    // Status indicators
-    val lsfgStatus = remember { LsfgVkManager.getStatus(activity, container) }
-    val dllSource = remember { LsfgVkManager.getDllSource(activity, container) }
-    val isActive = lsfgStatus == "armed"
+    var multiplier by remember { mutableStateOf(container.getFrameGenMultiplier()) }
+    var flowScale by remember { mutableFloatStateOf(container.getFrameGenFlowScale()) }
+    var readout by remember { mutableStateOf(activity.getFgReadout()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            readout = activity.getFgReadout()
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -686,7 +666,6 @@ fun FrameGenerationDialogCompose(
             modifier = Modifier
                 .widthIn(max = 500.dp)
                 .fillMaxWidth(0.92f)
-                .fillMaxHeight(1.0f)
                 .padding(horizontal = 8.dp, vertical = 0.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -694,11 +673,10 @@ fun FrameGenerationDialogCompose(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -718,158 +696,73 @@ fun FrameGenerationDialogCompose(
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
 
-                // Scrollable content
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                Text(
+                    if (readout.isNotEmpty()) readout else stringResource(R.string.lsfg_description),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(8.dp))
+
+                Text(stringResource(R.string.lsfg_multiplier), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // ─── Status indicator ────────────────────────────
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isActive) Color(0xFF1B5E20).copy(alpha = 0.15f)
-                                             else Color(0xFFB71C1C).copy(alpha = 0.1f)
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                    ) {
+                    listOf(0, 2, 3, 4).forEach { valTag ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { multiplier = valTag }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Box(
-                                modifier = Modifier.size(12.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                                    .background(if (isActive) Color(0xFF4CAF50) else Color(0xFFE53935))
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (isActive) "Frame Generation Active"
-                                           else when (lsfgStatus) {
-                                               "no_dll" -> "No Lossless.dll"
-                                               "disabled" -> "Disabled"
-                                               "no_layer" -> "Not installed"
-                                               else -> "Not available"
-                                           },
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp,
-                                    color = if (isActive) Color(0xFF4CAF50) else Color(0xFFE53935),
-                                )
-                                Text(
-                                    text = when (dllSource) {
-                                        "steam" -> "DLL: Steam (Lossless Scaling)"
-                                        "global" -> "DLL: Global import"
-                                        "bundled" -> "DLL: Bundled"
-                                        else -> if (isActive) "Multiplier: ${multiplier}x" else "Ready to configure"
-                                    },
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            if (isActive) {
-                                Text("${multiplier}x", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF4CAF50))
-                            }
+                            RadioButton(selected = multiplier == valTag, onClick = null)
+                            Spacer(Modifier.width(4.dp))
+                            Text(if (valTag == 0) "Off" else "${valTag}x")
                         }
                     }
-                    HorizontalDivider()
-
-                    Text(stringResource(R.string.lsfg_description), style = MaterialTheme.typography.bodyMedium)
-
-                    Column {
-                        Text(stringResource(R.string.lsfg_multiplier), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            listOf(0, 2, 3, 4).forEach { valTag ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { multiplier = valTag }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    RadioButton(selected = multiplier == valTag, onClick = null)
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(if (valTag == 0) "Off" else "${valTag}x")
-                                }
-                            }
-                        }
-                    }
-
-                Column {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(stringResource(R.string.lsfg_flow_scale))
-                        Text(String.format(Locale.US, "%.2f", flowScale))
-                    }
-                    Slider(
-                        value = flowScale,
-                        onValueChange = { flowScale = it },
-                        valueRange = 0.25f..1.0f,
-                        steps = 14
-                    )
                 }
 
-                CheckBoxRow(label = stringResource(R.string.lsfg_performance_mode), checked = performanceMode, onCheckedChange = { performanceMode = it })
-
-                val presentModeLabels = listOf("FIFO (v-sync)", "Mailbox (low latency)", "Immediate (no v-sync)")
-                val PRESENT_MODE_BY_INDEX = listOf(
-                    LsfgVkManager.PRESENT_MODE_FIFO,
-                    LsfgVkManager.PRESENT_MODE_MAILBOX,
-                    LsfgVkManager.PRESENT_MODE_IMMEDIATE
-                )
-                val currentIdx = PRESENT_MODE_BY_INDEX.indexOf(presentMode).coerceAtLeast(0)
-
-                SpinnerRow(
-                    label = stringResource(R.string.present_mode),
-                    entries = presentModeLabels,
-                    selected = presentModeLabels[currentIdx],
-                    onSelected = {
-                        val idx = presentModeLabels.indexOf(it).coerceAtLeast(0)
-                        presentMode = PRESENT_MODE_BY_INDEX[idx]
-                    }
-                )
-            }
-
-            // Bottom buttons
-            HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onDismiss, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                    Text(stringResource(R.string.cancel), fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(stringResource(R.string.lsfg_flow_scale))
+                    Text(String.format(java.util.Locale.US, "%.2f", flowScale))
                 }
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        val enabled = multiplier > 0
-                        LsfgQuickMenuHelper.applySettings(
-                            container,
-                            LsfgQuickMenuHelper.Settings(
-                                multiplier,
-                                flowScale,
-                                performanceMode,
-                                false,
-                                presentMode,
-                                false
-                            )
-                        )
-                        if (enabled) {
-                            LsfgVkManager.ensureRuntimeInstalled(activity, container)
-                            LsfgVkManager.writeConfig(container)
-                        }
-                        val msg = ctx.getString(R.string.lsfg_applied, if (enabled) "${multiplier}x" else "Off")
-                        Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
-                        onDismiss()
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp),
-                ) { Text(stringResource(R.string.ok), fontWeight = FontWeight.Bold) }
+                Slider(
+                    value = flowScale,
+                    onValueChange = { flowScale = it },
+                    valueRange = 0.25f..1.0f,
+                    steps = 14
+                )
+
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                        Text(stringResource(R.string.cancel), fontWeight = FontWeight.Medium)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            container.setFrameGenMultiplier(multiplier)
+                            container.setFrameGenFlowScale(flowScale)
+                            container.setFrameGenEngine(if (multiplier > 0) "lsfg-native" else "off")
+                            container.saveData()
+                            activity.applyLsfgNative(if (multiplier > 0) multiplier else 0, flowScale)
+                            val msg = ctx.getString(R.string.lsfg_applied, if (multiplier > 0) "${multiplier}x" else "Off")
+                            Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp),
+                    ) { Text(stringResource(R.string.ok), fontWeight = FontWeight.Bold) }
+                }
             }
         }
     }
-}
 }
 
 @Composable

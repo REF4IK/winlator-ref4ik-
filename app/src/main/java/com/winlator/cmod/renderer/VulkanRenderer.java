@@ -113,6 +113,12 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
     private native void nativeSetEffects(long handle, int[] types, float[] params, int count);
     private native void nativeClearEffects(long handle);
     private native boolean nativeHasEffects(long handle);
+    private native boolean nativeLsfgSupported(long handle);
+    private native String nativeLsfgCapsReason(long handle);
+    private native void nativeSetFrameGenArmed(long handle, boolean armed, int multiplier);
+    private native void nativeSetLsfgCachePath(long handle, String path);
+    private native void nativeSetFrameGenTuning(long handle, float flowScale, float refreshHz);
+    private native float[] nativeFrameGenStats(long handle);
 
     private static volatile boolean gpuImageChecked = false;
 
@@ -147,6 +153,9 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
                     nativeSetPresentMode(nativeHandle, pendingPresentMode);
                     nativeSetFilterMode(nativeHandle, pendingFilterMode);
                     nativeSetSwapRB(nativeHandle, pendingSwapRB);
+                    if (pendingLsfgCachePath != null) nativeSetLsfgCachePath(nativeHandle, pendingLsfgCachePath);
+                    nativeSetFrameGenTuning(nativeHandle, pendingFgFlowScale, pendingFgRefreshHz);
+                    if (pendingFgArmed) nativeSetFrameGenArmed(nativeHandle, true, pendingFgMultiplier);
                     updateTransform();
                     nativeSetCursorVisible(nativeHandle, cursorVisible);
 
@@ -764,6 +773,75 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
         }
         return new int[0];
     }
+
+    /**
+     * Whether this device can run the native (compositor-side) LSFG chain:
+     * Vulkan 1.3, required shader features enabled, storage-capable swapchain
+     * format. False while the renderer is not up — "not yet known", not "no".
+     */
+    public boolean isLsfgNativeSupported() {
+        synchronized (lock) {
+            if (nativeHandle != 0) return nativeLsfgSupported(nativeHandle);
+        }
+        return false;
+    }
+
+    /**
+     * Arm or disarm native LSFG frame generation. Changing this recreates the
+     * swapchain (TRANSFER_DST usage + deeper image queue).
+     *
+     * @param multiplier requested 2x-4x ceiling.
+     */
+    public void setFrameGenArmed(boolean armed, int multiplier) {
+        pendingFgArmed = armed;
+        pendingFgMultiplier = multiplier;
+        synchronized (lock) {
+            if (nativeHandle != 0) nativeSetFrameGenArmed(nativeHandle, armed, multiplier);
+        }
+    }
+
+    /** Whether native frame generation is currently armed in the renderer. */
+    public boolean isFrameGenArmed() { return pendingFgArmed; }
+
+    /** Path to the SPIR-V cache built from the user's Lossless.dll. */
+    public void setLsfgCachePath(String path) {
+        pendingLsfgCachePath = path;
+        synchronized (lock) {
+            if (nativeHandle != 0) nativeSetLsfgCachePath(nativeHandle, path);
+        }
+    }
+
+    /**
+     * Live native frame-gen telemetry, or null when the renderer is down:
+     * {generations trusted, generations planned, real fps, presented fps,
+     * thermal status (-1 = no signal), GPU ms per generated frame (-1)}.
+     */
+    public float[] getFrameGenStats() {
+        synchronized (lock) {
+            if (nativeHandle != 0) return nativeFrameGenStats(nativeHandle);
+        }
+        return null;
+    }
+
+    /** Flow scale (0.25-1.0) and the panel's real refresh rate. */
+    public void setFrameGenTuning(float flowScale, float refreshHz) {
+        pendingFgFlowScale = flowScale;
+        pendingFgRefreshHz = refreshHz;
+        synchronized (lock) {
+            if (nativeHandle != 0) nativeSetFrameGenTuning(nativeHandle, flowScale, refreshHz);
+        }
+    }
+
+    /** Human-readable verdict, naming the first gate that failed. */
+    public String getLsfgCapsReason() {
+        synchronized (lock) {
+            if (nativeHandle != 0) {
+                String r = nativeLsfgCapsReason(nativeHandle);
+                if (r != null) return r;
+            }
+        }
+        return "renderer not started";
+    }
     public void setNativeColorFormat(int format) {}
     public int getNativeColorFormat() { return 0; }
 
@@ -791,6 +869,11 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
     private int     pendingPresentMode    = 2;
     private int     pendingFilterMode     = 0;
     private boolean pendingSwapRB         = false;
+    private boolean pendingFgArmed        = false;
+    private int     pendingFgMultiplier   = 2;
+    private float   pendingFgFlowScale    = 0.8f;
+    private float   pendingFgRefreshHz    = 0f;
+    private String  pendingLsfgCachePath  = null;
     public int getFpsLimit() { return fpsLimit; }
     public void setFpsLimit(int limit) {
         this.fpsLimit = limit;

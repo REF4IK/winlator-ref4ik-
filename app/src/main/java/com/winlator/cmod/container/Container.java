@@ -391,6 +391,74 @@ public class Container {
         }
     }
 
+    public boolean hasExtra(String name) {
+        return extraData != null && extraData.has(name);
+    }
+
+    // --- Native LSFG frame generation (host-side, ported from Bannerlator
+    // lsfg-native). Only engine is "off" | "lsfg-native"; the old guest-layer
+    // (lsfg-vk Vulkan layer) is removed — a stale "lsfg" value migrates to it.
+    public static final int FRAMEGEN_DEFAULT_MULTIPLIER = 2;
+    public static final float FRAMEGEN_DEFAULT_FLOW_SCALE = 0.8f;
+
+    public boolean isFrameGenEnabled() {
+        return getExtra("frameGenEnabled", "0").equals("1");
+    }
+
+    public void setFrameGenEnabled(boolean enabled) {
+        putExtra("frameGenEnabled", enabled ? "1" : "0");
+    }
+
+    public String getFrameGenEngine() {
+        String e = getExtra("frameGenEngine", "");
+        if (e.isEmpty()) return isFrameGenEnabled() ? "lsfg-native" : "off";
+        if (e.equals("lsfg") || e.equals("bionic")) return "lsfg-native";
+        if (!e.equals("lsfg-native")) return "off";
+        return e;
+    }
+
+    public void setFrameGenEngine(String engine) {
+        if (engine == null || engine.isEmpty()) engine = "off";
+        if (!engine.equals("lsfg-native")) engine = "off";
+        putExtra("frameGenEngine", engine);
+        setFrameGenEnabled(engine.equals("lsfg-native"));
+    }
+
+    public boolean isLsfgNative() {
+        return getFrameGenEngine().equals("lsfg-native");
+    }
+
+    // Allowed values: 0 (Off, set live from the in-game menu) or 2-4.
+    public int getFrameGenMultiplier() {
+        try {
+            int m = Integer.parseInt(getExtra("frameGenMultiplier", String.valueOf(FRAMEGEN_DEFAULT_MULTIPLIER)));
+            if (m == 0) return 0;
+            return (m < 2 || m > 4) ? FRAMEGEN_DEFAULT_MULTIPLIER : m;
+        }
+        catch (NumberFormatException e) {
+            return FRAMEGEN_DEFAULT_MULTIPLIER;
+        }
+    }
+
+    public void setFrameGenMultiplier(int multiplier) {
+        putExtra("frameGenMultiplier", String.valueOf(multiplier));
+    }
+
+    public float getFrameGenFlowScale() {
+        if (!hasExtra("frameGenFlowScale")) return FRAMEGEN_DEFAULT_FLOW_SCALE;
+        try {
+            float f = Float.parseFloat(getExtra("frameGenFlowScale"));
+            return (f < 0.25f || f > 1.0f) ? FRAMEGEN_DEFAULT_FLOW_SCALE : f;
+        }
+        catch (NumberFormatException e) {
+            return FRAMEGEN_DEFAULT_FLOW_SCALE;
+        }
+    }
+
+    public void setFrameGenFlowScale(float flowScale) {
+        putExtra("frameGenFlowScale", String.valueOf(flowScale));
+    }
+
     public String getWineVersion() {
         return wineVersion;
     }

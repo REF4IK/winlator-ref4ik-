@@ -24,7 +24,6 @@ import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.EnvVars;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.GPUInformation;
-import com.winlator.cmod.core.LsfgVkManager;
 import com.winlator.cmod.core.ProcessHelper;
 import com.winlator.cmod.core.TarCompressorUtils;
 import com.winlator.cmod.core.WineInfo;
@@ -406,9 +405,10 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
             envVars.putAll(this.envVars);
         }
 
-        LsfgVkManager.ensureRuntimeInstalled(context, container);
-        LsfgVkManager.writeConfig(container);
-        LsfgVkManager.applyLaunchEnv(container, envVars);
+        // Native LSFG runs host-side: no guest Vulkan layer needed. Remove any
+        // stale lsfg-vk layer files from older versions so no zombie implicit
+        // layer can load inside Wine.
+        cleanupStaleLsfgVkLayer(container.getRootDir());
 
         String emulator = container.getEmulator();
         if (shortcut != null)
@@ -511,5 +511,28 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
         pid = execGuestProgram();
         Log.d("BionicProgramLauncherComponent", "Wine restarted successfully");
 
+    }
+
+    /**
+     * Delete lsfg-vk guest-layer leftovers (manifest, lib, config, version)
+     * from containers created by older versions. The native engine needs none
+     * of them; a stale implicit-layer manifest would still load the old .so.
+     */
+    private static void cleanupStaleLsfgVkLayer(File rootDir) {
+        if (rootDir == null) return;
+        try {
+            String[] stale = {
+                ".local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation.json",
+                ".local/share/vulkan/implicit_layer.d/.lsfg_vk_runtime_version",
+                ".local/lib/liblsfg-vk-layer.so",
+                ".config/lsfg-vk/conf.toml"
+            };
+            for (String rel : stale) {
+                File f = new File(rootDir, rel);
+                if (f.isFile() && !f.delete()) {
+                    android.util.Log.w("BionicLauncher", "Could not remove stale LSFG file: " + f);
+                }
+            }
+        } catch (Throwable ignored) {}
     }
 }

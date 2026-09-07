@@ -141,7 +141,7 @@ fun SettingsScreen(
             try {
                 ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (_: Throwable) {}
-            val imported = com.winlator.cmod.core.LsfgVkManager.importGlobalLosslessDll(ctx, uri)
+            val imported = com.winlator.cmod.core.LsfgNative.importGlobalLosslessDll(ctx, uri)
             toast(if (imported) com.winlator.cmod.R.string.lsfg_lossless_dll_imported else com.winlator.cmod.R.string.lsfg_lossless_dll_import_failed)
         }
     }
@@ -239,10 +239,9 @@ fun SettingsScreen(
                     icon = Icons.Filled.Memory,
                     title = stringResource(com.winlator.cmod.R.string.lossless_scaling_dll),
                     subtitle = run {
-                        val dllPath = try { com.winlator.cmod.core.LsfgVkManager.globalDllPath(ctx) } catch (_: Exception) { null }
+                        val dllPath = try { com.winlator.cmod.core.LsfgNative.globalDllPath(ctx) } catch (_: Exception) { null }
                         when {
                             dllPath != null -> stringResource(com.winlator.cmod.R.string.installed_at, dllPath)
-                            try { com.winlator.cmod.core.LsfgVkManager.isBundledDllAvailable(ctx) } catch (_: Exception) { false } -> stringResource(com.winlator.cmod.R.string.installed_bundled)
                             else -> stringResource(com.winlator.cmod.R.string.not_installed)
                         }
                     },

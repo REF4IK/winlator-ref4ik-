@@ -99,6 +99,9 @@ This project wouldn't be possible without the following developers and teams:
 | Winlator Bionic Ludashi | [StevenMXZ](https://github.com/StevenMXZ/Winlator-Ludashi) |
 | Winlator Cmod | [Coffincolors](https://github.com/coffincolors/winlator) |
 | Bannerlator | [The412Banner/Bannerlator](https://github.com/The412Banner/Bannerlator) |
+| Bannerlator lsfg-native (host-side frame generation) | [The412Banner/Bannerlator](https://github.com/The412Banner/Bannerlator) |
+| LSFG port (Eden/WinNative, GPL-3.0) | [Eden Emulator Project](https://github.com/eden-emulator) / Camille LaVey, via [WinNative](https://github.com/WinNative-Emu), upstream [lsfg-vk](https://github.com/PancakeTAS/lsfg-vk) |
+| Lossless Scaling (shaders from user's own copy) | [THS](https://store.steampowered.com/app/993090/Lossless_Scaling/) |
 | WinNative | [WinNative Organization](https://github.com/WinNative-Emu) |
 | GameNative | [Utkarshdalal](https://github.com/utkarshdalal/GameNative) |
 | GLIBC Patches | [Termux Pacman](https://github.com/termux-pacman/glibc-packages) |

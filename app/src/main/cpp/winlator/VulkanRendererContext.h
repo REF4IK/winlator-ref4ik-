@@ -15,6 +15,8 @@ struct VkTable {
     PFN_vkGetPhysicalDeviceSurfacePresentModesKHR GetPhysicalDeviceSurfacePresentModesKHR;
     PFN_vkGetPhysicalDeviceQueueFamilyProperties GetPhysicalDeviceQueueFamilyProperties;
     PFN_vkGetPhysicalDeviceSurfaceSupportKHR GetPhysicalDeviceSurfaceSupportKHR;
+    PFN_vkGetPhysicalDeviceFormatProperties GetPhysicalDeviceFormatProperties;
+    PFN_vkGetPhysicalDeviceFeatures2 GetPhysicalDeviceFeatures2;
     PFN_vkCreateDevice CreateDevice;
     PFN_vkDestroySurfaceKHR DestroySurfaceKHR;
     PFN_vkCreateAndroidSurfaceKHR CreateAndroidSurfaceKHR;
@@ -30,6 +32,11 @@ struct VkTable {
     PFN_vkAcquireNextImageKHR AcquireNextImageKHR;
     PFN_vkQueuePresentKHR QueuePresentKHR;
     PFN_vkQueueSubmit QueueSubmit;
+    PFN_vkCreateQueryPool CreateQueryPool;
+    PFN_vkDestroyQueryPool DestroyQueryPool;
+    PFN_vkCmdResetQueryPool CmdResetQueryPool;
+    PFN_vkCmdWriteTimestamp CmdWriteTimestamp;
+    PFN_vkGetQueryPoolResults GetQueryPoolResults;
     PFN_vkCreateRenderPass CreateRenderPass;
     PFN_vkDestroyRenderPass DestroyRenderPass;
     PFN_vkCreateFramebuffer CreateFramebuffer;
@@ -79,6 +86,10 @@ struct VkTable {
     PFN_vkCmdPipelineBarrier CmdPipelineBarrier;
     PFN_vkCmdCopyImage CmdCopyImage;
     PFN_vkCmdBlitImage CmdBlitImage;
+    // Compute: the native LSFG chain is 25 compute dispatches.
+    PFN_vkCmdDispatch CmdDispatch;
+    PFN_vkCreateComputePipelines CreateComputePipelines;
+    PFN_vkUnmapMemory UnmapMemory;
     PFN_vkCmdCopyBufferToImage CmdCopyBufferToImage;
     PFN_vkCreateSampler CreateSampler;
     PFN_vkDestroySampler DestroySampler;
@@ -110,6 +121,12 @@ struct VkTable {
 #include <mutex>
 #include <shared_mutex>
 #include <condition_variable>
+#include <chrono>
+#include <memory>
+
+// Native (compositor-side) LSFG frame generation — capability gate + engine.
+#include "lsfg/lsfg_probe.h"
+namespace lsfg { class Engine; }
 
 static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -195,6 +212,34 @@ public:
     void setSwapRB(bool enabled);
     void setPresentMode(VkPresentModeKHR mode);
     std::vector<int> getSupportedPresentModes() const;
+
+    // --- Native LSFG frame generation (host-side, ported from Bannerlator
+    // lsfg-native) ---------------------------------------------------------
+    // Capability verdict for the compositor-side LSFG engine. Filled at device
+    // creation and completed once the swapchain format is known; read by the
+    // UI (through JNI) to grey the engine out with a reason.
+    const lsfg::Caps& lsfgCaps() const { return lsfgCaps_; }
+
+    // Arm/disarm native LSFG frame generation for this session. Changing the
+    // armed state recreates the swapchain, because the composite path needs
+    // TRANSFER_DST usage and a deeper image queue that a normal session does
+    // not pay for.
+    void setFrameGenArmed(bool armed, int multiplier);
+    bool frameGenArmed() const { return fgArmed_.load(std::memory_order_relaxed); }
+    // Live frame-gen telemetry for the in-game readout:
+    //   [0] generations the governor currently trusts
+    //   [1] generations actually planned for the last source frame
+    //   [2] measured source (real) frames per second
+    //   [3] measured presented frames per second
+    //   [4] thermal status, -1 when the device gives no signal
+    //   [5] GPU milliseconds the chain spends per generated frame, -1 unknown
+    void frameGenStats(float out[6]) const;
+    // Path to the SPIR-V cache built from the user's Lossless.dll. Setting it
+    // drops any existing engine so the next armed frame rebuilds from it.
+    void setLsfgCachePath(const char* path);
+    // Flow scale (0.25-1.0) and the panel's real refresh rate. The pacer never
+    // generates above the refresh rate.
+    void setFrameGenTuning(float flowScale, float refreshHz);
 
     // Effect composer
     void setEffects(const EffectEntry* entries, int count);
@@ -408,6 +453,110 @@ private:
 
     // --- Effect post-processing ---
     std::vector<EffectEntry> activeEffects;
+
+    // === Native LSFG: composite target ring =================================
+    // Frame generation cannot composite straight into a swapchain image: the
+    // finished frame has to be READABLE (it becomes the next frame's LSFG
+    // input) and generated frames have to be STORAGE-WRITABLE by a compute
+    // dispatch. So when frame gen is armed the recording is redirected at a
+    // composite image we own — format-identical to the swapchain — and a copy
+    // moves it into the acquired swapchain image at the end. With frame gen
+    // off, none of these objects is created and the direct path is untouched.
+    struct CompositeTarget {
+        VkImage         img         = VK_NULL_HANDLE;
+        VkDeviceMemory  mem         = VK_NULL_HANDLE;
+        VkImageView     view        = VK_NULL_HANDLE;  // colour attachment + sampled
+        VkImageView     storageView = VK_NULL_HANDLE;  // compute writes (generate)
+        VkFramebuffer   fb          = VK_NULL_HANDLE;
+        VkDescriptorSet ds          = VK_NULL_HANDLE;  // sampled, for later passes
+        bool            fresh       = true;            // never transitioned out of UNDEFINED
+    };
+    // Hard ceiling: (max generations + 1) presentable frames per source frame,
+    // times a queue depth of 2, capped so the footprint stays bounded.
+    static constexpr uint32_t kMaxCompositeTargets = 7;
+
+    std::vector<CompositeTarget> compositeTargets;
+    VkRenderPass compositeRenderPass = VK_NULL_HANDLE;  // CLEAR -> GENERAL
+    uint32_t     compositeW = 0, compositeH = 0;
+    uint32_t     compositeIndex = 0;      // rotates per composite; gives history for free
+    bool         compositeArmed = false;  // targets exist AND this frame uses them
+    bool         swapchainTransferDst = false; // swapchain was created with TRANSFER_DST
+
+    // Set from the app when the native LSFG engine is selected for this
+    // session. Read on the render thread; false keeps every path as it was.
+    std::atomic<bool> fgArmed_{false};
+    std::atomic<int>  fgMultiplier_{0};
+    std::atomic<float> fgFlowScale_{1.0f};
+    std::atomic<float> fgRefreshHz_{0.0f};
+    std::atomic<bool>  fgConfigDirty_{true};
+
+    bool  createCompositeRenderPass();
+    bool  ensureCompositeTargets(uint32_t w, uint32_t h, uint32_t count);
+    void  destroyCompositeTargets();
+    // True when this frame should composite off-swapchain. Call on the render
+    // thread; every gate must hold or we fall back to the untouched path.
+    bool  compositeActive() const;
+    VkRenderPass  targetRenderPass() const;
+    VkFramebuffer targetFramebuffer(uint32_t imgIdx) const;
+    void  copyCompositeToSwapchain(VkCommandBuffer cb, uint32_t imgIdx);
+
+    // === Native LSFG: the software cursor ===================================
+    // LSFG interpolates whatever it is given, so a cursor composited into the
+    // frame gets warped along the flow field and smears. It is therefore
+    // excluded from the composite while frame gen is armed and drawn once into
+    // EVERY presented image instead - real and generated alike.
+    VkRenderPass cursorOverlayRenderPass = VK_NULL_HANDLE;
+    struct CursorOverlay {
+        bool  draw = false;
+        float ox = 0, oy = 0, sx = 0, sy = 0, cw = 0, ch = 0;
+        short ptrX = 0, ptrY = 0, hotX = 0, hotY = 0, w = 0, h = 0;
+    };
+    CursorOverlay cursorOverlay_{};
+
+    bool createCursorOverlayRenderPass();
+    void recordCursorOverlay(VkCommandBuffer cb, uint32_t imgIdx);
+    bool cursorDrawnPerPresent() const;
+
+    // === Native LSFG: the per-source-frame present plan =====================
+    static constexpr uint32_t kMaxPresentsPerFrame = 4;   // 1 real + up to 3 generated
+    struct FrameGenPlan {
+        uint32_t generations = 0;
+        uint32_t presents    = 1;
+        uint32_t imgIdx[kMaxPresentsPerFrame] = {};
+    };
+    FrameGenPlan fgPlan_{};
+    std::unique_ptr<lsfg::Engine> lsfgEngine_;
+    uint64_t    fgSourceFrames_ = 0;
+    std::string lsfgCachePath_;
+    bool        lsfgEngineTried_ = false;
+
+    uint32_t syncSlot(uint32_t k) const { return currentFrame * kMaxPresentsPerFrame + k; }
+    void recreateSyncObjects();
+    uint32_t fgAcquireFailLog_ = 0;
+
+    float    fgPresentedRate_   = 0.0f;
+    uint32_t fgPresentAccum_    = 0;
+    std::chrono::steady_clock::time_point fgRateWindowStart_{};
+    bool     fgRateWindowOpen_  = false;
+    void     trackPresentedRate(uint32_t presents);
+
+    bool ensureLsfgEngine();
+    uint32_t cmdSlot(uint32_t k) const { return currentFrame * kMaxPresentsPerFrame + k; }
+    void recordFrameGenProcess(VkCommandBuffer cb);
+    void recordFrameGenGeneration(VkCommandBuffer cb, uint32_t g);
+
+    VkQueryPool fgQueryPool_        = VK_NULL_HANDLE;
+    bool        fgTimestampsOk_     = false;
+    float       fgTimestampPeriodNs_ = 0.0f;
+    bool        fgQueryPending_[MAX_FRAMES_IN_FLIGHT] = {};
+    uint32_t    fgQueryGens_[MAX_FRAMES_IN_FLIGHT]    = {};
+    float       fgChainMsPerGen_    = -1.0f;
+    uint32_t    fgChainLogCount_    = 0;
+    void ensureFgQueryPool();
+    void destroyFgQueryPool();
+    void readFgQueryResult();
+
+    lsfg::Caps lsfgCaps_;
 
     struct EffectOffscreen {
         VkImage         img     = VK_NULL_HANDLE;
