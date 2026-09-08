@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
@@ -27,6 +28,7 @@ sealed class Screen(
     val icon: ImageVector,
 ) {
     data object Shortcuts : Screen("shortcuts", "Shortcuts", Icons.Filled.VideogameAsset)
+    data object MyProfile : Screen("my_profile", "My Profile", Icons.Filled.Person)
     data object Containers : Screen("containers", "Containers", Icons.Filled.Storage)
     data object InputControls : Screen("input_controls", "Input Controls", Icons.Filled.Gamepad)
     data object Saves : Screen("saves", "Saves", Icons.Filled.Save)

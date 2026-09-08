@@ -43,7 +43,11 @@ public class SocialManager {
     }
 
     public void postComment(String sha, String text, String nickname, CloudConfigRepoV2.CommentCallback callback) {
-        CloudConfigRepoV2.postComment(sha, text, nickname, callback);
+        postComment(sha, text, nickname, null, callback);
+    }
+
+    public void postComment(String sha, String text, String nickname, String session, CloudConfigRepoV2.CommentCallback callback) {
+        CloudConfigRepoV2.postComment(sha, text, nickname, session, callback);
     }
 
     public void getComments(String sha, CommentsCallback callback) {

@@ -1771,6 +1771,72 @@
     <string name="bundle_applied">Components installed</string>
     <string name="components">Components</string>
     <string name="driver">Driver</string>
+    <string name="community_uploader_by">by %1$s</string>
+    <string name="community_anonymous">Anonymous</string>
+
+    <!-- My Profile -->
+    <string name="my_profile">My Profile</string>
+    <string name="profile_tab_create">Create</string>
+    <string name="profile_tab_login">Log in</string>
+    <string name="profile_username">Username</string>
+    <string name="profile_password">Password</string>
+    <string name="profile_new_password">New password</string>
+    <string name="profile_recovery_key">Recovery key</string>
+    <string name="profile_recovery_label">Your recovery key</string>
+    <string name="profile_recovery_warn">Save this — it is the only way to reset your password if you forget it.</string>
+    <string name="profile_throwaway_hint">Just to recover your shared configs — use a throwaway password, not one you use elsewhere.</string>
+    <string name="profile_create_action">Create account</string>
+    <string name="profile_login_action">Log in</string>
+    <string name="profile_created_title">Account \"%1$s\" created.</string>
+    <string name="profile_copy">Copy</string>
+    <string name="profile_saved_it">I\'ve saved it</string>
+    <string name="profile_key_copied">Recovery key copied.</string>
+    <string name="profile_change_picture">Change picture</string>
+    <string name="profile_show_key">Show my recovery key</string>
+    <string name="profile_hide_key">Hide my recovery key</string>
+    <string name="profile_no_key">No recovery key is saved on this device.</string>
+    <string name="profile_logout">Log out</string>
+    <string name="profile_signed_in">Signed in.</string>
+    <string name="profile_reset_done">Password reset — you\'re signed in.</string>
+    <string name="profile_reset_title">Reset password</string>
+    <string name="profile_reset_hint">Enter your username, your recovery key, and a new password.</string>
+    <string name="profile_reset_action">Reset</string>
+    <string name="profile_forgot">Forgot password? Reset with recovery key</string>
+    <string name="profile_uploads_title">My uploads (%1$d)</string>
+    <string name="profile_no_uploads">Nothing shared yet.</string>
+    <string name="profile_upload_delete_fail">Couldn\'t delete that upload.</string>
+    <string name="profile_avatar_read_fail">Couldn\'t read that image.</string>
+    <string name="profile_avatar_updated">Profile picture updated.</string>
+    <string name="profile_err_username">Usernames are 3–20 characters: letters, numbers or _.</string>
+    <string name="profile_err_taken">That username is taken.</string>
+    <string name="profile_err_weak">Password must be at least 6 characters.</string>
+    <string name="profile_err_rate">Too many attempts — wait a bit and try again.</string>
+    <string name="profile_err_invalid">Wrong username or password.</string>
+    <string name="profile_err_reset_key">That recovery key isn\'t right for this username.</string>
+    <string name="profile_err_network">Couldn\'t reach the server. Check your connection and try again.</string>
+    <string name="profile_err_outdated">Server doesn\'t know accounts yet — update worker.js in Cloudflare and try again.</string>
+    <string name="profile_err_avatar_type">That image type isn\'t supported — pick a JPEG, PNG, or WebP.</string>
+    <string name="profile_err_avatar_image">That file isn\'t a valid image.</string>
+    <string name="profile_err_not_signed">Sign in first to set a profile picture.</string>
+    <string name="profile_err_reserved">That username is reserved.</string>
+    <string name="profile_err_banned">This account is banned.</string>
+    <string name="profile_err_forbidden">Not allowed.</string>
+    <string name="profile_upload_deleting">Deleting…</string>
+    <string name="profile_upload_deleted">Upload deleted.</string>
+    <string name="owner_badge">OWNER</string>
+
+    <!-- Admin moderation -->
+    <string name="admin_title">Moderation</string>
+    <string name="admin_delete_config">Delete config</string>
+    <string name="admin_delete_confirm">Confirm delete</string>
+    <string name="admin_deleted">Deleted.</string>
+    <string name="admin_reset_votes">Reset votes</string>
+    <string name="admin_edit_desc">Edit description</string>
+    <string name="admin_save_desc">Save</string>
+    <string name="admin_action_fail">Action failed.</string>
+    <string name="admin_ban">Ban</string>
+    <string name="admin_ban_confirm">Ban?</string>
+    <string name="admin_banned">User %1$s banned.</string>
 
     <!-- Big Picture -->
     <string name="big_picture">Big Picture</string>

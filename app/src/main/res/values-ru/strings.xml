@@ -1766,6 +1766,72 @@
     <string name="bundle_applied">Компоненты установлены</string>
     <string name="components">Компоненты</string>
     <string name="driver">Драйвер</string>
+    <string name="community_uploader_by">от %1$s</string>
+    <string name="community_anonymous">Аноним</string>
+
+    <!-- Мой профиль -->
+    <string name="my_profile">Мой профиль</string>
+    <string name="profile_tab_create">Создать</string>
+    <string name="profile_tab_login">Войти</string>
+    <string name="profile_username">Имя пользователя</string>
+    <string name="profile_password">Пароль</string>
+    <string name="profile_new_password">Новый пароль</string>
+    <string name="profile_recovery_key">Ключ восстановления</string>
+    <string name="profile_recovery_label">Ваш ключ восстановления</string>
+    <string name="profile_recovery_warn">Сохраните его — это единственный способ сбросить пароль, если забудете его.</string>
+    <string name="profile_throwaway_hint">Только для восстановления ваших конфигов — используйте мусорный пароль, не как от почты.</string>
+    <string name="profile_create_action">Создать аккаунт</string>
+    <string name="profile_login_action">Войти</string>
+    <string name="profile_created_title">Аккаунт «%1$s» создан.</string>
+    <string name="profile_copy">Копировать</string>
+    <string name="profile_saved_it">Я сохранил</string>
+    <string name="profile_key_copied">Ключ скопирован.</string>
+    <string name="profile_change_picture">Сменить фото</string>
+    <string name="profile_show_key">Показать мой ключ</string>
+    <string name="profile_hide_key">Скрыть мой ключ</string>
+    <string name="profile_no_key">На этом устройстве ключ не сохранён.</string>
+    <string name="profile_logout">Выйти</string>
+    <string name="profile_signed_in">Вы вошли.</string>
+    <string name="profile_reset_done">Пароль сброшен — вы вошли.</string>
+    <string name="profile_reset_title">Сброс пароля</string>
+    <string name="profile_reset_hint">Введите имя, ключ восстановления и новый пароль.</string>
+    <string name="profile_reset_action">Сбросить</string>
+    <string name="profile_forgot">Забыли пароль? Сброс по ключу</string>
+    <string name="profile_uploads_title">Мои загрузки (%1$d)</string>
+    <string name="profile_no_uploads">Пока ничего не опубликовано.</string>
+    <string name="profile_upload_delete_fail">Не удалось удалить загрузку.</string>
+    <string name="profile_avatar_read_fail">Не удалось прочитать картинку.</string>
+    <string name="profile_avatar_updated">Фото профиля обновлено.</string>
+    <string name="profile_err_username">Имя 3–20 символов: буквы, цифры или _.</string>
+    <string name="profile_err_taken">Такое имя уже занято.</string>
+    <string name="profile_err_weak">Пароль минимум 6 символов.</string>
+    <string name="profile_err_rate">Слишком много попыток — подождите и повторите.</string>
+    <string name="profile_err_invalid">Неверное имя или пароль.</string>
+    <string name="profile_err_reset_key">Этот ключ не подходит к такому имени.</string>
+    <string name="profile_err_network">Нет связи с сервером. Проверьте интернет.</string>
+    <string name="profile_err_outdated">Сервер ещё не знает про аккаунты — обновите worker.js в Cloudflare и повторите.</string>
+    <string name="profile_err_avatar_type">Такой тип не поддерживается — выберите JPEG, PNG или WebP.</string>
+    <string name="profile_err_avatar_image">Это не картинка.</string>
+    <string name="profile_err_not_signed">Сначала войдите, чтобы поставить фото.</string>
+    <string name="profile_err_reserved">Это имя зарезервировано.</string>
+    <string name="profile_err_banned">Этот аккаунт забанен.</string>
+    <string name="profile_err_forbidden">Не разрешено.</string>
+    <string name="profile_upload_deleting">Удаляется…</string>
+    <string name="profile_upload_deleted">Загрузка удалена.</string>
+    <string name="owner_badge">OWNER</string>
+
+    <!-- Модерация -->
+    <string name="admin_title">Модерация</string>
+    <string name="admin_delete_config">Удалить конфиг</string>
+    <string name="admin_delete_confirm">Точно удалить</string>
+    <string name="admin_deleted">Удалено.</string>
+    <string name="admin_reset_votes">Сбросить голоса</string>
+    <string name="admin_edit_desc">Править описание</string>
+    <string name="admin_save_desc">Сохранить</string>
+    <string name="admin_action_fail">Не получилось.</string>
+    <string name="admin_ban">Бан</string>
+    <string name="admin_ban_confirm">Банить?</string>
+    <string name="admin_banned">Юзер %1$s забанен.</string>
 
     <!-- Big Picture -->
     <string name="big_picture">Big Picture</string>

@@ -14,6 +14,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class HttpUtils {
+    public static final class HttpResponse {
+        public final int code;
+        public final String body;
+        public HttpResponse(int code, String body) {
+            this.code = code;
+            this.body = body;
+        }
+    }
+
     private static void downloadAsync(String url, Callback<String> onDownloadComplete) {
         try {
             HttpURLConnection connection = (HttpURLConnection)(new URL(url)).openConnection();

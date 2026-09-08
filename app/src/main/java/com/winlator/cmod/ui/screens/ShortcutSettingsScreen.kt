@@ -338,6 +338,7 @@ fun ShortcutSettingsScreen(
                                     com.winlator.cmod.core.gameconfig.BundleRepoClient.uploadBundle(
                                         result.zipFile, config.toJson().toString(), config.gameName, publishDescription,
                                         config.device, config.gpu,
+                                        com.winlator.cmod.community.AccountManager.session(ctx),
                                         object : com.winlator.cmod.core.gameconfig.BundleRepoClient.BundleUploadCallback {
                                             override fun onComplete(success: Boolean, sha: String, bundleUrl: String, error: String?) {
                                                 result.zipFile.delete()

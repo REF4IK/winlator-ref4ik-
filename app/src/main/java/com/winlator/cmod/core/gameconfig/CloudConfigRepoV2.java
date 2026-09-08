@@ -116,15 +116,25 @@ public class CloudConfigRepoV2 {
     }
 
     public static void postComment(String sha, String text, String nickname, CommentCallback callback) {
+        postComment(sha, text, nickname, null, callback);
+    }
+
+    public static void postComment(String sha, String text, String nickname, String session, CommentCallback callback) {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
                 JSONObject body = new JSONObject();
                 body.put("sha", sha);
                 body.put("text", text);
                 body.put("nickname", nickname != null ? nickname : "Anonymous");
-                String url = WORKER_URL + "/api/comment";
-                String response = postJson(url, body.toString());
-                JSONObject result = new JSONObject(response);
+                if (session != null && !session.isEmpty()) body.put("session", session);
+                RequestBody reqBody = RequestBody.create(body.toString(), JSON_MEDIA);
+                Request request = new Request.Builder()
+                        .url(WORKER_URL + "/api/comment")
+                        .post(reqBody)
+                        .build();
+                Response response = okhttpClient().newCall(request).execute();
+                String responseBody = response.body() != null ? response.body().string() : "";
+                JSONObject result = new JSONObject(responseBody);
                 callback.onResult(result.optBoolean("success", false), result.optString("error", null));
             } catch (Exception e) {
                 callback.onResult(false, e.getMessage());

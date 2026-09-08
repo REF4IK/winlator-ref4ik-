@@ -155,6 +155,7 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
             gameName = selectedGameName,
             deviceMatcher = deviceMatcher,
             onDismiss = { showDetail = false },
+            onEntryDeleted = { gone -> configEntries = configEntries.filterNot { it.sha == gone.sha } },
             onApply = {
                 showDetail = false
                 if (shortcut != null) {
@@ -590,6 +591,16 @@ private fun DevicePanel(
                                             Text("${entry.downloads}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
+                                    Spacer(Modifier.weight(1f))
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(
+                                            entry.uploader.ifBlank { stringResource(R.string.community_anonymous) },
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                        )
+                                        if (entry.uploaderOwner) com.winlator.cmod.ui.components.OwnerBadge()
+                                    }
                                 }
                             }
                         }
@@ -623,9 +634,11 @@ private fun ConfigDetailDialog(
     deviceMatcher: DeviceMatcher,
     onDismiss: () -> Unit,
     onApply: () -> Unit,
+    onEntryDeleted: (ConfigFileEntry) -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val social = remember { SocialManager() }
+    val scope = rememberCoroutineScope()
     var votesUp by remember { mutableStateOf(entry.votesUp) }
     var votesDown by remember { mutableStateOf(entry.votesDown) }
     var voted by remember { mutableStateOf(social.hasVoted(entry.sha)) }
@@ -633,6 +646,13 @@ private fun ConfigDetailDialog(
     var comments by remember { mutableStateOf<JSONArray?>(null) }
     var commentText by remember { mutableStateOf("") }
     var commenting by remember { mutableStateOf(false) }
+    val isAdmin = remember { com.winlator.cmod.community.AccountManager.isAdmin(ctx) }
+    var descState by remember { mutableStateOf(config.description) }
+    var adminBusy by remember { mutableStateOf(false) }
+    var adminConfirmDelete by remember { mutableStateOf(false) }
+    var descEdit by remember { mutableStateOf("") }
+    var descEditing by remember { mutableStateOf(false) }
+    var banArmed by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(entry.sha) {
         withContext(Dispatchers.IO) {
@@ -685,9 +705,16 @@ private fun ConfigDetailDialog(
                                 Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(if (dateStr.isNotEmpty()) dateStr else "—", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            if (config.description.isNotBlank()) {
+                            if (entry.uploader.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    com.winlator.cmod.ui.components.AccountAvatar(avatarUrl = entry.uploaderAvatar.ifBlank { null }, size = 18.dp)
+                                    Text(stringResource(R.string.community_uploader_by, entry.uploader), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    if (entry.uploaderOwner) com.winlator.cmod.ui.components.OwnerBadge()
+                                }
+                            }
+                            if (descState.isNotBlank()) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                                Text(config.description, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(descState, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             if (matchResult.score > 0) {
                                 Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(6.dp)) {
@@ -804,6 +831,105 @@ private fun ConfigDetailDialog(
                         }
                     }
 
+                    // Admin card
+                    if (isAdmin && !entry.sha.isNullOrBlank()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
+                            shape = RoundedCornerShape(10.dp),
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Default.Shield, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                                    Text(stringResource(R.string.admin_title), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (adminConfirmDelete) {
+                                        Button(
+                                            onClick = {
+                                                adminBusy = true
+                                                val kind = if (entry.bundleUrl.isNotEmpty()) "bundle" else "config"
+                                                scope.launch(Dispatchers.IO) {
+                                                    val ok = com.winlator.cmod.community.AdminManager.deleteConfig(ctx, entry.sha, kind, gameName, entry.name)
+                                                    withContext(Dispatchers.Main) {
+                                                        adminBusy = false
+                                                        if (ok) {
+                                                            onEntryDeleted(entry)
+                                                            android.widget.Toast.makeText(ctx, ctx.getString(R.string.admin_deleted), android.widget.Toast.LENGTH_SHORT).show()
+                                                            onDismiss()
+                                                        } else {
+                                                            adminConfirmDelete = false
+                                                            android.widget.Toast.makeText(ctx, ctx.getString(R.string.admin_action_fail), android.widget.Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            enabled = !adminBusy,
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        ) { Text(stringResource(R.string.admin_delete_confirm), fontSize = 12.sp) }
+                                        TextButton(onClick = { adminConfirmDelete = false }, enabled = !adminBusy) { Text(stringResource(R.string.cancel), fontSize = 12.sp) }
+                                    } else {
+                                        OutlinedButton(
+                                            onClick = { adminConfirmDelete = true },
+                                            enabled = !adminBusy,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        ) { Text(stringResource(R.string.admin_delete_config), fontSize = 12.sp) }
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            adminBusy = true
+                                            scope.launch(Dispatchers.IO) {
+                                                val v = com.winlator.cmod.community.AdminManager.setVotes(ctx, entry.sha, 0, 0)
+                                                withContext(Dispatchers.Main) {
+                                                    adminBusy = false
+                                                    if (v != null) { votesUp = v.up; votesDown = v.down }
+                                                    else android.widget.Toast.makeText(ctx, ctx.getString(R.string.admin_action_fail), android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        },
+                                        enabled = !adminBusy,
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    ) { Text(stringResource(R.string.admin_reset_votes), fontSize = 12.sp) }
+                                }
+                                if (descEditing) {
+                                    OutlinedTextField(
+                                        value = descEdit,
+                                        onValueChange = { if (it.length <= 500) descEdit = it },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 3,
+                                        shape = RoundedCornerShape(10.dp),
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = {
+                                                adminBusy = true
+                                                val kind = if (entry.bundleUrl.isNotEmpty()) "bundle" else "config"
+                                                scope.launch(Dispatchers.IO) {
+                                                    val ok = com.winlator.cmod.community.AdminManager.setDescription(ctx, entry.sha, kind, gameName, entry.name, descEdit.trim())
+                                                    withContext(Dispatchers.Main) {
+                                                        adminBusy = false
+                                                        if (ok) { descState = descEdit.trim(); descEditing = false }
+                                                        else android.widget.Toast.makeText(ctx, ctx.getString(R.string.admin_action_fail), android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            enabled = !adminBusy,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        ) { Text(stringResource(R.string.admin_save_desc), fontSize = 12.sp) }
+                                        TextButton(onClick = { descEditing = false }, enabled = !adminBusy) { Text(stringResource(R.string.cancel), fontSize = 12.sp) }
+                                    }
+                                } else {
+                                    OutlinedButton(
+                                        onClick = { descEdit = descState; descEditing = true },
+                                        enabled = !adminBusy,
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    ) { Text(stringResource(R.string.admin_edit_desc), fontSize = 12.sp) }
+                                }
+                            }
+                        }
+                    }
+
                     // Comments card
                     if (!entry.sha.isNullOrBlank()) {
                         Card(
@@ -830,11 +956,60 @@ private fun ConfigDetailDialog(
                                             ) {
                                                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                        Icon(Icons.Default.Person, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                                                        val nick = c.optString("nickname", "")
+                                                        val cAvatar = com.winlator.cmod.community.AccountManager.absUrl(c.optString("avatarUrl", ""))
+                                                        if (!cAvatar.isNullOrBlank()) {
+                                                            com.winlator.cmod.ui.components.AccountAvatar(avatarUrl = cAvatar, size = 18.dp)
+                                                        } else {
+                                                            Icon(Icons.Default.Person, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                                        }
+                                                        val nick = c.optString("username", "").ifBlank { c.optString("nickname", "") }
                                                         val date = c.optString("date", "").take(10)
                                                         val head = listOf(nick, date).filter { it.isNotBlank() }.joinToString(" · ")
-                                                        if (head.isNotBlank()) Text(head, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                        if (head.isNotBlank()) Text(head, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f, fill = false))
+                                                        if (c.optBoolean("owner", false)) com.winlator.cmod.ui.components.OwnerBadge()
+                                                        if (isAdmin && !adminBusy) {
+                                                            IconButton(onClick = {
+                                                                adminBusy = true
+                                                                scope.launch(Dispatchers.IO) {
+                                                                    val ok = com.winlator.cmod.community.AdminManager.deleteComment(ctx, entry.sha, i) != null
+                                                                    social.getComments(entry.sha) { refreshed -> comments = refreshed }
+                                                                    withContext(Dispatchers.Main) {
+                                                                        adminBusy = false
+                                                                        if (!ok) android.widget.Toast.makeText(ctx, ctx.getString(R.string.admin_action_fail), android.widget.Toast.LENGTH_SHORT).show()
+                                                                    }
+                                                                }
+                                                            }, modifier = Modifier.size(24.dp)) {
+                                                                Icon(Icons.Default.Delete, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+                                                            }
+                                                            if (nick.isNotBlank()) {
+                                                                if (banArmed == nick) {
+                                                                    TextButton(
+                                                                        onClick = {
+                                                                            banArmed = null
+                                                                            adminBusy = true
+                                                                            scope.launch(Dispatchers.IO) {
+                                                                                val err = com.winlator.cmod.community.AdminManager.setBan(ctx, nick, true)
+                                                                                withContext(Dispatchers.Main) {
+                                                                                    adminBusy = false
+                                                                                    android.widget.Toast.makeText(
+                                                                                        ctx,
+                                                                                        if (err == null) ctx.getString(R.string.admin_banned, nick)
+                                                                                        else ctx.getString(R.string.admin_action_fail),
+                                                                                        android.widget.Toast.LENGTH_SHORT,
+                                                                                    ).show()
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        contentPadding = PaddingValues(horizontal = 4.dp),
+                                                                    ) { Text(stringResource(R.string.admin_ban_confirm), fontSize = 11.sp, color = MaterialTheme.colorScheme.error) }
+                                                                } else {
+                                                                    TextButton(
+                                                                        onClick = { banArmed = nick },
+                                                                        contentPadding = PaddingValues(horizontal = 4.dp),
+                                                                    ) { Text(stringResource(R.string.admin_ban), fontSize = 11.sp) }
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                     Text(c.optString("text", ""), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                                                 }
@@ -863,8 +1038,9 @@ private fun ConfigDetailDialog(
                                             val text = commentText.trim()
                                             if (text.isEmpty() || commenting) return@FilledIconButton
                                             commenting = true
-                                            val nick = Build.MANUFACTURER + "_" + Build.MODEL
-                                            social.postComment(entry.sha, text, nick) { success, err ->
+                                            val account = com.winlator.cmod.community.AccountManager.current(ctx)
+                                            val nick = account?.username ?: (Build.MANUFACTURER + "_" + Build.MODEL)
+                                            social.postComment(entry.sha, text, nick, account?.session) { success, err ->
                                                 commenting = false
                                                 if (success) {
                                                     commentText = ""
@@ -913,6 +1089,9 @@ private data class ConfigFileEntry(
     val soc: String = "",
     val timestamp: Long = 0,
     val bundleUrl: String = "",
+    val uploader: String = "",
+    val uploaderAvatar: String = "",
+    val uploaderOwner: Boolean = false,
 )
 
 private fun parseVersion(configStr: String, key: String): String? {
@@ -943,6 +1122,9 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                         val voteUp = b.optInt("votes_up", 0)
                         val voteDown = b.optInt("votes_down", 0)
                         val dlCount = b.optInt("downloads", 0)
+                        val uploader = b.optString("uploader", "")
+                        val uploaderAvatar = com.winlator.cmod.community.AccountManager.absUrl(b.optString("uploaderAvatar", "")).orEmpty()
+                        val uploaderOwner = b.optBoolean("uploaderOwner", false)
                         val createdAt = b.optString("createdAt", "")
                         val ts = try { java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).parse(createdAt)?.time ?: 0 } catch (_: Exception) { 0 }
                         if (configUrl.isNotEmpty()) {
@@ -958,6 +1140,9 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                                 soc = gpu,
                                 timestamp = ts,
                                 bundleUrl = zipUrl,
+                                uploader = uploader,
+                                uploaderAvatar = uploaderAvatar,
+                                uploaderOwner = uploaderOwner,
                             ))
                         }
                     } catch (_: Exception) {}
@@ -975,11 +1160,14 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                             val votesUp = obj.optInt("votes_up", 0)
                             val votesDown = obj.optInt("votes_down", 0)
                             val dateStr = obj.optString("date", "")
+                            val uploader = obj.optString("uploader", "")
+                            val uploaderAvatar = com.winlator.cmod.community.AccountManager.absUrl(obj.optString("uploaderAvatar", "")).orEmpty()
+                            val uploaderOwner = obj.optBoolean("uploaderOwner", false)
                             val ts = try { java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).parse(dateStr)?.time ?: 0 } catch (_: Exception) { 0 }
                             if (filename.isNotEmpty()) {
                                 val url = "$RAW_BASE/REF4IK/winlator-ref4ik-configs/main/configs/" +
                                     gameName.replace(Regex("[^a-zA-Z0-9_]"), "_") + "/$filename"
-                                list.add(ConfigFileEntry(filename, url, sha, votesUp, votesDown, device = device, soc = soc, timestamp = ts))
+                                list.add(ConfigFileEntry(filename, url, sha, votesUp, votesDown, device = device, soc = soc, timestamp = ts, uploader = uploader, uploaderAvatar = uploaderAvatar, uploaderOwner = uploaderOwner))
                             }
                     } catch (_: Exception) {}
                 }

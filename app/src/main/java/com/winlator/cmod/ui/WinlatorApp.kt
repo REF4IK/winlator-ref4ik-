@@ -46,6 +46,7 @@ import com.winlator.cmod.ui.theme.observeString
  * Navigation drawer items corresponding to the main menu.
  */
 private val drawerItems = listOf(
+    DrawerItem(R.string.my_profile, Icons.Filled.Person, Screen.MyProfile),
     DrawerItem(R.string.shortcuts, Icons.Filled.VideogameAsset, Screen.Shortcuts),
     DrawerItem(R.string.containers, Icons.Filled.Storage, Screen.Containers),
     DrawerItem(R.string.input_controls, Icons.Filled.Gamepad, Screen.InputControls),
@@ -69,6 +70,7 @@ private data class DrawerItem(
 private fun getScreenTitle(screen: Screen): String {
     return when (screen) {
         Screen.Shortcuts -> stringResource(R.string.shortcuts)
+        Screen.MyProfile -> stringResource(R.string.my_profile)
         Screen.Containers -> stringResource(R.string.containers)
         Screen.InputControls -> stringResource(R.string.input_controls)
         Screen.Saves -> stringResource(R.string.saves)
@@ -453,6 +455,7 @@ fun WinlatorApp(
                         label = "screen-transition",
                     ) { screen ->
                         when (screen) {
+                    Screen.MyProfile -> MyProfileScreen()
                     Screen.Shortcuts -> ShortcutsScreen(
                         refreshKey = containersRefreshKey,
                         isGridView = isShortcutsGridView,

@@ -37,6 +37,10 @@ public class BundleRepoClient {
     }
 
     public static void uploadBundle(File zipFile, String configJson, String gameName, String description, String device, String gpu, BundleUploadCallback callback) {
+        uploadBundle(zipFile, configJson, gameName, description, device, gpu, null, callback);
+    }
+
+    public static void uploadBundle(File zipFile, String configJson, String gameName, String description, String device, String gpu, String session, BundleUploadCallback callback) {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
                 byte[] zipBytes = new byte[(int) zipFile.length()];
@@ -60,6 +64,7 @@ public class BundleRepoClient {
                 body.put("description", description != null ? description : "");
                 body.put("device", device != null ? device : "");
                 body.put("gpu", gpu != null ? gpu : "");
+                if (session != null && !session.isEmpty()) body.put("session", session);
 
                 RequestBody reqBody = RequestBody.create(body.toString(), JSON_MEDIA);
                 Request request = new Request.Builder()
