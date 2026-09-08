@@ -3,7 +3,6 @@ package com.winlator.cmod.core
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.winlator.cmod.BuildConfig
@@ -16,7 +15,11 @@ import java.io.FileOutputStream
  * Встроенный апдейтер: проверка новых версий через GitHub Releases API,
  * скачивание APK с прогрессом и установка через FileProvider.
  *
- * Источник правды — tag релиза (например "7.1.5x-cmod") и APK-asset в релизе.
+ * Источник правды — ТОЛЬКО asset `cronyx.json` в latest-релизе:
+ * versionCode + builds[] {package, url}.
+ * APK подбирается по packageName установленного приложения,
+ * новее — по versionCode. Подпись проверяет сам Android при установке.
+ * Нет json / битый json — показ причины, legacy-фолбэка нет.
  */
 object UpdateManager {
     private const val TAG = "UpdateManager"
@@ -30,15 +33,33 @@ object UpdateManager {
     private const val PREF_NOTIFY = "update_notify_enabled"
     private const val PREF_SKIP = "update_skip_version"
 
+    /** Почему нет обновления: только для диагностики в диалоге. */
+    enum class ManifestError { NONE, NO_MANIFEST, DOWNLOAD_FAILED, PARSE_ERROR, NO_BUILD }
+
     data class UpdateInfo(
         val tagName: String,
         val notes: String,
         val apkUrl: String?,
+        val versionCode: Int = -1,
+        val noBuildForPackage: Boolean = false,
+        val error: ManifestError = ManifestError.NONE,
     ) {
-        /** Новее ли релиз установленной версии. */
+        /** Новее ли релиз установленной версии. Только по живому манифесту. */
         val isNewer: Boolean
-            get() = compareVersions(tagName, BuildConfig.VERSION_NAME) > 0
+            get() = error == ManifestError.NONE && versionCode > BuildConfig.VERSION_CODE
     }
+
+    data class CronyxBuild(
+        val pkg: String,
+        val url: String,
+    )
+
+    data class CronyxManifest(
+        val versionName: String,
+        val versionCode: Int,
+        val notes: String,
+        val builds: List<CronyxBuild>,
+    )
 
     // ── Preferences ──────────────────────────────────────────────────────
 
@@ -59,6 +80,9 @@ object UpdateManager {
     /**
      * Запрос к GitHub API на фоновом потоке. [onResult] вызывается на том же
      * потоке (не UI). При сетевой ошибке — null.
+     *
+     * Путь: releases/latest → asset cronyx.json → подбор APK по
+     * packageName. Без json обновления нет, только причина в UpdateInfo.error.
      */
     fun check(ctx: Context, onResult: (UpdateInfo?) -> Unit) {
         Thread {
@@ -80,9 +104,26 @@ object UpdateManager {
                     val json = JSONObject(body)
                     val tag = json.optString("tag_name", "")
                     val notes = json.optString("body", "").trim()
-                    val apkUrl = pickApkUrl(json.optJSONArray("assets"))
-                    val info = UpdateInfo(tagName = tag, notes = notes, apkUrl = apkUrl)
-                    Log.i(TAG, "check: latest=$tag installed=${BuildConfig.VERSION_NAME} apk=$apkUrl")
+                    val assets = json.optJSONArray("assets")
+                    val manifestUrl = findManifestUrl(assets)
+                    if (manifestUrl == null) {
+                        Log.w(TAG, "check: no manifest in latest=$tag")
+                        onResult(UpdateInfo(tagName = tag, notes = notes, apkUrl = null, error = ManifestError.NO_MANIFEST))
+                        return@Thread
+                    }
+                    val mbody = downloadText(manifestUrl)
+                    if (mbody == null) {
+                        Log.w(TAG, "check: manifest download failed")
+                        onResult(UpdateInfo(tagName = tag, notes = notes, apkUrl = null, error = ManifestError.DOWNLOAD_FAILED))
+                        return@Thread
+                    }
+                    val info = resolveFromManifest(ctx, mbody, tag, notes)
+                    if (info == null) {
+                        Log.w(TAG, "check: manifest parse failed")
+                        onResult(UpdateInfo(tagName = tag, notes = notes, apkUrl = null, error = ManifestError.PARSE_ERROR))
+                        return@Thread
+                    }
+                    Log.i(TAG, "check: manifest v=${info.tagName} vc=${info.versionCode} apk=${info.apkUrl} noBuild=${info.noBuildForPackage}")
                     onResult(info)
                 }
             } catch (e: Exception) {
@@ -92,24 +133,129 @@ object UpdateManager {
         }.start()
     }
 
-    private fun pickApkUrl(assets: JSONArray?): String? {
+    /** URL манифеста в релизе. Терпимо к имени: содержит cronyx + .json. */
+    private fun findManifestUrl(assets: JSONArray?): String? {
         if (assets == null) return null
         for (i in 0 until assets.length()) {
             val asset = assets.optJSONObject(i) ?: continue
             val name = asset.optString("name", "").lowercase()
-            if (name.endsWith(".apk") && !name.endsWith("-universal.apk")) {
-                return asset.optString("browser_download_url")
-            }
-        }
-        // фолбэк: любой apk
-        for (i in 0 until assets.length()) {
-            val asset = assets.optJSONObject(i) ?: continue
-            val name = asset.optString("name", "").lowercase()
-            if (name.endsWith(".apk")) {
-                return asset.optString("browser_download_url")
+            if (name.contains("cronyx") && name.endsWith(".json")) {
+                return asset.optString("browser_download_url").takeIf { it.startsWith("https://") }
             }
         }
         return null
+    }
+
+    /** Скачивание текстового файла (манифест). Лимит 128 КБ. */
+    private fun downloadText(url: String): String? {
+        return try {
+            val request = okhttp3.Request.Builder().url(url)
+                .header("User-Agent", "Winlator-CMOD")
+                .build()
+            DohOkHttp.get().newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "manifest: HTTP ${response.code}")
+                    return null
+                }
+                val text = response.body?.string() ?: return null
+                if (text.length > 128 * 1024) {
+                    Log.w(TAG, "manifest too large: ${text.length}")
+                    return null
+                }
+                text
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "manifest download failed", e)
+            null
+        }
+    }
+
+    /**
+     * Разбор cronyx.json и подбор APK по packageName установленного приложения.
+     * Подпись проверяет Android при установке (чужой ключ не встанет).
+     * null — парсинг не удался, вызывающий вернёт PARSE_ERROR.
+     */
+    private fun resolveFromManifest(ctx: Context, body: String, fallbackTag: String, fallbackNotes: String): UpdateInfo? {
+        return try {
+            val manifest = parseManifest(body, fallbackTag, fallbackNotes) ?: return null
+            val installedPkg = ctx.packageName
+            val matched = manifest.builds.firstOrNull { it.pkg.equals(installedPkg, ignoreCase = true) }
+            if (matched == null) {
+                return UpdateInfo(
+                    tagName = manifest.versionName,
+                    notes = manifest.notes,
+                    apkUrl = null,
+                    versionCode = manifest.versionCode,
+                    noBuildForPackage = true,
+                    error = ManifestError.NO_BUILD,
+                )
+            }
+            UpdateInfo(
+                tagName = manifest.versionName,
+                notes = manifest.notes,
+                apkUrl = matched.url,
+                versionCode = manifest.versionCode,
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "manifest parse failed", e)
+            null
+        }
+    }
+
+    /** Парсинг cronyx.json. null при битом JSON. Комменты и висячие запятые терпит. */
+    private fun parseManifest(body: String, fallbackTag: String, fallbackNotes: String): CronyxManifest? {
+        val json = JSONObject(lenientJson(body))
+        val versionName = json.optString("versionName", "").ifEmpty { json.optString("version", "") }.ifEmpty { fallbackTag }
+        if (versionName.isEmpty()) return null
+        val versionCode = json.optInt("versionCode", -1)
+        if (versionCode < 0) return null
+        val notes = json.optString("notes", "").trim().ifEmpty { fallbackNotes }
+        val builds = mutableListOf<CronyxBuild>()
+        val arr = json.optJSONArray("builds") ?: return CronyxManifest(versionName, versionCode, notes, builds)
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val pkg = o.optString("package", "").trim()
+            if (pkg.isEmpty()) continue
+            val url = o.optString("url", "").ifEmpty { o.optString("apkUrl", "") }.ifEmpty { o.optString("browser_download_url", "") }.trim()
+            if (!url.startsWith("https://")) continue
+            builds.add(CronyxBuild(pkg = pkg, url = url))
+        }
+        return CronyxManifest(versionName = versionName, versionCode = versionCode, notes = notes, builds = builds)
+    }
+
+    /**
+     * Чистка ручного JSON: вырезает //- и slash-star комментарии
+     * (строки не трогает, https:// в url целы), висячие запятые, BOM.
+     */
+    private fun lenientJson(body: String): String {
+        val sb = StringBuilder(body.length)
+        var inStr = false
+        var esc = false
+        var i = 0
+        while (i < body.length) {
+            val c = body[i]
+            if (inStr) {
+                sb.append(c)
+                if (esc) esc = false
+                else if (c == '\\') esc = true
+                else if (c == '"') inStr = false
+                i++
+            } else {
+                when {
+                    c == '"' -> { inStr = true; sb.append(c); i++ }
+                    c == '/' && i + 1 < body.length && body[i + 1] == '/' -> {
+                        while (i < body.length && body[i] != '\n') i++
+                    }
+                    c == '/' && i + 1 < body.length && body[i + 1] == '*' -> {
+                        i += 2
+                        while (i + 1 < body.length && !(body[i] == '*' && body[i + 1] == '/')) i++
+                        i += 2
+                    }
+                    else -> { sb.append(c); i++ }
+                }
+            }
+        }
+        return sb.toString().replace(Regex(",\\s*([}\\]])"), "$1").trim().trimStart('﻿')
     }
 
     // ── Скачивание ──────────────────────────────────────────────────────

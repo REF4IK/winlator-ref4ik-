@@ -1801,6 +1801,9 @@
     <string name="update_download_failed">Failed to download update</string>
     <string name="update_install_failed">Failed to start installation</string>
     <string name="update_notes">What\'s new</string>
+    <string name="update_no_compatible_build">No build for your signature (%1$s). Download manually from the releases page.</string>
+    <string name="update_manifest_missing">No cronyx.json in the latest release. The update cannot be installed automatically.</string>
+    <string name="update_manifest_bad">Failed to read cronyx.json from the release.</string>
     <string name="update_repo_missing">Set the repository in UpdateManager (UPDATE_REPO)</string>
 
     <!-- X-Server menu customization -->

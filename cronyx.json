@@ -1,0 +1,23 @@
+{
+  "versionName": "v11",
+  "versionCode": 21,
+  "notes": "Что нового в этом релизе",
+  "builds": [
+    {
+      "package": "com.cronyx",
+      "url": "https://github.com/REF4IK/CronyX-/releases/download/v11/app-cronyx.apk"
+    },
+    {
+      "package": "com.ludashi.benchmark",
+      "url": "https://github.com/REF4IK/CronyX-/releases/download/v11/app-ludashi.apk"
+    },
+    {
+      "package": "com.tencent.ig",
+      "url": "https://github.com/REF4IK/CronyX-/releases/download/v11/app-pubg.apk"
+    },
+    {
+      "package": "com.antutu.ABenchMark",
+      "url": "https://github.com/REF4IK/CronyX-/releases/download/v11/app-antutu.apk"
+    }
+  ]
+}

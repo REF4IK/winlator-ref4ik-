@@ -218,7 +218,8 @@ fun WinlatorApp(
         com.winlator.cmod.core.UpdateManager.check(context) { info ->
             (context as? android.app.Activity)?.runOnUiThread {
                 updateChecking = false
-                if (info != null && info.isNewer &&
+                if (info != null && info.error == com.winlator.cmod.core.UpdateManager.ManifestError.NONE && info.isNewer &&
+                    info.apkUrl != null &&
                     com.winlator.cmod.core.UpdateManager.skippedVersion(context) != info.tagName
                 ) {
                     updateInfo = info

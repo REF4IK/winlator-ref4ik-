@@ -79,10 +79,21 @@ fun UpdateCheckDialog(
                     error -> {
                         Text(stringResource(R.string.update_error), color = MaterialTheme.colorScheme.error)
                     }
-                    info != null && !info.isNewer -> {
+                    info != null && info.error == UpdateManager.ManifestError.NONE && !info.isNewer -> {
                         Text(stringResource(R.string.update_not_available))
                     }
                     info != null -> {
+                        when (info.error) {
+                            UpdateManager.ManifestError.NO_MANIFEST ->
+                                Text(stringResource(R.string.update_manifest_missing))
+                            UpdateManager.ManifestError.DOWNLOAD_FAILED,
+                            UpdateManager.ManifestError.PARSE_ERROR ->
+                                Text(stringResource(R.string.update_manifest_bad))
+                            UpdateManager.ManifestError.NO_BUILD -> {
+                                Text(stringResource(R.string.update_available, info.tagName), fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.update_no_compatible_build, ctx.packageName))
+                            }
+                            UpdateManager.ManifestError.NONE ->
                         if (UpdateManager.skippedVersion(ctx) == info.tagName) {
                             Text(stringResource(R.string.update_not_available))
                         } else {
@@ -100,6 +111,7 @@ fun UpdateCheckDialog(
                             if (file != null) {
                                 Text(stringResource(R.string.update_downloaded))
                             }
+                        }
                         }
                     }
                 }
