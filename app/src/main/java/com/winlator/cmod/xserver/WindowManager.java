@@ -27,6 +27,7 @@ public class WindowManager extends XResourceManager {
     private Window focusedWindow;
     private FocusRevertTo focusRevertTo = FocusRevertTo.NONE;
     private final ArrayList<OnWindowModificationListener> onWindowModificationListeners = new ArrayList<>();
+    private volatile boolean renderingEnabled = true;
 
     public interface OnWindowModificationListener {
         default void onMapWindow(Window window) {}
@@ -314,7 +315,12 @@ public class WindowManager extends XResourceManager {
         }
     }
 
+    public void setRenderingEnabled(boolean enabled) {
+        this.renderingEnabled = enabled;
+    }
+
     protected void triggerOnUpdateWindowContent(Window window) {
+        if (!renderingEnabled) return;
         for (int i = onWindowModificationListeners.size()-1; i >= 0; i--) {
             onWindowModificationListeners.get(i).onUpdateWindowContent(window);
         }

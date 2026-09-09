@@ -4,7 +4,9 @@ import static com.winlator.cmod.xserver.XClientRequestHandler.RESPONSE_CODE_SUCC
 
 import android.util.SparseArray;
 
+import com.winlator.cmod.renderer.AHBImage;
 import com.winlator.cmod.renderer.ASurfaceRenderer;
+import com.winlator.cmod.renderer.GLRenderer;
 import com.winlator.cmod.renderer.GPUImage;
 import com.winlator.cmod.renderer.Texture;
 import com.winlator.cmod.renderer.VulkanRenderer;
@@ -105,7 +107,7 @@ public class PresentExtension implements Extension, XResourceManager.OnResourceL
     }
 
     private void sendIdleNotify(Window window, Pixmap pixmap, int serial, int idleFence) {
-        if (idleFence != 0) syncExtension.setTriggered(idleFence);
+        if (idleFence != 0 && syncExtension != null) syncExtension.setTriggered(idleFence);
 
         synchronized (events) {
             for (int i = 0; i < events.size(); i++) {
@@ -195,6 +197,15 @@ public class PresentExtension implements Extension, XResourceManager.OnResourceL
         }
     }
 
+    private static boolean hasAhb(Drawable d) {
+        if (d == null || d.getTexture() == null) return false;
+        if (d.getTexture() instanceof GPUImage)
+            return ((GPUImage) d.getTexture()).getHardwareBufferPtr() != 0;
+        if (d.getTexture() instanceof AHBImage)
+            return ((AHBImage) d.getTexture()).getHardwareBufferPtr() != 0;
+        return false;
+    }
+
     private void sendCompleteNotify(Window window, int serial, Kind kind, Mode mode, long ust, long msc) {
         synchronized (events) {
             for (int i = 0; i < events.size(); i++) {
@@ -238,27 +249,69 @@ public class PresentExtension implements Extension, XResourceManager.OnResourceL
         if (pixmap == null) throw new BadPixmap(pixmapId);
 
         Drawable content = window.getContent();
-        if (content.visual.depth != pixmap.drawable.visual.depth) throw new BadMatch();
+        int contentDepth = content.visual.depth;
+        int pixmapDepth = pixmap.drawable.visual.depth;
+        boolean depthCompat = (contentDepth == pixmapDepth) ||
+            ((contentDepth == 24 || contentDepth == 32) && (pixmapDepth == 24 || pixmapDepth == 32));
+        if (!depthCompat) throw new BadMatch();
 
         XServerRenderer xr = client.xServer.getRenderer();
         final VulkanRenderer vr = (xr instanceof VulkanRenderer) ? (VulkanRenderer) xr : null;
         final ASurfaceRenderer asr = (xr instanceof ASurfaceRenderer) ? (ASurfaceRenderer) xr : null;
+        final GLRenderer gl = (xr instanceof GLRenderer) ? (GLRenderer) xr : null;
         int targetFps = xr != null ? xr.getFpsLimit() : 0;
 
         long ust = System.nanoTime() / 1000;
         long msc = ust / (targetFps > 0 ? (1_000_000L / targetFps) : (1_000_000L / 60));
 
+        // AHB-backed pixmaps (DXVK/vkd3d via DRI3) хранят пиксели в AHardwareBuffer,
+        // copyArea по ним дает blank -> black. Ветки как в Bannerlator.
         synchronized (content.renderLock) {
+            boolean pixmapHasAhb = hasAhb(pixmap.drawable);
+            boolean isNative = vr != null && vr.isNativeMode();
+            if ((serial & 63) == 0) {
+                android.util.Log.d("Present", "win=" + windowId + " pix=" + pixmapId
+                    + " " + pixmap.drawable.width + "x" + pixmap.drawable.height
+                    + " depth " + contentDepth + "->" + pixmapDepth
+                    + " ahb=" + pixmapHasAhb + " r=" + (xr == null ? "null" : xr.getClass().getSimpleName())
+                    + " mapped=" + window.attributes.isMapped());
+            }
+
             if (asr != null) {
-                content.setTexture(pixmap.drawable.getTexture());
-                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.FLIP, ust, msc);
-                if (window.attributes.isMapped()) {
+                if (window.attributes.isMapped() && pixmapHasAhb) {
+                    content.setTexture(pixmap.drawable.getTexture());
+                    content.setDirectScanout(true);
+                    sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.FLIP, ust, msc);
                     asr.onUpdateWindowContent(window);
+                } else {
+                    content.copyArea((short)0, (short)0, xOff, yOff, pixmap.drawable.width, pixmap.drawable.height, pixmap.drawable);
+                    sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
                 }
                 scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps);
-            } else if (vr != null && window.attributes.isMapped()) {
+            } else if (isNative && pixmap.drawable.isDirectScanout()) {
+                content.setTexture(pixmap.drawable.getTexture());
+                content.setDirectScanout(true);
+                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.FLIP, ust, msc);
+                if (window.attributes.isMapped()) vr.onUpdateWindowContent(window);
+                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps);
+            } else if (vr != null && window.attributes.isMapped() && pixmapHasAhb) {
                 sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
                 vr.onUpdateWindowContentDirect(window, pixmap.drawable, xOff, yOff);
+                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps);
+            } else if (gl != null && gl.isNativeMode() && pixmapHasAhb) {
+                content.setTexture(pixmap.drawable.getTexture());
+                content.setDirectScanout(true);
+                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.FLIP, ust, msc);
+                gl.presentScanout(window, content);
+                gl.tickHud(window.id);
+                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps);
+            } else if (gl != null && pixmapHasAhb && window.attributes.isMapped()) {
+                // GL без native: AHB семплируется через EGLImage zero-copy.
+                // copyArea читал бы CPU-маппинг GPU-буфера (нули -> черный).
+                content.setTexture(pixmap.drawable.getTexture());
+                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.FLIP, ust, msc);
+                gl.tickHud(window.id);
+                gl.requestRender();
                 scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps);
             } else {
                 content.copyArea((short)0, (short)0, xOff, yOff, pixmap.drawable.width, pixmap.drawable.height, pixmap.drawable);
@@ -276,13 +329,19 @@ public class PresentExtension implements Extension, XResourceManager.OnResourceL
         Window window = client.xServer.windowManager.getWindow(windowId);
         if (window == null) throw new BadWindow(windowId);
 
-        if (!Drawable.IS_ASR() && GPUImage.isSupported() && !mask.isEmpty()) {
-            Drawable content = window.getContent();
-            final Texture oldTexture = content.getTexture();
+        if (GPUImage.isSupported() && !mask.isEmpty()) {
+            com.winlator.cmod.renderer.HostRenderer hr = null;
             XServerRenderer r = client.xServer.getRenderer();
-            if (r != null) r.getXServerView().queueEvent(oldTexture::destroy);
-            if (!(content.getTexture() instanceof GPUImage))
-                content.setTexture(new GPUImage(content.width, content.height));
+            if (r instanceof com.winlator.cmod.renderer.HostRenderer)
+                hr = (com.winlator.cmod.renderer.HostRenderer) r;
+            if (hr instanceof GLRenderer) {
+                Drawable content = window.getContent();
+                final Texture oldTexture = content.getTexture();
+                if (oldTexture != null && !(oldTexture instanceof GPUImage) && r != null)
+                    r.getXServerView().queueEvent(oldTexture::destroy);
+                if (!(content.getTexture() instanceof GPUImage))
+                    content.setTexture(new GPUImage(content.width, content.height));
+            }
         }
 
         synchronized (events) {

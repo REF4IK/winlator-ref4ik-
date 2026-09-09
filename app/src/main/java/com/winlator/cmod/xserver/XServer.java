@@ -96,7 +96,7 @@ public class XServer {
     }
 
     public void setRenderingEnabled(boolean enabled) {
-        // Used by VulkanRenderer to pause/resume X rendering during native scanout
+        windowManager.setRenderingEnabled(enabled);
     }
 
     public WinHandler getWinHandler() {

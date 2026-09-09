@@ -383,20 +383,42 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
         envVars.put("ANDROID_SYSVSHM_SERVER", rootDir.getPath() + UnixSocketConfig.SYSVSHM_SERVER_PATH);
 
         String primaryDNS = "8.8.4.4";
-        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Service.CONNECTIVITY_SERVICE);
-        if (connectivityManager.getActiveNetwork() != null) {
-            ArrayList<InetAddress> dnsServers = new ArrayList<>(connectivityManager.getLinkProperties(connectivityManager.getActiveNetwork()).getDnsServers());
-            primaryDNS = dnsServers.get(0).toString().substring(1);
-        }
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Service.CONNECTIVITY_SERVICE);
+            if (connectivityManager != null && connectivityManager.getActiveNetwork() != null
+                    && connectivityManager.getLinkProperties(connectivityManager.getActiveNetwork()) != null) {
+                for (InetAddress dns : connectivityManager.getLinkProperties(connectivityManager.getActiveNetwork()).getDnsServers()) {
+                    // Только IPv4, без %wlan0 скоупа — IPv6 fe80 первым кладет резолв в госте
+                    String s = dns != null ? dns.getHostAddress() : null;
+                    if (s != null && s.contains(".") && !s.contains("%")) { primaryDNS = s; break; }
+                }
+            }
+        } catch (Exception ignored) {}
         envVars.put("ANDROID_RESOLV_DNS", primaryDNS);
         envVars.put("WINE_NEW_NDIS", "1");
-        
+
         String ld_preload = "";
-        
+
         // Check for specific shared memory libraries
         if ((new File(imageFs.getLibDir(), "libandroid-sysvshm.so")).exists()){
             ld_preload = imageFs.getLibDir() + "/libandroid-sysvshm.so";
         }
+        // fakeinput как в Bannerlator — иначе нет ввода в части игр
+        try {
+            File fakeinputSrc = new File(context.getApplicationInfo().nativeLibraryDir, "libfakeinput.so");
+            File fakeinputDest = new File(imageFs.getLibDir(), "libfakeinput.so");
+            if (fakeinputSrc.exists()) {
+                try { com.winlator.cmod.core.FileUtils.copy(fakeinputSrc, fakeinputDest); } catch (Exception ignored) {}
+            }
+            if (fakeinputDest.exists()) {
+                if (!ld_preload.isEmpty()) ld_preload += ":";
+                ld_preload += fakeinputDest.getAbsolutePath();
+                File devInputDir = new File(rootDir, "dev/input");
+                try { devInputDir.mkdirs(); } catch (Exception ignored) {}
+                envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
+                envVars.put("FAKE_EVDEV_VIBRATION", "1");
+            }
+        } catch (Exception ignored) {}
 
         envVars.put("LD_PRELOAD", ld_preload);
         
@@ -454,6 +476,11 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
 
     private void addBox64EnvVars(EnvVars envVars, boolean enableLogs) {
         envVars.put("BOX64_NOBANNER", ProcessHelper.PRINT_DEBUG && enableLogs ? "0" : "1");
+        // Mali + 32бит mmap: как в Bannerlator, иначе часть игр не стартует
+        try {
+            String gpu = com.winlator.cmod.core.GPUInformation.getRenderer();
+            if (gpu != null && gpu.toLowerCase().contains("mali")) envVars.put("BOX64_MMAP32", "0");
+        } catch (Exception ignored) {}
         envVars.put("BOX64_DYNAREC", "1");
 
         if (enableLogs) {

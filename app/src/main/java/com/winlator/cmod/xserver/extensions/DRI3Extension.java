@@ -161,10 +161,38 @@ public class DRI3Extension implements Extension {
     private void pixmapFromHardwareBuffer(XClient client, int pixmapId, short width, short height, byte depth, int fd) throws IOException, XRequestError {
         try {
             NativeTexture image = Drawable.IS_ASR() ? new AHBImage(fd) : new GPUImage(fd);
-            Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, image.getStride(), height, depth);
+            long ahbPtr = (image instanceof GPUImage) ? ((GPUImage) image).getHardwareBufferPtr()
+                : ((AHBImage) image).getHardwareBufferPtr();
+            if (ahbPtr == 0) {
+                Log.e("Dri3", "AHB recv failed for pixmap " + pixmapId + ", dropping");
+                return;
+            }
+            short stride = image.getStride();
+            if (stride <= 0) stride = width;
+            int realH = height;
+            int realW = stride;
+            if (image instanceof GPUImage) {
+                GPUImage g = (GPUImage) image;
+                if (g.getHeight() > 0) realH = g.getHeight();
+                if (g.getWidth() > 0) realW = g.getWidth();
+            } else if (image instanceof AHBImage) {
+                int ah = ((AHBImage) image).getHeight();
+                if (ah > 0) realH = ah;
+                int aw = ((AHBImage) image).getWidth();
+                if (aw > 0) realW = aw;
+            }
+            Log.d("Dri3", "AHB pixmap=" + pixmapId + " wire=" + width + "x" + height
+                + " real=" + realW + "x" + realH + " stride=" + stride);
+            Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, (short) realW, (short) realH, depth);
+            if (drawable == null) {
+                Log.e("Dri3", "createDrawable returned null for pixmap " + pixmapId);
+                image.destroy();
+                return;
+            }
             drawable.setTexture(image);
             drawable.setDirectScanout(true);
-            client.xServer.pixmapManager.createPixmap(drawable);
+            Pixmap pixmap = client.xServer.pixmapManager.createPixmap(drawable);
+            if (pixmap != null) client.registerAsOwnerOfResource(pixmap);
         }
         finally {
             XConnectorEpoll.closeFd(fd);

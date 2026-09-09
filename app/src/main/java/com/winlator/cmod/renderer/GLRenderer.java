@@ -16,6 +16,7 @@ import com.winlator.cmod.math.XForm;
 import com.winlator.cmod.renderer.material.CursorMaterial;
 import com.winlator.cmod.renderer.material.ShaderMaterial;
 import com.winlator.cmod.renderer.material.WindowMaterial;
+import com.winlator.cmod.widget.FrameRating;
 import com.winlator.cmod.widget.XServerView;
 import com.winlator.cmod.xserver.Bitmask;
 import com.winlator.cmod.xserver.Cursor;
@@ -600,8 +601,16 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         windowTexFilter = (mode == 2) ? GLES20.GL_NEAREST : GLES20.GL_LINEAR;
         xServerView.requestRender();
     }
-    @Override public void setFpsWindowId(int id) {}
-    @Override public void setFrameRating(Object fr) {}
+    private FrameRating classicHudRef = null;
+    private int fpsWindowId = -1;
+    @Override public void setFpsWindowId(int id) { fpsWindowId = id; }
+    @Override public void setFrameRating(Object fr) {
+        if (fr instanceof FrameRating) classicHudRef = (FrameRating) fr;
+    }
+    /** Тик настраиваемого счетчика FPS, как Vulkan classicHudRef. Thread-safe: update() постится сам. */
+    public void tickHud(int windowId) {
+        if (classicHudRef != null && windowId == fpsWindowId) classicHudRef.update();
+    }
     // Container FPS-limiter value (0 = uncapped), forwarded to the scanout game-layer setFrameRate
     // VRR vote so SurfaceFlinger's refresh pick tracks the cap on the Native Rendering path (the
     // guest IdleNotify limiter still does the actual pacing). Mirrors VulkanRenderer.

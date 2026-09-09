@@ -511,6 +511,12 @@ public class ASurfaceRenderer implements HostRenderer, WindowManager.OnWindowMod
                     nativeSetWindowBuffer(windowId, ahbPtr, -1, windowId, xSerial, null, -1, sfCompatMode);
                     if (hudRef != null) hudRef.update();
                 }
+            } else if (drawable.getTexture() instanceof GPUImage g) {
+                long ahbPtr = g.getHardwareBufferPtr();
+                if (ahbPtr != 0) {
+                    nativeSetWindowBuffer(windowId, ahbPtr, -1, windowId, xSerial, null, -1, sfCompatMode);
+                    if (hudRef != null) hudRef.update();
+                }
             }
         }
     }

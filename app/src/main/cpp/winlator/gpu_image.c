@@ -1,12 +1,63 @@
 #include <android/log.h>
 #include <android/hardware_buffer.h>
+
+#define EGL_EGLEXT_PROTOTYPES
+#define GL_GLEXT_PROTOTYPES
+
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <jni.h>
 
-static jmethodID g_setStride = NULL;
 #include <unistd.h>
 
 #define LOG_TAG "GPUImage"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+// Zero-copy AHB -> GL texture через EGLImage (как в Bannerlator/GameNative).
+static EGLImageKHR create_image_khr(AHardwareBuffer *hardwareBuffer, int textureId) {
+    if (!hardwareBuffer) {
+        LOGE("createImageKHR: invalid AHardwareBuffer pointer");
+        return NULL;
+    }
+    const EGLint attribList[] = {EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_NONE};
+    AHardwareBuffer_acquire(hardwareBuffer);
+    EGLClientBuffer clientBuffer = eglGetNativeClientBufferANDROID(hardwareBuffer);
+    if (!clientBuffer) {
+        LOGE("createImageKHR: failed to get native client buffer");
+        AHardwareBuffer_release(hardwareBuffer);
+        return NULL;
+    }
+    EGLDisplay eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (eglDisplay == EGL_NO_DISPLAY) {
+        LOGE("createImageKHR: invalid EGLDisplay");
+        AHardwareBuffer_release(hardwareBuffer);
+        return NULL;
+    }
+    EGLImageKHR imageKHR = eglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, clientBuffer, attribList);
+    if (!imageKHR) {
+        LOGE("createImageKHR: failed to create EGLImageKHR");
+        AHardwareBuffer_release(hardwareBuffer);
+        return NULL;
+    }
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    if (glGetError() != GL_NO_ERROR) {
+        LOGE("createImageKHR: failed to bind texture");
+        eglDestroyImageKHR(eglDisplay, imageKHR);
+        AHardwareBuffer_release(hardwareBuffer);
+        return NULL;
+    }
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, imageKHR);
+    if (glGetError() != GL_NO_ERROR) {
+        LOGE("createImageKHR: failed to bind EGLImage to texture");
+        eglDestroyImageKHR(eglDisplay, imageKHR);
+        AHardwareBuffer_release(hardwareBuffer);
+        return NULL;
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return imageKHR;
+}
 
 JNIEXPORT jlong JNICALL
 Java_com_winlator_cmod_renderer_GPUImage_hardwareBufferFromSocket(JNIEnv *env, jclass obj, jint fd) {
@@ -51,10 +102,25 @@ Java_com_winlator_cmod_renderer_GPUImage_createHardwareBuffer(JNIEnv *env, jclas
     return (jlong)ahb;
 }
 
+JNIEXPORT jlong JNICALL
+Java_com_winlator_cmod_renderer_GPUImage_createImageKHR(JNIEnv *env, jclass obj, jlong hardwareBufferPtr, jint textureId) {
+    return (jlong)create_image_khr((AHardwareBuffer *)hardwareBufferPtr, textureId);
+}
+
+JNIEXPORT void JNICALL
+Java_com_winlator_cmod_renderer_GPUImage_destroyImageKHR(JNIEnv *env, jclass obj, jlong imageKHRPtr) {
+    EGLImageKHR imageKHR = (EGLImageKHR)imageKHRPtr;
+    if (imageKHR) {
+        EGLDisplay eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        eglDestroyImageKHR(eglDisplay, imageKHR);
+    }
+}
+
 JNIEXPORT void JNICALL
 Java_com_winlator_cmod_renderer_GPUImage_destroyHardwareBuffer(JNIEnv *env, jclass obj, jlong ptr) {
     AHardwareBuffer *ahb = (AHardwareBuffer *)ptr;
     if (ahb) {
+        AHardwareBuffer_unlock(ahb, NULL);
         AHardwareBuffer_release(ahb);
     }
 }
@@ -85,14 +151,22 @@ Java_com_winlator_cmod_renderer_GPUImage_lockHardwareBuffer(JNIEnv *env, jobject
 
     static jclass    sCls       = NULL;
     static jmethodID sSetStride = NULL;
+    static jmethodID sSetWidth  = NULL;
+    static jmethodID sSetHeight = NULL;
     if (!sSetStride) {
         jclass local = (*env)->GetObjectClass(env, obj);
         sCls       = (*env)->NewGlobalRef(env, local);
         sSetStride = (*env)->GetMethodID(env, sCls, "setStride", "(S)V");
+        sSetWidth  = (*env)->GetMethodID(env, sCls, "setWidth", "(S)V");
+        sSetHeight = (*env)->GetMethodID(env, sCls, "setHeight", "(S)V");
         (*env)->DeleteLocalRef(env, local);
     }
     if (sSetStride)
         (*env)->CallVoidMethod(env, obj, sSetStride, (jshort)desc.stride);
+    if (sSetWidth)
+        (*env)->CallVoidMethod(env, obj, sSetWidth, (jshort)desc.width);
+    if (sSetHeight)
+        (*env)->CallVoidMethod(env, obj, sSetHeight, (jshort)desc.height);
 
     jobject buffer = (*env)->NewDirectByteBuffer(env, addr, (jlong)desc.stride * desc.height * 4);
     if (!buffer) {
