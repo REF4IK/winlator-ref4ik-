@@ -751,6 +751,11 @@ fun FrameGenerationDialogCompose(
                             container.setFrameGenFlowScale(flowScale)
                             container.setFrameGenEngine(if (multiplier > 0) "lsfg-native" else "off")
                             container.saveData()
+                            // Same as the legacy dialog: rebuild the shader cache in
+                            // background AND apply now. Prepare's completion re-sets
+                            // the cache path, which unlatches the native engine
+                            // retry — first enable works without a restart.
+                            activity.prepareLsfgNative()
                             activity.applyLsfgNative(if (multiplier > 0) multiplier else 0, flowScale)
                             val msg = ctx.getString(R.string.lsfg_applied, if (multiplier > 0) "${multiplier}x" else "Off")
                             Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()

@@ -529,6 +529,10 @@ private:
     uint64_t    fgSourceFrames_ = 0;
     std::string lsfgCachePath_;
     bool        lsfgEngineTried_ = false;
+    // Identity (size+mtime) of the cache file at the last engine attempt.
+    // A settled-but-changed file clears the fail-once latch, so an
+    // arm-before-build ordering heals itself once the background build lands.
+    std::string lsfgCacheIdentity_;
 
     uint32_t syncSlot(uint32_t k) const { return currentFrame * kMaxPresentsPerFrame + k; }
     void recreateSyncObjects();

@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <inttypes.h>
 #include <dlfcn.h>
+#include <cstdio>
+#include <sys/stat.h>
 #include "window_vert.h"
 #include "window_frag.h"
 #include "effect_vert.h"
@@ -2095,6 +2097,30 @@ void VulkanRendererContext::destroyCompositeTargets() {
 
 bool VulkanRendererContext::ensureLsfgEngine() {
     if (lsfgEngine_) return lsfgEngine_->valid();
+    // The cache file may land after arming (background build). Retry a failed
+    // attempt once its identity changed AND it sat untouched for 2s (build
+    // finished) — no per-frame spam, no stuck latch.
+    if (!lsfgCachePath_.empty()) {
+        struct stat st{};
+        if (stat(lsfgCachePath_.c_str(), &st) == 0) {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%lld:%lld",
+                     (long long)st.st_size, (long long)st.st_mtime);
+            std::string id = buf;
+            if (id != lsfgCacheIdentity_) {
+                const auto quietFor = std::chrono::system_clock::now()
+                    - std::chrono::system_clock::from_time_t(st.st_mtime);
+                if (quietFor > std::chrono::seconds(2)) {
+                    lsfgCacheIdentity_ = id;
+                    if (lsfgEngineTried_)
+                        RLOG("lsfg-native: cache settled, retrying engine init");
+                    lsfgEngineTried_ = false;
+                }
+            }
+        } else if (!lsfgCacheIdentity_.empty()) {
+            lsfgCacheIdentity_.clear();
+        }
+    }
     if (lsfgEngineTried_) return false;      // failed once; don't retry every frame
     lsfgEngineTried_ = true;
 

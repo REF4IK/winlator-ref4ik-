@@ -2818,10 +2818,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     /**
      * Build the SPIR-V cache from the user's Lossless.dll if needed.
-     * Slow on first run (DXBC translated on device) вЂ” off the main thread.
+     * Slow on first run (DXBC translated on device) — off the main thread.
      * Every launch starts disarmed; the user arms from the in-game menu.
+     * Public: the Compose FG dialog calls it alongside apply (same as legacy).
      */
-    private void prepareLsfgNative() {
+    public void prepareLsfgNative() {
         if (container == null || !container.isLsfgNative()) return;
         if (!com.winlator.cmod.core.LsfgNative.isDllAvailable(this)) {
             Log.w("XServerDisplayActivity", "LSFG Native selected but no Lossless.dll imported - leaving frame gen off");
@@ -2856,6 +2857,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         }
         Log.i("XServerDisplayActivity", "applyLsfgNative: multiplier=" + multiplier
                 + " flow=" + flowScale + " refresh=" + currentDisplayRefreshHz());
+        if (multiplier >= 2) {
+            java.io.File cache = com.winlator.cmod.core.LsfgNative.cacheFile(this);
+            if (cache == null || !cache.isFile()) {
+                android.widget.Toast.makeText(this, R.string.lsfg_building_cache, android.widget.Toast.LENGTH_LONG).show();
+            }
+        }
         vkr.setLsfgCachePath(
                 com.winlator.cmod.core.LsfgNative.cacheFile(this).getAbsolutePath());
         vkr.setFrameGenTuning(flowScale, currentDisplayRefreshHz());

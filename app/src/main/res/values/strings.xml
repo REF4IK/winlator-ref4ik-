@@ -1491,6 +1491,7 @@
     <string name="lsfg_select_lossless_dll">Select Lossless.dll from device</string>
     <string name="lsfg_lossless_dll_imported">Lossless.dll imported</string>
     <string name="lsfg_lossless_dll_import_failed">Failed to import Lossless.dll</string>
+    <string name="lsfg_building_cache">Building frame-gen shaders, will engage shortly</string>
     <string name="lsfg_global_lossless_dll_installed">Global Lossless.dll selected: %1$s</string>
     <string name="lsfg_global_lossless_dll_missing">Global Lossless.dll is not selected. New containers will use this file after you select it here.</string>
     <string name="fps_counter_show_cpu_load">Show CPU Load</string>

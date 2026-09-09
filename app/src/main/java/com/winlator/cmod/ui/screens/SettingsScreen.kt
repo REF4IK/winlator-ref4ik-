@@ -143,6 +143,15 @@ fun SettingsScreen(
             } catch (_: Throwable) {}
             val imported = com.winlator.cmod.core.LsfgNative.importGlobalLosslessDll(ctx, uri)
             toast(if (imported) com.winlator.cmod.R.string.lsfg_lossless_dll_imported else com.winlator.cmod.R.string.lsfg_lossless_dll_import_failed)
+            if (imported) {
+                // Pre-build the SPIR-V cache now (Bannerlator parity): first
+                // in-game enable then finds a ready cache, no restart needed.
+                Thread({
+                    val st = com.winlator.cmod.core.LsfgNative.ensureCache(ctx, false)
+                    android.util.Log.i("SettingsScreen",
+                        "LSFG cache pre-build: " + com.winlator.cmod.core.LsfgNative.explain(st))
+                }, "lsfg-native-cache").start()
+            }
         }
     }
 

@@ -1065,6 +1065,14 @@ view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
                         boolean imported = LsfgNative.importGlobalLosslessDll(requireContext(), uri);
                         AppUtils.showToast(getContext(), imported ? R.string.lsfg_lossless_dll_imported : R.string.lsfg_lossless_dll_import_failed);
                         updateGlobalLosslessDllStatus(getView());
+                        if (imported) {
+                            // Pre-build the SPIR-V cache now (Bannerlator parity).
+                            final android.content.Context appCtx = requireContext().getApplicationContext();
+                            new Thread(() -> {
+                                int st = LsfgNative.ensureCache(appCtx, false);
+                                android.util.Log.i("SettingsFragment", "LSFG cache pre-build: " + LsfgNative.explain(st));
+                            }, "lsfg-native-cache").start();
+                        }
                         break;
 
                     // Add future cases here for other request codes...
