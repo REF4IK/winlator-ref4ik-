@@ -136,7 +136,10 @@ fun AboutScreen() {
             append(link("CNC DDraw", "https://github.com/FunkyFr3sh/cnc-ddraw")); append("\n")
             append(link("WinlatorWCFHub by Arihany", "https://github.com/Arihany/WinlatorWCFHub")); append("\n")
             append(link("GLIBC Patches by Termux Pacman", "https://github.com/termux-pacman/glibc-packages")); append("\n")
-            append(link("Leegao Wrapper by leegao", "https://github.com/leegao"))
+            append(link("Leegao Wrapper by leegao", "https://github.com/leegao")); append("\n")
+            append(link("LSFG via WinNative", "https://github.com/WinNative-Emu")); append("\n")
+            append(link("lsfg-vk upstream", "https://github.com/PancakeTAS/lsfg-vk")); append("\n")
+            append(link("LSFG Eden Emulator", "https://github.com/eden-emulator"))
         })
 
         // GPU Drivers
