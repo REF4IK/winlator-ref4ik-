@@ -572,6 +572,12 @@ private:
 
     EffectOffscreen  effectReadBuf;
     EffectOffscreen  effectWriteBuf;
+    // Full-res effect path: буферы в размере swapchain (как GL в разрешении
+    // экрана), а не контейнера — иначе финальный апскейл съедает резкость.
+    int effectW = 0, effectH = 0;
+    // Вызывать только под renderMutex. Создает/пересоздает буферы под
+    // текущий swapchainExt.
+    void ensureEffectBuffersLocked();
     VkRenderPass     effectRenderPass  = VK_NULL_HANDLE;
     VkPipelineLayout effectPipeLayout  = VK_NULL_HANDLE;
     VkPipeline       effectPipelines[EFFECT_COUNT] = {};

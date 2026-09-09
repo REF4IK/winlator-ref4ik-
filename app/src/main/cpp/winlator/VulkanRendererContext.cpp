@@ -900,19 +900,18 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-        // BUG FIX: Используем containerWidth/containerHeight для offscreen viewport/renderArea,
-        // так как NDC-координаты окон вычисляются через cw=containerWidth, ch=containerHeight.
-        // Если использовать surfaceWidth/surfaceHeight, размеры не совпадают и сцена
-        // рисуется маленькой в углу offscreen-буфера ("маленький экран" баг).
+        // Full-res: сцена в effect-буфер размера swapchain тем же NDC-пассом
+        // (координаты относительные cw/ch — раскладка не меняется, растет детализация).
+        // Буфер и вьюпорт всегда одного размера — "маленького экрана" нет.
         VkRenderPassBeginInfo rpiOff{}; rpiOff.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         rpiOff.renderPass = effectRenderPass; rpiOff.framebuffer = effectReadBuf.fb;
-        rpiOff.renderArea = {{0,0}, {(uint32_t)containerWidth, (uint32_t)containerHeight}};
+        rpiOff.renderArea = {{0,0}, {(uint32_t)effectW, (uint32_t)effectH}};
         VkClearValue clrOff = {{{0.f,0.f,0.f,1.f}}}; rpiOff.clearValueCount = 1; rpiOff.pClearValues = &clrOff;
         vk_.CmdBeginRenderPass(cb, &rpiOff, VK_SUBPASS_CONTENTS_INLINE);
 
-        VkViewport vpOff{0, 0, (float)containerWidth, (float)containerHeight, 0, 1};
+        VkViewport vpOff{0, 0, (float)effectW, (float)effectH, 0, 1};
         vk_.CmdSetViewport(cb, 0, 1, &vpOff);
-        VkRect2D scOff{{0,0}, {(uint32_t)containerWidth, (uint32_t)containerHeight}};
+        VkRect2D scOff{{0,0}, {(uint32_t)effectW, (uint32_t)effectH}};
         vk_.CmdSetScissor(cb, 0, 1, &scOff);
 
         vk_.CmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -972,25 +971,24 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
 
             VkRenderPassBeginInfo rpiEff{}; rpiEff.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             rpiEff.renderPass = effectRenderPass; rpiEff.framebuffer = dst.fb;
-            // BUG FIX: effect ping-pong passes тоже должны использовать containerWidth/containerHeight
-            rpiEff.renderArea = {{0,0}, {(uint32_t)containerWidth, (uint32_t)containerHeight}};
+            // Full-res ping-pong: размер буфера == вьюпорт, шаг texel от него же.
+            rpiEff.renderArea = {{0,0}, {(uint32_t)effectW, (uint32_t)effectH}};
             VkClearValue clrEff = {{{0.f,0.f,0.f,1.f}}}; rpiEff.clearValueCount = 1; rpiEff.pClearValues = &clrEff;
             vk_.CmdBeginRenderPass(cb, &rpiEff, VK_SUBPASS_CONTENTS_INLINE);
 
-            VkViewport vpEff{0, 0, (float)containerWidth, (float)containerHeight, 0, 1};
+            VkViewport vpEff{0, 0, (float)effectW, (float)effectH, 0, 1};
             vk_.CmdSetViewport(cb, 0, 1, &vpEff);
-            VkRect2D scEff{{0,0}, {(uint32_t)containerWidth, (uint32_t)containerHeight}};
+            VkRect2D scEff{{0,0}, {(uint32_t)effectW, (uint32_t)effectH}};
             vk_.CmdSetScissor(cb, 0, 1, &scEff);
 
             vk_.CmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, effPipe);
             vk_.CmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, effectPipeLayout, 0, 1, &src.ds, 0, nullptr);
 
             EffectPushConstants epc{};
-            // BUG FIX: шейдеры эффектов считают texel-шаг (1/resolution) от РАЗМЕРА БУФЕРА,
-            // в который рендерят (offscreen container), а не от размера экрана.
-            // Иначе FXAA/blur/sharpen работают с неверным шагом и мылят картинку.
-            epc.resolutionX = (float)containerWidth;
-            epc.resolutionY = (float)containerHeight;
+            // texel-шаг от реального размера буфера (full-res) — как GL передает
+            // разрешение экрана. Иначе FXAA/blur/sharpen мылят.
+            epc.resolutionX = (float)effectW;
+            epc.resolutionY = (float)effectH;
             memcpy(epc.params, effect.params, sizeof(effect.params));
             vk_.CmdPushConstants(cb, effectPipeLayout, VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(epc), &epc);
             vk_.CmdDraw(cb, 4, 1, 0, 0);
@@ -1027,7 +1025,7 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
             VkImageBlit blitRegion{};
             blitRegion.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
             blitRegion.srcOffsets[0] = {0, 0, 0};
-            blitRegion.srcOffsets[1] = {containerWidth, containerHeight, 1};
+            blitRegion.srcOffsets[1] = {effectW, effectH, 1};
             blitRegion.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
             blitRegion.dstOffsets[0] = {0, 0, 0};
             blitRegion.dstOffsets[1] = {(int32_t)compositeW, (int32_t)compositeH, 1};
@@ -1061,22 +1059,32 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
-        // BUG FIX: Используем vkCmdBlitImage вместо vkCmdCopyImage.
-        // Причина: offscreen буфер имеет размер containerWidth x containerHeight (размер X-сервера),
-        // а swapchain имеет размер surfaceWidth x surfaceHeight (размер экрана телефона).
-        // CopyImage требует одинаковых размеров — иначе "маленький экран" в углу.
-        // BlitImage масштабирует изображение до полного размера swapchain.
-        VkImageBlit blitRegion{};
-        blitRegion.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        blitRegion.srcOffsets[0] = {0, 0, 0};
-        blitRegion.srcOffsets[1] = {containerWidth, containerHeight, 1};
-        blitRegion.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        blitRegion.dstOffsets[0] = {0, 0, 0};
-        blitRegion.dstOffsets[1] = {(int32_t)swapchainExt.width, (int32_t)swapchainExt.height, 1};
-        vk_.CmdBlitImage(cb,
-            finalBuf.img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            swapchainImages[imgIdx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1, &blitRegion, VK_FILTER_LINEAR);
+        // Full-res: размеры совпадают — точное копирование без фильтрации
+        // (было: LINEAR-апскейл 720p, съедавший резкость всех эффектов).
+        if (effectW == (int)swapchainExt.width && effectH == (int)swapchainExt.height) {
+            VkImageCopy copyRegion{};
+            copyRegion.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+            copyRegion.srcOffset = {0, 0, 0};
+            copyRegion.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+            copyRegion.dstOffset = {0, 0, 0};
+            copyRegion.extent = {swapchainExt.width, swapchainExt.height, 1};
+            vk_.CmdCopyImage(cb,
+                finalBuf.img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                swapchainImages[imgIdx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1, &copyRegion);
+        } else {
+            VkImageBlit blitRegion{};
+            blitRegion.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+            blitRegion.srcOffsets[0] = {0, 0, 0};
+            blitRegion.srcOffsets[1] = {effectW, effectH, 1};
+            blitRegion.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+            blitRegion.dstOffsets[0] = {0, 0, 0};
+            blitRegion.dstOffsets[1] = {(int32_t)swapchainExt.width, (int32_t)swapchainExt.height, 1};
+            vk_.CmdBlitImage(cb,
+                finalBuf.img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                swapchainImages[imgIdx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1, &blitRegion, VK_FILTER_LINEAR);
+        }
 
         // Transition swapchain image to present
         transition(cb, swapchainImages[imgIdx],
@@ -1379,6 +1387,9 @@ ok=true;}catch(...){}
 
             cursorUploadSize = csz;
         }
+
+        // Держать effect-буферы в размере swapchain (поворот/ресайз surface).
+        if (!activeEffects.empty()) ensureEffectBuffersLocked();
     }
 
 
@@ -1759,16 +1770,27 @@ void VulkanRendererContext::setEffects(const EffectEntry* entries, int count) {
     activeEffects.clear();
     for (int i = 0; i < count; i++) activeEffects.push_back(entries[i]);
     RLOG("setEffects: %d effects set", count);
-    // BUG FIX: Offscreen буферы должны иметь размер containerWidth x containerHeight,
-    // так как рендер сцены использует эти размеры для viewport/renderArea.
-    // Финальный blit масштабирует результат до размера swapchain (surfaceWidth x surfaceHeight).
-    if (!activeEffects.empty() && containerWidth > 0 && containerHeight > 0) {
-        if (effectReadBuf.img == VK_NULL_HANDLE) {
-            createEffectOffscreen(effectReadBuf, containerWidth, containerHeight);
-            createEffectOffscreen(effectWriteBuf, containerWidth, containerHeight);
-        }
-    }
+    // Full-res: буферы в размере swapchain. NDC-математика сцены относительная
+    // (cw/ch), раскладка от размера вьюпорта не зависит — только детализация.
+    if (!activeEffects.empty()) ensureEffectBuffersLocked();
     needsRender.store(true); dirtyCV.notify_one();
+}
+
+void VulkanRendererContext::ensureEffectBuffersLocked() {
+    int tw = (int)swapchainExt.width > 0 ? (int)swapchainExt.width : containerWidth;
+    int th = (int)swapchainExt.height > 0 ? (int)swapchainExt.height : containerHeight;
+    if (tw <= 0 || th <= 0) return;
+    if (effectReadBuf.img != VK_NULL_HANDLE && (effectW != tw || effectH != th)) {
+        destroyEffectOffscreen(effectReadBuf);
+        destroyEffectOffscreen(effectWriteBuf);
+        effectW = effectH = 0;
+    }
+    if (effectReadBuf.img == VK_NULL_HANDLE) {
+        createEffectOffscreen(effectReadBuf, tw, th);
+        createEffectOffscreen(effectWriteBuf, tw, th);
+        effectW = tw; effectH = th;
+        RLOG("ensureEffectBuffers: %dx%d", tw, th);
+    }
 }
 
 void VulkanRendererContext::clearEffects() {
