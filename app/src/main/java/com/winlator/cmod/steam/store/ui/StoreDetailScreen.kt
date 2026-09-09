@@ -68,6 +68,7 @@ fun StoreDetailScreen(
     onBack: () -> Unit,
     onFindInLibrary: ((Int) -> Unit)? = null,
     viewModel: SteamStoreViewModel = viewModel(),
+    onOpenDetail: (Int) -> Unit = {},
 ) {
     val state by viewModel.ui.collectAsState()
     val context = LocalContext.current
@@ -93,17 +94,35 @@ fun StoreDetailScreen(
             }
             else -> StoreDetailBody(
                 detail = detail,
+                reviewType = state.reviewType,
+                reviewsLoadingMore = state.reviewsLoadingMore,
+                dlcApps = if (state.detail?.appId == appId) state.dlcApps else emptyList(),
+                dlcLoading = state.dlcLoading && state.detail?.appId == appId,
+                onReviewType = viewModel::setReviewType,
+                onMoreReviews = viewModel::loadMoreReviews,
                 onOpenStore = {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(detail.storeUrl)))
                 },
                 onFindInLibrary = { onFindInLibrary?.invoke(appId) },
+                onOpenDetail = onOpenDetail,
             )
         }
     }
 }
 
 @Composable
-private fun StoreDetailBody(detail: StoreDetail, onOpenStore: () -> Unit, onFindInLibrary: () -> Unit) {
+private fun StoreDetailBody(
+    detail: StoreDetail,
+    reviewType: String,
+    reviewsLoadingMore: Boolean,
+    dlcApps: List<com.winlator.cmod.steam.store.StoreApp>,
+    dlcLoading: Boolean,
+    onReviewType: (String) -> Unit,
+    onMoreReviews: () -> Unit,
+    onOpenStore: () -> Unit,
+    onFindInLibrary: () -> Unit,
+    onOpenDetail: (Int) -> Unit,
+) {
     var galleryIndex by remember(detail.appId) { mutableStateOf(0) }
     val galleryCount = detail.screenshots.size + detail.movies.size
     LazyColumn(
@@ -207,11 +226,59 @@ private fun StoreDetailBody(detail: StoreDetail, onOpenStore: () -> Unit, onFind
                     }
                     detail.editions.take(4).forEach { ed ->
                         if (ed.title.isNotBlank()) {
-                            Text("• ${ed.title}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            val priceText = if (ed.price.initial > 0 || ed.price.final > 0) " — ${ed.price.finalText}" else ""
+                            Text("• ${ed.title}$priceText", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                     if (detail.hasDemo) {
-                        Text("Есть демоверсия", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        if (detail.demoAppId > 0) {
+                            Box(
+                                Modifier.clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .clickable { onOpenDetail(detail.demoAppId) }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                            ) {
+                                Text("Есть демоверсия — открыть", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                        } else {
+                            Text("Есть демоверсия", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+        }
+        // DLC ряд
+        if (detail.dlcAppIds.isNotEmpty()) {
+            item(key = "dlc") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Дополнения (${detail.dlcAppIds.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    if (dlcLoading && dlcApps.isEmpty()) {
+                        Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        }
+                    } else if (dlcApps.isNotEmpty()) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(dlcApps, key = { it.id }) { app ->
+                                Card(
+                                    modifier = Modifier.width(172.dp).clickable { onOpenDetail(app.id) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                ) {
+                                    Column {
+                                        coil.compose.AsyncImage(
+                                            model = app.bestCapsule,
+                                            contentDescription = app.name,
+                                            modifier = Modifier.fillMaxWidth().aspectRatio(460f / 215f),
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                        Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(app.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
+                                            Text(app.price.finalText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -254,12 +321,51 @@ private fun StoreDetailBody(detail: StoreDetail, onOpenStore: () -> Unit, onFind
             }
         }
         // Отзывы
-        if (detail.reviews.isNotEmpty()) {
+        if (detail.reviews.isNotEmpty() || detail.reviewSummary.totalReviews > 0) {
             item(key = "revtitle") {
-                Text("Обзоры", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Обзоры", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val chips = listOf("all" to "Все", "positive" to "Позитивные", "negative" to "Негативные")
+                        items(chips) { (key, label) ->
+                            val sel = reviewType == key
+                            Box(
+                                Modifier.clip(RoundedCornerShape(14.dp))
+                                    .background(if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                    .clickable { if (!sel) onReviewType(key) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            ) {
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                }
             }
-            detail.reviews.take(6).forEachIndexed { i, r ->
-                item(key = "rev_$i") { StoreReviewCard(text = r.text, votedUp = r.votedUp, hours = r.playtimeHours, ts = r.timestamp) }
+            detail.reviews.forEachIndexed { i, r ->
+                item(key = "rev_${reviewType}_$i") { StoreReviewCard(text = r.text, votedUp = r.votedUp, votesUp = r.votesUp, hours = r.playtimeHours, ts = r.timestamp) }
+            }
+            if (detail.reviewsCursor.isNotBlank()) {
+                item(key = "revmore") {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
+                        if (reviewsLoadingMore) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        } else {
+                            Box(
+                                Modifier.clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                    .clickable { onMoreReviews() }
+                                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                            ) {
+                                Text("Показать ещё", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
             }
         }
         // Языки
@@ -306,12 +412,14 @@ private fun ReviewBadge(scoreDesc: String, percent: Int, total: Int) {
 }
 
 @Composable
-private fun StoreReviewCard(text: String, votedUp: Boolean, hours: Float, ts: Long) {
+private fun StoreReviewCard(text: String, votedUp: Boolean, votesUp: Int, hours: Float, ts: Long) {
+    var expanded by remember(text, ts) { mutableStateOf(false) }
     Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))) {
         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(if (votedUp) Icons.Filled.ThumbUp else Icons.Filled.ThumbDown, contentDescription = null, tint = if (votedUp) Color(0xFF66CC33) else Color(0xFFCC5533), modifier = Modifier.width(18.dp))
                 Text(if (votedUp) "Рекомендую" else "Не рекомендую", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                if (votesUp > 0) Text("👍 $votesUp", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (hours > 0) Text("%.1f ч.".format(hours), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (ts > 0) {
                     val d = remember(ts) {
@@ -320,7 +428,21 @@ private fun StoreReviewCard(text: String, votedUp: Boolean, hours: Float, ts: Lo
                     if (d.isNotBlank()) Text(d, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text(text.take(800), style = MaterialTheme.typography.bodySmall, maxLines = 10, overflow = TextOverflow.Ellipsis)
+            Text(
+                text.take(if (expanded) 4000 else 400),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = if (expanded) Int.MAX_VALUE else 8,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (text.length > 400) {
+                Text(
+                    if (expanded) "Свернуть" else "Читать дальше",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { expanded = !expanded }.padding(vertical = 2.dp),
+                )
+            }
         }
     }
 }

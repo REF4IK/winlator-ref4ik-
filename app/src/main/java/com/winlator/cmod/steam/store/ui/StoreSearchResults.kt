@@ -1,5 +1,6 @@
 package com.winlator.cmod.steam.store.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,8 +68,45 @@ fun StoreSearchResults(state: StoreUiState, onOpenDetail: (Int) -> Unit) {
                     )
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(app.name, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        if (app.price.final > 0 || app.price.isFree) {
-                            Text(app.price.finalText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (app.price.hasDiscount) {
+                                Box(
+                                    modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                                        .background(androidx.compose.ui.graphics.Color(0xFF4C6B22))
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        "-${app.price.discountPercent}%",
+                                        color = androidx.compose.ui.graphics.Color(0xFFBEEE62),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                            if (app.price.final > 0 || app.price.isFree) {
+                                Text(
+                                    app.price.finalText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                            }
+                            if (app.metascore > 0) {
+                                Text(
+                                    "${app.metascore}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = androidx.compose.ui.graphics.Color(0xFF66CC33),
+                                )
+                            }
+                        }
+                        if (app.platformLabels.isNotBlank()) {
+                            Text(
+                                app.platformLabels,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
                         }
                     }
                 }

@@ -559,6 +559,42 @@ private fun SteamLibraryScreen(
                         storeViewModel.setSearchQuery("")
                     },
                 )
+                // Suggest-дропдаун под полем — только для магазина
+                if (tab == SteamTab.STORE && searchQuery.trim().length >= 2 && storeState.suggest.isNotEmpty()) {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                            storeState.suggest.forEach { s ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        storeViewModel.clearSuggest()
+                                        storeDetailAppId = s.id
+                                    }.padding(horizontal = 12.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    if (s.image.isNotBlank()) {
+                                        AsyncImage(
+                                            model = s.image,
+                                            contentDescription = null,
+                                            modifier = Modifier.width(96.dp).aspectRatio(460f / 215f).clip(RoundedCornerShape(6.dp)),
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                    }
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                        Text(s.name, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (s.priceText.isNotBlank()) {
+                                            Text(s.priceText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             DropdownMenu(
@@ -730,6 +766,7 @@ private fun SteamLibraryScreen(
                             }
                         },
                         viewModel = storeViewModel,
+                        onOpenDetail = { storeDetailAppId = it },
                     )
                 } else if (searchQuery.isNotBlank()) {
                     StoreSearchResults(

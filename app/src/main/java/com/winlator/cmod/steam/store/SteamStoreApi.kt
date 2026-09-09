@@ -197,23 +197,82 @@ object SteamStoreApi {
                     val o = items.optJSONObject(i) ?: continue
                     val id = o.optInt("id", 0)
                     if (id <= 0) continue
+                    // Цена: объект price {currency,initial,final} + discount_percent рядом
+                    val priceObj = o.optJSONObject("price")
+                    val initial = priceObj?.optLong("initial", 0L) ?: 0L
+                    val final = priceObj?.optLong("final", initial) ?: initial
+                    val discount = o.optInt("discount_percent", o.optInt("discounted_percent",
+                        priceObj?.optInt("discount_percent", 0) ?: 0))
+                    val currency = priceObj?.optString("currency", "").orEmpty()
+                        .ifBlank { o.optString("currency", "") }
+                    val plats = mutableListOf<String>()
+                    o.optJSONObject("platforms")?.let { p ->
+                        if (p.optBoolean("windows", false)) plats.add("win")
+                        if (p.optBoolean("mac", false)) plats.add("mac")
+                        if (p.optBoolean("linux", false)) plats.add("linux")
+                    }
                     out.add(StoreApp(
                         id = id,
                         name = o.optString("name", ""),
                         type = o.optString("type", ""),
-                        price = StorePrice(
-                            currency = o.optString("currency", ""),
-                            initial = o.optLong("price", 0L).let { p -> if (p > 0) p else o.optJSONObject("price")?.optLong("final", 0L) ?: 0L },
-                            final = o.optLong("price", 0L).let { p -> if (p > 0) p else o.optJSONObject("price")?.optLong("final", 0L) ?: 0L },
-                            discountPercent = o.optInt("discounted", 0).let { 0 },
-                        ),
+                        discounted = discount > 0 || o.optBoolean("discounted", false),
+                        price = if (initial <= 0 && final <= 0)
+                            StorePrice(currency = currency, isFree = true)
+                        else StorePrice(currency, initial, final, discount),
                         smallCapsuleImage = o.optString("tiny_image", ""),
                         headerImage = o.optString("small_capsule", o.optString("tiny_image", "")),
+                        metascore = o.optInt("metascore", 0),
+                        platforms = plats,
+                        controllerSupport = o.optString("controller_support", ""),
                     ))
                 }
             } catch (_: Exception) { }
             out.distinctBy { it.id }
         }
+
+    // Лёгкий автокомплит: search/suggest отдаёт JSON с HTML-куском results_html.
+    // Без кэша, вызывается с debounce из ViewModel.
+    suspend fun suggest(context: Context, term: String, cc: String = "ru", lang: String = "russian"): List<StoreSuggest> =
+        withContext(Dispatchers.IO) {
+            val q = term.trim().takeIf { it.length >= 2 } ?: return@withContext emptyList()
+            val enc = URLEncoder.encode(q, StandardCharsets.UTF_8.name())
+            val body = get(context, "https://store.steampowered.com/search/suggest?term=$enc&f=games&cc=$cc&l=$lang", null, 0L)
+                ?: get(context, "https://store.steampowered.com/search/suggest?term=$enc&f=games&cc=us&l=english", null, 0L)
+                ?: return@withContext emptyList()
+            try {
+                val html = JSONObject(body).optString("results_html", "")
+                if (html.isBlank()) return@withContext emptyList()
+                parseSuggestHtml(html)
+            } catch (_: Exception) { emptyList() }
+        }
+
+    private fun parseSuggestHtml(html: String): List<StoreSuggest> {
+        val out = mutableListOf<StoreSuggest>()
+        try {
+            // Режем по якорям <a ... data-ds-appid="123" ...>...</a>
+            val anchorRe = Regex("<a\\b[^>]*data-ds-appid=\"(\\d+)\"[^>]*>(.*?)</a>", RegexOption.DOT_MATCHES_ALL)
+            for (m in anchorRe.findAll(html)) {
+                val id = m.groupValues[1].toIntOrNull() ?: continue
+                if (id <= 0 || out.any { it.id == id }) continue
+                val inner = m.groupValues[2]
+                fun div(cls: String): String {
+                    val r = Regex("<div\\b[^>]*class=\"$cls\"[^>]*>(.*?)</div>", RegexOption.DOT_MATCHES_ALL)
+                        .find(inner)?.groupValues?.get(1).orEmpty()
+                    return unescapeSuggest(r.replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim())
+                }
+                val img = Regex("<img\\b[^>]*src=\"([^\"]+)\"").find(inner)?.groupValues?.get(1).orEmpty()
+                val name = div("match_name")
+                if (name.isBlank()) continue
+                out.add(StoreSuggest(id = id, name = name, image = img, priceText = div("match_price")))
+                if (out.size >= 8) break
+            }
+        } catch (_: Exception) { }
+        return out
+    }
+
+    private fun unescapeSuggest(s: String): String =
+        s.replace("&#039;", "'").replace("&#39;", "'").replace("&quot;", "\"")
+            .replace("&amp;", "&").replace("&nbsp;", " ").trim()
 
     suspend fun loadDetail(context: Context, appId: Int, lang: String = "russian", cc: String = "ru"): StoreDetail? =
         withContext(Dispatchers.IO) {
@@ -273,22 +332,44 @@ object SteamStoreApi {
                         g.optJSONArray("subs")?.let { subs ->
                             for (si in 0 until subs.length()) {
                                 val s = subs.optJSONObject(si) ?: continue
+                                val edFinal = s.optLong("price_in_cents_with_discount", -1L)
+                                val edInitial = s.optLong("price_in_cents", if (edFinal >= 0) edFinal else 0L)
+                                val edCurrency = d.optJSONObject("price_overview")?.optString("currency", "").orEmpty()
                                 editions.add(StoreEdition(
                                     title = s.optString("option_text", g.optString("title", "")),
                                     note = s.optString("option_description", ""),
-                                    price = StorePrice(
-                                        currency = d.optJSONObject("price_overview")?.optString("currency", "") ?: "",
-                                        initial = s.optLong("price_in_cents_with_discount", 0L).let { 0L },
-                                        final = 0L,
+                                    price = if (edInitial <= 0 && (if (edFinal >= 0) edFinal else 0L) <= 0)
+                                        StorePrice(currency = edCurrency)
+                                    else StorePrice(
+                                        currency = edCurrency,
+                                        initial = edInitial,
+                                        final = if (edFinal >= 0) edFinal else edInitial,
                                     ),
+                                    packageId = s.optInt("packageid", 0),
                                 ))
                             }
                         }
                     }
                 }
-                // отзывы: сводка + пара свежих
+                // DLC и демо-id из тех же данных
+                val dlcIds = mutableListOf<Int>()
+                d.optJSONArray("dlc")?.let { arr ->
+                    for (i in 0 until arr.length()) {
+                        val id = arr.optInt(i, 0)
+                        if (id > 0) dlcIds.add(id)
+                    }
+                }
+                var demoAppId = 0
+                d.optJSONArray("demos")?.let { arr ->
+                    for (i in 0 until arr.length()) {
+                        val id = arr.optJSONObject(i)?.optInt("appid", 0) ?: 0
+                        if (id > 0) { demoAppId = id; break }
+                    }
+                }
+                // отзывы: сводка + первая страница
                 val summary = loadReviewSummary(context, appId)
-                val reviews = loadReviews(context, appId)
+                val firstPage = loadReviewPage(context, appId)
+                val reviews = firstPage.reviews
                 StoreDetail(
                     appId = appId,
                     name = d.optString("name", ""),
@@ -311,7 +392,10 @@ object SteamStoreApi {
                     supportedLanguages = d.optString("supported_languages", "").let { stripStoreHtml(it) },
                     reviewSummary = summary,
                     reviews = reviews,
-                    hasDemo = demo, fullController = fullCtrl, hasCloud = cloud, hasAchievements = ach,
+                    reviewsCursor = firstPage.cursor,
+                    hasDemo = demo || demoAppId > 0, demoAppId = demoAppId,
+                    dlcAppIds = dlcIds.distinct(),
+                    fullController = fullCtrl, hasCloud = cloud, hasAchievements = ach,
                 )
             } catch (_: Exception) { null }
         }
@@ -331,6 +415,41 @@ object SteamStoreApi {
         } catch (_: Exception) { StoreReviewSummary() }
     }
 
+    // Отзывы с курсорной пагинацией и фильтром типа.
+    // reviewType: all / positive / negative. cursor: "" первая страница, иначе из прошлой.
+    suspend fun loadReviewPage(
+        context: Context, appId: Int, count: Int = 10,
+        cursor: String = "", reviewType: String = "all",
+    ): ReviewPage {
+        val encCursor = URLEncoder.encode(cursor, StandardCharsets.UTF_8.name())
+        val cursorParam = if (cursor.isBlank()) "" else "&cursor=$encCursor"
+        val typeParam = if (reviewType == "positive" || reviewType == "negative") "&review_type=$reviewType" else ""
+        val urlRu = "$REVIEWS/$appId?json=1&language=russian&purchase_type=all&num_per_page=$count$typeParam$cursorParam"
+        val urlAll = "$REVIEWS/$appId?json=1&language=all&purchase_type=all&num_per_page=$count$typeParam$cursorParam"
+        val body = get(context, urlRu, null, 0L) ?: get(context, urlAll, null, 0L) ?: return ReviewPage()
+        val out = mutableListOf<StoreReview>()
+        var next = ""
+        try {
+            val root = JSONObject(body)
+            next = root.optString("cursor", "")
+            val arr = root.optJSONArray("reviews") ?: return ReviewPage(out, next)
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val author = o.optJSONObject("author")
+                out.add(StoreReview(
+                    author = author?.optString("steamid", "").orEmpty(),
+                    playtimeHours = (author?.optLong("playtime_forever", 0L) ?: 0L) / 60f,
+                    votedUp = o.optBoolean("voted_up", true),
+                    votesUp = o.optInt("votes_up", 0),
+                    text = o.optString("review", "").take(4000),
+                    timestamp = o.optLong("timestamp_created", 0L),
+                ))
+            }
+        } catch (_: Exception) { }
+        return ReviewPage(out.distinctBy { it.text + it.timestamp }, next)
+    }
+
+    // Совместимость: первая страница без курсора (с кэшем).
     suspend fun loadReviews(context: Context, appId: Int, count: Int = 6): List<StoreReview> {
         val body = get(context, "$REVIEWS/$appId?json=1&language=russian&purchase_type=all&num_per_page=$count", "revs_${appId}", 60 * 60 * 1000L)
             ?: get(context, "$REVIEWS/$appId?json=1&language=all&purchase_type=all&num_per_page=$count", "revs_${appId}_all", 60 * 60 * 1000L)
@@ -345,6 +464,7 @@ object SteamStoreApi {
                     author = author?.optString("steamid", "").orEmpty(),
                     playtimeHours = (author?.optLong("playtime_forever", 0L) ?: 0L) / 60f,
                     votedUp = o.optBoolean("voted_up", true),
+                    votesUp = o.optInt("votes_up", 0),
                     text = o.optString("review", "").take(1200),
                     timestamp = o.optLong("timestamp_created", 0L),
                 ))
@@ -352,6 +472,67 @@ object SteamStoreApi {
         } catch (_: Exception) { }
         return out.distinctBy { it.text + it.timestamp }
     }
+
+        // Догрузка header_image для игр без PICS-арта: лёгкий батч
+    // appdetails&filters= с pacing между чанками, файловый кэш 24ч.
+    // Возвращает только найденные (id -> абсолютный URL).
+    suspend fun loadArtHeaders(context: Context, ids: List<Int>): Map<Int, String> =
+        withContext(Dispatchers.IO) {
+            val out = mutableMapOf<Int, String>()
+            val list = ids.distinct().filter { it > 0 }.take(60)
+            if (list.isEmpty()) return@withContext out
+            var first = true
+            for (chunk in list.chunked(10)) {
+                if (!first) kotlinx.coroutines.delay(1500L) // pacing против 429
+                first = false
+                val key = "hdr_" + chunk.sorted().joinToString("_")
+                val body = get(
+                    context,
+                    "$STORE/appdetails?appids=${chunk.joinToString(",")}&filters=basic,header_image&l=english&cc=us",
+                    key, 24 * 60 * 60 * 1000L,
+                ) ?: continue
+                try {
+                    val root = JSONObject(body)
+                    for (id in chunk) {
+                        val appObj = root.optJSONObject(id.toString()) ?: continue
+                        if (!appObj.optBoolean("success", false)) continue
+                        val url = appObj.optJSONObject("data")?.optString("header_image", "").orEmpty()
+                        if (url.isNotBlank()) out[id] = url
+                    }
+                } catch (_: Exception) { }
+            }
+            out
+        }
+
+    // Лёгкий батч для рядов DLC: имя+картинка+цена по списку id.
+    suspend fun loadStoreApps(context: Context, ids: List<Int>, cc: String = "ru", lang: String = "russian"): List<StoreApp> =
+        withContext(Dispatchers.IO) {
+            val list = ids.distinct().filter { it > 0 }.take(30)
+            if (list.isEmpty()) return@withContext emptyList()
+            val out = mutableListOf<StoreApp>()
+            // appdetails тянет батчи — режем по 10 чтобы не упереться в лимит
+            for (chunk in list.chunked(10)) {
+                val body = get(context, "$STORE/appdetails?appids=${chunk.joinToString(",")}" +
+                    "&filters=name,type,header_image,price_overview&l=$lang&cc=$cc", null, 0L)
+                    ?: continue
+                try {
+                    val root = JSONObject(body)
+                    for (id in chunk) {
+                        val appObj = root.optJSONObject(id.toString()) ?: continue
+                        if (!appObj.optBoolean("success", false)) continue
+                        val d = appObj.optJSONObject("data") ?: continue
+                        out.add(StoreApp(
+                            id = id,
+                            name = d.optString("name", ""),
+                            type = d.optString("type", ""),
+                            price = parsePrice(d.optJSONObject("price_overview")),
+                            headerImage = d.optString("header_image", ""),
+                        ))
+                    }
+                } catch (_: Exception) { }
+            }
+            out
+        }
 
     // Новости по игре. Без ключа: ISteamNews/GetNewsForApp.
     suspend fun loadNewsForApp(context: Context, appId: Int, count: Int = 8, maxLen: Int = 600): List<NewsItem> {

@@ -120,6 +120,10 @@ class SteamLibraryViewModel : ViewModel() {
     private var cachedApps: List<SteamApp> = emptyList()
     private val manifestSizeCache = mutableMapOf<Int, SteamService.ManifestSizes>()
     private val manifestRequests = mutableSetOf<Int>()
+    // Догрузка header_image для игр без PICS-арта (батч filters=basic, как у GameNative)
+    private val artHeaderOverrides = mutableMapOf<Int, String>()
+    private val artHeaderRequested = mutableSetOf<Int>()
+    private var artFetchInFlight = false
     private val selectedContainersByAppId = mutableMapOf<Int, Int>()
     private val pendingRefreshJobs = mutableMapOf<Int, Job>()
     private val onDownloadStatusChanged: (AndroidEvent.DownloadStatusChanged) -> Unit = { event ->
@@ -432,6 +436,7 @@ class SteamLibraryViewModel : ViewModel() {
 
         refreshSelectedGame(selectedGameId)
         selectedGameId?.let { ensureManifestSizes(it) }
+        ensureArtHeaders()
     }
 
     private suspend fun refreshDownloadDrivenUi(focusedAppId: Int? = _uiState.value.selectedGameId) {
@@ -517,6 +522,37 @@ class SteamLibraryViewModel : ViewModel() {
         return listOfNotNull(dev, pub).joinToString(" / ")
     }
 
+    private fun SteamApp.hasPicsArt(): Boolean {
+        if (headerImage.isNotEmpty() || smallCapsule.isNotEmpty()) return true
+        val a = libraryAssets
+        return a.libraryCapsule.image.isNotEmpty() || a.libraryCapsule.image2x.isNotEmpty() ||
+            a.libraryHero.image.isNotEmpty() || a.libraryHero.image2x.isNotEmpty() ||
+            a.libraryLogo.image.isNotEmpty() || a.libraryLogo.image2x.isNotEmpty()
+    }
+
+    // Игры без PICS-арта — догрузить header_image батчем, затем перерисовать
+    private fun ensureArtHeaders() {
+        if (artFetchInFlight || !SteamService.isConnected) return
+        val missing = cachedApps
+            .filter { !it.hasPicsArt() && it.id !in artHeaderOverrides && it.id !in artHeaderRequested }
+            .map { it.id }
+        if (missing.isEmpty()) return
+        artFetchInFlight = true
+        artHeaderRequested.addAll(missing)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val found = com.winlator.cmod.steam.store.SteamStoreApi.loadArtHeaders(appContext, missing)
+                if (found.isNotEmpty()) {
+                    artHeaderOverrides.putAll(found)
+                    rebuildUi()
+                }
+            } catch (_: Exception) {
+            } finally {
+                artFetchInFlight = false
+            }
+        }
+    }
+
     private fun buildLibraryGameUi(app: SteamApp): SteamLibraryGameUi {
         val downloadInfo = SteamService.getAppDownloadInfo(app.id)
         val status = downloadInfo?.getStatusFlow()?.value
@@ -540,7 +576,7 @@ class SteamLibraryViewModel : ViewModel() {
             name = app.name,
             subtitle = buildSubtitle(app.developer, app.publisher),
             appType = app.type,
-            capsuleUrl = app.getCapsuleUrl(),
+            capsuleUrl = artHeaderOverrides[app.id] ?: app.getCapsuleUrl(),
             smallCapsuleUrl = app.getSmallCapsuleUrl(),
             libraryCapsuleUrl = app.getLibraryCapsuleUrl(),
             heroUrl = app.getHeroUrl(),

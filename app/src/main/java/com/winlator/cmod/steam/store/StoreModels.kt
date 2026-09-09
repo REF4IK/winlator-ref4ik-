@@ -41,13 +41,35 @@ data class StoreApp(
     val headerImage: String = "",
     val headline: String = "",
     val controllerSupport: String = "",
+    val metascore: Int = 0,
+    val platforms: List<String> = emptyList(), // win/mac/linux
 ) {
     // Заглушка-капсула CDN, если API не отдал картинку
     val capsuleFallback: String get() =
         "https://shared.steamstatic.com/store_item_assets/steam/apps/$id/header.jpg"
     val bestCapsule: String get() =
         largeCapsuleImage.ifBlank { smallCapsuleImage.ifBlank { headerImage.ifBlank { capsuleFallback } } }
+    // Короткие метки ОС для карточек
+    val platformLabels: String get() = buildList {
+        if ("win" in platforms) add("Win")
+        if ("mac" in platforms) add("Mac")
+        if ("linux" in platforms) add("Linux")
+    }.joinToString(" • ")
 }
+
+// Лёгкий автокомплит: search/suggest отдаёт HTML в JSON
+data class StoreSuggest(
+    val id: Int,
+    val name: String = "",
+    val image: String = "",
+    val priceText: String = "",
+)
+
+// Страница отзывов с курсором для пагинации
+data class ReviewPage(
+    val reviews: List<StoreReview> = emptyList(),
+    val cursor: String = "",
+)
 
 data class StoreCategory(
     val key: String,
@@ -83,6 +105,7 @@ data class StoreReview(
     val author: String = "",
     val playtimeHours: Float = 0f,
     val votedUp: Boolean = true,
+    val votesUp: Int = 0,
     val text: String = "",
     val timestamp: Long = 0L,
 )
@@ -91,6 +114,7 @@ data class StoreEdition(
     val title: String = "",
     val note: String = "",
     val price: StorePrice = StorePrice(),
+    val packageId: Int = 0,
 )
 
 data class StoreDetail(
@@ -117,7 +141,10 @@ data class StoreDetail(
     val supportedLanguages: String = "",
     val reviewSummary: StoreReviewSummary = StoreReviewSummary(),
     val reviews: List<StoreReview> = emptyList(),
+    val reviewsCursor: String = "",
     val hasDemo: Boolean = false,
+    val demoAppId: Int = 0,
+    val dlcAppIds: List<Int> = emptyList(),
     val fullController: Boolean = false,
     val hasCloud: Boolean = false,
     val hasAchievements: Boolean = false,
