@@ -11,10 +11,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,20 +40,31 @@ fun AccountAvatar(
             modifier = modifier.size(size),
         )
     } else {
-        val personPainter = rememberVectorPainter(Icons.Filled.Person)
-        AsyncImage(
-            model = avatarUrl,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            placeholder = personPainter,
-            error = personPainter,
+        // Иконка с тинтом снизу (видна пока грузится и при битой картинке),
+        // фото сверху. Плейсхолдер Coil без тинта был бы чёрным в тёмной теме.
+        androidx.compose.foundation.layout.Box(
+            contentAlignment = Alignment.Center,
             modifier = modifier
                 .size(size)
                 .clip(CircleShape),
-        )
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Person,
+                contentDescription = null,
+                tint = fallbackTint,
+                modifier = Modifier.size(size),
+            )
+            AsyncImage(
+                model = avatarUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                placeholder = null,
+                error = null,
+                modifier = Modifier.size(size).clip(CircleShape),
+            )
+        }
     }
 }
-
 /** Плашка OWNER рядом с ником админа. */
 @Composable
 fun OwnerBadge(modifier: Modifier = Modifier) {

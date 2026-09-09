@@ -706,7 +706,10 @@ private fun ConfigDetailDialog(
                                 Text(if (dateStr.isNotEmpty()) dateStr else "—", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             if (entry.uploader.isNotBlank()) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
                                     com.winlator.cmod.ui.components.AccountAvatar(avatarUrl = entry.uploaderAvatar.ifBlank { null }, size = 18.dp)
                                     Text(stringResource(R.string.community_uploader_by, entry.uploader), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     if (entry.uploaderOwner) com.winlator.cmod.ui.components.OwnerBadge()
@@ -956,16 +959,22 @@ private fun ConfigDetailDialog(
                                             ) {
                                                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                        val cAvatar = com.winlator.cmod.community.AccountManager.absUrl(c.optString("avatarUrl", ""))
+                                                        val cAvatar = com.winlator.cmod.community.AccountManager.absUrl(com.winlator.cmod.community.AccountManager.optStr(c, "avatarUrl"))
                                                         if (!cAvatar.isNullOrBlank()) {
                                                             com.winlator.cmod.ui.components.AccountAvatar(avatarUrl = cAvatar, size = 18.dp)
                                                         } else {
                                                             Icon(Icons.Default.Person, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                                                         }
-                                                        val nick = c.optString("username", "").ifBlank { c.optString("nickname", "") }
+                                                        val nick = com.winlator.cmod.community.AccountManager.optStr(c, "username")
+                                                            ?: com.winlator.cmod.community.AccountManager.optStr(c, "nickname").orEmpty()
                                                         val date = c.optString("date", "").take(10)
                                                         val head = listOf(nick, date).filter { it.isNotBlank() }.joinToString(" · ")
-                                                        if (head.isNotBlank()) Text(head, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f, fill = false))
+                                                        if (head.isNotBlank()) Text(
+                                                            head,
+                                                            fontSize = 11.sp,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            modifier = Modifier.weight(1f, fill = false),
+                                                        )
                                                         if (c.optBoolean("owner", false)) com.winlator.cmod.ui.components.OwnerBadge()
                                                         if (isAdmin && !adminBusy) {
                                                             IconButton(onClick = {

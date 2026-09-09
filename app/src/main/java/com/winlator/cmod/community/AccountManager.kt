@@ -42,6 +42,7 @@ object AccountManager {
         val session: String,
         val recoveryKey: String,
         val admin: Boolean = false,
+        val num: Long = -1,
     )
 
     data class LoginData(
@@ -51,6 +52,7 @@ object AccountManager {
         val avatarUrl: String?,
         val uploads: List<AccountUpload>,
         val admin: Boolean = false,
+        val num: Long = -1,
     )
 
     data class AccountUpload(
@@ -71,7 +73,11 @@ object AccountManager {
         val avatarUrl: String?,
         val avatarVersion: Long = 0L,
         val admin: Boolean = false,
+        val num: Long = -1,
     ) {
+        /** ID в формате 0000000. */
+        val displayNum: String
+            get() = if (num < 0) "—" else String.format(java.util.Locale.US, "%07d", num)
         val displayAvatarUrl: String?
             get() = avatarUrl?.let { url ->
                 if (avatarVersion <= 0L) url
@@ -85,7 +91,12 @@ object AccountManager {
         val recoveryKey: String,
     )
 
-    /** Полный URL аватара: воркер отдаёт относительный путь. */
+    /** Безопасное чтение nullable-строки: JSON null и "" → null. */
+    fun optStr(o: JSONObject, key: String): String? {
+        if (o.isNull(key)) return null
+        return o.optString(key, "").ifBlank { null }
+    }
+
     fun absUrl(url: String?): String? {
         if (url.isNullOrBlank()) return null
         val u = url.trim()
@@ -102,9 +113,10 @@ object AccountManager {
             session = json.optString("session", "").trim(),
             recoveryKey = json.optString("recovery_key", "").trim(),
             admin = json.optBoolean("admin", false),
+            num = json.optLong("num", -1),
         )
         if (data.session.isBlank()) return AccountResult.Error("network")
-        saveNewAccount(context, data.userId, data.username, data.session, data.recoveryKey, data.admin)
+        saveNewAccount(context, data.userId, data.username, data.session, data.recoveryKey, data.admin, data.num)
         return AccountResult.Success(data)
     }
 
@@ -112,7 +124,7 @@ object AccountManager {
         val body = JSONObject().put("username", username).put("password", password).toString()
         val resp = post("$BASE/api/account/login", body)
         val json = parseOk(resp) ?: return errorFrom(resp)
-        val avatar = absUrl(json.optString("avatarUrl", "").trim().ifBlank { null })
+        val avatar = absUrl(optStr(json, "avatarUrl")?.trim())
         val uploads = ArrayList<AccountUpload>()
         json.optJSONArray("uploads")?.let { arr ->
             for (i in 0 until arr.length()) {
@@ -138,9 +150,10 @@ object AccountManager {
             avatarUrl = avatar,
             uploads = uploads,
             admin = json.optBoolean("admin", false),
+            num = json.optLong("num", -1),
         )
         if (data.session.isBlank()) return AccountResult.Error("network")
-        saveLogin(context, data.userId, data.username, data.session, data.avatarUrl, data.admin)
+        saveLogin(context, data.userId, data.username, data.session, data.avatarUrl, data.admin, data.num)
         saveUploadsCache(context, uploads)
         if (data.avatarUrl != null) bumpAvatarVersion(context)
         return AccountResult.Success(data)
@@ -163,7 +176,8 @@ object AccountManager {
         if (session.isBlank()) return AccountResult.Error("network")
         val backupUserId = recoveryBackup(context)?.userId.orEmpty()
         val keepAdmin = current(context)?.takeIf { it.username.equals(username, ignoreCase = true) }?.admin == true
-        saveLogin(context, backupUserId, username, session, null, keepAdmin)
+        val keepNum = current(context)?.takeIf { it.username.equals(username, ignoreCase = true) }?.num ?: -1
+        saveLogin(context, backupUserId, username, session, null, keepAdmin, keepNum)
         return AccountResult.Success(ResetData(session))
     }
 
@@ -176,11 +190,42 @@ object AccountManager {
             .toString()
         val resp = post("$BASE/api/account/avatar", body)
         val json = parseOk(resp) ?: return errorFrom(resp)
-        val url = absUrl(json.optString("avatarUrl", "").trim())
+        val url = absUrl(optStr(json, "avatarUrl")?.trim())
         if (url.isNullOrBlank()) return AccountResult.Error("network")
         bumpAvatarVersion(context)
-        current(context)?.let { saveLogin(context, it.userId, it.username, it.session, url, it.admin) }
+        current(context)?.let { saveLogin(context, it.userId, it.username, it.session, url, it.admin, it.num) }
         return AccountResult.Success(url)
+    }
+
+    /** Удаление СВОЕГО аккаунта. Блокирующий. После успеха — logout() на клиенте. */
+    fun deleteMe(context: Context): Boolean {
+        val session = session(context) ?: return false
+        val body = JSONObject().put("session", session).toString()
+        val resp = post("$BASE/api/account/delete", body) ?: return false
+        return try {
+            resp.code in 200..299 && JSONObject(resp.body ?: "").optBoolean("success", false)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Свой профиль по живой сессии: подтягивает номер/флаги без пароля. Блокирующий. */
+    fun refreshMe(context: Context): Account? {
+        val session = session(context) ?: return null
+        val body = JSONObject().put("session", session).toString()
+        val resp = post("$BASE/api/account/me", body)
+        val json = parseOk(resp) ?: return current(context)
+        val acc = current(context) ?: return null
+        saveLogin(
+            context,
+            json.optString("user_id", acc.userId).trim().ifBlank { acc.userId },
+            json.optString("username", acc.username).trim().ifBlank { acc.username },
+            acc.session,
+            absUrl(optStr(json, "avatarUrl")?.trim()) ?: acc.avatarUrl,
+            json.optBoolean("admin", acc.admin),
+            json.optLong("num", acc.num),
+        )
+        return current(context)
     }
 
     fun current(context: Context): Account? {
@@ -196,6 +241,7 @@ object AccountManager {
             avatarUrl = sp.getString(K_AVATAR, null)?.trim()?.ifBlank { null },
             avatarVersion = sp.getLong(K_AVATAR_VERSION, 0L),
             admin = sp.getBoolean(K_ADMIN, false),
+            num = sp.getLong(K_NUM, -1),
         )
     }
 
@@ -205,7 +251,7 @@ object AccountManager {
 
     fun session(context: Context): String? = current(context)?.session
 
-    fun saveLogin(context: Context, userId: String, username: String, session: String, avatarUrl: String?, admin: Boolean = false) {
+    fun saveLogin(context: Context, userId: String, username: String, session: String, avatarUrl: String?, admin: Boolean = false, num: Long = -1) {
         prefs(context).edit()
             .putBoolean(K_LOGGED_IN, true)
             .putString(K_USER_ID, userId)
@@ -213,11 +259,12 @@ object AccountManager {
             .putString(K_SESSION, session)
             .putString(K_AVATAR, avatarUrl)
             .putBoolean(K_ADMIN, admin)
+            .putLong(K_NUM, num)
             .apply()
     }
 
-    fun saveNewAccount(context: Context, userId: String, username: String, session: String, recoveryKey: String, admin: Boolean = false) {
-        saveLogin(context, userId, username, session, null, admin)
+    fun saveNewAccount(context: Context, userId: String, username: String, session: String, recoveryKey: String, admin: Boolean = false, num: Long = -1) {
+        saveLogin(context, userId, username, session, null, admin, num)
         writeBackup(RecoveryBackup(username = username, userId = userId, recoveryKey = recoveryKey))
     }
 
@@ -231,6 +278,7 @@ object AccountManager {
             .remove(K_AVATAR_VERSION)
             .remove(K_UPLOADS)
             .remove(K_ADMIN)
+            .remove(K_NUM)
             .apply()
     }
 
@@ -323,6 +371,7 @@ object AccountManager {
     private const val K_AVATAR_VERSION = "avatar_version"
     private const val K_UPLOADS = "uploads_cache"
     private const val K_ADMIN = "admin"
+    private const val K_NUM = "num"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 

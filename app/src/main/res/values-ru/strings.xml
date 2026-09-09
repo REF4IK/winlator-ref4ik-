@@ -1809,7 +1809,7 @@
     <string name="profile_err_invalid">Неверное имя или пароль.</string>
     <string name="profile_err_reset_key">Этот ключ не подходит к такому имени.</string>
     <string name="profile_err_network">Нет связи с сервером. Проверьте интернет.</string>
-    <string name="profile_err_outdated">Сервер ещё не знает про аккаунты — обновите worker.js в Cloudflare и повторите.</string>
+    <string name="profile_err_outdated">Сервер устарел — обновите приложение и повторите.</string>
     <string name="profile_err_avatar_type">Такой тип не поддерживается — выберите JPEG, PNG или WebP.</string>
     <string name="profile_err_avatar_image">Это не картинка.</string>
     <string name="profile_err_not_signed">Сначала войдите, чтобы поставить фото.</string>
@@ -1832,6 +1832,23 @@
     <string name="admin_ban">Бан</string>
     <string name="admin_ban_confirm">Банить?</string>
     <string name="admin_banned">Юзер %1$s забанен.</string>
+    <string name="admin_ban_everywhere">Забанить везде</string>
+    <string name="admin_unban_everywhere">Разбанить везде</string>
+    <string name="admin_unbanned">Юзер %1$s разбанен.</string>
+    <string name="admin_banned_badge">БАН</string>
+    <string name="profile_admin_users">Аккаунты</string>
+    <string name="admin_users_title">Аккаунты (%1$d)</string>
+    <string name="admin_users_empty">Пока никого.</string>
+    <string name="profile_own_data">Мои данные</string>
+    <string name="profile_own_num">Номер ID</string>
+    <string name="profile_own_date">Дата регистрации</string>
+    <string name="profile_own_edit">Изменить данные</string>
+    <string name="profile_err_num_taken">Такой ID занят.</string>
+    <string name="profile_err_bad_num">Плохой номер ID.</string>
+    <string name="profile_err_bad_date">Плохая дата.</string>
+    <string name="profile_delete_me">Удалить мой аккаунт</string>
+    <string name="profile_delete_confirm">Точно удалить</string>
+    <string name="profile_deleted">Аккаунт удалён.</string>
 
     <!-- Big Picture -->
     <string name="big_picture">Big Picture</string>

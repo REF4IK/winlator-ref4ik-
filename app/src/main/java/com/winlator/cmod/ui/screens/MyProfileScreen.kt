@@ -57,6 +57,16 @@ fun MyProfileScreen() {
     var uploads by remember { mutableStateOf(AccountManager.cachedUploads(context)) }
 
     var avatarBusy by remember { mutableStateOf(false) }
+    var showUsers by remember { mutableStateOf(false) }
+    var deleteMyArmed by remember { mutableStateOf(false) }
+
+    // Номер могли выдать уже после логина — подтягиваем молча по живой сессии
+    LaunchedEffect(account?.session) {
+        if (account != null && account!!.num < 0) {
+            val fresh = withContext(Dispatchers.IO) { AccountManager.refreshMe(context) }
+            if (fresh != null) account = fresh
+        }
+    }
     val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         avatarBusy = true
@@ -257,10 +267,49 @@ fun MyProfileScreen() {
                             account = null
                             uploads = emptyList()
                             revealRecovery = false
+                            deleteMyArmed = false
                             username = ""; password = ""; error = null
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.profile_logout)) }
+                    if (account!!.admin) {
+                        OutlinedButton(onClick = { showUsers = true }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Filled.Group, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.profile_admin_users), fontSize = 13.sp)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (deleteMyArmed) {
+                            Button(
+                                onClick = {
+                                    deleteMyArmed = false
+                                    busy = true
+                                    scope.launch {
+                                        val ok = withContext(Dispatchers.IO) { AccountManager.deleteMe(context) }
+                                        busy = false
+                                        if (ok) {
+                                            AccountManager.logout(context)
+                                            account = null
+                                            uploads = emptyList()
+                                            revealRecovery = false
+                                            username = ""; password = ""; error = null
+                                            Toast.makeText(context, context.getString(R.string.profile_deleted), Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, context.getString(R.string.admin_action_fail), Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                modifier = Modifier.weight(1f),
+                            ) { Text(stringResource(R.string.profile_delete_confirm), fontSize = 12.sp) }
+                        } else {
+                            OutlinedButton(
+                                onClick = { deleteMyArmed = true },
+                                modifier = Modifier.weight(1f),
+                            ) { Text(stringResource(R.string.profile_delete_me), fontSize = 12.sp, color = MaterialTheme.colorScheme.error) }
+                        }
+                    }
                 }
                 SectionCard(title = stringResource(R.string.profile_uploads_title, uploads.size)) {
                     if (uploads.isEmpty()) {
@@ -329,6 +378,10 @@ fun MyProfileScreen() {
                 }
             }
         }
+    }
+
+    if (showUsers) {
+        AdminUsersScreen(onDismiss = { showUsers = false })
     }
 }
 

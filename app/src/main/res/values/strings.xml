@@ -1814,7 +1814,7 @@
     <string name="profile_err_invalid">Wrong username or password.</string>
     <string name="profile_err_reset_key">That recovery key isn\'t right for this username.</string>
     <string name="profile_err_network">Couldn\'t reach the server. Check your connection and try again.</string>
-    <string name="profile_err_outdated">Server doesn\'t know accounts yet — update worker.js in Cloudflare and try again.</string>
+    <string name="profile_err_outdated">Server is outdated — update the app and try again.</string>
     <string name="profile_err_avatar_type">That image type isn\'t supported — pick a JPEG, PNG, or WebP.</string>
     <string name="profile_err_avatar_image">That file isn\'t a valid image.</string>
     <string name="profile_err_not_signed">Sign in first to set a profile picture.</string>
@@ -1837,6 +1837,23 @@
     <string name="admin_ban">Ban</string>
     <string name="admin_ban_confirm">Ban?</string>
     <string name="admin_banned">User %1$s banned.</string>
+    <string name="admin_ban_everywhere">Ban everywhere</string>
+    <string name="admin_unban_everywhere">Unban everywhere</string>
+    <string name="admin_unbanned">User %1$s unbanned.</string>
+    <string name="admin_banned_badge">BANNED</string>
+    <string name="profile_admin_users">Accounts</string>
+    <string name="admin_users_title">Accounts (%1$d)</string>
+    <string name="admin_users_empty">Nobody yet.</string>
+    <string name="profile_own_data">My data</string>
+    <string name="profile_own_num">ID number</string>
+    <string name="profile_own_date">Join date</string>
+    <string name="profile_own_edit">Edit data</string>
+    <string name="profile_err_num_taken">That ID is taken.</string>
+    <string name="profile_err_bad_num">Bad ID number.</string>
+    <string name="profile_err_bad_date">Bad date.</string>
+    <string name="profile_delete_me">Delete my account</string>
+    <string name="profile_delete_confirm">Confirm delete</string>
+    <string name="profile_deleted">Account deleted.</string>
 
     <!-- Big Picture -->
     <string name="big_picture">Big Picture</string>
