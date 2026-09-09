@@ -17,6 +17,7 @@ import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStr
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -24,6 +25,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -193,6 +197,126 @@ public abstract class TarCompressorUtils {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /** Прочитать маленький текстовый entry из архива без распаковки. null если нет. Never throws. */
+    public static String readTextFile(Type type, File source, String entryName) {
+        if (source == null || !source.isFile() || entryName == null) return null;
+        try {
+            return readTextFile(type, new BufferedInputStream(new FileInputStream(source), StreamUtils.BUFFER_SIZE), entryName);
+        }
+        catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Asset-вариант: прочитать текстовый entry из bundled .tzst. */
+    public static String readTextFile(Type type, Context context, String assetFile, String entryName) {
+        if (context == null || assetFile == null || entryName == null) return null;
+        try {
+            return readTextFile(type, context.getAssets().open(assetFile), entryName);
+        }
+        catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String readTextFile(Type type, InputStream source, String entryName) {
+        if (source == null || entryName == null) return null;
+        try (InputStream inStream = getCompressorInputStream(type, source);
+             ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
+            TarArchiveEntry entry;
+            while ((entry = (TarArchiveEntry) tar.getNextEntry()) != null) {
+                if (entry.isDirectory() || !tar.canReadEntryData(entry)) continue;
+                if (entryName.equals(entry.getName())) {
+                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                    StreamUtils.copy(tar, bos);
+                    return bos.toString("UTF-8");
+                }
+            }
+        }
+        catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
+    /** True если открывается как валидный tar (читается первая entry). Never throws. */
+    public static boolean isValidArchive(Type type, File source) {
+        if (source == null || !source.isFile()) return false;
+        try (InputStream inStream = getCompressorInputStream(type, new BufferedInputStream(new FileInputStream(source), StreamUtils.BUFFER_SIZE));
+             ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
+            return tar.getNextEntry() != null;
+        }
+        catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Lenient-проверка наличия entry: нормализация ./, matches по полному пути или basename, skip AppleDouble. */
+    public static boolean containsEntry(Type type, File source, String entryName) {
+        if (source == null || !source.isFile() || entryName == null) return false;
+        String wantPath = entryName.replaceFirst("^\\./", "").replaceFirst("^/", "");
+        String wantBase = wantPath.substring(wantPath.lastIndexOf('/') + 1);
+        try (InputStream inStream = getCompressorInputStream(type, new BufferedInputStream(new FileInputStream(source), StreamUtils.BUFFER_SIZE));
+             ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
+            TarArchiveEntry entry;
+            while ((entry = (TarArchiveEntry) tar.getNextEntry()) != null) {
+                String name = entry.getName().replaceFirst("^\\./", "").replaceFirst("^/", "");
+                String base = name.substring(name.lastIndexOf('/') + 1);
+                if (base.startsWith("._")) continue;
+                if (name.equals(wantPath) || name.endsWith("/" + wantPath) || base.equals(wantBase))
+                    return true;
+            }
+        }
+        catch (Exception e) {
+            return false;
+        }
+        return false;
+    }
+
+    /** "strings" одного entry: собрать NUL-terminated токены [A-Za-z0-9_]{4,}, совпадающие с tokenPattern. С капой maxBytes. */
+    public static Set<String> scanEntryForTokens(Type type, File source, String entryName,
+                                                 Pattern tokenPattern, long maxBytes) {
+        Set<String> out = new HashSet<>();
+        if (source == null || !source.isFile() || entryName == null || tokenPattern == null) return out;
+        String wantPath = entryName.replaceFirst("^\\./", "").replaceFirst("^/", "");
+        String wantBase = wantPath.substring(wantPath.lastIndexOf('/') + 1);
+        try (InputStream inStream = getCompressorInputStream(type, new BufferedInputStream(new FileInputStream(source), StreamUtils.BUFFER_SIZE));
+             ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
+            TarArchiveEntry entry;
+            while ((entry = (TarArchiveEntry) tar.getNextEntry()) != null) {
+                if (entry.isDirectory() || !tar.canReadEntryData(entry)) continue;
+                String name = entry.getName().replaceFirst("^\\./", "").replaceFirst("^/", "");
+                String base = name.substring(name.lastIndexOf('/') + 1);
+                if (base.startsWith("._")) continue;
+                if (!(name.equals(wantPath) || name.endsWith("/" + wantPath) || base.equals(wantBase))) continue;
+
+                byte[] buf = new byte[StreamUtils.BUFFER_SIZE];
+                StringBuilder token = new StringBuilder();
+                long scanned = 0;
+                int n;
+                while (scanned < maxBytes && (n = tar.read(buf)) > 0) {
+                    scanned += n;
+                    for (int i = 0; i < n; i++) {
+                        int c = buf[i] & 0xFF;
+                        boolean idChar = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+                                      || (c >= '0' && c <= '9') || c == '_';
+                        if (idChar) {
+                            if (token.length() < 128) token.append((char) c);
+                        } else {
+                            if (c == 0 && token.length() >= 4 && tokenPattern.matcher(token).matches())
+                                out.add(token.toString());
+                            token.setLength(0);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+        catch (Exception e) {
+        }
+        return out;
     }
 
     private static InputStream getCompressorInputStream(Type type, InputStream source) throws IOException {

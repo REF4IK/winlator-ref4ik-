@@ -21,11 +21,12 @@ object WrapperCatalogDownloader {
         if (archive.exists()) archive.delete()
         try {
             onProgress(0)
-            var ok = false
-            ok = Downloader.downloadFile(entry.url, archive) { downloaded, total ->
-                val fraction = if (total > 0) downloaded.toFloat() / total else 0f
-                onProgress((fraction.coerceIn(0f, 1f) * 100f).toInt())
-            }
+            val ok = Downloader.downloadFile(entry.url, archive, object : Downloader.ProgressListener {
+                override fun onProgress(fraction: Float) {
+                    val f = if (fraction < 0f) 0f else fraction.coerceIn(0f, 1f)
+                    onProgress((f * 100f).toInt())
+                }
+            })
             if (!ok) {
                 Log.w(TAG, "download failed: ${entry.url}")
                 return@withContext null
@@ -62,10 +63,12 @@ object WrapperCatalogDownloader {
         if (archive.exists()) archive.delete()
         try {
             onProgress(0)
-            val ok = Downloader.downloadFile(entry.url, archive) { downloaded, total ->
-                val fraction = if (total > 0) downloaded.toFloat() / total else 0f
-                onProgress((fraction.coerceIn(0f, 1f) * 100f).toInt())
-            }
+            val ok = Downloader.downloadFile(entry.url, archive, object : Downloader.ProgressListener {
+                override fun onProgress(fraction: Float) {
+                    val f = if (fraction < 0f) 0f else fraction.coerceIn(0f, 1f)
+                    onProgress((f * 100f).toInt())
+                }
+            })
             if (!ok) {
                 Log.w(TAG, "download failed: ${entry.url}")
                 return@withContext false

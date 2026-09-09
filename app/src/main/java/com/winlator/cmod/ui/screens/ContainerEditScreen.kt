@@ -781,7 +781,11 @@ fun ContainerEditScreen(
 
     if (showWrapperDownload) {
         WrapperDownloadDialog(
-            onDismiss = { showWrapperDownload = false },
+            currentDriver = graphicsDriver,
+            onDismiss = {
+                showWrapperDownload = false
+                wrapperEntries = com.winlator.cmod.contents.WrapperManager.driverEntries(ctx)
+            },
             onInstalled = { id ->
                 wrapperEntries = com.winlator.cmod.contents.WrapperManager.driverEntries(ctx)
                 graphicsDriver = id
@@ -887,78 +891,166 @@ private fun showAudioDriverConfigDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WrapperDownloadDialog(
+    currentDriver: String,
     onDismiss: () -> Unit,
     onInstalled: (String) -> Unit,
 ) {
     val ctx = LocalContext.current
+    val manager = remember { com.winlator.cmod.contents.WrapperManager(ctx) }
     var entries by remember { mutableStateOf<List<com.winlator.cmod.contents.WrapperCatalogEntry>?>(null) }
     var source by remember { mutableStateOf(com.winlator.cmod.contents.WrapperCatalog.Source.NONE) }
     var downloadingId by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf(0) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+    var installedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var installedVersions by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var deleteCatalogId by remember { mutableStateOf<String?>(null) }
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingInspection by remember { mutableStateOf<com.winlator.cmod.contents.WrapperManager.Inspection?>(null) }
+    var importNameDraft by remember { mutableStateOf("") }
+
+    val mainHandler = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
+    fun postProgress(p: Int) { mainHandler.post { progress = p } }
+
+    suspend fun refreshInstalled() {
+        val ids = withContext(Dispatchers.IO) { runCatching { manager.installedCatalogIds() }.getOrDefault(emptySet()) }
+        installedIds = ids
+        installedVersions = withContext(Dispatchers.IO) { runCatching { ids.associateWith { manager.installedCatalogVersion(it) } }.getOrDefault(emptyMap()) }
+    }
 
     LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val res = com.winlator.cmod.contents.WrapperCatalog.loadCached(ctx)
-            entries = res.entries
-            source = res.source
-            if (res.entries.isEmpty() && res.source == com.winlator.cmod.contents.WrapperCatalog.Source.NONE) {
-                errorMsg = "Каталог пуст или нет сети"
+        val res = withContext(Dispatchers.IO) { com.winlator.cmod.contents.WrapperCatalog.loadCached(ctx) }
+        entries = res.entries
+        source = res.source
+        if (res.entries.isEmpty() && res.source == com.winlator.cmod.contents.WrapperCatalog.Source.NONE) {
+            errorMsg = "Каталог пуст или нет сети"
+        }
+        refreshInstalled()
+    }
+
+    val offline = source != com.winlator.cmod.contents.WrapperCatalog.Source.NETWORK
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = result.data?.data
+            if (uri != null) {
+                kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
+                    val inspection = withContext(Dispatchers.IO) { manager.inspectUri(uri) }
+                    if (!inspection.valid) {
+                        com.winlator.cmod.core.AppUtils.showToast(ctx, ctx.getString(R.string.wrapper_invalid_toast))
+                    } else {
+                        val base = uri.lastPathSegment?.substringAfterLast('/')?.substringBeforeLast('.')
+                            ?.takeIf { it.isNotBlank() } ?: "Imported wrapper"
+                        importNameDraft = base
+                        pendingInspection = inspection
+                        pendingImportUri = uri
+                    }
+                }
             }
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Скачать враппер") },
+        title = { Text(stringResource(R.string.wrapper_catalog_dialog_title)) },
         text = {
-            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
                 if (entries == null) {
                     Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 } else if (entries!!.isEmpty()) {
-                    Text(errorMsg ?: "Нет доступных врапперов", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(errorMsg ?: stringResource(R.string.wrapper_catalog_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (source != com.winlator.cmod.contents.WrapperCatalog.Source.NONE) {
                         Text("Источник: $source", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     Text("Источник: $source", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (offline) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            stringResource(if (source == com.winlator.cmod.contents.WrapperCatalog.Source.CACHE) R.string.wrapper_catalog_offline_cache else R.string.wrapper_catalog_offline),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
+                                addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                                type = "*/*"
+                            }
+                            filePicker.launch(intent)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.wrapper_import_title))
+                    }
+                    Spacer(Modifier.height(4.dp))
                     entries!!.forEach { e ->
                         val isDownloading = downloadingId == e.id
+                        val installed = e.id in installedIds
+                        val updateAvailable = installed && e.version > (installedVersions[e.id] ?: 0)
                         Card(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             Column(Modifier.padding(12.dp)) {
-                                Text(e.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                    Text(e.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                    if (installed && !updateAvailable) {
+                                        Icon(Icons.Filled.CheckCircle, contentDescription = stringResource(R.string.wrapper_installed), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                    }
+                                    if (installed) {
+                                        IconButton(onClick = { deleteCatalogId = e.id }, modifier = Modifier.size(32.dp)) {
+                                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.wrapper_delete), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                        }
+                                    }
+                                }
+                                if (updateAvailable) {
+                                    Spacer(Modifier.height(3.dp))
+                                    Badge(containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer) {
+                                        Text(stringResource(R.string.wrapper_update_available), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                    }
+                                } else if (installed) {
+                                    Spacer(Modifier.height(3.dp))
+                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+                                        Text(stringResource(R.string.wrapper_installed), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                    }
+                                }
                                 if (e.description.isNotBlank()) Text(e.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("Автор: ${e.author} • v${e.version} • ${e.fileSize/1024} KB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(Modifier.height(6.dp))
                                 if (isDownloading) {
                                     LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth())
-                                    Text("$progress%", style = MaterialTheme.typography.bodySmall)
+                                    Text(if (progress >= 100) "${stringResource(R.string.wrapper_catalog_installing)}…" else "${stringResource(R.string.wrapper_catalog_downloading)}… $progress%", style = MaterialTheme.typography.bodySmall)
+                                } else if (!updateAvailable && installed) {
+                                    // актуальная версия уже стоит — кнопка не нужна
                                 } else {
                                     Button(
+                                        enabled = !offline && downloadingId == null,
                                         onClick = {
                                             downloadingId = e.id
                                             progress = 0
                                             errorMsg = null
                                             kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
-                                                val id = com.winlator.cmod.contents.WrapperCatalogDownloader.install(ctx, e) { p -> progress = p }
+                                                val id = withContext(Dispatchers.IO) {
+                                                    com.winlator.cmod.contents.WrapperCatalogDownloader.install(ctx, e) { p -> postProgress(p) }
+                                                }
                                                 if (id != null) {
-                                                    com.winlator.cmod.core.AppUtils.showToast(ctx, "Установлен: $id")
-                                                    // Передаём label (e.name), а не id файла — иначе в списке
-                                                    // выбранный драйвер не совпадёт с элементом (дубль "-_-")
+                                                    com.winlator.cmod.core.AppUtils.showToast(ctx, ctx.getString(R.string.wrapper_catalog_download_ok, e.name))
+                                                    refreshInstalled()
                                                     onInstalled(e.name)
                                                     onDismiss()
                                                 } else {
-                                                    errorMsg = "Ошибка загрузки ${e.name}"
+                                                    errorMsg = ctx.getString(R.string.wrapper_catalog_download_failed, e.name)
                                                     downloadingId = null
                                                 }
                                             }
                                         },
                                         modifier = Modifier.fillMaxWidth()
-                                    ) { Text("Скачать") }
+                                    ) { Text(if (updateAvailable) stringResource(R.string.wrapper_update) else stringResource(R.string.wrapper_catalog_download)) }
                                 }
                             }
                         }
@@ -967,8 +1059,83 @@ private fun WrapperDownloadDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Закрыть") } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.wrapper_catalog_close)) } }
     )
+
+    val delId = deleteCatalogId
+    if (delId != null) {
+        AlertDialog(
+            onDismissRequest = { deleteCatalogId = null },
+            title = { Text(stringResource(R.string.wrapper_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.wrapper_delete_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
+                        val removedLabel = withContext(Dispatchers.IO) {
+                            val wm = com.winlator.cmod.contents.WrapperManager(ctx)
+                            val impId = runCatching { wm.findImportByCatalogId(delId) }.getOrNull()
+                            if (impId != null) {
+                                val label = entries?.firstOrNull { it.id == delId }?.name
+                                wm.deleteImported(impId)
+                                label ?: impId
+                            } else {
+                                for (slot in com.winlator.cmod.contents.WrapperManager.SLOTS) {
+                                    if (delId == runCatching { wm.slotCatalogId(slot.fileName) }.getOrNull()) { wm.removeOverride(slot.fileName); break }
+                                }
+                                entries?.firstOrNull { it.id == delId }?.name
+                            }
+                        }
+                        deleteCatalogId = null
+                        refreshInstalled()
+                        if (removedLabel != null && (currentDriver == removedLabel || currentDriver == delId)) {
+                            onInstalled(com.winlator.cmod.container.Container.DEFAULT_GRAPHICS_DRIVER)
+                        }
+                    }
+                }) { Text(stringResource(R.string.wrapper_delete)) }
+            },
+            dismissButton = { TextButton(onClick = { deleteCatalogId = null }) { Text(stringResource(android.R.string.cancel)) } }
+        )
+    }
+
+    val importUri = pendingImportUri
+    val inspection = pendingInspection
+    if (importUri != null && inspection != null) {
+        AlertDialog(
+            onDismissRequest = { pendingImportUri = null; pendingInspection = null },
+            title = { Text(stringResource(R.string.wrapper_import_title)) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.wrapper_import_name_message), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(value = importNameDraft, onValueChange = { importNameDraft = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = importNameDraft.trim()
+                    if (name.isEmpty()) {
+                        com.winlator.cmod.core.AppUtils.showToast(ctx, ctx.getString(R.string.wrapper_import_name_empty_toast)); return@TextButton
+                    }
+                    if (manager.isReservedIdentifier(com.winlator.cmod.core.StringUtils.parseIdentifier(name))) {
+                        com.winlator.cmod.core.AppUtils.showToast(ctx, ctx.getString(R.string.wrapper_import_reserved_toast)); return@TextButton
+                    }
+                    kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
+                        val id = withContext(Dispatchers.IO) { manager.importWrapper(importUri, name) }
+                        pendingImportUri = null; pendingInspection = null
+                        if (id != null) {
+                            com.winlator.cmod.core.AppUtils.showToast(ctx, ctx.getString(R.string.wrapper_imported_toast))
+                            refreshInstalled()
+                            onInstalled(name)
+                            onDismiss()
+                        } else {
+                            com.winlator.cmod.core.AppUtils.showToast(ctx, ctx.getString(R.string.wrapper_invalid_toast))
+                        }
+                    }
+                }) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = { TextButton(onClick = { pendingImportUri = null; pendingInspection = null }) { Text(stringResource(android.R.string.cancel)) } }
+        )
+    }
 }
 
 // ---- Загрузка данных ----

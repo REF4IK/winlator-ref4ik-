@@ -5356,6 +5356,16 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
+    private void extractGraphicsAsset(String assetFileName, File rootDir) {
+        java.io.File override = new java.io.File(getFilesDir(), "graphics_driver/" + assetFileName);
+        if (override.isFile()) {
+            Log.d("GraphicsDriverExtraction", "using user override for " + assetFileName);
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, override, rootDir);
+        } else {
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/" + assetFileName, rootDir);
+        }
+    }
+
     private void extractGraphicsDriverFiles() {
 
         String adrenoToolsDriverId = "";
@@ -5440,23 +5450,49 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         }
 
-        // Custom wrapper support (Bannerlator)
+        // Wrapper slots + imports (Banner #132): точный override/import побеждает,
+        // иначе слот-цепочка, иначе поведение по умолчанию выше.
         try {
             String selDriver = graphicsDriver;
             if (shortcut != null) {
                 String sd = shortcut.getExtra("graphicsDriver", null);
                 if (sd != null && !sd.isEmpty()) selDriver = sd;
             }
-            if (selDriver != null && com.winlator.cmod.contents.WrapperManager.isCustomWrapper(this, selDriver)) {
+            if (selDriver != null && !selDriver.isEmpty()) {
+                String norm = com.winlator.cmod.core.StringUtils.parseIdentifier(selDriver);
+                java.io.File userWrapper = new java.io.File(getFilesDir(), "graphics_driver/" + selDriver + ".tzst");
+                java.io.File normWrapper = new java.io.File(getFilesDir(), "graphics_driver/" + norm + ".tzst");
                 java.io.File customFile = com.winlator.cmod.contents.WrapperManager.getWrapperFile(this, selDriver);
-                if (customFile != null && customFile.exists()) {
+                if (userWrapper.isFile()) {
+                    Log.d("GraphicsDriverExtraction", "Extracting user wrapper (override/import): " + userWrapper.getAbsolutePath());
+                    TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, userWrapper, rootDir);
+                } else if (normWrapper.isFile() && !norm.equals(selDriver)) {
+                    Log.d("GraphicsDriverExtraction", "Extracting user wrapper (override/import): " + normWrapper.getAbsolutePath());
+                    TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, normWrapper, rootDir);
+                } else if (customFile != null && customFile.exists()) {
                     android.util.Log.i("WrapperManager", "Extracting custom wrapper: " + customFile.getName() + " for driver " + selDriver);
                     com.winlator.cmod.core.TarCompressorUtils.extract(com.winlator.cmod.core.TarCompressorUtils.Type.ZSTD, customFile, rootDir);
-                    // also extract extra_libs again to ensure libs
                     com.winlator.cmod.core.TarCompressorUtils.extract(com.winlator.cmod.core.TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs.tzst", rootDir);
+                } else if (norm.startsWith("wrapper-original")) {
+                    extractGraphicsAsset("wrapper-original.tzst", rootDir);
+                } else if (norm.startsWith("wrapper-leegao")) {
+                    extractGraphicsAsset("wrapper-leegao.tzst", rootDir);
+                } else if (norm.startsWith("wrapper-legacy")) {
+                    extractGraphicsAsset("wrapper-legacy.tzst", rootDir);
+                } else if (norm.startsWith("wrapper-gamenative")) {
+                    extractGraphicsAsset("wrapper-gamenative.tzst", rootDir);
                 }
             }
         } catch (Exception e) { android.util.Log.w("WrapperManager", "custom wrapper extract failed", e); }
+
+        // BCn layer override поверх extra_libs — каждый запуск, если стоит.
+        try {
+            java.io.File bcnOverride = new java.io.File(getFilesDir(), "graphics_driver/leegao_bcn.tzst");
+            if (bcnOverride.isFile()) {
+                Log.d("GraphicsDriverExtraction", "applying user BCn layer override (leegao_bcn.tzst)");
+                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, bcnOverride, rootDir);
+            }
+        } catch (Exception e) { android.util.Log.w("WrapperManager", "bcn override extract failed", e); }
 
 
 
