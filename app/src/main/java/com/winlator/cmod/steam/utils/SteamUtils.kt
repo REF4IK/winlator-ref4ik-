@@ -47,13 +47,28 @@ object SteamUtils {
     @JvmStatic
     fun writeColdClientIni(steamAppId: Int, container: Container) {
         val installPath = SteamService.getAppDirPath(steamAppId)
-        val gameName = File(installPath).name.ifEmpty { getAppDirName(getAppInfoOf(steamAppId)) }
-        val executablePath = SteamService.getInstalledExe(steamAppId).replace("/", "\\")
-        val exePath = "steamapps\\common\\$gameName\\$executablePath"
-        val exeRunDir = "steamapps\\common\\$gameName"
+        // Папка — installDir || name из метаданных (как ColdClient её и видит
+        // через симлинк steamapps/common), а не имя пути на диске.
+        val gameName = getAppDirName(getAppInfoOf(steamAppId)).ifEmpty { File(installPath).name }
+        val executablePath = SteamService.getInstalledExe(steamAppId).replace("/", "\\").trim()
+        val exeBaseDir = "steamapps\\common\\$gameName"
+        val exePath = if (executablePath.isBlank()) exeBaseDir else "$exeBaseDir\\$executablePath"
+        // Рабочий каталог — папка exe, а не корень игры (иначе игра не находит
+        // свои DLL/ассеты → «путь неверный»). Если в метаданных задан workingDir —
+        // blank, как у эталона (ColdClient сам разруливает).
+        val launchWorkingDir = SteamService.getWindowsLaunchInfos(steamAppId)
+            .firstOrNull { it.executable.replace("/", "\\").equals(executablePath, ignoreCase = true) }
+            ?.workingDir
+            ?: SteamService.getWindowsLaunchInfos(steamAppId).firstOrNull()?.workingDir.orEmpty()
+        val exeRunDir = if (launchWorkingDir.isBlank()) {
+            if (exePath.contains("\\")) exePath.substringBeforeLast("\\") else exeBaseDir
+        } else {
+            ""
+        }
         val exeCommandLine = ""
         val iniFile = File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini")
         iniFile.parentFile?.mkdirs()
+        Timber.i("ColdClient ini appId=$steamAppId Exe=$exePath ExeRunDir=$exeRunDir")
 
         val injectionSection = """
                 [Injection]

@@ -19,6 +19,8 @@ import kotlin.math.abs
 
 class DownloadFailedException(message: String) : CancellationException(message)
 
+class StallTimeoutException(message: String) : Exception(message)
+
 class DownloadInfo(
     val jobCount: Int = 1,
     val gameId: Int,
@@ -60,6 +62,14 @@ class DownloadInfo(
     private val emitLock = Any()
     @Volatile private var lastProgressEmitTimeMs = 0L
     @Volatile private var lastEmittedProgress = -1f
+
+    // Последняя активность закачки (чанк или смена фазы) — для stall-watchdog.
+    @Volatile var lastActivityMs: Long = System.currentTimeMillis()
+        private set
+
+    fun markActivity() {
+        lastActivityMs = System.currentTimeMillis()
+    }
 
     val depotCumulativeUncompressedBytes = java.util.concurrent.ConcurrentHashMap<Int, AtomicLong>()
 
@@ -190,6 +200,7 @@ class DownloadInfo(
     fun updateBytesDownloaded(deltaBytes: Long, timestampMs: Long = System.currentTimeMillis()) {
         if (!isActive) return
         if (deltaBytes <= 0L) return
+        lastActivityMs = timestampMs
 
         val currentBytes = bytesDownloaded.addAndGet(deltaBytes)
         if (currentBytes < 0L) {
@@ -251,13 +262,10 @@ class DownloadInfo(
         if (previousStatus == status && message == null) return
 
         this.status.value = status
-
-        if (status == DownloadPhase.DOWNLOADING &&
-            previousStatus != DownloadPhase.DOWNLOADING &&
-            previousStatus != DownloadPhase.UNKNOWN
-        ) {
-            resetSpeedTracking()
-        }
+        // Активность для watchdog — смена фазы тоже движение.
+        // Сброс сэмплов скорости убран: флип PREPARING<->DOWNLOADING гасил
+        // показания в 0, хотя байты шли. Сброс остался только в setActive(false).
+        lastActivityMs = System.currentTimeMillis()
 
         if (message != null) {
             statusMessage.value = message

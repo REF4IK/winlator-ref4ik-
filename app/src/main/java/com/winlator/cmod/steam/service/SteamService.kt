@@ -17,6 +17,7 @@ import com.winlator.cmod.PluviaApp
 import com.winlator.cmod.steam.utils.PrefManager
 import com.winlator.cmod.steam.data.DepotInfo
 import com.winlator.cmod.steam.data.DownloadFailedException
+import com.winlator.cmod.steam.data.StallTimeoutException
 import com.winlator.cmod.steam.enums.DownloadPhase
 import com.winlator.cmod.steam.data.DownloadInfo
 import com.winlator.cmod.steam.data.GameProcessInfo
@@ -2916,9 +2917,13 @@ data class ManifestSizes(
                 val downloadJob = service.scope.launch {
                     var depotDownloader: DepotDownloader? = null
                     try {
-                        // Retry loop for transient Steam API failures (AsyncJobFailedException) or missing client
-                        val maxRetries = 3
+                        // Retry loop for transient Steam API failures (AsyncJobFailedException),
+                        // missing client or download stalls (StallTimeoutException).
+                        val maxRetries = 5
                         var lastException: Exception? = null
+                        // Нет активности дольше — считаем закачку зависшей (телефон захлебнулся
+                        // или CDN-хост умер) и перезапускаем попытку.
+                        val stallTimeoutMs = 90_000L
 
                         for (attempt in 1..maxRetries) {
                             lastException = null
@@ -2982,10 +2987,12 @@ data class ManifestSizes(
                                 // so we must limit decompress threads to avoid OutOfMemoryError.
                                 // With largeHeap=true we get ~512MB heap, so download threads can be higher.
                                 val cpuCores = Runtime.getRuntime().availableProcessors()
-                                // Use downloadSpeed setting as max download workers (maps to parallel chunks)
-                                val maxDownloads = PrefManager.downloadSpeed.coerceIn(4, 128)
-                                // Decompress at half the download rate to balance memory
-                                val maxDecompress = (maxDownloads / 2).coerceAtLeast(2)
+                                // Use downloadSpeed setting as max download workers (maps to parallel chunks).
+                                // Capped low: телефон захлёбывается на 128 потоках — скорость прёт,
+                                // потом decompress/диск не вывозят и всё встаёт в 0.
+                                val maxDownloads = PrefManager.downloadSpeed.coerceIn(4, 24)
+                                // Decompress at most half the cores, 2..4 — каждый поток ест ~8MB ThreadLocal.
+                                val maxDecompress = (cpuCores / 2).coerceIn(2, 4).coerceAtMost(maxDownloads)
 
                                 Timber.i("Download Config - Cores: $cpuCores, Speed setting: ${PrefManager.downloadSpeed}")
                                 Timber.i("Threads - Max Downloads: $maxDownloads, Max Decompress: $maxDecompress")
@@ -3079,11 +3086,33 @@ data class ManifestSizes(
 
                                 Timber.i("Downloading game to $appDirPath (attempt $attempt)")
 
-                                // Wait for completion - safely handle the deferred result to avoid Unit cast errors
+                                // Wait for completion - safely handle the deferred result to avoid Unit cast errors.
+                                // Плюс stall-watchdog: если чанки встали (скорость 0), await висел бы вечно.
+                                di.markActivity()
                                 try {
                                     val completion = depotDownloader?.getCompletion()
                                     if (completion is kotlinx.coroutines.Deferred<*>) {
                                         Timber.i("Waiting for DepotDownloader Deferred completion...")
+                                        var stallFired = false
+                                        while (!completion.isCompleted) {
+                                            coroutineContext.ensureActive()
+                                            kotlinx.coroutines.delay(10_000L)
+                                            val idleMs = System.currentTimeMillis() - di.lastActivityMs
+                                            val phase = di.getStatusFlow().value
+                                            val stalled = !stallFired && idleMs > stallTimeoutMs &&
+                                                di.isActive() && !di.isCancelling &&
+                                                (phase == DownloadPhase.DOWNLOADING || phase == DownloadPhase.PREPARING) &&
+                                                di.getProgress() < 1f
+                                            if (stalled) {
+                                                stallFired = true
+                                                Timber.w("Download stall: no activity for ${idleMs / 1000}s (phase=$phase), restarting attempt")
+                                                di.updateStatusMessage("Закачка зависла, перезапуск...")
+                                                runCatching { depotDownloader?.close() }
+                                                // Сносим кэш CDN-листа — следующая попытка возьмёт свежие хосты
+                                                runCatching { java.io.File(serverListPath).delete() }
+                                                throw StallTimeoutException("No download activity for ${idleMs / 1000}s")
+                                            }
+                                        }
                                         completion.await()
                                     } else if (completion != null) {
                                         // If it's a CompletableFuture or other type, try to join it
@@ -3096,6 +3125,7 @@ data class ManifestSizes(
                                     }
                                 } catch (e: Exception) {
                                     if (e is CancellationException) throw e
+                                    if (e is StallTimeoutException) throw e // в ретрай-цикл, не глотать
                                     Timber.w(e, "DepotDownloader completion await encountered an error")
                                 }
                                 
@@ -3131,6 +3161,21 @@ data class ManifestSizes(
                                     throw e
                                 }
                                 di.setActive(true)
+                                continue
+                            } catch (e: StallTimeoutException) {
+                                lastException = e
+                                Timber.w(e, "StallTimeoutException on attempt $attempt/$maxRetries for appId: $appId")
+                                // Close the downloader from the stalled attempt
+                                runCatching { depotDownloader?.close() }.onFailure { closeError ->
+                                    Timber.w(closeError, "Failed to close downloader on stall retry for app $appId")
+                                }
+                                depotDownloader = null
+                                if (attempt >= maxRetries) {
+                                    Timber.e("All $maxRetries retry attempts failed for appId: $appId")
+                                    throw e
+                                }
+                                di.setActive(true)
+                                di.markActivity()
                                 continue
                             }
                         }

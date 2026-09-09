@@ -41,6 +41,11 @@ object SteamGameLauncher {
             val launchExecutable = withContext(Dispatchers.IO) {
                 SteamService.getInstalledExe(app.id)
             }
+            if (launchExecutable.isBlank()) {
+                android.util.Log.e("SteamGameLauncher", "No executable found for app ${app.id}, aborting launch")
+                Toast.makeText(context, R.string.steam_library_launch_prepare_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
             val allShortcuts = containerManager.loadShortcuts()
             var shortcut = allShortcuts.firstOrNull {
                 it.getExtra("game_source") == "STEAM" && it.getExtra("app_id") == app.id.toString()

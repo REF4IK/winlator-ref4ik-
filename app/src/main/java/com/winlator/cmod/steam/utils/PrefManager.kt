@@ -149,7 +149,7 @@ object PrefManager {
         set(value) { encode("container_language", value) }
         
     var downloadSpeed: Int
-        get() = decodeInt("download_speed", 128)
+        get() = decodeInt("download_speed", 16)
         set(value) { encode("download_speed", value) }
         
     var clientId: Long
