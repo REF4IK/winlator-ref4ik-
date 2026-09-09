@@ -54,11 +54,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.ViewCompact
@@ -73,6 +77,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Slideshow
@@ -113,8 +118,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -145,12 +152,9 @@ import com.winlator.cmod.steam.ui.SteamLibraryGameUi
 import com.winlator.cmod.steam.ui.SteamLibraryUiState
 import com.winlator.cmod.steam.ui.SteamLibraryViewModel
 import com.winlator.cmod.steam.store.SteamStoreViewModel
-import com.winlator.cmod.steam.store.StoreUiState
-import com.winlator.cmod.steam.store.ui.LibraryHomeSections
 import com.winlator.cmod.steam.store.ui.StoreDetailScreen
 import com.winlator.cmod.steam.store.ui.StoreHomeScreen
 import com.winlator.cmod.steam.store.ui.StoreSearchResults
-import com.winlator.cmod.steam.store.ui.StoreStripForGame
 import com.winlator.cmod.steam.utils.PrefManager
 import com.winlator.cmod.steam.utils.getAvatarURL
 import com.winlator.cmod.steam.workshop.WorkshopManager
@@ -179,6 +183,14 @@ private enum class SteamContentFilter {
     DLC,
     APPLICATIONS,
     TOOLS,
+}
+
+private fun SteamContentFilter.icon(): androidx.compose.ui.graphics.vector.ImageVector = when (this) {
+    SteamContentFilter.ALL -> Icons.Filled.Apps
+    SteamContentFilter.GAMES -> Icons.Filled.SportsEsports
+    SteamContentFilter.DLC -> Icons.Filled.Extension
+    SteamContentFilter.APPLICATIONS -> Icons.Filled.GridView
+    SteamContentFilter.TOOLS -> Icons.Filled.Build
 }
 
 class SteamLibraryActivity : ComponentActivity() {
@@ -421,7 +433,7 @@ private fun SteamLibraryScreen(
 ) {
     val context = LocalContext.current
     var tab by rememberSaveable { mutableStateOf(SteamTab.STEAM) }
-    var contentFilter by rememberSaveable { mutableStateOf(SteamContentFilter.ALL) }
+    var contentFilter by rememberSaveable { mutableStateOf(SteamContentFilter.GAMES) }
     var selectedOverlayGameId by rememberSaveable { mutableStateOf<Int?>(null) }
     var storeDetailAppId by rememberSaveable { mutableStateOf<Int?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -447,7 +459,7 @@ private fun SteamLibraryScreen(
                 game.name.contains(searchQuery, ignoreCase = true) ||
                 game.subtitle.contains(searchQuery, ignoreCase = true)
         }
-    val filteredSteamCount = tabGames.count { it.matchesContentFilter(contentFilter) }
+    val filteredSteamCount = state.games.distinctBy { it.appId }.count { it.matchesContentFilter(contentFilter) }
     val selectedContainerId = state.selectedGame?.assignedContainerId ?: state.selectedContainerId
     val selectedGame = state.selectedGame?.takeIf { it.appId == selectedOverlayGameId }
     val profileName = state.profile.name.ifBlank { "Steam" }
@@ -505,7 +517,7 @@ private fun SteamLibraryScreen(
             SteamTopBar(
                 tab = tab,
                 isLoggedIn = state.isLoggedIn,
-                steamCount = state.totalGamesCount,
+                steamCount = filteredSteamCount,
                 canSearch = state.isLoggedIn || hasOfflineLibrary || tab == SteamTab.STORE,
                 viewMode = viewMode,
                 profileName = profileName,
@@ -549,20 +561,45 @@ private fun SteamLibraryScreen(
                 )
             }
 
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
                 Text(
                     text = stringResource(R.string.steam_library_content_types_title),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                 )
+                HorizontalDivider()
+                val filterCounts = remember(state.games) {
+                    val distinct = state.games.distinctBy { it.appId }
+                    SteamContentFilter.entries.associateWith { f -> distinct.count { it.matchesContentFilter(f) } }
+                }
                 SteamContentFilter.entries.forEach { filter ->
-                    DropdownMenuItem(
-                        text = { Text(text = filter.label()) },
-                        trailingIcon = {
-                            if (contentFilter == filter) {
-                                Icon(Icons.Filled.Check, contentDescription = null)
+                    val selected = contentFilter == filter
+                    SteamMenuRow(
+                        text = filter.label(),
+                        bold = selected,
+                        textColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        leading = {
+                            Icon(
+                                filter.icon(),
+                                contentDescription = null,
+                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        trailing = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "${filterCounts[filter] ?: 0}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                if (selected) {
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                }
                             }
                         },
                         onClick = {
@@ -572,9 +609,9 @@ private fun SteamLibraryScreen(
                     )
                 }
                 if (state.isLoggedIn || hasStoredSession) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.steam_library_refresh)) },
-                        leadingIcon = { Icon(Icons.Filled.Refresh, contentDescription = null) },
+                    SteamMenuRow(
+                        text = stringResource(R.string.steam_library_refresh),
+                        leading = { Icon(Icons.Filled.Refresh, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onRefresh()
@@ -582,9 +619,9 @@ private fun SteamLibraryScreen(
                     )
                 }
                 if (state.isOfflineMode || (!state.isLoggedIn && hasStoredSession)) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.steam_library_go_online)) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null) },
+                    SteamMenuRow(
+                        text = stringResource(R.string.steam_library_go_online),
+                        leading = { Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onSetOfflineMode(false)
@@ -592,20 +629,21 @@ private fun SteamLibraryScreen(
                         },
                     )
                 } else if (state.isLoggedIn) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.steam_library_go_offline)) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
+                    SteamMenuRow(
+                        text = stringResource(R.string.steam_library_go_offline),
+                        leading = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onSetOfflineMode(true)
                         },
                     )
                 }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.steam_library_autoupdate_title)) },
-                    trailingIcon = {
-                        var autoUpdateEnabled by remember { mutableStateOf(PrefManager.autoUpdateEnabled) }
+                HorizontalDivider()
+                var autoUpdateEnabled by remember { mutableStateOf(PrefManager.autoUpdateEnabled) }
+                var wifiOnly by remember { mutableStateOf(PrefManager.autoUpdateWifiOnly) }
+                SteamMenuRow(
+                    text = stringResource(R.string.steam_library_autoupdate_title),
+                    trailing = {
                         Switch(
                             checked = autoUpdateEnabled,
                             onCheckedChange = {
@@ -614,13 +652,15 @@ private fun SteamLibraryScreen(
                             },
                         )
                     },
-                    onClick = {},
+                    onClick = {
+                        autoUpdateEnabled = !autoUpdateEnabled
+                        PrefManager.autoUpdateEnabled = autoUpdateEnabled
+                    },
                 )
-                if (PrefManager.autoUpdateEnabled) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.steam_library_autoupdate_wifi_only)) },
-                        trailingIcon = {
-                            var wifiOnly by remember { mutableStateOf(PrefManager.autoUpdateWifiOnly) }
+                if (autoUpdateEnabled) {
+                    SteamMenuRow(
+                        text = stringResource(R.string.steam_library_autoupdate_wifi_only),
+                        trailing = {
                             Switch(
                                 checked = wifiOnly,
                                 onCheckedChange = {
@@ -629,22 +669,26 @@ private fun SteamLibraryScreen(
                                 },
                             )
                         },
-                        onClick = {},
+                        onClick = {
+                            wifiOnly = !wifiOnly
+                            PrefManager.autoUpdateWifiOnly = wifiOnly
+                        },
                     )
                 }
                 if (state.isLoggedIn || hasStoredSession) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.steam_library_logout_action)) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
+                    SteamMenuRow(
+                        text = stringResource(R.string.steam_library_logout_action),
+                        textColor = MaterialTheme.colorScheme.error,
+                        leading = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                         onClick = {
                             menuExpanded = false
                             onLogout()
                         },
                     )
                 } else {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.steam_library_login_button)) },
-                        leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                    SteamMenuRow(
+                        text = stringResource(R.string.steam_library_login_button),
+                        leading = { Icon(Icons.Filled.Settings, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onLogin()
@@ -653,37 +697,13 @@ private fun SteamLibraryScreen(
                 }
             }
 
-            if (state.isLoggedIn || hasOfflineLibrary || hasStoredSession) {
-                // Ник + статус в одну строку под тулбаром — компактно
+            if (state.isRefreshing) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text(
-                        text = profileName,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "·",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                    Text(
-                        text = if (state.isLoggedIn && profileOnline && profileGame?.isNotBlank() == true) "В игре: $profileGame" else profileStatus,
-                        color = if (profileOnline) Color(0xFF3DDC84) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (state.isRefreshing) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    }
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                 }
             }
             if (state.errorMessage != null) {
@@ -723,26 +743,21 @@ private fun SteamLibraryScreen(
                     )
                 }
             } else {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 LibraryGridContent(
                     state = state,
-                    tab = tab,
-                    searchQuery = searchQuery,
                     viewMode = viewMode,
                     visibleGames = visibleGames,
                     shouldShowStartupLoader = shouldShowStartupLoader,
                     hasOfflineLibrary = hasOfflineLibrary,
                     hasStoredSession = hasStoredSession,
-                    storeState = storeState,
                     onLogin = onLogin,
                     onOpenGame = { appId ->
                         selectedOverlayGameId = appId
                         onSelectGame(appId)
                     },
-                    onOpenStoreDetail = { appId ->
-                        storeDetailAppId = appId
-                        tab = SteamTab.STORE
-                    },
                 )
+                }
             }
         }
 
@@ -814,6 +829,8 @@ private fun SteamLibraryScreen(
             SteamProfileDialog(
                 profile = state.profile,
                 isLoggedIn = state.isLoggedIn,
+                gamesCount = state.games.size,
+                installedCount = state.games.count { it.installed },
                 onDismiss = { showProfileDialog = false },
                 onOpenFriends = { showProfileDialog = false; showFriends = true },
             )
@@ -1013,17 +1030,13 @@ private fun SteamTabIcon(
 @Composable
 private fun LibraryGridContent(
     state: SteamLibraryUiState,
-    tab: SteamTab,
-    searchQuery: String,
     viewMode: SteamViewMode,
     visibleGames: List<SteamLibraryGameUi>,
     shouldShowStartupLoader: Boolean,
     hasOfflineLibrary: Boolean,
     hasStoredSession: Boolean,
-    storeState: StoreUiState,
     onLogin: () -> Unit,
     onOpenGame: (Int) -> Unit,
-    onOpenStoreDetail: (Int) -> Unit,
 ) {
     when {
         state.containers.isEmpty() -> SteamPlaceholder(
@@ -1050,21 +1063,7 @@ private fun LibraryGridContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            if (tab == SteamTab.STEAM && searchQuery.isBlank()) {
-                LibraryHomeSections(
-                    games = state.games,
-                    news = storeState.news,
-                    onOpenGame = onOpenGame,
-                    onOpenStoreDetail = onOpenStoreDetail,
-                )
-                Text(
-                    text = stringResource(R.string.steam_library_tab_steam),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                )
-            }
-            Box(modifier = Modifier.fillMaxWidth().weight(1f, fill = false)) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (viewMode) {
                     SteamViewMode.GRID -> {
                         LazyVerticalGrid(
@@ -1340,9 +1339,53 @@ private fun SteamPlaceholder(
 }
 
 @Composable
+private fun SteamMenuRow(
+    text: String,
+    onClick: () -> Unit,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    bold: Boolean = false,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        leading?.invoke()
+        Text(
+            text = text,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+            color = textColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        trailing?.invoke()
+    }
+}
+
+@Composable
+private fun ProfileStatCard(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
 private fun SteamProfileDialog(
     profile: com.winlator.cmod.steam.ui.SteamProfileUi,
     isLoggedIn: Boolean,
+    gamesCount: Int,
+    installedCount: Int,
     onDismiss: () -> Unit,
     onOpenFriends: () -> Unit,
 ) {
@@ -1352,24 +1395,66 @@ private fun SteamProfileDialog(
     val friends by SteamService.friendsList.collectAsState()
     val chatMap by SteamService.chatMessages.collectAsState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val onlineColor = Color(0xFF3DDC84)
+    val steamId = SteamService.userSteamId?.convertToUInt64() ?: PrefManager.steamUserSteamId64
     Dialog(onDismissRequest = onDismiss) {
-        Card(modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp), shape = RoundedCornerShape(18.dp)) {
+        Card(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(64.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-                        if (profile.avatarUrl.isNotBlank()) {
-                            AsyncImage(model = profile.avatarUrl, contentDescription = profile.name, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
-                        } else {
-                            Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                // Шапка: градиент + аватар с кольцом статуса + имя + пилюля статуса
+                Box(
+                    modifier = Modifier.fillMaxWidth().background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.25f),
+                            ),
+                        ),
+                    ).padding(18.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(76.dp).clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(3.dp, if (profile.isOnline) onlineColor else MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (profile.avatarUrl.isNotBlank()) {
+                                AsyncImage(model = profile.avatarUrl, contentDescription = profile.name, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
+                            } else {
+                                Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+                            }
                         }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(profile.name.ifBlank { "Steam" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(Modifier.size(8.dp).clip(CircleShape).background(if (profile.isOnline) onlineColor else MaterialTheme.colorScheme.onSurfaceVariant))
+                                Text(
+                                    profile.status.ifBlank { if (profile.isOnline) "В сети" else "Не в сети" },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (profile.isOnline) onlineColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            if (profile.currentGame?.isNotBlank() == true) {
+                                Text("Играет: ${profile.currentGame}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                        IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, null) }
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(profile.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-                        Text(profile.status, style = MaterialTheme.typography.bodySmall, color = if (profile.isOnline) Color(0xFF3DDC84) else MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (profile.currentGame?.isNotBlank() == true) Text("Играет: ${profile.currentGame}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, null) }
+                }
+                // Полоса статистики
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ProfileStatCard(label = "Игры", value = gamesCount.toString(), modifier = Modifier.weight(1f))
+                    ProfileStatCard(label = "Установлено", value = installedCount.toString(), modifier = Modifier.weight(1f))
+                    ProfileStatCard(label = "Друзья", value = "${friends.count { it.isOnline }}/${friends.size}", modifier = Modifier.weight(1f))
                 }
                 TabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
                     Tab(selected = tab == 0, onClick = { tab = 0; chatFriendId = null }, text = { Text("Профиль") })
@@ -1379,15 +1464,39 @@ private fun SteamProfileDialog(
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     when (tab) {
                         0 -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)), shape = RoundedCornerShape(12.dp)) {
-                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("Статус", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                                    Text(profile.status, style = MaterialTheme.typography.bodyMedium)
-                                    Text("Steam ID: ${SteamService.userSteamId?.convertToUInt64() ?: PrefManager.steamUserSteamId64}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)), shape = RoundedCornerShape(14.dp)) {
+                                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Box(Modifier.size(10.dp).clip(CircleShape).background(if (profile.isOnline) onlineColor else MaterialTheme.colorScheme.onSurfaceVariant))
+                                        Text("Статус", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                        Text(
+                                            profile.status.ifBlank { if (profile.isOnline) "В сети" else "Не в сети" },
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (profile.isOnline) onlineColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f))
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text("Steam ID", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text("$steamId", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                        IconButton(onClick = {
+                                            clipboard.setText(AnnotatedString("$steamId"))
+                                            Toast.makeText(context, "Steam ID скопирован", Toast.LENGTH_SHORT).show()
+                                        }) { Icon(Icons.Filled.ContentCopy, null, tint = MaterialTheme.colorScheme.primary) }
+                                    }
+                                    if (!isLoggedIn) {
+                                        Text("Гостевой режим — войди, чтобы видеть друзей и чат.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
                             }
-                            OutlinedButton(onClick = onOpenFriends, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Filled.Person, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)); Text("Открыть чат с друзьями") }
-                            Text("Совет: нажми на аватар в библиотеке чтобы открыть этот профиль. Вкладка Друзья содержит быстрый чат.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Button(onClick = onOpenFriends, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                                Icon(Icons.Filled.Person, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Открыть чат с друзьями")
+                            }
                         }
                         1 -> {
                             if (chatFriendId != null) {
@@ -2156,8 +2265,6 @@ private fun SteamGameOverlay(
                             if (game.isDownloading || game.downloadProgress > 0f) {
                                 DownloadProgressCard(game = game, compactLayout = compactLayout)
                             }
-                            // Магазинная полоса: цена/скидка/отзывы из Store API
-                            StoreStripForGame(appId = game.appId)
                         }
                     }
 

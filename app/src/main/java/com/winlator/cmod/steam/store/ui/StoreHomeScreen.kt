@@ -167,7 +167,7 @@ private fun StoreHeroCard(app: StoreApp, onClick: () -> Unit) {
                     if (app.headline.isNotBlank()) {
                         Text(app.headline, color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     }
-                    StorePriceTag(price = app.price)
+                    StorePriceTag(price = app.price, onDark = true)
                 }
             }
         }
@@ -175,7 +175,10 @@ private fun StoreHeroCard(app: StoreApp, onClick: () -> Unit) {
 }
 
 @Composable
-fun StorePriceTag(price: com.winlator.cmod.steam.store.StorePrice) {
+fun StorePriceTag(price: com.winlator.cmod.steam.store.StorePrice, onDark: Boolean = false) {
+    // onDark = поверх тёмной картинки (hero), иначе цвета под тему (видно и в светлой, и в чёрной)
+    val mainColor = if (onDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val subColor = if (onDark) Color.White.copy(alpha = 0.55f) else MaterialTheme.colorScheme.onSurfaceVariant
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         if (price.hasDiscount) {
             Box(
@@ -183,9 +186,9 @@ fun StorePriceTag(price: com.winlator.cmod.steam.store.StorePrice) {
             ) {
                 Text("-${price.discountPercent}%", color = Color(0xFFBEEE62), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             }
-            Text(price.initialText, color = Color.White.copy(alpha = 0.55f), style = MaterialTheme.typography.labelSmall)
+            Text(price.initialText, color = subColor, style = MaterialTheme.typography.labelSmall)
         }
-        Text(price.finalText, color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Text(price.finalText, color = mainColor, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
     }
 }
 

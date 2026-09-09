@@ -506,6 +506,17 @@ class SteamLibraryViewModel : ViewModel() {
         }
     }
 
+    private fun buildSubtitle(developer: String, publisher: String): String {
+        // Убираем дубль «Steam» после компании: «Valve / Steam» -> «Valve»
+        val dev = developer.takeIf { it.isNotBlank() }
+        val pub = publisher.takeIf {
+            it.isNotBlank() &&
+                !it.equals("Steam", ignoreCase = true) &&
+                !it.equals(developer, ignoreCase = true)
+        }
+        return listOfNotNull(dev, pub).joinToString(" / ")
+    }
+
     private fun buildLibraryGameUi(app: SteamApp): SteamLibraryGameUi {
         val downloadInfo = SteamService.getAppDownloadInfo(app.id)
         val status = downloadInfo?.getStatusFlow()?.value
@@ -527,10 +538,7 @@ class SteamLibraryViewModel : ViewModel() {
         return SteamLibraryGameUi(
             appId = app.id,
             name = app.name,
-            subtitle = listOfNotNull(
-                app.developer.takeIf { it.isNotBlank() },
-                app.publisher.takeIf { it.isNotBlank() },
-            ).joinToString(" / "),
+            subtitle = buildSubtitle(app.developer, app.publisher),
             appType = app.type,
             capsuleUrl = app.getCapsuleUrl(),
             smallCapsuleUrl = app.getSmallCapsuleUrl(),
@@ -577,10 +585,7 @@ class SteamLibraryViewModel : ViewModel() {
         SteamGameDetailUi(
             appId = app.id,
             name = app.name,
-            subtitle = listOfNotNull(
-                app.developer.takeIf { it.isNotBlank() },
-                app.publisher.takeIf { it.isNotBlank() },
-            ).joinToString(" / "),
+            subtitle = buildSubtitle(app.developer, app.publisher),
             appType = app.type,
             capsuleUrl = app.getCapsuleUrl(),
             heroUrl = app.getHeroUrl(),
