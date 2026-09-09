@@ -1759,6 +1759,9 @@
     <string name="community_sort_configs">Конфиги</string>
     <string name="community_sort_devices">Устройства</string>
     <string name="community_filter_device">Подходит моему устройству</string>
+    <string name="community_search_device">Девайс, проц…</string>
+    <string name="community_filter_fav">Избранное</string>
+    <string name="community_no_configs_filter">Под фильтры ничего не подошло.</string>
     <string name="bundle_published">Конфиг опубликован! (%s)</string>
     <string name="bundle_publishing">Публикация...</string>
     <string name="bundle_failed">Ошибка конфига: %s</string>

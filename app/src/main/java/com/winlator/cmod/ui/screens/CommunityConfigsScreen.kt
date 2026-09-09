@@ -219,6 +219,10 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                             withContext(Dispatchers.Main) {
                                 showApplyProgress = false
                                 statusMessage = "Applied to ${shortcut.name}"
+                                // Оптимистично +1 к счётчику (серверный кеш списка протухает до 5 мин)
+                                detailEntry?.sha?.let { s ->
+                                    configEntries = configEntries.map { if (it.sha == s) it.copy(downloads = it.downloads + 1) else it }
+                                }
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
@@ -244,8 +248,24 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                 scope.launch(Dispatchers.IO) {
                     try {
                         GameConfigManager.applyGameConfig(detailConfig!!, container, null)
+                        val dlSha = detailEntry?.sha
+                        if (dlSha != null) {
+                            try {
+                                val dlBody = org.json.JSONObject().apply { put("sha", dlSha) }
+                                val conn = java.net.URL(BuildConfig.CLOUDFLARE_WORKER_URL + "/api/download").openConnection() as java.net.HttpURLConnection
+                                conn.requestMethod = "POST"
+                                conn.setRequestProperty("Content-Type", "application/json")
+                                conn.doOutput = true
+                                conn.outputStream.write(dlBody.toString().toByteArray())
+                                conn.responseCode
+                                conn.disconnect()
+                            } catch (_: Exception) {}
+                        }
                         withContext(Dispatchers.Main) {
                             statusMessage = "Applied to ${container.name}"
+                            detailEntry?.sha?.let { s ->
+                                configEntries = configEntries.map { if (it.sha == s) it.copy(downloads = it.downloads + 1) else it }
+                            }
                         }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
@@ -346,8 +366,6 @@ fun CommunityConfigsScreen(onBack: () -> Unit = {}, contextShortcut: com.winlato
                             onQueryChange = { query = it },
                             storeFilter = storeFilter,
                             onStoreFilterChange = { storeFilter = it },
-                            matchesMyDevice = matchesMyDevice,
-                            onToggleDevice = { matchesMyDevice = !matchesMyDevice },
                             sort = sort,
                             onSortChange = { sort = it },
                             visible = visible,
@@ -387,8 +405,6 @@ private fun CatalogPanel(
     onQueryChange: (String) -> Unit,
     storeFilter: StoreFilter,
     onStoreFilterChange: (StoreFilter) -> Unit,
-    matchesMyDevice: Boolean,
-    onToggleDevice: () -> Unit,
     sort: SortMode,
     onSortChange: (SortMode) -> Unit,
     visible: List<GameCandidate>,
@@ -413,15 +429,6 @@ private fun CatalogPanel(
                 shape = RoundedCornerShape(10.dp),
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = matchesMyDevice,
-                            onClick = onToggleDevice,
-                            label = { Text(stringResource(R.string.community_filter_device), fontSize = 12.sp) },
-                            leadingIcon = if (matchesMyDevice) {{ Icon(Icons.Default.PhoneAndroid, null, modifier = Modifier.size(16.dp)) }} else null,
-                        )
-                        Spacer(Modifier.weight(1f))
-                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         FilterChip(
                             selected = sort == SortMode.CONFIGS,
@@ -505,21 +512,45 @@ private fun DevicePanel(
     onEntryClick: (ConfigFileEntry) -> Unit,
     wide: Boolean,
 ) {
+    val social = remember { SocialManager() }
+    var query by remember { mutableStateOf("") }
+    var favOnly by remember { mutableStateOf(false) }
+    var favTick by remember { mutableStateOf(0) }
+
     @Composable
     fun Header() {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(gameName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("${entries.size}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FilterChip(
-                selected = matchesMyDevice,
-                onClick = onToggleDevice,
-                label = { Text(stringResource(R.string.community_filter_device), fontSize = 11.sp) },
-                leadingIcon = if (matchesMyDevice) {{ Icon(Icons.Default.PhoneAndroid, null, modifier = Modifier.size(14.dp)) }} else null,
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(gameName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("${entries.size}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FilterChip(
+                    selected = matchesMyDevice,
+                    onClick = onToggleDevice,
+                    label = { Text(stringResource(R.string.community_filter_device), fontSize = 11.sp) },
+                    leadingIcon = if (matchesMyDevice) {{ Icon(Icons.Default.PhoneAndroid, null, modifier = Modifier.size(14.dp)) }} else null,
+                )
+            }
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text(stringResource(R.string.community_search_device), fontSize = 12.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(
+                    selected = favOnly,
+                    onClick = { favOnly = !favOnly },
+                    label = { Text(stringResource(R.string.community_filter_fav), fontSize = 11.sp) },
+                    leadingIcon = { Icon(if (favOnly) Icons.Default.Star else Icons.Default.StarBorder, null, modifier = Modifier.size(14.dp)) },
+                )
+            }
         }
     }
 
@@ -541,11 +572,21 @@ private fun DevicePanel(
                     }
                 }
             } else {
-                val shown = if (!matchesMyDevice) entries
+                var base = if (!matchesMyDevice) entries
                 else entries.filter { deviceMatcher.match(it.device, it.soc).score > 0 }
+                if (favOnly) base = base.filter { social.isFav(it.sha) }
+                val q = query.trim().lowercase()
+                if (q.length >= 2) {
+                    base = base.filter {
+                        it.device.lowercase().contains(q) || it.soc.lowercase().contains(q) || it.name.lowercase().contains(q)
+                    }
+                }
+                val shown = base.sortedByDescending { it.votesUp }
+                // favTick дёргает рекомпозицию звёзд
+                favTick.let { }
 
                 if (shown.isEmpty()) {
-                    Text(stringResource(R.string.community_no_configs_device), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(12.dp))
+                    Text(stringResource(R.string.community_no_configs_filter), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(12.dp))
                 } else {
                     val dateFmt = remember { SimpleDateFormat("dd.MM.yy", Locale.getDefault()) }
                     shown.forEach { entry ->
@@ -571,6 +612,18 @@ private fun DevicePanel(
                                         if (entry.timestamp > 0) pieces.add(dateFmt.format(Date(entry.timestamp)))
                                         if (pieces.isNotEmpty()) Text(pieces.joinToString(" · "), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
+                                    val isFav = social.isFav(entry.sha)
+                                    IconButton(
+                                        onClick = { social.toggleFav(entry.sha); favTick++ },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
+                                        Icon(
+                                            if (isFav) Icons.Default.Star else Icons.Default.StarBorder,
+                                            null,
+                                            modifier = Modifier.size(18.dp),
+                                            tint = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        )
+                                    }
                                     if (match.score > 0) {
                                         Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(4.dp)) {
                                             Text(stringResource(R.string.community_match_badge), fontSize = 9.sp, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
@@ -585,11 +638,9 @@ private fun DevicePanel(
                                         Icon(Icons.Default.ThumbUp, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
                                         Text("${entry.votesUp}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                                     }
-                                    if (entry.downloads > 0) {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                            Icon(Icons.Default.Download, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
-                                            Text("${entry.downloads}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Icon(Icons.Default.Download, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                                        Text("${entry.downloads}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Spacer(Modifier.weight(1f))
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1168,6 +1219,7 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                             val soc = obj.optString("soc", "")
                             val votesUp = obj.optInt("votes_up", 0)
                             val votesDown = obj.optInt("votes_down", 0)
+                            val dlCount = obj.optInt("downloads", 0)
                             val dateStr = obj.optString("date", "")
                             val uploader = obj.optString("uploader", "")
                             val uploaderAvatar = com.winlator.cmod.community.AccountManager.absUrl(obj.optString("uploaderAvatar", "")).orEmpty()
@@ -1176,7 +1228,7 @@ private fun fetchGameConfigs(gameName: String, callback: (List<ConfigFileEntry>)
                             if (filename.isNotEmpty()) {
                                 val url = "$RAW_BASE/REF4IK/winlator-ref4ik-configs/main/configs/" +
                                     gameName.replace(Regex("[^a-zA-Z0-9_]"), "_") + "/$filename"
-                                list.add(ConfigFileEntry(filename, url, sha, votesUp, votesDown, device = device, soc = soc, timestamp = ts, uploader = uploader, uploaderAvatar = uploaderAvatar, uploaderOwner = uploaderOwner))
+                                list.add(ConfigFileEntry(filename, url, sha, votesUp, votesDown, downloads = dlCount, device = device, soc = soc, timestamp = ts, uploader = uploader, uploaderAvatar = uploaderAvatar, uploaderOwner = uploaderOwner))
                             }
                     } catch (_: Exception) {}
                 }

@@ -7,6 +7,7 @@ import org.json.JSONArray;
 public class SocialManager {
     private static final String PREFS_NAME = "community_configs";
     private static final String VOTED_KEY = "voted_shas";
+    private static final String FAV_KEY = "fav_shas";
 
     private final SharedPreferences prefs;
 
@@ -25,6 +26,30 @@ public class SocialManager {
     public boolean hasVoted(String sha) {
         String voted = prefs.getString(VOTED_KEY, "");
         return voted.contains(sha);
+    }
+
+    public boolean isFav(String sha) {
+        if (sha == null || sha.isEmpty()) return false;
+        String fav = prefs.getString(FAV_KEY, "");
+        return ("," + fav + ",").contains("," + sha + ",");
+    }
+
+    public void toggleFav(String sha) {
+        if (sha == null || sha.isEmpty()) return;
+        String fav = prefs.getString(FAV_KEY, "");
+        java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
+        for (String s : fav.split(",")) {
+            s = s.trim();
+            if (!s.isEmpty()) set.add(s);
+        }
+        if (set.contains(sha)) set.remove(sha);
+        else set.add(sha);
+        StringBuilder sb = new StringBuilder();
+        for (String s : set) {
+            if (sb.length() > 0) sb.append(",");
+            sb.append(s);
+        }
+        prefs.edit().putString(FAV_KEY, sb.toString()).apply();
     }
 
     public void vote(String sha, boolean upvote, VoteCallback callback) {

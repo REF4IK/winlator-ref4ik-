@@ -1764,6 +1764,9 @@
     <string name="community_sort_configs">Configs</string>
     <string name="community_sort_devices">Devices</string>
     <string name="community_filter_device">Matches my device</string>
+    <string name="community_search_device">Device, SoC…</string>
+    <string name="community_filter_fav">Favorites</string>
+    <string name="community_no_configs_filter">Nothing matches the filters.</string>
     <string name="bundle_published">Config published! (%s)</string>
     <string name="bundle_publishing">Publishing...</string>
     <string name="bundle_failed">Config failed: %s</string>
