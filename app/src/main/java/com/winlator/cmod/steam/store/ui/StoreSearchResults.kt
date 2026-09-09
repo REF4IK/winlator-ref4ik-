@@ -25,10 +25,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.winlator.cmod.R
 import com.winlator.cmod.steam.store.StoreUiState
 
 // Результаты поиска по магазину.
@@ -41,7 +43,7 @@ fun StoreSearchResults(state: StoreUiState, onOpenDetail: (Int) -> Unit) {
     if (state.searchResults.isEmpty()) {
         Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
             Text(
-                if (state.searchQuery.isBlank()) "Введите запрос" else "Ничего не найдено",
+                if (state.searchQuery.isBlank()) stringResource(R.string.store_search_hint_enter) else stringResource(R.string.store_nothing_found),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

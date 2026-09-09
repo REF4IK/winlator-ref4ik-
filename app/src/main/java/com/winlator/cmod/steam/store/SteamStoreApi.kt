@@ -148,6 +148,9 @@ object SteamStoreApi {
             shelf("specials", "Скидки")
             shelf("new_releases", "Новинки")
             shelf("coming_soon", "Скоро выйдут")
+            shelf("free", "Бесплатные")
+            shelf("most_played", "Самые играемые")
+            shelf("concurrent_users", "Сейчас в игре")
             // запасные полки из layout/раскладки, если основные пустые
             try {
                 val layout = root.optString("layout", "")
@@ -504,6 +507,90 @@ object SteamStoreApi {
             out
         }
 
+    // Полнотекстовый каталог как в Steam: search/results отдаёт JSON с HTML.
+    // Фильтры: таб, скидки, только Win, бесплатно, тип, сортировка. Пагинация через start.
+    suspend fun searchCatalog(
+        context: Context, q: StoreCatalogQuery,
+        cc: String = "ru", lang: String = "russian",
+    ): StoreCatalogPage = withContext(Dispatchers.IO) {
+        try {
+            val enc = URLEncoder.encode(q.term.trim(), StandardCharsets.UTF_8.name())
+            val sb = StringBuilder("https://store.steampowered.com/search/results/?query&start=${q.start}")
+                .append("&count=${StoreCatalogQuery.COUNT}&dynamic_data=&sort_by=${q.sort}&snr=&infinite=1")
+            if (q.term.isNotBlank()) sb.append("&term=$enc")
+            if (q.tab.isNotBlank()) sb.append("&filter=${q.tab}")
+            if (q.onlySpecials) sb.append("&specials=1")
+            if (q.osWin) sb.append("&os=win")
+            if (q.freeOnly) sb.append("&maxprice=free")
+            when (q.type) {
+                "game" -> sb.append("&category1=998")
+                "demo" -> sb.append("&category1=10")
+                "dlc" -> sb.append("&category1=21")
+            }
+            sb.append("&cc=$cc&l=$lang&hide_adult_content_violations=1")
+            val body = get(context, sb.toString(), null, 0L) ?: return@withContext StoreCatalogPage(failed = true)
+            val root = JSONObject(body)
+            // Steam отдаёт success числом 1, а не boolean — принимаем оба
+            val ok = root.optBoolean("success", false) || root.optInt("success", 0) == 1
+            if (!ok) return@withContext StoreCatalogPage(failed = true)
+            val total = root.optInt("total_count", 0)
+            val html = root.optString("results_html", "")
+            if (html.isBlank()) return@withContext StoreCatalogPage(emptyList(), total)
+            val currency = if (cc.equals("ru", true)) "RUB" else if (cc.equals("us", true)) "USD" else cc.uppercase()
+            StoreCatalogPage(parseCatalogHtml(html, currency), total)
+        } catch (_: Exception) { StoreCatalogPage() }
+    }
+
+    private fun parseCatalogHtml(html: String, currency: String): List<StoreApp> {
+        val out = mutableListOf<StoreApp>()
+        try {
+            val doc = org.jsoup.Jsoup.parseBodyFragment(html)
+            for (a in doc.select("a.search_result_row")) {
+                val id = a.attr("data-ds-appid").toIntOrNull() ?: continue
+                if (id <= 0 || out.any { it.id == id }) continue
+                val name = a.selectFirst(".title")?.text().orEmpty().trim()
+                if (name.isBlank()) continue
+                val img = a.selectFirst("img")?.attr("src").orEmpty()
+                val pctRaw = a.selectFirst(".discount_pct")?.text().orEmpty()
+                val discount = Regex("-(\\d+)%").find(pctRaw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                val finalRaw = a.selectFirst(".discount_final_price")?.text().orEmpty()
+                    .ifBlank { a.selectFirst(".search_price")?.text().orEmpty() }
+                val (final, free) = parseCatalogPrice(finalRaw)
+                out.add(StoreApp(
+                    id = id,
+                    name = name,
+                    discounted = discount > 0,
+                    price = if (free) StorePrice(currency = currency, isFree = true)
+                    else StorePrice(currency = currency, initial = final, final = final, discountPercent = discount),
+                    smallCapsuleImage = img,
+                    headerImage = img,
+                    priceText = finalRaw.trim(),
+                ))
+            }
+        } catch (_: Exception) { }
+        return out
+    }
+
+    private fun parseCatalogPrice(raw: String): Pair<Long, Boolean> {
+        val s = raw.trim()
+        if (s.isEmpty()) return 0L to false
+        val low = s.lowercase()
+        if (low.contains("free") || low.contains("бесплатно") || low.contains("играть")) return 0L to true
+        // "1 299 руб." / "$19.99" / "19,99€" → копейки
+        val num = Regex("[\\d\\s.,]+").find(s)?.value?.replace(Regex("\\s+"), "") ?: return 0L to false
+        return try {
+            val cents = if (num.contains('.') || num.contains(',')) {
+                val norm = num.replace(',', '.')
+                // "1.299" (тысячи) vs "19.99" (копейки): две цифры после точки = копейки
+                val frac = norm.substringAfter('.', "")
+                if (frac.length == 2) (norm.toDouble() * 100).toLong()
+                else norm.replace(".", "").toDouble().toLong() * 100
+            } else {
+                num.toDouble().toLong() * 100
+            }
+            cents to false
+        } catch (_: Exception) { 0L to false }
+    }
     // Лёгкий батч для рядов DLC: имя+картинка+цена по списку id.
     suspend fun loadStoreApps(context: Context, ids: List<Int>, cc: String = "ru", lang: String = "russian"): List<StoreApp> =
         withContext(Dispatchers.IO) {

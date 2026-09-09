@@ -43,6 +43,7 @@ data class StoreApp(
     val controllerSupport: String = "",
     val metascore: Int = 0,
     val platforms: List<String> = emptyList(), // win/mac/linux
+    val priceText: String = "", // сырая строка цены из HTML-каталога
 ) {
     // Заглушка-капсула CDN, если API не отдал картинку
     val capsuleFallback: String get() =
@@ -75,6 +76,28 @@ data class StoreCategory(
     val key: String,
     val title: String,
     val items: List<StoreApp> = emptyList(),
+)
+
+// Полнотекстовый каталог search/results: запрос + фильтры как в Steam
+data class StoreCatalogQuery(
+    val term: String = "",
+    val tab: String = "", // topsellers|newreleases|specials|comingsoon|пусто
+    val onlySpecials: Boolean = false,
+    val osWin: Boolean = false,
+    val freeOnly: Boolean = false,
+    val type: String = "", // ""|game|demo|dlc
+    val sort: String = "", // ""|price_ASC|price_DESC|name_ASC|released_DESC|reviews_DESC
+    val start: Int = 0,
+) {
+    companion object {
+        const val COUNT = 25
+    }
+}
+
+data class StoreCatalogPage(
+    val items: List<StoreApp> = emptyList(),
+    val totalCount: Int = 0,
+    val failed: Boolean = false, // сеть/Steam не ответил — отличать от пустого поиска
 )
 
 data class StoreHome(

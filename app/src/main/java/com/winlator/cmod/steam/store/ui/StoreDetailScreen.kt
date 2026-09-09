@@ -49,12 +49,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.winlator.cmod.R
 import com.winlator.cmod.steam.store.SteamStoreViewModel
+import com.winlator.cmod.steam.store.StoreCatalogQuery
 import com.winlator.cmod.steam.store.StoreDetail
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -79,7 +82,7 @@ fun StoreDetailScreen(
             IconButton(onClick = { viewModel.clearDetail(); onBack() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
             }
-            Text(detail?.name ?: "Магазин", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(detail?.name ?: stringResource(R.string.store_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (detail != null) {
                 val wished = state.wishlist.contains(appId)
                 IconButton(onClick = { viewModel.toggleWishlist(appId) }) {
@@ -90,7 +93,7 @@ fun StoreDetailScreen(
         when {
             state.detailLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             detail == null -> Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(state.detailError ?: "Не удалось загрузить", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(state.detailError ?: stringResource(R.string.store_load_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             else -> StoreDetailBody(
                 detail = detail,
@@ -98,8 +101,11 @@ fun StoreDetailScreen(
                 reviewsLoadingMore = state.reviewsLoadingMore,
                 dlcApps = if (state.detail?.appId == appId) state.dlcApps else emptyList(),
                 dlcLoading = state.dlcLoading && state.detail?.appId == appId,
+                similarApps = if (state.similarForAppId == appId) state.similarApps else emptyList(),
+                similarLoading = state.similarLoading && state.similarForAppId == appId,
                 onReviewType = viewModel::setReviewType,
                 onMoreReviews = viewModel::loadMoreReviews,
+                onGenreClick = { genre -> viewModel.openCatalog(StoreCatalogQuery(term = genre, sort = "reviews_DESC")) },
                 onOpenStore = {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(detail.storeUrl)))
                 },
@@ -117,8 +123,11 @@ private fun StoreDetailBody(
     reviewsLoadingMore: Boolean,
     dlcApps: List<com.winlator.cmod.steam.store.StoreApp>,
     dlcLoading: Boolean,
+    similarApps: List<com.winlator.cmod.steam.store.StoreApp>,
+    similarLoading: Boolean,
     onReviewType: (String) -> Unit,
     onMoreReviews: () -> Unit,
+    onGenreClick: (String) -> Unit,
     onOpenStore: () -> Unit,
     onFindInLibrary: () -> Unit,
     onOpenDetail: (Int) -> Unit,
@@ -127,36 +136,35 @@ private fun StoreDetailBody(
     val galleryCount = detail.screenshots.size + detail.movies.size
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Медиа-галерея
+        // Медиа-галерея — компактно: высота capped, не весь экран
         if (galleryCount > 0) {
             item(key = "media") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.Black)) {
                         val movie = detail.movies.getOrNull(galleryIndex)
                         val shot = if (movie == null) detail.screenshots.getOrNull(galleryIndex - detail.movies.size) else null
                         AsyncImage(
                             model = movie?.thumbnail ?: shot?.full ?: detail.headerImage,
                             contentDescription = null,
-                            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                            contentScale = ContentScale.Fit,
                         )
-                        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f)))))
+                        Box(Modifier.fillMaxWidth().height(200.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f)))))
                     }
                     if (galleryCount > 1) {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(galleryCount) { i ->
                                 val m = detail.movies.getOrNull(i)
                                 val s = if (m == null) detail.screenshots.getOrNull(i - detail.movies.size) else null
                                 AsyncImage(
                                     model = m?.thumbnail ?: s?.thumbnail ?: detail.headerImage,
                                     contentDescription = null,
-                                    modifier = Modifier.width(96.dp).aspectRatio(16f / 9f)
+                                    modifier = Modifier.width(72.dp).aspectRatio(16f / 9f)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .clickable { galleryIndex = i }
-                                        .then(if (i == galleryIndex) Modifier else Modifier),
+                                        .clickable { galleryIndex = i },
                                     contentScale = ContentScale.Crop,
                                 )
                             }
@@ -168,7 +176,7 @@ private fun StoreDetailBody(
         // Заголовок + отзывы
         item(key = "head") {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(detail.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(detail.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 if (detail.shortDescription.isNotBlank()) {
                     Text(detail.shortDescription, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -184,13 +192,13 @@ private fun StoreDetailBody(
                     }
                 }
                 if (detail.developers.isNotEmpty() || detail.publishers.isNotEmpty()) {
+                    val devs = detail.developers.joinToString(", ")
+                    val pubs = detail.publishers.joinToString(", ")
                     Text(
-                        buildString {
-                            if (detail.developers.isNotEmpty()) append("Разработчик: ${detail.developers.joinToString(", ")}")
-                            if (detail.publishers.isNotEmpty()) {
-                                if (isNotEmpty()) append("  •  ")
-                                append("Издатель: ${detail.publishers.joinToString(", ")}")
-                            }
+                        when {
+                            devs.isNotEmpty() && pubs.isNotEmpty() -> stringResource(R.string.store_dev_pub, devs, pubs)
+                            devs.isNotEmpty() -> stringResource(R.string.store_dev, devs)
+                            else -> stringResource(R.string.store_pub, pubs)
                         },
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -198,7 +206,12 @@ private fun StoreDetailBody(
                 if (detail.genres.isNotEmpty()) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(detail.genres) { g ->
-                            Box(Modifier.clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)).padding(horizontal = 10.dp, vertical = 5.dp)) {
+                            Box(
+                                Modifier.clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                    .clickable { onGenreClick(g) }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                            ) {
                                 Text(g, style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -210,17 +223,22 @@ private fun StoreDetailBody(
         item(key = "buy") {
             Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(if (detail.comingSoon) "Скоро выйдет" else "Купить ${detail.name}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (detail.comingSoon) stringResource(R.string.store_coming_soon)
+                        else stringResource(R.string.store_buy, detail.name),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         StorePriceTag(price = detail.price)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (onFindInLibrary != null) {
                                 Box(Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable { onFindInLibrary() }.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                    Text("В библиотеке", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.store_in_library), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                 }
                             }
                             Box(Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.primary).clickable { onOpenStore() }.padding(horizontal = 14.dp, vertical = 8.dp)) {
-                                Text("В Steam", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.store_in_steam), color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -238,10 +256,10 @@ private fun StoreDetailBody(
                                     .clickable { onOpenDetail(detail.demoAppId) }
                                     .padding(horizontal = 14.dp, vertical = 8.dp),
                             ) {
-                                Text("Есть демоверсия — открыть", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Text(stringResource(R.string.store_demo_open), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
                         } else {
-                            Text("Есть демоверсия", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(R.string.store_demo_exists), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -251,7 +269,7 @@ private fun StoreDetailBody(
         if (detail.dlcAppIds.isNotEmpty()) {
             item(key = "dlc") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Дополнения (${detail.dlcAppIds.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.store_addons_count, detail.dlcAppIds.size), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     if (dlcLoading && dlcApps.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
@@ -283,15 +301,56 @@ private fun StoreDetailBody(
                 }
             }
         }
+        // Похожие игры
+        if (similarApps.isNotEmpty() || similarLoading) {
+            item(key = "similar") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.store_similar), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    if (similarLoading && similarApps.isEmpty()) {
+                        Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        }
+                    } else {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(similarApps, key = { it.id }) { app ->
+                                Card(
+                                    modifier = Modifier.width(172.dp).clickable { onOpenDetail(app.id) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                ) {
+                                    Column {
+                                        coil.compose.AsyncImage(
+                                            model = app.bestCapsule,
+                                            contentDescription = app.name,
+                                            modifier = Modifier.fillMaxWidth().aspectRatio(460f / 215f),
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                        Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(app.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
+                                            Text(
+                                                app.priceText.ifBlank { app.price.finalText },
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // Фичи
         if (detail.categories.isNotEmpty() || detail.fullController || detail.hasCloud || detail.hasAchievements) {
             item(key = "feat") {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Особенности", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.store_features), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     (detail.categories.take(8) + listOfNotNull(
-                        "Полная поддержка контроллера".takeIf { detail.fullController },
-                        "Steam Cloud".takeIf { detail.hasCloud },
-                        "Достижения Steam".takeIf { detail.hasAchievements },
+                        stringResource(R.string.store_feat_controller).takeIf { detail.fullController },
+                        stringResource(R.string.store_feat_cloud).takeIf { detail.hasCloud },
+                        stringResource(R.string.store_feat_ach).takeIf { detail.hasAchievements },
                     )).distinct().take(10).forEach { f ->
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
@@ -306,7 +365,7 @@ private fun StoreDetailBody(
             item(key = "about") {
                 var expanded by remember(detail.appId) { mutableStateOf(false) }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Об игре", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.store_about_game), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
                         detail.aboutText,
                         style = MaterialTheme.typography.bodySmall,
@@ -315,7 +374,7 @@ private fun StoreDetailBody(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.padding(vertical = 4.dp)) {
-                        Text(if (expanded) "Свернуть" else "Читать дальше", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text(if (expanded) stringResource(R.string.store_collapse) else stringResource(R.string.store_expand), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -324,9 +383,13 @@ private fun StoreDetailBody(
         if (detail.reviews.isNotEmpty() || detail.reviewSummary.totalReviews > 0) {
             item(key = "revtitle") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Обзоры", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.store_reviews), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    val chips = listOf(
+                        "all" to stringResource(R.string.store_review_all),
+                        "positive" to stringResource(R.string.store_review_positive),
+                        "negative" to stringResource(R.string.store_review_negative),
+                    )
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val chips = listOf("all" to "Все", "positive" to "Позитивные", "negative" to "Негативные")
                         items(chips) { (key, label) ->
                             val sel = reviewType == key
                             Box(
@@ -361,7 +424,7 @@ private fun StoreDetailBody(
                                     .clickable { onMoreReviews() }
                                     .padding(horizontal = 18.dp, vertical = 10.dp),
                             ) {
-                                Text("Показать ещё", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.store_show_more), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -372,7 +435,7 @@ private fun StoreDetailBody(
         if (detail.supportedLanguages.isNotBlank()) {
             item(key = "lang") {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Языки", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.store_languages), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(detail.supportedLanguages.take(600), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -381,12 +444,12 @@ private fun StoreDetailBody(
         if (detail.minRequirements.isNotBlank() || detail.recRequirements.isNotBlank()) {
             item(key = "req") {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Системные требования", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.store_requirements), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     if (detail.minRequirements.isNotBlank()) {
-                        Text("Минимальные:\n${detail.minRequirements.take(900)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.store_req_min, detail.minRequirements.take(900)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (detail.recRequirements.isNotBlank()) {
-                        Text("Рекомендуемые:\n${detail.recRequirements.take(900)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.store_req_rec, detail.recRequirements.take(900)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -418,9 +481,9 @@ private fun StoreReviewCard(text: String, votedUp: Boolean, votesUp: Int, hours:
         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(if (votedUp) Icons.Filled.ThumbUp else Icons.Filled.ThumbDown, contentDescription = null, tint = if (votedUp) Color(0xFF66CC33) else Color(0xFFCC5533), modifier = Modifier.width(18.dp))
-                Text(if (votedUp) "Рекомендую" else "Не рекомендую", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                if (votesUp > 0) Text("👍 $votesUp", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (hours > 0) Text("%.1f ч.".format(hours), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (votedUp) stringResource(R.string.store_recommend_yes) else stringResource(R.string.store_recommend_no), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                if (votesUp > 0) Text("+ $votesUp", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (hours > 0) Text(stringResource(R.string.store_hours, hours), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (ts > 0) {
                     val d = remember(ts) {
                         runCatching { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(ts * 1000)) }.getOrDefault("")
@@ -436,7 +499,7 @@ private fun StoreReviewCard(text: String, votedUp: Boolean, votesUp: Int, hours:
             )
             if (text.length > 400) {
                 Text(
-                    if (expanded) "Свернуть" else "Читать дальше",
+                    if (expanded) stringResource(R.string.store_collapse) else stringResource(R.string.store_expand),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,

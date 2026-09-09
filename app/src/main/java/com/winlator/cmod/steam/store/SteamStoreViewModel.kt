@@ -20,6 +20,17 @@ data class StoreUiState(
     val searchLoading: Boolean = false,
     val searchResults: List<StoreApp> = emptyList(),
     val suggest: List<StoreSuggest> = emptyList(),
+    val catalogOpen: Boolean = false,
+    val catalogFiltersExpanded: Boolean = false,
+    val catalogQuery: StoreCatalogQuery = StoreCatalogQuery(),
+    val catalogItems: List<StoreApp> = emptyList(),
+    val catalogTotal: Int = 0,
+    val catalogLoading: Boolean = false,
+    val catalogLoadingMore: Boolean = false,
+    val catalogError: Boolean = false,
+    val similarApps: List<StoreApp> = emptyList(),
+    val similarLoading: Boolean = false,
+    val similarForAppId: Int = 0,
     val detailLoading: Boolean = false,
     val detail: StoreDetail? = null,
     val detailError: String? = null,
@@ -78,18 +89,76 @@ class SteamStoreViewModel : ViewModel() {
 
     fun clearSuggest() { _ui.update { it.copy(suggest = emptyList()) } }
 
+    // Полнотекстовый каталог с фильтрами
+    fun openCatalog(query: StoreCatalogQuery = StoreCatalogQuery(), expandFilters: Boolean = false) {
+        _ui.update { it.copy(catalogOpen = true, catalogFiltersExpanded = expandFilters, catalogQuery = query.copy(start = 0), catalogItems = emptyList(), catalogTotal = 0) }
+        runCatalog()
+    }
+
+    fun closeCatalog() { _ui.update { it.copy(catalogOpen = false) } }
+
+    fun setCatalogQuery(query: StoreCatalogQuery) {
+        _ui.update { it.copy(catalogQuery = query.copy(start = 0), catalogItems = emptyList(), catalogTotal = 0) }
+        runCatalog()
+    }
+
+    fun runCatalog() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _ui.update { it.copy(catalogLoading = true, catalogError = false) }
+            val q = _ui.value.catalogQuery
+            val page = runCatching { SteamStoreApi.searchCatalog(appContext, q) }.getOrDefault(StoreCatalogPage(failed = true))
+            if (q == _ui.value.catalogQuery) {
+                _ui.update { it.copy(catalogLoading = false, catalogItems = page.items, catalogTotal = page.totalCount, catalogError = page.failed) }
+            } else _ui.update { it.copy(catalogLoading = false) }
+        }
+    }
+
+    fun loadMoreCatalog() {
+        val st = _ui.value
+        if (st.catalogLoading || st.catalogLoadingMore) return
+        if (st.catalogItems.size >= st.catalogTotal && st.catalogTotal > 0) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _ui.update { it.copy(catalogLoadingMore = true) }
+            val q = _ui.value.catalogQuery.copy(start = _ui.value.catalogItems.size)
+            val page = runCatching { SteamStoreApi.searchCatalog(appContext, q) }.getOrDefault(StoreCatalogPage())
+            _ui.update {
+                it.copy(
+                    catalogLoadingMore = false,
+                    catalogQuery = q,
+                    catalogItems = (it.catalogItems + page.items).distinctBy { a -> a.id },
+                    catalogTotal = if (page.totalCount > 0) page.totalCount else it.catalogTotal,
+                )
+            }
+        }
+    }
+
     fun loadDetail(appId: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            _ui.update { it.copy(detailLoading = true, detailError = null, detail = null, dlcApps = emptyList(), reviewType = "all") }
+            _ui.update { it.copy(detailLoading = true, detailError = null, detail = null, dlcApps = emptyList(), reviewType = "all", similarApps = emptyList(), similarForAppId = 0) }
             runCatching { SteamStoreApi.loadDetail(appContext, appId) }
                 .onSuccess { d ->
-                    if (d == null) _ui.update { it.copy(detailLoading = false, detailError = "Не удалось загрузить") }
+                    if (d == null) _ui.update { it.copy(detailLoading = false, detailError = appContext.getString(com.winlator.cmod.R.string.store_load_failed)) }
                     else {
                         _ui.update { it.copy(detailLoading = false, detail = d) }
                         if (d.dlcAppIds.isNotEmpty()) loadDlcApps(appId, d.dlcAppIds)
+                        if (d.genres.isNotEmpty()) loadSimilar(appId, d.genres)
                     }
                 }
                 .onFailure { e -> _ui.update { it.copy(detailLoading = false, detailError = e.localizedMessage) } }
+        }
+    }
+
+    // Похожие: поиск по первому жанру, сортировка по оценке, без самой игры
+    private fun loadSimilar(appId: Int, genres: List<String>) {
+        val genre = genres.firstOrNull { it.isNotBlank() } ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            _ui.update { it.copy(similarLoading = true, similarForAppId = appId) }
+            val page = runCatching {
+                SteamStoreApi.searchCatalog(appContext, StoreCatalogQuery(term = genre, sort = "reviews_DESC"))
+            }.getOrDefault(StoreCatalogPage())
+            if (_ui.value.detail?.appId == appId) {
+                _ui.update { it.copy(similarLoading = false, similarApps = page.items.filter { a -> a.id != appId }.take(10)) }
+            } else _ui.update { it.copy(similarLoading = false) }
         }
     }
 

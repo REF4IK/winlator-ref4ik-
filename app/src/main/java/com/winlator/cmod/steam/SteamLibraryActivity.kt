@@ -152,6 +152,7 @@ import com.winlator.cmod.steam.ui.SteamLibraryGameUi
 import com.winlator.cmod.steam.ui.SteamLibraryUiState
 import com.winlator.cmod.steam.ui.SteamLibraryViewModel
 import com.winlator.cmod.steam.store.SteamStoreViewModel
+import com.winlator.cmod.steam.store.ui.StoreCatalogScreen
 import com.winlator.cmod.steam.store.ui.StoreDetailScreen
 import com.winlator.cmod.steam.store.ui.StoreHomeScreen
 import com.winlator.cmod.steam.store.ui.StoreSearchResults
@@ -752,7 +753,16 @@ private fun SteamLibraryScreen(
 
             // Разделы витрины поверх библиотечной сетки
             if (tab == SteamTab.STORE) {
-                if (storeDetailAppId != null) {
+                if (storeState.catalogOpen) {
+                    StoreCatalogScreen(
+                        onBack = { storeViewModel.closeCatalog() },
+                        onOpenDetail = {
+                            storeViewModel.closeCatalog()
+                            storeDetailAppId = it
+                        },
+                        viewModel = storeViewModel,
+                    )
+                } else if (storeDetailAppId != null) {
                     StoreDetailScreen(
                         appId = storeDetailAppId!!,
                         onBack = { storeDetailAppId = null },

@@ -20,6 +20,7 @@ timber = "5.0.1"
 zxing = "3.5.3"
 protobuf = "4.30.2"
 javasteam = "1.8.0"
+jsoup = "1.18.3"
 [libraries]
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -45,6 +46,7 @@ zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 javasteam = { module = "in.dragonbra:javasteam", version.ref = "javasteam" }
 javasteam-depotdownloader = { module = "in.dragonbra:javasteam-depotdownloader", version.ref = "javasteam" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 
 
 [plugins]

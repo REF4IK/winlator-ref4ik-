@@ -41,11 +41,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.winlator.cmod.R
 import com.winlator.cmod.steam.store.StoreApp
 import com.winlator.cmod.steam.store.SteamStoreViewModel
 import kotlinx.coroutines.delay
@@ -112,7 +114,7 @@ private fun StoreHeroCarousel(hero: List<StoreApp>, onOpenDetail: (Int) -> Unit)
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "Популярное и рекомендуемое",
+            text = stringResource(R.string.store_home_popular),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 4.dp),
@@ -207,7 +209,7 @@ private fun StoreDailyDeal(deal: StoreApp, onOpenDetail: (Int) -> Unit) {
                 contentScale = ContentScale.Crop,
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Предложение дня", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.store_home_daily), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 Text(deal.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 StorePriceTag(price = deal.price)
             }
@@ -265,7 +267,7 @@ private fun StoreShelfCard(app: StoreApp, onClick: () -> Unit) {
 @Composable
 private fun StoreGenreChips(names: List<String>) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Жанры", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
+        Text(stringResource(R.string.store_home_genres), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
         LazyRow(contentPadding = PaddingValues(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(names) { n ->
                 Box(
@@ -294,7 +296,7 @@ private fun StoreErrorBlock(message: String, onRetry: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Не удалось загрузить магазин", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.store_home_failed), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
         Text(message.take(200), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
