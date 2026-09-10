@@ -240,6 +240,9 @@ public:
     // Flow scale (0.25-1.0) and the panel's real refresh rate. The pacer never
     // generates above the refresh rate.
     void setFrameGenTuning(float flowScale, float refreshHz);
+    // Adaptive output-FPS target (0 = fixed multiplier). Fed to the pacer,
+    // which varies generations per source frame to hit min(target, refresh).
+    void setFrameGenTargetRate(uint32_t targetRate);
 
     // Effect composer
     void setEffects(const EffectEntry* entries, int count);
@@ -489,6 +492,7 @@ private:
     std::atomic<float> fgFlowScale_{1.0f};
     std::atomic<float> fgRefreshHz_{0.0f};
     std::atomic<bool>  fgConfigDirty_{true};
+    std::atomic<uint32_t> fgTargetRate_{0};
 
     bool  createCompositeRenderPass();
     bool  ensureCompositeTargets(uint32_t w, uint32_t h, uint32_t count);

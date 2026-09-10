@@ -118,6 +118,7 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
     private native void nativeSetFrameGenArmed(long handle, boolean armed, int multiplier);
     private native void nativeSetLsfgCachePath(long handle, String path);
     private native void nativeSetFrameGenTuning(long handle, float flowScale, float refreshHz);
+    private native void nativeSetFrameGenTargetRate(long handle, int targetRate);
     private native float[] nativeFrameGenStats(long handle);
 
     private static volatile boolean gpuImageChecked = false;
@@ -155,6 +156,7 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
                     nativeSetSwapRB(nativeHandle, pendingSwapRB);
                     if (pendingLsfgCachePath != null) nativeSetLsfgCachePath(nativeHandle, pendingLsfgCachePath);
                     nativeSetFrameGenTuning(nativeHandle, pendingFgFlowScale, pendingFgRefreshHz);
+                    nativeSetFrameGenTargetRate(nativeHandle, pendingFgTargetRate);
                     if (pendingFgArmed) nativeSetFrameGenArmed(nativeHandle, true, pendingFgMultiplier);
                     updateTransform();
                     nativeSetCursorVisible(nativeHandle, cursorVisible);
@@ -832,6 +834,17 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
         }
     }
 
+    /**
+     * Adaptive output-FPS target, 0 = fixed multiplier. Takes effect live;
+     * replayed on renderer init like the other FG settings.
+     */
+    public void setFrameGenTargetRate(int targetRate) {
+        pendingFgTargetRate = Math.max(0, targetRate);
+        synchronized (lock) {
+            if (nativeHandle != 0) nativeSetFrameGenTargetRate(nativeHandle, pendingFgTargetRate);
+        }
+    }
+
     /** Human-readable verdict, naming the first gate that failed. */
     public String getLsfgCapsReason() {
         synchronized (lock) {
@@ -873,6 +886,7 @@ public class VulkanRenderer implements XServerRenderer, HostRenderer,
     private int     pendingFgMultiplier   = 2;
     private float   pendingFgFlowScale    = 0.8f;
     private float   pendingFgRefreshHz    = 0f;
+    private int     pendingFgTargetRate   = 0;
     private String  pendingLsfgCachePath  = null;
     public int getFpsLimit() { return fpsLimit; }
     public void setFpsLimit(int limit) {

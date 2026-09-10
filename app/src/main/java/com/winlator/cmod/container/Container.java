@@ -444,6 +444,26 @@ public class Container {
         putExtra("frameGenMultiplier", String.valueOf(multiplier));
     }
 
+    /**
+     * Adaptive output-FPS target (WinNative parity). 0 = Fixed multiplier
+     * mode; otherwise the engine varies generations per source frame to hit
+     * min(target, panel refresh). Allowed: 0, 60, 90, 120, 144, 165.
+     */
+    public int getFrameGenTargetRate() {
+        try {
+            int t = Integer.parseInt(getExtra("frameGenTargetRate", "0"));
+            if (t == 0 || t == 60 || t == 90 || t == 120 || t == 144 || t == 165) return t;
+            return 0;
+        }
+        catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    public void setFrameGenTargetRate(int targetRate) {
+        putExtra("frameGenTargetRate", String.valueOf(targetRate));
+    }
+
     public float getFrameGenFlowScale() {
         if (!hasExtra("frameGenFlowScale")) return FRAMEGEN_DEFAULT_FLOW_SCALE;
         try {

@@ -1255,7 +1255,8 @@ ok=true;}catch(...){}
     fgPlan_ = FrameGenPlan{};
     if (lsfgEngine_ && fgConfigDirty_.exchange(false, std::memory_order_relaxed)) {
         lsfgEngine_->configure(
-            (uint32_t)std::max(fgMultiplier_.load(std::memory_order_relaxed), 2), 0,
+            (uint32_t)std::max(fgMultiplier_.load(std::memory_order_relaxed), 2),
+            fgTargetRate_.load(std::memory_order_relaxed),
             fgFlowScale_.load(std::memory_order_relaxed),
             fgRefreshHz_.load(std::memory_order_relaxed));
     }
@@ -2292,6 +2293,11 @@ void VulkanRendererContext::setLsfgCachePath(const char* path) {
 void VulkanRendererContext::setFrameGenTuning(float flowScale, float refreshHz) {
     fgFlowScale_.store(flowScale, std::memory_order_relaxed);
     if (refreshHz > 1.0f) fgRefreshHz_.store(refreshHz, std::memory_order_relaxed);
+    fgConfigDirty_.store(true, std::memory_order_relaxed);
+}
+
+void VulkanRendererContext::setFrameGenTargetRate(uint32_t targetRate) {
+    fgTargetRate_.store(targetRate, std::memory_order_relaxed);
     fgConfigDirty_.store(true, std::memory_order_relaxed);
 }
 

@@ -628,6 +628,7 @@ fun ScreenEffectDialogCompose(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FrameGenerationDialogCompose(
     activity: XServerDisplayActivity,
@@ -650,6 +651,7 @@ fun FrameGenerationDialogCompose(
 
     var multiplier by remember { mutableStateOf(activity.getLastFgMult()) }
     var flowScale by remember { mutableFloatStateOf(container.getFrameGenFlowScale()) }
+    var targetRate by remember { mutableStateOf(container.getFrameGenTargetRate()) }
     var readout by remember { mutableStateOf(activity.getFgReadout()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -664,8 +666,9 @@ fun FrameGenerationDialogCompose(
     ) {
         Card(
             modifier = Modifier
-                .widthIn(max = 500.dp)
-                .fillMaxWidth(0.92f)
+                .widthIn(max = 560.dp)
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.92f)
                 .padding(horizontal = 8.dp, vertical = 0.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -673,9 +676,8 @@ fun FrameGenerationDialogCompose(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -683,9 +685,9 @@ fun FrameGenerationDialogCompose(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(painterResource(R.drawable.icon_screen_effect), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                        Icon(painterResource(R.drawable.icon_screen_effect), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.lsfg_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.lsfg_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -696,14 +698,49 @@ fun FrameGenerationDialogCompose(
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
 
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                if (readout.isNotEmpty()) {
+                    Text(
+                        readout,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                Text(stringResource(R.string.lsfg_target), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    listOf(0, 60, 90, 120, 144, 165).forEach { valTag ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { targetRate = valTag }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            RadioButton(selected = targetRate == valTag, onClick = null)
+                            Spacer(Modifier.width(4.dp))
+                            Text(if (valTag == 0) "Fixed" else "${valTag}")
+                        }
+                    }
+                }
                 Text(
-                    if (readout.isNotEmpty()) readout else stringResource(R.string.lsfg_description),
-                    style = MaterialTheme.typography.bodyMedium
+                    stringResource(R.string.lsfg_target_note),
+                    style = MaterialTheme.typography.bodySmall
                 )
+
                 Spacer(Modifier.height(8.dp))
 
                 Text(stringResource(R.string.lsfg_multiplier), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -712,7 +749,7 @@ fun FrameGenerationDialogCompose(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { multiplier = valTag }
+                                .clickable { multiplier = valTag; targetRate = 0 }
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             RadioButton(selected = multiplier == valTag, onClick = null)
@@ -720,6 +757,12 @@ fun FrameGenerationDialogCompose(
                             Text(if (valTag == 0) "Off" else "${valTag}x")
                         }
                     }
+                }
+                if (targetRate != 0) {
+                    Text(
+                        stringResource(R.string.lsfg_mult_fixed_note),
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -733,6 +776,8 @@ fun FrameGenerationDialogCompose(
                     valueRange = 0.25f..1.0f,
                     steps = 14
                 )
+                Spacer(Modifier.height(8.dp))
+                } // scrollable content
 
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
@@ -747,8 +792,10 @@ fun FrameGenerationDialogCompose(
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            container.setFrameGenMultiplier(multiplier)
+                            // Off disarms but keeps the saved multiplier preset.
+                            if (multiplier > 0) container.setFrameGenMultiplier(multiplier)
                             container.setFrameGenFlowScale(flowScale)
+                            container.setFrameGenTargetRate(targetRate)
                             container.setFrameGenEngine(if (multiplier > 0) "lsfg-native" else "off")
                             container.saveData()
                             // Same as the legacy dialog: rebuild the shader cache in

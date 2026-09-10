@@ -2722,7 +2722,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         final int[] mults = {0, 2, 3, 4};
         final String[] labels = {"Off", "2x", "3x", "4x"};
-        // Live state, not the saved preset: launch always starts disarmed.
+        // Live armed state (Off shows Off); the saved preset is kept separately
+        // and is never overwritten with 0, so re-enabling is one tap.
         int curMult = getLastFgMult();
         int checked = 0;
         for (int i = 0; i < mults.length; i++) if (mults[i] == curMult) checked = i;
@@ -2737,6 +2738,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         layout.addView(status);
 
         final int[] selected = {checked};
+        final int[] selectedTarget = {0};
+        final java.util.ArrayList<android.widget.RadioButton> targetRbs = new java.util.ArrayList<>();
+        final Runnable selectTarget = () -> {
+            for (int j = 0; j < targetRbs.size(); j++) targetRbs.get(j).setChecked(j == selectedTarget[0]);
+        };
         for (int i = 0; i < mults.length; i++) {
             final int idx = i;
             android.widget.RadioButton rb = new android.widget.RadioButton(this);
@@ -2750,9 +2756,40 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                         ((android.widget.RadioButton) ch).setChecked(layout.getChildAt(j) == v);
                     }
                 }
+                // Picking a multiplier returns to Fixed mode.
+                selectedTarget[0] = 0;
+                selectTarget.run();
             });
             layout.addView(rb);
         }
+
+        // Adaptive output-FPS target (WinNative parity): 0 = fixed multiplier.
+        // Both rows stay visible; picking a multiplier resets target to Fixed.
+        android.widget.TextView targetLabel = new android.widget.TextView(this);
+        targetLabel.setText(R.string.lsfg_target);
+        layout.addView(targetLabel);
+        final int[] targets = {0, 60, 90, 120, 144, 165};
+        final String[] targetLabels = {"Fixed", "60 fps", "90 fps", "120 fps", "144 fps", "165 fps"};
+        int curTarget = container.getFrameGenTargetRate();
+        for (int i = 0; i < targets.length; i++) if (targets[i] == curTarget) selectedTarget[0] = i;
+        final android.widget.LinearLayout targetGroup = new android.widget.LinearLayout(this);
+        targetGroup.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        for (int i = 0; i < targets.length; i++) {
+            final int idx = i;
+            android.widget.RadioButton rb = new android.widget.RadioButton(this);
+            rb.setText(targetLabels[i]);
+            rb.setChecked(i == selectedTarget[0]);
+            rb.setOnClickListener(v -> {
+                selectedTarget[0] = idx;
+                selectTarget.run();
+            });
+            targetRbs.add(rb);
+            targetGroup.addView(rb);
+        }
+        layout.addView(targetGroup);
+        android.widget.TextView targetNote = new android.widget.TextView(this);
+        targetNote.setText(R.string.lsfg_target_note);
+        layout.addView(targetNote);
 
         android.widget.TextView flowLabel = new android.widget.TextView(this);
         final float[] flow = {container.getFrameGenFlowScale()};
@@ -2776,8 +2813,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 .setView(layout)
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
                     int m = mults[selected[0]];
-                    container.setFrameGenMultiplier(m);
+                    int target = targets[selectedTarget[0]];
+                    if (m >= 2) container.setFrameGenMultiplier(m);
                     container.setFrameGenFlowScale(flow[0]);
+                    container.setFrameGenTargetRate(target);
                     container.setFrameGenEngine(m > 0 ? "lsfg-native" : "off");
                     container.saveData();
                     prepareLsfgNative();
@@ -2866,6 +2905,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         vkr.setLsfgCachePath(
                 com.winlator.cmod.core.LsfgNative.cacheFile(this).getAbsolutePath());
         vkr.setFrameGenTuning(flowScale, currentDisplayRefreshHz());
+        vkr.setFrameGenTargetRate(container != null ? container.getFrameGenTargetRate() : 0);
         vkr.setFrameGenArmed(multiplier >= 2, multiplier);
         lastFgMult = multiplier >= 2 ? multiplier : 0;
         applyEffectivePresentMode();

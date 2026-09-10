@@ -305,6 +305,13 @@ Java_com_winlator_cmod_renderer_VulkanRenderer_nativeSetFrameGenTuning(
     if (r) r->setFrameGenTuning((float)flowScale, (float)refreshHz);
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_renderer_VulkanRenderer_nativeSetFrameGenTargetRate(
+        JNIEnv*, jobject, jlong handle, jint targetRate) {
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFrameGenTargetRate((uint32_t)(targetRate > 0 ? targetRate : 0));
+}
+
 // Live telemetry: {accepted, planned, sourceFps, presentedFps, thermal, chainMsPerGen}
 extern "C" JNIEXPORT jfloatArray JNICALL
 Java_com_winlator_cmod_renderer_VulkanRenderer_nativeFrameGenStats(

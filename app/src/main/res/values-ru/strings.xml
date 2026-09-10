@@ -1549,6 +1549,9 @@
     <string name="lsfg_lossless_dll_imported">Lossless.dll импортирован</string>
     <string name="lsfg_lossless_dll_import_failed">Не удалось импортировать Lossless.dll</string>
     <string name="lsfg_building_cache">Сборка шейдеров генерации, включится сама</string>
+    <string name="lsfg_target">Адаптивная цель</string>
+    <string name="lsfg_target_note">Добирает кадры до цели, только пока это измеримо помогает, вместо фиксированного множителя.</string>
+    <string name="lsfg_mult_fixed_note">Применяется в режиме Fixed</string>
     <string name="lsfg_save_container_first">Сначала сохраните контейнер, затем импортируйте Lossless.dll</string>
     <string name="lsfg_global_lossless_dll_installed">Глобальный Lossless.dll выбран: %1$s</string>
     <string name="lsfg_global_lossless_dll_missing">Глобальный Lossless.dll не выбран. Новые контейнеры будут использовать этот файл после выбора здесь.</string>
