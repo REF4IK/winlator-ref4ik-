@@ -131,6 +131,9 @@ object SteamGameLauncher {
                 else -> Unit
             }
 
+            // execArgs ярлыка не затираем: уходят в ExeCommandLine ColdClient и LaunchOptions
+            val shortcutExecArgs = shortcut?.getExtra("execArgs").orEmpty()
+
             val preparedShortcut = withContext(Dispatchers.IO) {
                 runCatching {
                     containerManager.activateContainer(container)
@@ -138,6 +141,15 @@ object SteamGameLauncher {
                     container.saveData()
                     
                     try {
+                        // Best-effort проверка обновлений воркшопа перед generateWorkshopModsJson
+                        // (эталон GameNative PluviaMain:2328). Ошибки не блочат запуск.
+                        runCatching {
+                            com.winlator.cmod.steam.workshop.WorkshopManager.checkForWorkshopUpdates(
+                                appId = app.id,
+                                enabledIds = PrefManager.getSteamWorkshopEnabledItemIds(app.id),
+                                containerRootPath = container.rootDir.absolutePath,
+                            )
+                        }
                         com.winlator.cmod.steam.workshop.WorkshopManager.generateWorkshopModsJson(
                             app.id, 
                             gameInstallPath, 
@@ -147,7 +159,7 @@ object SteamGameLauncher {
                         // Ignore errors in generating workshop mods to not prevent game launch
                     }
                     
-                    prepareSteamLaunchEnvironment(context, container, app, gameInstallPath, offlineLaunch)
+                    prepareSteamLaunchEnvironment(context, container, app, gameInstallPath, offlineLaunch, shortcutExecArgs)
 
                     if (shortcut == null) {
                         val shortcutFile = ensureSteamShortcut(container, app, gameInstallPath, launchExecutable)
@@ -157,7 +169,6 @@ object SteamGameLauncher {
                         shortcut!!.putExtra("app_id", app.id.toString())
                         shortcut!!.putExtra("game_install_path", gameInstallPath)
                         shortcut!!.putExtra("launch_exe_path", launchExecutable)
-                        shortcut!!.putExtra("execArgs", null)
                         rewriteExecLine(shortcut!!.file, STEAM_LOADER_EXEC)
                         shortcut!!.saveData()
                         shortcut
@@ -274,6 +285,7 @@ object SteamGameLauncher {
         app: SteamApp,
         gameInstallPath: String,
         isOffline: Boolean,
+        exeCommandLine: String = "",
     ) {
         val imageFs = ImageFs.find(context)
         val steamDir = File(container.rootDir, ".wine/drive_c/Program Files (x86)/Steam")
@@ -300,12 +312,12 @@ object SteamGameLauncher {
         SteamUtils.createAppManifest(context, app.id)
         SteamUtils.autoLoginUserChanges(imageFs)
         SteamUtils.skipFirstTimeSteamSetup(container.rootDir)
-        SteamUtils.updateOrModifyLocalConfig(imageFs, container, app.id.toString(), steamUserDataId)
+        SteamUtils.updateOrModifyLocalConfig(imageFs, container, app.id.toString(), steamUserDataId, exeCommandLine)
         SteamUtils.setupLightweightSteamConfig(imageFs, steamId64)
         SteamUtils.writeCompleteSettingsDir(steamDir, app.id, isOffline = isOffline, forceDlc = true, ticketBase64 = ticketBase64)
         SteamUtils.enrichSteamSettings(context, app.id, File(steamDir, "steam_settings"))
         writeGameSteamSettings(context, app.id, gameDir, ticketBase64, isOffline)
-        SteamUtils.writeColdClientIni(app.id, container)
+        SteamUtils.writeColdClientIni(app.id, container, null, exeCommandLine)
         copySteamRuntimeIntoGameDir(steamDir, gameDir)
     }
 

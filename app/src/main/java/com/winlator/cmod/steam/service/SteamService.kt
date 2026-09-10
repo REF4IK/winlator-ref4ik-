@@ -160,10 +160,14 @@ import com.winlator.cmod.steam.data.AppInfo
 import com.winlator.cmod.steam.db.dao.AppInfoDao
 import kotlinx.coroutines.ensureActive
 import com.winlator.cmod.steam.utils.LicenseSerializer
+import com.winlator.cmod.steam.utils.CdnRankingUtils
+import com.winlator.cmod.steam.utils.DownloadSpeedConfig
 import com.winlator.cmod.steam.data.CachedLicense
 import `in`.dragonbra.javasteam.depotdownloader.data.AppItem
 import `in`.dragonbra.javasteam.depotdownloader.data.DownloadItem
+import `in`.dragonbra.javasteam.steam.cdn.Server
 import `in`.dragonbra.javasteam.steam.handlers.steamapps.License
+import `in`.dragonbra.javasteam.steam.handlers.steamcontent.SteamContent
 import `in`.dragonbra.javasteam.steam.handlers.steamuser.callback.PlayingSessionStateCallback
 import `in`.dragonbra.javasteam.steam.steamclient.AsyncJobFailedException
 import `in`.dragonbra.javasteam.types.DepotManifest
@@ -283,6 +287,9 @@ class SteamService : Service(), IChallengeUrlChanged {
     private var friendCheckerJob: Job? = null
     private var autoUpdateCheckerJob: Job? = null
     private var keepaliveJob: Job? = null
+
+    @Volatile
+    private var picsConsecutiveFailures = 0
 
     private val _isPlayingBlocked = MutableStateFlow(false)
     val isPlayingBlocked = _isPlayingBlocked.asStateFlow()
@@ -446,6 +453,7 @@ data class ManifestSizes(
                         MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
                         deleteRecursivelyWithRetries(dirFile)
                     }
+                    deleteStagingDir(appId)
                     info.updateStatus(DownloadPhase.CANCELLED)
                     removeDownloadJob(appId, forceRemove = true)
                 }
@@ -466,6 +474,7 @@ data class ManifestSizes(
                     MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
                     deleteRecursivelyWithRetries(dirFile)
                 }
+                deleteStagingDir(appId)
                 info.updateStatus(DownloadPhase.CANCELLED)
                 removeDownloadJob(appId, forceRemove = true)
             }
@@ -618,6 +627,7 @@ data class ManifestSizes(
         private fun clearFailedResumeState(appId: Int) {
             val appDirPath = getAppDirPath(appId)
             clearPersistedProgressSnapshot(appDirPath)
+            clearPersistedProgressSnapshot(getStagingDirPath(appId))
             runBlocking(Dispatchers.IO) {
                 instance?.downloadingAppInfoDao?.deleteApp(appId)
             }
@@ -637,6 +647,52 @@ data class ManifestSizes(
             }
 
             return !target.exists()
+        }
+
+        // Атомарный финал: склейка staging -> финал. Пофайловый rename (одна ФС — мгновенно),
+        // с copy-fallback. Никогда не бросает исключение наружу.
+        private fun mergeStagingIntoFinal(appId: Int, finalDirPath: String) {
+            val stagingDir = File(getStagingDirPath(appId))
+            if (!stagingDir.exists()) return
+            if (stagingDir.absolutePath == File(finalDirPath).absolutePath) return
+            try {
+                val finalDir = File(finalDirPath)
+                if (!finalDir.exists()) finalDir.mkdirs()
+                stagingDir.listFiles()?.forEach { child ->
+                    val dest = File(finalDir, child.name)
+                    val moved = runCatching { child.renameTo(dest) }.getOrDefault(false)
+                    if (!moved) {
+                        if (child.isDirectory) {
+                            child.copyRecursively(dest, overwrite = true)
+                            deleteRecursivelyWithRetries(child)
+                        } else {
+                            child.copyTo(dest, overwrite = true)
+                            child.delete()
+                        }
+                    }
+                }
+                deleteRecursivelyWithRetries(stagingDir)
+                Timber.i("Merged staging into $finalDirPath for appId $appId")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to merge staging for appId $appId")
+            }
+        }
+
+        private fun deleteStagingDir(appId: Int) {
+            val stagingDir = File(getStagingDirPath(appId))
+            if (stagingDir.exists()) {
+                Timber.i("Deleting staging folder for appId $appId: ${stagingDir.path}")
+                deleteRecursivelyWithRetries(stagingDir)
+            }
+        }
+
+        private fun cdnProbeUrl(server: Server): String? {
+            val host = server.host?.trim().orEmpty()
+            if (host.isEmpty()) return null
+            val https = server.protocol == Server.ConnectionProtocol.HTTPS
+            val scheme = if (https) "https" else "http"
+            val defaultPort = if (https) 443 else 80
+            return if (server.port == defaultPort) "$scheme://$host/" else "$scheme://$host:${server.port}/"
         }
 
         fun hasPartialDownload(appId: Int): Boolean {
@@ -860,6 +916,10 @@ data class ManifestSizes(
                 }
             }
 
+        private fun getStagingDirPath(appId: Int): String {
+            return Paths.get(defaultAppStagingPath, appId.toString()).pathString
+        }
+
         val userSteamId: SteamID?
             get() = instance?.steamClient?.steamID
 
@@ -923,7 +983,10 @@ data class ManifestSizes(
                         isIncoming = false,
                     )
                 )
-                instance?.chatMessageDao?.deleteOldMessages(steamId64)
+                instance?.chatMessageDao?.deleteOldMessages(
+                    steamId64,
+                    PrefManager.chatHistoryKeepCount.coerceIn(100, 2000),
+                )
             } catch (e: Exception) {
                 Timber.w(e, "Failed to persist sent chat message")
             }
@@ -932,7 +995,10 @@ data class ManifestSizes(
         fun getChatMessagesFromDb(friendSteamId64: Long): List<ChatMessage> {
             val entities = try {
                 runBlocking(Dispatchers.IO) {
-                    instance?.chatMessageDao?.getMessages(friendSteamId64) ?: emptyList()
+                    instance?.chatMessageDao?.getMessages(
+                        friendSteamId64,
+                        PrefManager.chatHistoryKeepCount.coerceIn(100, 2000),
+                    ) ?: emptyList()
                 }
             } catch (e: Exception) {
                 Timber.w(e, "Failed to load chat history")
@@ -950,30 +1016,127 @@ data class ManifestSizes(
         }
 
         suspend fun fetchAchievementsForDisplay(appId: Int): List<com.winlator.cmod.steam.statsgen.Achievement> = withContext(Dispatchers.IO) {
-            val service = instance ?: return@withContext emptyList()
-            val userStats = service._steamUserStats ?: return@withContext emptyList()
-            val steamUser = service._steamUser ?: return@withContext emptyList()
-            val steamId = steamUser.steamID ?: return@withContext emptyList()
             try {
-                val userStatsResult = userStats.getUserStats(appId, steamId).await()
-                if (userStatsResult.result != EResult.OK) return@withContext emptyList()
-                val schemaArray = userStatsResult.schema.toByteArray()
-                val generator = StatsAchievementsGenerator()
-                val result = generator.generateStatsAchievements(schemaArray, "")
-                result.achievements.map { achievement ->
-                    val block = userStatsResult.achievementBlocks.firstOrNull { block ->
-                        result.nameToBlockBit[achievement.name]?.let { (blockId, _) ->
-                            val aid = block.achievementId
-                            aid.toString() == blockId.toString()
-                        } ?: false
+                withTimeout(15_000) {
+                    val service = instance
+                    val userStats = service?._steamUserStats
+                    val steamUser = service?._steamUser
+                    val steamId = steamUser?.steamID
+                    if (userStats == null || steamId == null) return@withTimeout readCachedDisplayAchievements(appId)
+                    val userStatsResult = userStats.getUserStats(appId, steamId).await()
+                    if (userStatsResult.result != EResult.OK) {
+                        return@withTimeout readCachedDisplayAchievements(appId)
+                            .ifEmpty { cachedAchievements?.takeIf { cachedAchievementsAppId == appId } ?: emptyList() }
                     }
-                    achievement.copy(
-                        unlocked = block != null,
-                        unlockTimestamp = (block?.unlockTime as? Number)?.toInt() ?: 0,
-                    )
+                    val schemaArray = userStatsResult.schema.toByteArray()
+                    // Генератор всегда пишет файлы — направляем его в tmp, кэш кладём сами в steam_settings.
+                    val context = service?.applicationContext
+                        ?: return@withTimeout readCachedDisplayAchievements(appId)
+                    val tmpDir = File(context.cacheDir, "ach_tmp/$appId").apply { mkdirs() }
+                    val generator = StatsAchievementsGenerator()
+                    val result = generator.generateStatsAchievements(schemaArray, tmpDir.absolutePath)
+                    runCatching { tmpDir.deleteRecursively() }
+                    val display = result.achievements.map { achievement ->
+                        var unlocked = false
+                        var unlockTs = 0
+                        val mapping = result.nameToBlockBit[achievement.name]
+                        if (mapping != null) {
+                            val (blockId, bitIndex) = mapping
+                            val block = userStatsResult.achievementBlocks.firstOrNull { b ->
+                                (b.achievementId as? Number)?.toInt() == blockId
+                            }
+                            val num = block?.unlockTime?.getOrNull(bitIndex) as? Number
+                            if (num != null && num.toLong() != 0L) {
+                                unlocked = true
+                                unlockTs = num.toInt()
+                            }
+                        }
+                        val iconUrl = SteamUtils.resolveAchievementIconUrl(achievement.icon, appId)
+                        val iconGrayUrl = SteamUtils.resolveAchievementIconUrl(
+                            achievement.iconGray ?: achievement.icongray, appId,
+                        )
+                        achievement.copy(
+                            unlocked = unlocked,
+                            unlockTimestamp = unlockTs,
+                            icon = iconUrl.ifBlank { achievement.icon },
+                            iconGray = iconGrayUrl.ifBlank { achievement.iconGray },
+                        )
+                    }
+                    cachedAchievements = display
+                    cachedAchievementsAppId = appId
+                    writeDisplayCache(appId, display)
+                    display
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Timber.w("fetchAchievementsForDisplay timed out for appId=$appId")
+                readCachedDisplayAchievements(appId)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.w(e, "Failed to fetch achievements for appId=$appId")
+                readCachedDisplayAchievements(appId)
+            }
+        }
+
+        /** Метаданные ачивки из кэша для вотчера: (название, url иконки). */
+        fun getCachedAchievementMeta(appId: Int, name: String): Pair<String, String?>? {
+            val list = if (cachedAchievementsAppId == appId) cachedAchievements else null
+            val resolved = list ?: readCachedDisplayAchievements(appId).takeIf { it.isNotEmpty() } ?: return null
+            val achievement = resolved.firstOrNull { it.name == name } ?: return null
+            val displayName = SteamUtils.resolveAchievementText(achievement.displayName, achievement.name)
+            val iconUrl = achievement.icon?.takeIf { !it.isNullOrBlank() }
+                ?: achievement.iconGray?.takeIf { !it.isNullOrBlank() }
+            return displayName to iconUrl
+        }
+
+        private fun displayCacheFile(appId: Int): File =
+            File(getAppDirPath(appId), "steam_settings/achievements_display_cache.json")
+
+        private fun writeDisplayCache(appId: Int, list: List<com.winlator.cmod.steam.statsgen.Achievement>) {
+            runCatching {
+                val file = displayCacheFile(appId)
+                file.parentFile?.mkdirs()
+                val arr = JSONArray()
+                for (a in list) {
+                    val o = JSONObject()
+                    o.put("name", a.name)
+                    o.put("hidden", a.hidden)
+                    o.put("displayName", JSONObject((a.displayName ?: emptyMap<String, String>()) as Map<*, *>))
+                    o.put("description", JSONObject((a.description ?: emptyMap<String, String>()) as Map<*, *>))
+                    o.put("icon", a.icon ?: "")
+                    o.put("iconGray", a.iconGray ?: "")
+                    o.put("unlocked", a.unlocked == true)
+                    o.put("unlockTimestamp", a.unlockTimestamp ?: 0)
+                    arr.put(o)
+                }
+                file.writeText(arr.toString(), Charsets.UTF_8)
+            }.onFailure { Timber.w(it, "Failed to write achievements display cache for appId=$appId") }
+        }
+
+        private fun readCachedDisplayAchievements(appId: Int): List<com.winlator.cmod.steam.statsgen.Achievement> {
+            return runCatching {
+                val file = displayCacheFile(appId)
+                if (!file.isFile) return emptyList()
+                val arr = JSONArray(file.readText(Charsets.UTF_8))
+                (0 until arr.length()).mapNotNull { i ->
+                    val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                    com.winlator.cmod.steam.statsgen.Achievement(
+                        name = o.optString("name"),
+                        displayName = o.optJSONObject("displayName")?.let { jo ->
+                            jo.keys().asSequence().associateWith { k -> jo.optString(k) }
+                        },
+                        description = o.optJSONObject("description")?.let { jo ->
+                            jo.keys().asSequence().associateWith { k -> jo.optString(k) }
+                        },
+                        hidden = o.optInt("hidden"),
+                        icon = o.optString("icon").takeIf { it.isNotBlank() },
+                        iconGray = o.optString("iconGray").takeIf { it.isNotBlank() },
+                        unlocked = o.optBoolean("unlocked"),
+                        unlockTimestamp = o.optInt("unlockTimestamp"),
+                    )
+                }
+            }.getOrElse {
+                Timber.w(it, "Failed to read achievements display cache for appId=$appId")
                 emptyList()
             }
         }
@@ -1305,6 +1468,7 @@ data class ManifestSizes(
                     if (dirFile.exists() && dirFile.isDirectory) {
                         deleteRecursivelyWithRetries(dirFile)
                     }
+                    deleteStagingDir(appId)
                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(appId))
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
                         onComplete(true)
@@ -1728,6 +1892,11 @@ data class ManifestSizes(
         /* 1. Extra patterns & word lists                                             */
         /* -------------------------------------------------------------------------- */
 
+        /** Windows или без OS-метки (как GameNative isWindowsCompatible) */
+        private fun isWindowsDepot(depot: DepotInfo): Boolean =
+            depot.osList.contains(OS.windows) ||
+                (!depot.osList.contains(OS.linux) && !depot.osList.contains(OS.macos))
+
         // Unreal Engine "Shipping" binaries (e.g. Stray-Win64-Shipping.exe)
         private val UE_SHIPPING = Regex(
             """.*-win(32|64)(-shipping)?\.exe$""",
@@ -1829,8 +1998,7 @@ data class ManifestSizes(
             val installDir = appInfo.config.installDir.ifEmpty { appInfo.name }
 
             val depots = appInfo.depots.values.filter { d ->
-                !d.sharedInstall && (d.osList.isEmpty() ||
-                        d.osList.any { it.name.equals("windows", true) || it.name.equals("none", true) })
+                !d.sharedInstall && isWindowsDepot(d)
             }
             Timber.i("Depots considered: $depots")
 
@@ -1855,8 +2023,12 @@ data class ManifestSizes(
                 })?.executable ?: ""
             }
 
+            val installedBranch = PrefManager.getSteamSelectedBranch(appId)
             for (depot in depots) {
-                val mi = depot.manifests["public"] ?: continue
+                val mi = depot.manifests[installedBranch]
+                    ?: depot.encryptedManifests[installedBranch]
+                    ?: depot.manifests["public"]
+                    ?: continue
                 if (mi.size > largestDepotSize) largestDepotSize = mi.size
 
                 // Check cache first
@@ -2018,9 +2190,12 @@ data class ManifestSizes(
 
             val downloadingAppInfo = getDownloadingAppInfoOf(appId)
             val appDirPath = getAppDirPath(appId)
+            val stagingDirPath = getStagingDirPath(appId)
             val hasCompleteMarker = MarkerUtils.hasMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
-            val hasPartialFiles = hasPartialDownloadFiles(appDirPath)
-            val hasPersistedMetadata = hasPersistedDepotResumeMetadata(appDirPath)
+            val hasPartialFiles = hasPartialDownloadFiles(appDirPath) || hasPartialDownloadFiles(stagingDirPath)
+            val hasPersistedMetadata = hasPersistedDepotResumeMetadata(appDirPath) || hasPersistedDepotResumeMetadata(stagingDirPath)
+            // Снапшот прогресса при staging-закачке лежит в staging.
+            val resumeSnapshotDir = if (hasPersistedDepotResumeMetadata(stagingDirPath)) stagingDirPath else appDirPath
             val hasResumablePayload = if (hasCompleteMarker) {
                 downloadingAppInfo != null || hasPersistedMetadata
             } else {
@@ -2031,7 +2206,7 @@ data class ManifestSizes(
                 // DownloadingAppInfo row is missing (can happen after cancellation races).
                 val resumeDlcAppIds = downloadingAppInfo?.dlcAppIds
                     ?: run {
-                        val inferred = inferResumeDlcAppIds(appId, appDirPath)
+                        val inferred = inferResumeDlcAppIds(appId, resumeSnapshotDir)
                         if (inferred.isNotEmpty()) {
                             inferred
                         } else {
@@ -2207,7 +2382,7 @@ data class ManifestSizes(
                 appId = appId,
                 downloadableDepots = downloadableDepots,
                 userSelectedDlcAppIds = dlcAppIds,
-                branch = "public",
+                branch = PrefManager.getSteamSelectedBranch(appId),
                 includeInstalledDepots = includeInstalledDepots,
                 enableVerify = enableVerify,
                 allowPersistedProgress = allowPersistedProgress,
@@ -2591,6 +2766,28 @@ data class ManifestSizes(
                 return null
             }
 
+            // Free-space gate: manifest-declared size vs StatFs на томе установки. Тост + abort.
+            val manifestRequiredBytes = downloadableDepots.values.sumOf { depot ->
+                (depot.manifests[branch] ?: depot.encryptedManifests[branch])?.size ?: 0L
+            }
+            if (manifestRequiredBytes > 0L) {
+                val spaceTarget = customInstallPath ?: appDirPath
+                val freeBytes = runCatching { StorageUtils.getAvailableSpace(spaceTarget) }.getOrDefault(-1L)
+                if (freeBytes >= 0L && freeBytes < manifestRequiredBytes) {
+                    Timber.w("Download aborted: need ${manifestRequiredBytes}B, free ${freeBytes}B at $spaceTarget (appId=$appId)")
+                    instance?.let { service ->
+                        service.scope.launch(Dispatchers.Main) {
+                            Toast.makeText(
+                                service.applicationContext,
+                                "Not enough free space: need ${StorageUtils.formatBinarySize(manifestRequiredBytes)}, free ${StorageUtils.formatBinarySize(freeBytes)}",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                    }
+                    return null
+                }
+            }
+
             // Ensure the download directory exists
             try {
                 val dir = File(appDirPath)
@@ -2689,6 +2886,15 @@ data class ManifestSizes(
                 Timber.d("Removed already downloaded depots. Count before: $beforeCount, after: ${mainAppDepots.size}")
             }
 
+            // Атомарный финал: свежие закачки идут в staging, в финал — rename в completeAppDownload.
+            // Апдейт/verify/доверенное состояние и кастомный путь пишут напрямую в финал.
+            val stagingDirPath = getStagingDirPath(appId)
+            val useStaging = !includeInstalledDepots && !enableVerify && customInstallPath == null && !hasTrustedInstalledState
+            val workDirPath = if (useStaging) stagingDirPath else appDirPath
+            if (useStaging) {
+                runCatching { File(stagingDirPath).mkdirs() }
+            }
+
             val allDepots = originalMainAppDepots + dlcAppDepots
             // Use install (uncompressed) size for progress tracking
             val depotSizeById = allDepots.mapValues { (_, depot) ->
@@ -2696,10 +2902,16 @@ data class ManifestSizes(
                 (mInfo?.size ?: 1L).coerceAtLeast(1L)
             }
 
-            // Load persisted progress snapshot to skip fully downloaded depots
-            val persistedDepotBytes = if (allowPersistedProgress) {
-                DownloadInfo.loadPersistedDepotBytes(appDirPath)
+            // Load persisted progress snapshot to skip fully downloaded depots.
+            // Снапшот могут лежать в staging (resume) или в финале (старый layout) — читаем
+            // только из workDir, чужой снапшот сносим чтобы не врал прогресс.
+            val persistedSourceDir = if (allowPersistedProgress && hasPersistedDepotResumeMetadata(stagingDirPath)) stagingDirPath else appDirPath
+            val persistedDepotBytes = if (allowPersistedProgress && persistedSourceDir == workDirPath) {
+                DownloadInfo.loadPersistedDepotBytes(workDirPath)
             } else {
+                if (allowPersistedProgress && persistedSourceDir != workDirPath) {
+                    clearPersistedProgressSnapshot(persistedSourceDir)
+                }
                 emptyMap()
             }
 
@@ -2860,7 +3072,7 @@ data class ManifestSizes(
                     instance?.notificationHelper?.notifyProgress(name, prog, down, tot, speed)
                 }
                 val info = DownloadInfo(selectedDepots.size, appId, getAppInfoOf(appId)?.name ?: "Game", downloadingAppIds, queueNotify).also { di ->
-                    di.setPersistencePath(appDirPath)
+                    di.setPersistencePath(workDirPath)
                     di.updateStatus(DownloadPhase.QUEUED, "Queued...")
                     di.setActive(false)
                 }
@@ -2872,7 +3084,7 @@ data class ManifestSizes(
             val info = DownloadInfo(selectedDepots.size, appId, getAppInfoOf(appId)?.name ?: "Game", downloadingAppIds, { name, prog, down, tot, speed ->
                 instance?.notificationHelper?.notifyProgress(name, prog, down, tot, speed)
             }).also { di ->
-                di.setPersistencePath(appDirPath)
+                di.setPersistencePath(workDirPath)
 
                 // Set weights for each depot based on manifest sizes
                 val selectedDepotSizes = selectedDepots.mapValues { (depotId, _) ->
@@ -2905,7 +3117,7 @@ data class ManifestSizes(
                         }
                     }
                 } else {
-                    di.clearPersistedBytesDownloaded(appDirPath)
+                    di.clearPersistedBytesDownloaded(workDirPath)
                 }
                 resumedBytes = resumedBytes.coerceIn(0L, totalBytes)
 
@@ -2917,13 +3129,19 @@ data class ManifestSizes(
                 val downloadJob = service.scope.launch {
                     var depotDownloader: DepotDownloader? = null
                     try {
+                        // Эталон GameNative: перед update/verify чистим stale DRM-бэкапы,
+                        // иначе restore-pass перезатрёт свежие файлы старыми
+                        if (includeInstalledDepots || enableVerify) {
+                            runCatching { SteamUtils.clearStaleDrmBackups(appDirPath) }
+                        }
                         // Retry loop for transient Steam API failures (AsyncJobFailedException),
                         // missing client or download stalls (StallTimeoutException).
                         val maxRetries = 5
                         var lastException: Exception? = null
                         // Нет активности дольше — считаем закачку зависшей (телефон захлебнулся
-                        // или CDN-хост умер) и перезапускаем попытку.
-                        val stallTimeoutMs = 90_000L
+                        // или CDN-хост умер) и перезапускаем попытку. 60с: 90с слишком долго
+                        // держали мёртвую сессию (скорость 0, прогресс стоит).
+                        val stallTimeoutMs = 60_000L
 
                         for (attempt in 1..maxRetries) {
                             lastException = null
@@ -2934,7 +3152,16 @@ data class ManifestSizes(
                                     withContext(Dispatchers.Main) {
                                         Toast.makeText(instance?.applicationContext ?: return@withContext, "Retrying download (attempt $attempt/$maxRetries)...", Toast.LENGTH_SHORT).show()
                                     }
-                                    kotlinx.coroutines.delay(3000L * attempt) // Exponential backoff
+                                    // Экспоненциальный бэкофф 5/10/20/30/45с: долбёжка по 3с
+                                    // возвращала ту же мёртвую сессию/CDN-хост.
+                                    val backoffMs = when (attempt) {
+                                        2 -> 5_000L
+                                        3 -> 10_000L
+                                        4 -> 20_000L
+                                        5 -> 30_000L
+                                        else -> 45_000L
+                                    }
+                                    kotlinx.coroutines.delay(backoffMs)
                                 }
 
                                 // Wait for steamClient to be connected and logged in
@@ -2982,20 +3209,46 @@ data class ManifestSizes(
                                 }
                                 Timber.i("Retrieved ${licenses.size} licenses from database")
 
-                                // Memory-safe thread limits for mobile devices
-                                // Each decompress thread allocates ~8MB in ThreadLocal buffers (VZipUtil),
-                                // so we must limit decompress threads to avoid OutOfMemoryError.
-                                // With largeHeap=true we get ~512MB heap, so download threads can be higher.
-                                val cpuCores = Runtime.getRuntime().availableProcessors()
-                                // Use downloadSpeed setting as max download workers (maps to parallel chunks).
-                                // Capped low: телефон захлёбывается на 128 потоках — скорость прёт,
-                                // потом decompress/диск не вывозят и всё встаёт в 0.
-                                val maxDownloads = PrefManager.downloadSpeed.coerceIn(4, 24)
-                                // Decompress at most half the cores, 2..4 — каждый поток ест ~8MB ThreadLocal.
-                                val maxDecompress = (cpuCores / 2).coerceIn(2, 4).coerceAtMost(maxDownloads)
+                                // Memory-safe thread limits for mobile devices.
+                                // Каждый decompress-поток ест ~8MB ThreadLocal — телефон захлёбывается
+                                // на 128 потоках: скорость прёт, потом decompress/диск не вывозят и всё встаёт в 0.
+                                // Лимиты — из DownloadSpeedConfig (тиры по ядрам 8/16/24/32, дефолт cores/2).
+                                val speedConfig = DownloadSpeedConfig()
+                                val cpuCores = speedConfig.cpuCores
+                                val maxDownloads = speedConfig.maxDownloads
+                                val maxDecompress = speedConfig.maxDecompress.coerceAtMost(maxDownloads)
 
                                 Timber.i("Download Config - Cores: $cpuCores, Speed setting: ${PrefManager.downloadSpeed}")
                                 Timber.i("Threads - Max Downloads: $maxDownloads, Max Decompress: $maxDecompress")
+
+                                // CDN warm-up: HEAD-ранкинг SteamPipe-хостов перед DepotDownloader.
+                                // Пул даунлоадера 1.8.0 всё равно сортирует по weightedLoad сам — это только
+                                // греет DNS/TLS и пишет быстрейшие хосты в лог для разбора сталлов.
+                                // На каждой попытке: после сталла server_list сносится и хосты уже
+                                // другие — ранкать надо свежий список. Best-effort, ошибка — дальше.
+                                runCatching {
+                                    di.updateStatusMessage("Checking CDN...")
+                                    val steamClient = client
+                                    if (steamClient != null) {
+                                        runCatching {
+                                            val pipeServers = withTimeoutOrNull(8_000L) {
+                                                steamClient.getHandler(SteamContent::class.java)
+                                                    ?.getServersForSteamPipe(parentScope = service.scope)
+                                                    ?.await()
+                                            }.orEmpty()
+                                            val probeUrls = pipeServers
+                                                .filter { it.type == "SteamCache" || it.type == "CDN" }
+                                                .mapNotNull { server -> cdnProbeUrl(server) }
+                                                .distinct()
+                                            if (probeUrls.size > 1) {
+                                                val ranked = CdnRankingUtils.rankBaseUrlsByHeadProbe(probeUrls, Net.http)
+                                                Timber.i("CDN rank for appId $appId: fastest=${ranked.take(3)} (${ranked.size} hosts)")
+                                            }
+                                        }.onFailure { e ->
+                                            Timber.d("CDN pre-rank skipped for appId $appId: ${e.message}")
+                                        }
+                                    }
+                                }
 
 
                                 // Create DepotDownloader instance
@@ -3025,7 +3278,7 @@ data class ManifestSizes(
                                     val mainAppDepotIds = mainAppDepots.keys.sorted()
                                     val mainAppItem = AppItem(
                                         appId,
-                                        installDirectory = appDirPath,
+                                        installDirectory = workDirPath,
                                         depot = mainAppDepotIds,
                                         verify = enableVerify,
                                     )
@@ -3038,7 +3291,7 @@ data class ManifestSizes(
 
                                     val dlcAppItem = AppItem(
                                         dlcAppId,
-                                        installDirectory = appDirPath,
+                                        installDirectory = workDirPath,
                                         depot = dlcDepotIds,
                                         verify = enableVerify,
                                     )
@@ -3064,7 +3317,7 @@ data class ManifestSizes(
                                                         val responseData = responseJson.optJSONObject("response")
                                                         val fileUrl = responseData?.optJSONArray("publishedfiledetails")?.optJSONObject(0)?.optString("file_url", "")?.trim()
                                                         if (!fileUrl.isNullOrEmpty()) {
-                                                            val configFile = File(appDirPath, STEAM_CONTROLLER_CONFIG_FILENAME)
+                                                            val configFile = File(workDirPath, STEAM_CONTROLLER_CONFIG_FILENAME)
                                                             val downloadRequest = Request.Builder().url(fileUrl).get().build()
                                                             Net.http.newCall(downloadRequest).execute().use { downloadResponse ->
                                                                 if (downloadResponse.isSuccessful) {
@@ -3218,8 +3471,9 @@ data class ManifestSizes(
                         Unit
                     } catch (e: DownloadFailedException) {
                         Timber.d(e, "Download failed for app $appId via cancellation")
-                        clearFailedResumeState(appId)
-                        di.updateStatus(DownloadPhase.FAILED)
+                        // Resume-мету НЕ трём: снапшот уже сфорсирован в failedToDownload(),
+                        // юзер должен мочь продолжить кнопкой Resume, а не качать заново.
+                        di.updateStatus(DownloadPhase.FAILED, e.message)
                         di.setActive(false)
                         // Clean up markers
                         MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
@@ -3247,7 +3501,8 @@ data class ManifestSizes(
                         throw e
                     } catch (e: Exception) {
                         Timber.e(e, "Download failed for app $appId")
-                        clearFailedResumeState(appId)
+                        // Resume-мету и строку БД НЕ трём: частичные файлы + снапшот остаются,
+                        // докачка продолжится с места обрыва, а не с нуля.
 
                         val errorMsg = when (e) {
                             is ClassCastException -> "Casting error: ${e.message}"
@@ -3257,12 +3512,9 @@ data class ManifestSizes(
 
                         di.updateStatus(DownloadPhase.FAILED, errorMsg)
                         di.setActive(false)
-                        // Clean up markers and DB state
+                        // In-progress маркер снимаем, остальное (снапшот, строка БД,
+                        // частичные файлы) оставляем для Resume с места обрыва.
                         MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                        runBlocking {
-                            instance?.downloadingAppInfoDao?.deleteApp(appId)
-                            Unit
-                        }
                         removeDownloadJob(appId)
                         // Show error to user
                         instance?.let { service ->
@@ -3426,17 +3678,9 @@ data class ManifestSizes(
             // All downloading appIds are removed
             if (downloadInfo.downloadingAppIds.isEmpty()) {
                 Timber.i("All items for game ${downloadInfo.gameId} completed, running final completion logic.")
-                // If manifest-size top-up was deferred during depot completion, settle the
-                // remaining bytes once at the end to avoid visible mid-download jumps.
-                val totalExpectedBytes = downloadInfo.getTotalExpectedBytes()
-                if (totalExpectedBytes > 0L) {
-                    val downloadedBytes = downloadInfo.getBytesDownloaded()
-                    val remainingBytes = (totalExpectedBytes - downloadedBytes).coerceAtLeast(0L)
-                    if (remainingBytes > 0L) {
-                        downloadInfo.updateBytesDownloaded(remainingBytes, System.currentTimeMillis())
-                        downloadInfo.emitProgressChange()
-                    }
-                }
+                // Атомарный финал: staging -> финал до маркеров/БД. Дотяжка remaining уже
+                // сделана в onDepotCompleted — здесь не дублируем, чтобы не было прыжков прогресса.
+                mergeStagingIntoFinal(downloadInfo.gameId, appDirPath)
 
                 // Handle completion: add markers
                 withContext(Dispatchers.IO) {
@@ -3590,7 +3834,10 @@ data class ManifestSizes(
 
             override fun onFileCompleted(depotId: Int, fileName: String, depotPercentComplete: Float) {
                 Timber.d("File completed: $fileName (Depot $depotId: ${depotPercentComplete * 100}%)")
-                
+
+                // Граница файла — тоже жизнь: на толстых файлах чанки могут молчать,
+                // watchdog не должен рвать живую сессию.
+                downloadInfo.markActivity()
                 depotIdToIndex[depotId]?.let { index ->
                     downloadInfo.setProgress(depotPercentComplete, index)
                 }
@@ -3723,12 +3970,14 @@ data class ManifestSizes(
                     downloadInfo.markProgressSnapshotDirty()
                 }
 
-                // Credit full manifest size so dedup gaps don't stall progress
+                // Credit full manifest size so dedup gaps don't stall progress.
+                // Дотяжка remaining — только здесь: и потрековый учёт, и общий счётчик.
                 val manifestSize = depotMaxBytesById[depotId] ?: 0L
                 val tracked = downloadInfo.depotCumulativeUncompressedBytes[depotId]?.get() ?: 0L
                 val remaining = manifestSize - tracked
                 if (remaining > 0L) {
                     addDeltaToDepotBytes(depotId, remaining)
+                    downloadInfo.updateBytesDownloaded(remaining, System.currentTimeMillis())
                     downloadInfo.markProgressSnapshotDirty()
                 }
 
@@ -3894,6 +4143,7 @@ data class ManifestSizes(
             prefixToPath: (String) -> String,
             isOffline: Boolean = false,
             onProgress: ((message: String, progress: Float) -> Unit)? = null,
+            onConflict: (suspend (PostSyncInfo) -> SaveLocation)? = null,
         ): Deferred<PostSyncInfo> = parentScope.async {
             if (isOffline || !isConnected) {
                 return@async PostSyncInfo(SyncResult.UpToDate)
@@ -3980,6 +4230,38 @@ data class ManifestSizes(
                             syncResult = PostSyncInfo(SyncResult.UnknownFail)
                         } else {
                             delay(1000L * attempt)
+                        }
+                    }
+                }
+
+                if (syncResult.syncResult == SyncResult.Conflict && onConflict != null) {
+                    val choice = try {
+                        onConflict(syncResult)
+                    } catch (e: Exception) {
+                        Timber.w(e, "Conflict resolver failed for app $appId")
+                        SaveLocation.None
+                    }
+                    if (choice != SaveLocation.None) {
+                        Timber.i("Resolving cloud conflict for app $appId with $choice")
+                        try {
+                            val steamInstance = instance
+                            val appInfo = getAppInfoOf(appId)
+                            val steamCloud = steamInstance?._steamCloud
+                            if (steamInstance != null && appInfo != null && steamCloud != null) {
+                                progressWrapper("Resolving Cloud Conflict...", 0f)
+                                SteamAutoCloud.syncUserFiles(
+                                    appInfo = appInfo,
+                                    clientId = PrefManager.clientId,
+                                    steamInstance = steamInstance,
+                                    steamCloud = steamCloud,
+                                    preferredSave = choice,
+                                    parentScope = parentScope,
+                                    prefixToPath = prefixToPath,
+                                    onProgress = progressWrapper,
+                                ).await()?.let { syncResult = it }
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Conflict resolution sync failed for app $appId")
                         }
                     }
                 }
@@ -5817,7 +6099,10 @@ data class ManifestSizes(
                         isIncoming = message.isIncoming,
                     )
                 )
-                chatMessageDao.deleteOldMessages(sid64)
+                chatMessageDao.deleteOldMessages(
+                    sid64,
+                    PrefManager.chatHistoryKeepCount.coerceIn(100, 2000),
+                )
             } catch (e: Exception) {
                 Timber.w(e, "Failed to persist chat message")
             }
@@ -5910,17 +6195,23 @@ data class ManifestSizes(
         try {
             val count = friends.getFriendCount()
             Timber.d("Friends list: $count friends total")
-            val requestBatch = mutableListOf<SteamID>()
-            for (i in 0 until count.coerceAtMost(250)) {
+            val allIds = mutableListOf<SteamID>()
+            for (i in 0 until count) {
                 val friendId = friends.getFriendByIndex(i) ?: continue
                 if (friendId == localSteamId) continue
                 if (!friendId.isIndividualAccount) continue
-                requestBatch.add(friendId)
+                allIds.add(friendId)
             }
-            // Request persona info for all friends in batch
-            if (requestBatch.isNotEmpty()) {
-                friends.requestFriendInfo(requestBatch)
-                Timber.d("Requested persona info for ${requestBatch.size} friends")
+            // Пагинация батчами, чтобы не слать один огромный запрос
+            val batchSize = PrefManager.steamFriendsRequestBatchSize.coerceIn(20, 200)
+            allIds.chunked(batchSize).forEach { batch ->
+                runCatching {
+                    friends.requestFriendInfo(batch)
+                }.onSuccess {
+                    Timber.d("Requested persona info for ${batch.size} friends")
+                }.onFailure {
+                    Timber.w(it, "requestFriendInfo batch failed (${batch.size} friends)")
+                }
             }
         } catch (e: Exception) {
             Timber.w(e, "Failed to refresh friends list")
@@ -6025,8 +6316,9 @@ data class ManifestSizes(
      */
     private fun continuousPICSChangesChecker(): Job = scope.launch {
         while (isActive && isLoggedIn) {
-            // Initial delay before each check
-            delay(60.seconds)
+            // Экспоненциальный бэкофф при ошибках: 60с → 120с → 240с → 300с (max 5мин)
+            val shift = picsConsecutiveFailures.coerceIn(0, 3)
+            delay((60_000L shl shift).coerceAtMost(300_000L))
 
             PICSChangesCheck()
         }
@@ -6056,14 +6348,20 @@ data class ManifestSizes(
     /** Send periodic keepalive to prevent NAT/network idle disconnects */
     private fun continuousKeepalive(): Job = scope.launch {
         delay(45.seconds)
+        // Экспоненциальный бэкофф при ошибках: 45с → 90с → ... → 300с (max 5мин)
+        var backoffMs = 45_000L
         while (isActive && isLoggedIn) {
             try {
                 _steamApps?.picsGetChangesSince(lastChangeNumber = PrefManager.lastPICSChangeNumber)
                 Timber.v("Keepalive ping sent")
+                backoffMs = 45_000L
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.w("Keepalive failed: ${e.message}")
+                backoffMs = (backoffMs * 2).coerceAtMost(300_000L)
             }
-            delay(45.seconds)
+            delay(backoffMs)
         }
     }
 
@@ -6100,6 +6398,9 @@ data class ManifestSizes(
                     sendAppChangeList = true,
                     sendPackageChangelist = true,
                 ).await()
+
+                // Ответ получен — сбрасываем бэкофф PICS-опроса
+                picsConsecutiveFailures = 0
 
                 if (PrefManager.lastPICSChangeNumber == changesSince.currentChangeNumber) {
                     Timber.w("Change number was the same as last change number, skipping")
@@ -6164,10 +6465,17 @@ data class ManifestSizes(
                             }
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: NullPointerException) {
+                picsConsecutiveFailures++
                 Timber.w("No lastPICSChangeNumber, skipping")
             } catch (e: AsyncJobFailedException) {
+                picsConsecutiveFailures++
                 Timber.w("AsyncJobFailedException, skipping")
+            } catch (e: Exception) {
+                picsConsecutiveFailures++
+                Timber.w(e, "PICS changes check failed")
             }
         }
     }

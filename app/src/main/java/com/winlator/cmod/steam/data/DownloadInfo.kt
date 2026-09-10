@@ -262,10 +262,14 @@ class DownloadInfo(
         if (previousStatus == status && message == null) return
 
         this.status.value = status
-        // Активность для watchdog — смена фазы тоже движение.
-        // Сброс сэмплов скорости убран: флип PREPARING<->DOWNLOADING гасил
-        // показания в 0, хотя байты шли. Сброс остался только в setActive(false).
-        lastActivityMs = System.currentTimeMillis()
+        // Watchdog смотрит только на движение байтов (updateBytesDownloaded/markActivity).
+        // Смена фазы активностью НЕ считается: флип PREPARING<->DOWNLOADING кормил
+        // lastActivityMs и маскировал реальный сталл (скорость 0, а рестарт не стрелял).
+        // Исключение — вход в PREPARING из другого состояния (старт/ретрай сессии):
+        // медленный PICS/манифест не должен сразу ловить stall.
+        if (status == DownloadPhase.PREPARING && previousStatus != DownloadPhase.PREPARING) {
+            lastActivityMs = System.currentTimeMillis()
+        }
 
         if (message != null) {
             statusMessage.value = message

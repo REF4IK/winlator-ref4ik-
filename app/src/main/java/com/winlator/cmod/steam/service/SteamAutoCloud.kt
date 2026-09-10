@@ -28,6 +28,7 @@ import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.Date
 import java.util.stream.Collectors
@@ -39,6 +40,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeout
 import okhttp3.Headers
@@ -106,14 +108,30 @@ object SteamAutoCloud {
             .filter { it.uploadRoot != it.root }
             .associate { "%${it.uploadRoot.name}%" to it.root.name }
 
+        // Full-prefix remap: addPath сдвигает локальный подкаталог относительно
+        // облачного пути (rootoverride/uploadRoot). Ключей два (со слэшем и без),
+        // т.к. облачные префиксы иногда приходят с trailing slash.
         val cloudPrefixToLocalPath: Map<String, String> = appInfo.ufs.saveFilePatterns
             .filter { it.uploadPath != it.path }
-            .associate { saveFile ->
-                val cloudKey = "%${saveFile.uploadRoot.name}%${saveFile.uploadPath}"
+            .flatMap { saveFile ->
+                val localPath = Paths.get(prefixToPath(saveFile.root.name), saveFile.substitutedPath).pathString
+                val cloudPath = saveFile.uploadPath
+                    .replace("\\", "/")
                     .replace("{64BitSteamID}", SteamUtils.getSteamId64().toString())
                     .replace("{Steam3AccountID}", SteamUtils.getSteam3AccountId().toString())
-                cloudKey to Paths.get(prefixToPath(saveFile.root.name), saveFile.substitutedPath).pathString
+                    .trim('/')
+                val cloudRoot = "%${saveFile.uploadRoot.name}%"
+                val cloudPrefixes = if (cloudPath.isBlank()) {
+                    listOf(cloudRoot)
+                } else {
+                    listOf(
+                        "$cloudRoot$cloudPath",
+                        "$cloudRoot/$cloudPath",
+                    )
+                }
+                cloudPrefixes.map { cloudKey -> cloudKey to localPath }
             }
+            .toMap()
 
         val getPathTypePairs: (AppFileChangeList) -> List<Pair<String, String>> = { fileList ->
             fileList.pathPrefixes
@@ -141,7 +159,15 @@ object SteamAutoCloud {
             val pathTypePairs = getPathTypePairs(fileList)
 
             fileList.pathPrefixes.map { prefix ->
-                cloudPrefixToLocalPath[prefix.trimEnd('/')]
+                // Сначала full-prefix match: покрывает addPath, где облачный путь
+                // опускает подпапку из локального. Берём самый длинный ключ.
+                val cloudPrefix = prefix.trimEnd('/')
+                cloudPrefixToLocalPath.entries
+                    .filter { (cloudKey, _) -> cloudPrefix == cloudKey || cloudPrefix.startsWith("$cloudKey/") }
+                    .maxByOrNull { (cloudKey, _) -> cloudKey.length }
+                    ?.let { (cloudKey, localPath) ->
+                        Paths.get(localPath, cloudPrefix.removePrefix(cloudKey).trimStart('/')).pathString
+                    }
                     ?: run {
                         var modified = prefix
 
@@ -179,11 +205,20 @@ object SteamAutoCloud {
         val getFullFilePath: (AppFileInfo, AppFileChangeList) -> Path = getFullFilePath@{ file, fileList ->
             val gameInstallPrefix = "%${PathType.GameInstall.name}%"
             if (file.filename.startsWith(gameInstallPrefix)) {
-                // Steam API sometimes returns prefix="" and filename="%GameInstall%save0.dat" instead of splitting correctly.
-                return@getFullFilePath Paths.get(
-                    prefixToPath(PathType.GameInstall.name),
-                    file.filename.removePrefix(gameInstallPrefix)
-                )
+                // Steam API иногда кладёт префикс в filename вместо pathPrefixIndex.
+                // Убираем встроенный префикс (и ведущий слэш) до голого имени.
+                val stripped = file.filename.removePrefix(gameInstallPrefix).trimStart('/')
+                // Windows rootoverride может маппить GameInstall в другой каталог —
+                // качаем туда, чтобы игра нашла сейвы.
+                val remapped = cloudPrefixToLocalPath[gameInstallPrefix]
+                return@getFullFilePath if (remapped != null) {
+                    Paths.get(remapped, stripped)
+                } else {
+                    Paths.get(
+                        prefixToPath(PathType.GameInstall.name),
+                        stripped,
+                    )
+                }
             }
 
             val convertedPrefixes = convertPrefixes(fileList)
@@ -340,114 +375,207 @@ object SteamAutoCloud {
             "$scheme${urlHost}$urlPath"
         }
 
+        // Скачивание одного файла: докачка через Range + .part, ретраи наружу.
+        // Возвращает число байт файла или null при неуспехе.
+        suspend fun attemptDownloadSingleFile(file: AppFileInfo, fileList: AppFileChangeList): Long? {
+            val prefixedPath = getFilePrefixPath(file, fileList)
+            val actualFilePath = getFullFilePath(file, fileList)
+
+            Timber.i("$prefixedPath -> $actualFilePath")
+
+            val fileDownloadInfo = try {
+                steamCloud.clientFileDownload(appInfo.id, prefixedPath).await()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to fetch download info for %s", prefixedPath)
+                return null
+            }
+
+            if (fileDownloadInfo.urlHost.isEmpty()) {
+                Timber.w("URL host of $prefixedPath was empty")
+                return null
+            }
+
+            val totalFileSize = fileDownloadInfo.rawFileSize.toLong()
+            val isZipped = fileDownloadInfo.fileSize != fileDownloadInfo.rawFileSize
+            val partPath = actualFilePath.resolveSibling("${actualFilePath.fileName}.part")
+
+            if (isZipped) {
+                // Сжатый ответ по Range не докачать — качаем с нуля.
+                runCatching { Files.deleteIfExists(partPath) }
+            }
+
+            val resumeOffset = if (!isZipped && totalFileSize > 0) {
+                runCatching { Files.size(partPath) }.getOrDefault(0L).coerceIn(0L, totalFileSize)
+            } else {
+                0L
+            }
+
+            onProgress?.invoke("Downloading ${file.filename}", -1f)
+            val httpUrl = with(fileDownloadInfo) {
+                buildUrl(useHttps, urlHost, urlPath)
+            }
+
+            Timber.i("Downloading $httpUrl (resumeOffset=$resumeOffset)")
+
+            val headers = Headers.headersOf(
+                *fileDownloadInfo.requestHeaders
+                    .map { listOf(it.name, it.value) }
+                    .flatten()
+                    .toTypedArray(),
+            )
+
+            val requestBuilder = Request.Builder()
+                .url(httpUrl)
+                .headers(headers)
+            if (resumeOffset > 0) {
+                requestBuilder.header("Range", "bytes=$resumeOffset-")
+            }
+
+            val httpClient = steamInstance.steamClient!!.configuration.httpClient
+
+            val response = try {
+                withTimeout(SteamService.requestTimeout) {
+                    httpClient.newCall(requestBuilder.build()).execute()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w("Could not download $actualFilePath: %s", e.message)
+                return null
+            }
+
+            response.use { resp ->
+                if (resp.code == 416) {
+                    // Диапазон невалиден: часть уже полная — фиксируем её.
+                    val partSize = runCatching { Files.size(partPath) }.getOrDefault(-1L)
+                    if (!isZipped && totalFileSize > 0 && partSize == totalFileSize) {
+                        runCatching { Files.createDirectories(actualFilePath.parent) }
+                        runCatching { Files.move(partPath, actualFilePath, StandardCopyOption.REPLACE_EXISTING) }
+                        onProgress?.invoke("Downloading ${file.filename}", 1f)
+                        return totalFileSize
+                    }
+                    runCatching { Files.deleteIfExists(partPath) }
+                    return null
+                }
+
+                if (!resp.isSuccessful) {
+                    Timber.w("File download of $prefixedPath was unsuccessful: ${resp.code}")
+                    return null
+                }
+
+                // 206 = сервер принял Range, 200 при resumeOffset > 0 = игнор, качаем с нуля.
+                val append = resp.code == 206 && resumeOffset > 0
+                val startOffset = if (append) resumeOffset else 0L
+
+                try {
+                    var totalBytesRead = startOffset
+                    var lastReportedProgress = -1f
+                    val progressThreshold = 0.01f // Update every 1%
+
+                    val copyToFile: (InputStream) -> Unit = { input ->
+                        Files.createDirectories(partPath.parent)
+                        FileOutputStream(partPath.toString(), append).use { fs ->
+                            input.copyTo(fs, 8 * 1024) { bytesRead ->
+                                totalBytesRead = startOffset + bytesRead
+                                if (totalFileSize > 0) {
+                                    val currentProgress = (totalBytesRead.toFloat() / totalFileSize).coerceIn(0f, 1f)
+                                    if (currentProgress - lastReportedProgress >= progressThreshold || currentProgress >= 1f) {
+                                        onProgress?.invoke("Downloading ${file.filename}", currentProgress)
+                                        lastReportedProgress = currentProgress
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    val streamed = try {
+                        withTimeout(SteamService.responseTimeout) {
+                            val body = resp.body ?: return@withTimeout false
+                            body.byteStream().use { copyToFile(it) }
+                            true
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.w("Could not download $actualFilePath: %s", e.message)
+                        false
+                    }
+                    if (!streamed) return null
+
+                    val downloadedSize = runCatching { Files.size(partPath) }.getOrDefault(-1L)
+                    if (totalFileSize > 0 && downloadedSize != totalFileSize) {
+                        Timber.w("Size mismatch for $prefixedPath: got $downloadedSize, expected $totalFileSize (.part kept for resume)")
+                        return null
+                    }
+
+                    Files.createDirectories(actualFilePath.parent)
+
+                    if (isZipped) {
+                        var unzipped = false
+                        Files.newInputStream(partPath).use { fileInput ->
+                            ZipInputStream(fileInput).use { zipInput ->
+                                val entry = zipInput.nextEntry
+
+                                if (entry == null) {
+                                    Timber.w("Downloaded user file $prefixedPath has no zip entries")
+                                } else {
+                                    FileOutputStream(actualFilePath.toString()).use { out ->
+                                        zipInput.copyTo(out, 8 * 1024) { }
+                                    }
+                                    unzipped = true
+
+                                    if (zipInput.nextEntry != null) {
+                                        Timber.e("Downloaded user file $prefixedPath has more than one zip entry")
+                                    }
+                                }
+                            }
+                        }
+                        if (!unzipped) return null
+                        runCatching { Files.deleteIfExists(partPath) }
+                    } else {
+                        try {
+                            Files.move(partPath, actualFilePath, StandardCopyOption.REPLACE_EXISTING)
+                        } catch (e: Exception) {
+                            Timber.w("Could not finalize $actualFilePath: ${e.message}")
+                            return null
+                        }
+                    }
+
+                    return fileDownloadInfo.rawFileSize.toLong()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.w("Could not download $actualFilePath: %s", e.message)
+                    return null
+                }
+            }
+        }
+
         val downloadFiles: (AppFileChangeList, CoroutineScope) -> Deferred<UserFilesDownloadResult> = { fileList, parentScope ->
             parentScope.async {
                 var filesDownloaded = 0
                 var bytesDownloaded = 0L
                 val totalFiles = fileList.files.size
 
-                fileList.files.forEachIndexed { index, file ->
-                    val prefixedPath = getFilePrefixPath(file, fileList)
-                    val actualFilePath = getFullFilePath(file, fileList)
+                fileList.files.forEach { file ->
+                    var downloadedBytes: Long? = null
 
-                    Timber.i("$prefixedPath -> $actualFilePath")
-
-                    val fileDownloadInfo = steamCloud.clientFileDownload(appInfo.id, prefixedPath).await()
-
-                    if (fileDownloadInfo.urlHost.isNotEmpty()) {
-                        onProgress?.invoke("Downloading ${file.filename}", -1f)
-                        val httpUrl = with(fileDownloadInfo) {
-                            buildUrl(useHttps, urlHost, urlPath)
+                    for (attempt in 1..MAX_USER_FILE_RETRIES) {
+                        downloadedBytes = attemptDownloadSingleFile(file, fileList)
+                        if (downloadedBytes != null) break
+                        if (attempt < MAX_USER_FILE_RETRIES) {
+                            Timber.w("Retrying download of ${file.filename} (attempt ${attempt + 1}/$MAX_USER_FILE_RETRIES)")
+                            delay(1000L * attempt)
                         }
+                    }
 
-                        Timber.i("Downloading $httpUrl")
-
-                        val headers = Headers.headersOf(
-                            *fileDownloadInfo.requestHeaders
-                                .map { listOf(it.name, it.value) }
-                                .flatten()
-                                .toTypedArray(),
-                        )
-
-                        val request = Request.Builder()
-                            .url(httpUrl)
-                            .headers(headers)
-                            .build()
-
-                        val httpClient = steamInstance.steamClient!!.configuration.httpClient
-
-                        val response = withTimeout(SteamService.requestTimeout) {
-                            httpClient.newCall(request).execute()
-                        }
-
-                        if (!response.isSuccessful) {
-                            Timber.w("File download of $prefixedPath was unsuccessful")
-                            response.close()
-                            return@forEachIndexed
-                        }
-
-                        try {
-                            val totalFileSize = fileDownloadInfo.rawFileSize.toLong()
-                            var totalBytesRead = 0L
-                            var lastReportedProgress = -1f
-                            val progressThreshold = 0.01f // Update every 1%
-
-                            val copyToFile: (InputStream) -> Unit = { input ->
-                                Files.createDirectories(actualFilePath.parent)
-
-                                FileOutputStream(actualFilePath.toString()).use { fs ->
-                                    input.copyTo(fs, 8 * 1024) { bytesRead ->
-                                        totalBytesRead = bytesRead
-                                        if (totalFileSize > 0) {
-                                            val currentProgress = (totalBytesRead.toFloat() / totalFileSize).coerceIn(0f, 1f)
-                                            if (currentProgress - lastReportedProgress >= progressThreshold || currentProgress >= 1f) {
-                                                onProgress?.invoke("Downloading ${file.filename}", currentProgress)
-                                                lastReportedProgress = currentProgress
-                                            }
-                                        }
-                                    }
-
-                                    if (totalBytesRead != totalFileSize) {
-                                        Timber.w("Bytes read from stream of $prefixedPath does not match expected size")
-                                    }
-                                }
-                            }
-
-                            withTimeout(SteamService.responseTimeout) {
-                                if (fileDownloadInfo.fileSize != fileDownloadInfo.rawFileSize) {
-                                    response.body?.byteStream()?.use { inputStream ->
-                                        ZipInputStream(inputStream).use { zipInput ->
-                                            val entry = zipInput.nextEntry
-
-                                            if (entry == null) {
-                                                Timber.w("Downloaded user file $prefixedPath has no zip entries")
-                                                return@withTimeout
-                                            }
-
-                                            copyToFile(zipInput)
-
-                                            if (zipInput.nextEntry != null) {
-                                                Timber.e("Downloaded user file $prefixedPath has more than one zip entry")
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    response.body?.byteStream()?.use { inputStream ->
-                                        copyToFile(inputStream)
-                                    }
-                                }
-
-                                filesDownloaded++
-
-                                bytesDownloaded += fileDownloadInfo.fileSize
-                            }
-                        } catch (e: Exception) {
-                            Timber.w("Could not download $actualFilePath: %s", e.message);
-                        }
-
-                        response.close()
+                    if (downloadedBytes != null) {
+                        filesDownloaded++
+                        bytesDownloaded += downloadedBytes
                     } else {
-                        Timber.w("URL host of $prefixedPath was empty")
+                        Timber.w("Giving up download of ${file.filename} after $MAX_USER_FILE_RETRIES attempts")
                     }
                 }
 
@@ -646,6 +774,8 @@ object SteamAutoCloud {
         var syncResult = SyncResult.Success
         var remoteTimestamp = 0L
         var localTimestamp = 0L
+        var localBytes = 0L
+        var remoteBytes = 0L
         var uploadsRequired = false
         var uploadsCompleted = true
 
@@ -833,6 +963,12 @@ object SteamAutoCloud {
                                 syncResult = SyncResult.Conflict
                                 remoteTimestamp = appFileListChange.files.map { it.timestamp.time }.maxOrNull() ?: 0L
                                 localTimestamp = allLocalUserFiles.map { it.timestamp }.maxOrNull() ?: 0L
+                                localBytes = allLocalUserFiles.sumOf { userFile ->
+                                    runCatching { Files.size(userFile.getAbsPath(prefixToPath)) }.getOrDefault(0L)
+                                }
+                                remoteBytes = appFileListChange.files.sumOf { file ->
+                                    runCatching { file.rawFileSize.toLong() }.getOrDefault(0L)
+                                }
                             }
                         }
                     }
@@ -898,6 +1034,8 @@ object SteamAutoCloud {
             filesManaged = filesManaged,
             bytesUploaded = bytesUploaded,
             bytesDownloaded = bytesDownloaded,
+            localBytes = localBytes,
+            remoteBytes = remoteBytes,
             microsecTotal = microsecTotal,
             microsecInitCaches = microsecInitCaches,
             microsecValidateState = microsecValidateState,

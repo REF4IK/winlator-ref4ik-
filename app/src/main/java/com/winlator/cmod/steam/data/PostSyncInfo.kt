@@ -15,6 +15,8 @@ data class PostSyncInfo(
     val filesManaged: Int = 0,
     val bytesUploaded: Long = 0L,
     val bytesDownloaded: Long = 0L,
+    val localBytes: Long = 0L,
+    val remoteBytes: Long = 0L,
     val microsecTotal: Long = 0L,
     val microsecInitCaches: Long = 0L,
     val microsecValidateState: Long = 0L,

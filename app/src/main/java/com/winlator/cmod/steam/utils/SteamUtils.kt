@@ -6,6 +6,7 @@ import android.provider.Settings
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.core.WineRegistryEditor
 import com.winlator.cmod.steam.data.DepotInfo
+import com.winlator.cmod.steam.data.LaunchInfo
 import com.winlator.cmod.steam.enums.PathType
 import com.winlator.cmod.steam.enums.SpecialGameSaveMapping
 import com.winlator.cmod.steam.service.SteamService
@@ -41,34 +42,72 @@ import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 
 object SteamUtils {
+    data class ColdClientLaunchConfig(
+        val executablePath: String,
+        val exeCommandLine: String,
+        val exeRunDirOverride: String? = null,
+    )
+
     /**
-     * Writes the ColdClientLoader.ini file for the Goldberg emulator.
+     * Точки override Exe/args/runDir по AppID (расширяемо).
+     * Пример-слот: 646570 Slay the Spire + ModTheSpire (Workshop-раскладка jre/bin/java.exe,
+     * как SlayTheSpireModTheSpireCompatibility в GameNative; compat-модуля в cmod нет).
      */
-    @JvmStatic
-    fun writeColdClientIni(steamAppId: Int, container: Container) {
-        val installPath = SteamService.getAppDirPath(steamAppId)
-        // Папка — installDir || name из метаданных (как ColdClient её и видит
-        // через симлинк steamapps/common), а не имя пути на диске.
-        val gameName = getAppDirName(getAppInfoOf(steamAppId)).ifEmpty { File(installPath).name }
-        val executablePath = SteamService.getInstalledExe(steamAppId).replace("/", "\\").trim()
-        val exeBaseDir = "steamapps\\common\\$gameName"
-        val exePath = if (executablePath.isBlank()) exeBaseDir else "$exeBaseDir\\$executablePath"
-        // Рабочий каталог — папка exe, а не корень игры (иначе игра не находит
-        // свои DLL/ассеты → «путь неверный»). Если в метаданных задан workingDir —
-        // blank, как у эталона (ColdClient сам разруливает).
-        val launchWorkingDir = SteamService.getWindowsLaunchInfos(steamAppId)
-            .firstOrNull { it.executable.replace("/", "\\").equals(executablePath, ignoreCase = true) }
-            ?.workingDir
-            ?: SteamService.getWindowsLaunchInfos(steamAppId).firstOrNull()?.workingDir.orEmpty()
-        val exeRunDir = if (launchWorkingDir.isBlank()) {
-            if (exePath.contains("\\")) exePath.substringBeforeLast("\\") else exeBaseDir
-        } else {
-            ""
-        }
-        val exeCommandLine = ""
-        val iniFile = File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini")
-        iniFile.parentFile?.mkdirs()
-        Timber.i("ColdClient ini appId=$steamAppId Exe=$exePath ExeRunDir=$exeRunDir")
+    private val coldClientLaunchOverrides: Map<Int, (gameRootDir: File, fallbackCommandLine: String) -> ColdClientLaunchConfig?> =
+        emptyMap()
+
+    fun resolveColdClientLaunchConfig(
+        steamAppId: Int,
+        executablePath: String,
+        exeCommandLine: String,
+        gameRootDir: File,
+    ): ColdClientLaunchConfig {
+        val sanitizedExecutablePath = sanitizeColdClientArgumentText(executablePath)
+        val sanitizedExeCommandLine = sanitizeColdClientArgumentText(gameArgsFromExecArgs(exeCommandLine))
+        coldClientLaunchOverrides[steamAppId]
+            ?.invoke(gameRootDir, sanitizedExeCommandLine)
+            ?.let { return it }
+        return ColdClientLaunchConfig(
+            executablePath = sanitizedExecutablePath,
+            exeCommandLine = sanitizedExeCommandLine,
+        )
+    }
+
+    /**
+     * WinNative SteamLaunchOptions: KEY=VALUE до %command% — env, аргументы после — игре.
+     * В ini уходит только часть после %command% (без маркера — весь raw).
+     */
+    fun gameArgsFromExecArgs(execArgs: String?): String {
+        val raw = execArgs?.trim().orEmpty()
+        if (raw.isEmpty()) return ""
+        val idx = raw.indexOf("%command%")
+        if (idx < 0) return raw
+        return raw.substring(idx + "%command%".length).trim()
+    }
+
+    fun sanitizeColdClientArgumentText(value: String): String =
+        value.filter { char ->
+            !Character.isISOControl(char) &&
+                Character.getType(char) != Character.FORMAT.toInt()
+        }.trim()
+
+    fun generateColdClientIni(
+        gameName: String,
+        executablePath: String,
+        exeCommandLine: String,
+        steamAppId: Int,
+        workingDir: String?,
+        exeRunDirOverride: String? = null,
+    ): String {
+        val sanitizedExecutablePath = sanitizeColdClientArgumentText(executablePath)
+        val sanitizedExeCommandLine = sanitizeColdClientArgumentText(exeCommandLine)
+        val sanitizedExeRunDirOverride = exeRunDirOverride?.let(::sanitizeColdClientArgumentText)
+        val exeBaseDir = sanitizedExeRunDirOverride?.ifEmpty { null } ?: "steamapps\\common\\$gameName"
+        val exePath = if (sanitizedExecutablePath.isBlank()) exeBaseDir
+            else "$exeBaseDir\\${sanitizedExecutablePath.replace("/", "\\")}"
+        // workingDir blank -> ExeRunDir = папка Exe, иначе "" (как GameNative)
+        val exeRunDir = sanitizedExeRunDirOverride
+            ?: if (workingDir.isNullOrEmpty()) exePath.substringBeforeLast("\\") else ""
 
         val injectionSection = """
                 [Injection]
@@ -76,13 +115,12 @@ object SteamUtils {
                 DllsToInjectFolder=extra_dlls
             """
 
-        iniFile.writeText(
-            """
+        return """
                 [SteamClient]
 
                 Exe=$exePath
                 ExeRunDir=$exeRunDir
-                ExeCommandLine=$exeCommandLine
+                ExeCommandLine=$sanitizedExeCommandLine
                 AppId=$steamAppId
 
                 # path to the steamclient dlls, both must be set, absolute paths or relative to the loader directory
@@ -90,8 +128,54 @@ object SteamUtils {
                 SteamClient64Dll=steamclient64.dll
 
                 $injectionSection
-            """.trimIndent(),
+            """.trimIndent()
+    }
+
+    /**
+     * Writes the ColdClientLoader.ini file for the Goldberg emulator.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun writeColdClientIni(
+        steamAppId: Int,
+        container: Container,
+        launchInfo: LaunchInfo? = null,
+        exeCommandLine: String? = null,
+    ) {
+        val installPath = SteamService.getAppDirPath(steamAppId)
+        // Папка — installDir || name из метаданных (как ColdClient её и видит
+        // через симлинк steamapps/common), а не имя пути на диске.
+        val gameName = getAppDirName(getAppInfoOf(steamAppId)).ifEmpty { File(installPath).name }
+        val rawExecutable = SteamService.getInstalledExe(steamAppId)
+        val launchConfig = resolveColdClientLaunchConfig(
+            steamAppId = steamAppId,
+            executablePath = rawExecutable,
+            exeCommandLine = exeCommandLine ?: container.getExtra("execArgs", ""),
+            gameRootDir = File(installPath),
         )
+        val executableBackslashed = launchConfig.executablePath.replace("/", "\\").trim()
+        // Рабочий каталог — папка exe, а не корень игры (иначе игра не находит
+        // свои DLL/ассеты → «путь неверный»). Если в метаданных задан workingDir —
+        // blank, как у эталона (ColdClient сам разруливает).
+        val launchWorkingDir = launchInfo?.workingDir
+            ?: SteamService.getWindowsLaunchInfos(steamAppId)
+                .firstOrNull { it.executable.replace("/", "\\").equals(executableBackslashed, ignoreCase = true) }
+                ?.workingDir
+            ?: SteamService.getWindowsLaunchInfos(steamAppId).firstOrNull()?.workingDir.orEmpty()
+        val iniText = generateColdClientIni(
+            gameName = gameName,
+            executablePath = launchConfig.executablePath,
+            exeCommandLine = launchConfig.exeCommandLine,
+            steamAppId = steamAppId,
+            workingDir = launchWorkingDir,
+            exeRunDirOverride = launchConfig.exeRunDirOverride,
+        )
+        val exePathLogged = iniText.lineSequence().firstOrNull { it.startsWith("Exe=") }.orEmpty()
+        val exeRunDirLogged = iniText.lineSequence().firstOrNull { it.startsWith("ExeRunDir=") }.orEmpty()
+        Timber.i("ColdClient ini appId=$steamAppId $exePathLogged $exeRunDirLogged Cmd='${launchConfig.exeCommandLine}'")
+        val iniFile = File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini")
+        iniFile.parentFile?.mkdirs()
+        iniFile.writeText(iniText)
     }
 
     private fun coreSteamClientFiles(): Array<String> = arrayOf(
@@ -662,8 +746,8 @@ object SteamUtils {
         }
     }
 
-    private fun queuePendingGoldbergSync(context: Context, appId: Int) {
-        runCatching {
+    @JvmStatic
+    fun queuePendingGoldbergSync(context: Context, appId: Int) {        runCatching {
             val file = File(context.filesDir, "pending_goldberg_syncs.json")
             val set = if (file.exists()) {
                 val arr = JSONArray(file.readText())
@@ -696,7 +780,10 @@ object SteamUtils {
             commonDir.mkdirs()
 
             val gameDir = File(SteamService.getAppDirPath(steamAppId))
-            val gameName = gameDir.name
+            // Оригинальные DLL до записи манифеста (.orig -> .dll)
+            putBackSteamDlls(gameDir.absolutePath)
+            // Симлинк — installDir || name из метаданных, как ColdClient видит игру
+            val gameName = getAppDirName(getAppInfoOf(steamAppId)).ifEmpty { gameDir.name }
             val sizeOnDisk = calculateDirectorySize(gameDir)
 
             // Create symlink from Steam common directory to actual game directory
@@ -710,14 +797,15 @@ object SteamUtils {
                 }
             }
 
-            val buildId = appInfo.branches["public"]?.buildId ?: 0L
+            val selectedBranch = PrefManager.getSteamSelectedBranch(steamAppId)
+            val buildId = (appInfo.branches[selectedBranch] ?: appInfo.branches["public"])?.buildId ?: 0L
             val downloadableDepots = SteamService.getDownloadableDepots(steamAppId)
 
             val regularDepots = mutableMapOf<Int, DepotInfo>()
             val sharedDepots = mutableMapOf<Int, DepotInfo>()
 
             downloadableDepots.forEach { (depotId, depotInfo) ->
-                val manifest = depotInfo.manifests["public"]
+                val manifest = depotInfo.manifests[selectedBranch] ?: depotInfo.manifests["public"]
                 if (manifest != null && manifest.gid != 0L) {
                     regularDepots[depotId] = depotInfo
                 } else {
@@ -750,7 +838,7 @@ object SteamUtils {
                     appendLine("\t\"InstalledDepots\"")
                     appendLine("\t{")
                     regularDepots.forEach { (depotId, depotInfo) ->
-                        val manifest = depotInfo.manifests["public"]
+                        val manifest = depotInfo.manifests[selectedBranch] ?: depotInfo.manifests["public"]
                         appendLine("\t\t\"$depotId\"")
                         appendLine("\t\t{")
                         appendLine("\t\t\t\"manifest\"\t\t\"${manifest?.gid ?: "0"}\"")
@@ -760,8 +848,9 @@ object SteamUtils {
                     appendLine("\t}")
                 }
 
-                appendLine("\t\"UserConfig\" { \"language\" \"english\" }")
-                appendLine("\t\"MountedConfig\" { \"language\" \"english\" }")
+                val acfLanguage = PrefManager.containerLanguage.takeIf { it.isNotBlank() } ?: "english"
+                appendLine("\t\"UserConfig\" { \"language\" \"$acfLanguage\" }")
+                appendLine("\t\"MountedConfig\" { \"language\" \"$acfLanguage\" }")
                 appendLine("}")
             }
 
@@ -965,6 +1054,13 @@ object SteamUtils {
             }
 
             // --- configs.user.ini ---
+            // Хардкод "english" заменён: дефолт берём из PrefManager.containerLanguage (fallback english)
+            val resolvedLanguage = when {
+                language.isBlank() -> PrefManager.containerLanguage.takeIf { it.isNotBlank() } ?: "english"
+                language.equals("english", ignoreCase = true) ->
+                    PrefManager.containerLanguage.takeIf { it.isNotBlank() } ?: "english"
+                else -> language
+            }
             val accountName = PrefManager.username.takeIf { it.isNotEmpty() } ?: "Player"
             val accountSteamId = SteamService.userSteamId?.convertToUInt64()?.toString()
                 ?: PrefManager.steamUserSteamId64.takeIf { it != 0L }?.toString()
@@ -980,7 +1076,7 @@ object SteamUtils {
                 appendLine("[user::general]")
                 appendLine("account_name=$accountName")
                 appendLine("account_steamid=$accountSteamId")
-                appendLine("language=${language.lowercase()}")
+                appendLine("language=${resolvedLanguage.lowercase()}")
                 if (!ticketBase64.isNullOrEmpty()) {
                     appendLine("ticket=$ticketBase64")
                 }
@@ -1115,16 +1211,60 @@ object SteamUtils {
     }
 
     /**
+     * Deletes DRM backup artifacts (.original.exe, .unpacked.exe, steam_api*.dll.orig) left in
+     * the game directory by emulated-mode launches. Called when an update/verify download starts:
+     * the depot download restores pristine current-build files, so existing backups hold the
+     * previous build, and a later restore pass would overwrite freshly updated files with stale ones.
+     * Эталон GameNative SteamUtils.clearStaleDrmBackups.
+     */
+    @JvmStatic
+    fun clearStaleDrmBackups(appDirPath: String) {
+        val root = File(appDirPath)
+        if (!root.exists()) return
+        var deleted = 0
+        root.walkTopDown().maxDepth(10).forEach { file ->
+            if (!file.isFile) return@forEach
+            val name = file.name
+            val isBackup = name.endsWith(".original.exe", ignoreCase = true) ||
+                name.endsWith(".unpacked.exe", ignoreCase = true) ||
+                (name.startsWith("steam_api", ignoreCase = true) && name.endsWith(".dll.orig", ignoreCase = true))
+            if (isBackup && file.delete()) deleted++
+        }
+        if (deleted > 0) {
+            Timber.i("Deleted $deleted stale DRM backup file(s) in $appDirPath")
+        }
+    }
+    /**
      * Updates localconfig.vdf with the container's LaunchOptions for the given appId,
      * and updates UserConfig/MountedConfig language in the ACF manifest.
      * Mirrors GameNative's updateOrModifyLocalConfig().
      */
     @JvmStatic
-    fun updateOrModifyLocalConfig(imageFs: ImageFs, container: Container, appId: String, steamUserId64: String) {
+    @JvmOverloads
+    fun updateOrModifyLocalConfig(imageFs: ImageFs, container: Container, appId: String, steamUserId64: String, exeCommandLine: String? = null) {
         try {
-            val exeCommandLine = ""
+            val effectiveExeCommandLine = sanitizeColdClientArgumentText(
+                exeCommandLine ?: container.getExtra("execArgs", ""),
+            )
 
-            val steamPath = File(imageFs.wineprefix, "drive_c/Program Files (x86)/Steam")
+            // Приоритет — префикс контейнера; расхождение с ImageFs только warn, не ошибка
+            val containerWinePrefix = runCatching { container.rootDir?.let { File(it, ".wine") } }.getOrNull()
+            val imageFsWinePrefix = runCatching { File(imageFs.wineprefix) }.getOrNull()
+            val winePrefixPath = if (containerWinePrefix != null && imageFsWinePrefix != null) {
+                val diverged = runCatching {
+                    containerWinePrefix.canonicalPath != imageFsWinePrefix.canonicalPath
+                }.getOrDefault(false)
+                if (diverged) {
+                    Timber.w(
+                        "steamDir divergence: container ${containerWinePrefix.absolutePath} " +
+                            "!= ImageFs ${imageFsWinePrefix.absolutePath}; using container prefix",
+                    )
+                }
+                containerWinePrefix.absolutePath
+            } else {
+                imageFs.wineprefix
+            }
+            val steamPath = File(winePrefixPath, "drive_c/Program Files (x86)/Steam")
             val userDataPath = File(steamPath, "userdata/$steamUserId64")
             val configPath = File(userDataPath, "config")
             configPath.mkdirs()
@@ -1139,16 +1279,16 @@ object SteamUtils {
                         val app = vdfData["Software"]["Valve"]["Steam"]["apps"][appId]
                         val option = app.children.firstOrNull { it.name == "LaunchOptions" }
                         if (option != null) {
-                            option.value = exeCommandLine.orEmpty()
+                            option.value = effectiveExeCommandLine
                         } else {
-                            app.children.add(KeyValue("LaunchOptions", exeCommandLine))
+                            app.children.add(KeyValue("LaunchOptions", effectiveExeCommandLine))
                         }
                         vdfData.saveToFile(localConfigFile, false)
                     }
                 }
             } else {
                 val vdfData = KeyValue("UserLocalConfigStore")
-                val option = KeyValue("LaunchOptions", exeCommandLine)
+                val option = KeyValue("LaunchOptions", effectiveExeCommandLine)
                 val software = KeyValue("Software")
                 val valve = KeyValue("Valve")
                 val steam = KeyValue("Steam")
@@ -1169,6 +1309,7 @@ object SteamUtils {
             val userLanguage = runCatching {
                 container.getExtra("containerLanguage", null)
                     ?.takeIf { it.isNotEmpty() }
+                    ?: PrefManager.containerLanguage.takeIf { it.isNotEmpty() }
                     ?: "english"
             }.getOrDefault("english")
 
@@ -1202,6 +1343,64 @@ object SteamUtils {
         } catch (e: Exception) {
             Timber.e(e, "Failed to update or modify local config for appId $appId")
         }
+    }
+
+    // ===== Достижения (паритет GameNative) =====
+
+    /** Базовый CDN-URL иконок достижений игры. */
+    @JvmStatic
+    fun getBaseAchievementIconUrl(appId: Int): String =
+        "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/$appId/"
+
+    /**
+     * Имя языка схемы достижений Steam для текущей локали.
+     * Совпадает с GameNative: koreana/latam/brazilian/schinese/tchinese + деривация остальных.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun steamLanguageForAppLocale(locale: java.util.Locale = java.util.Locale.getDefault()): String {
+        return when (locale.language) {
+            "ko" -> "koreana"
+            "es" -> if (locale.country.isNotEmpty() && !locale.country.equals("ES", true)) "latam" else "spanish"
+            "pt" -> if (locale.country.equals("BR", true)) "brazilian" else "portuguese"
+            "zh" -> if (locale.country.equals("TW", true) || locale.country.equals("HK", true) ||
+                locale.country.equals("MO", true) || locale.script.equals("Hant", true)
+            ) {
+                "tchinese"
+            } else {
+                "schinese"
+            }
+            else -> locale.getDisplayLanguage(java.util.Locale.ENGLISH).lowercase(java.util.Locale.ENGLISH).substringBefore(' ')
+        }
+    }
+
+    /**
+     * Локализованный текст из карты схемы (displayName/description).
+     * Фолбэк: язык системы -> english -> russian -> первая непустая -> [fallback].
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun resolveAchievementText(map: Map<String, String>?, fallback: String = ""): String {
+        if (map.isNullOrEmpty()) return fallback
+        val lang = steamLanguageForAppLocale()
+        return map[lang]?.takeIf { it.isNotBlank() }
+            ?: map["english"]?.takeIf { it.isNotBlank() }
+            ?: map["russian"]?.takeIf { it.isNotBlank() }
+            ?: map.values.firstOrNull { it.isNotBlank() }
+            ?: fallback
+    }
+
+    /**
+     * Полный URL иконки достижения. Схема хранит имя файла (иногда с префиксом img/),
+     * CDN отдаёт его по базовому URL игры.
+     */
+    @JvmStatic
+    fun resolveAchievementIconUrl(rawIcon: String?, appId: Int): String {
+        if (rawIcon.isNullOrBlank()) return ""
+        val clean = rawIcon.trim().removePrefix("img/").removePrefix("./")
+        if (clean.startsWith("http://") || clean.startsWith("https://")) return clean
+        if (clean.isBlank()) return ""
+        return getBaseAchievementIconUrl(appId) + clean
     }
 
     /**

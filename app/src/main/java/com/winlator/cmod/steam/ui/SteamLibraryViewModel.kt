@@ -85,6 +85,7 @@ data class SteamGameDetailUi(
     val installPath: String,
     val downloadSizeBytes: Long,
     val installSizeBytes: Long,
+    val sizeOnDiskBytes: Long? = null,
     val availableBytes: Long,
     val downloadedBytes: Long,
     val totalBytes: Long,
@@ -607,6 +608,12 @@ class SteamLibraryViewModel : ViewModel() {
             runCatching { StorageUtils.getAvailableSpace(installPath) }.getOrDefault(currentSelected?.availableBytes ?: 0L)
         }
         val bytesProgress = downloadInfo?.getBytesProgress() ?: (0L to manifestSizes.downloadSize)
+        // True-size: замеренный размер на диске для установленной игры (как Bannerlator).
+        val sizeOnDiskBytes = if (installed) {
+            runCatching { StorageUtils.getFolderSize(installPath) }.getOrNull()?.takeIf { it > 0L }
+        } else {
+            null
+        }
         val statusLine = when {
             installed && status != DownloadPhase.DOWNLOADING -> appContext.getString(R.string.steam_library_installed_badge)
             status == DownloadPhase.PREPARING -> appContext.getString(R.string.steam_library_status_downloading)
@@ -634,6 +641,7 @@ class SteamLibraryViewModel : ViewModel() {
             installPath = installPath,
             downloadSizeBytes = manifestSizes.downloadSize,
             installSizeBytes = manifestSizes.installSize,
+            sizeOnDiskBytes = sizeOnDiskBytes,
             availableBytes = availableBytes,
             downloadedBytes = bytesProgress.first,
             totalBytes = bytesProgress.second,

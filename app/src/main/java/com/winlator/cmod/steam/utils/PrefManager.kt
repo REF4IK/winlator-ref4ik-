@@ -149,8 +149,8 @@ object PrefManager {
         set(value) { encode("container_language", value) }
         
     var downloadSpeed: Int
-        get() = decodeInt("download_speed", 16)
-        set(value) { encode("download_speed", value) }
+        get() = decodeInt("download_speed", 16).coerceIn(8, 32)
+        set(value) { encode("download_speed", value.coerceIn(8, 32)) }
         
     var clientId: Long
         get() = decodeLong("client_id", 0L)
@@ -252,6 +252,14 @@ object PrefManager {
         if (appId <= 0) return
         mmkv?.remove("steam_selected_branch_$appId")
     }
+
+    var steamFriendsRequestBatchSize: Int
+        get() = decodeInt("steam_friends_request_batch_size", 100)
+        set(value) { encode("steam_friends_request_batch_size", value) }
+
+    var chatHistoryKeepCount: Int
+        get() = decodeInt("chat_history_keep_count", 500)
+        set(value) { encode("chat_history_keep_count", value) }
 
     fun getSteamWorkshopEnabledItemIds(appId: Int): Set<Long> {
         if (appId <= 0) return emptySet()

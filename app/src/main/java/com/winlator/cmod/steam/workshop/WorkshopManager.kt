@@ -31,6 +31,7 @@ object WorkshopManager {
     private const val PAGE_SIZE = 100
     private const val COMPLETE_MARKER = ".workshop_complete"
     private const val META_FILE = ".workshop_meta.json"
+    private const val COPY_SENTINEL = ".winlator_workshop"
     private val httpClient = OkHttpClient.Builder().followRedirects(true).followSslRedirects(true).build()
 
     suspend fun getSubscribedItems(
@@ -130,17 +131,23 @@ object WorkshopManager {
     ): Int {
         if (!workshopContentDir.exists()) return 0
         val subscribedIds = subscribedItems.map { it.publishedFileId }.toSet()
-        val onDiskDirs = workshopContentDir.listFiles()
-            ?.filter { it.isDirectory && it.name.toLongOrNull() != null }
-            ?: return 0
+        val entries = workshopContentDir.listFiles() ?: return 0
 
         var removedCount = 0
-        onDiskDirs.forEach { dir ->
-            val id = dir.name.toLong()
-            if (id !in subscribedIds && dir.deleteRecursively()) {
-                removedCount++
+        entries.forEach { entry ->
+            // Убираем и orphan .partial-каталоги без числового соседа
+            val baseName = entry.name.removeSuffix(".partial")
+            val id = baseName.toLongOrNull() ?: return@forEach
+            if (id in subscribedIds) return@forEach
+            if (entry.isDirectory || entry.name.endsWith(".partial")) {
+                if (entry.deleteRecursively()) {
+                    removedCount++
+                    Timber.tag(TAG).d("Removed unsubscribed workshop item: ${entry.name}")
+                }
             }
-            File(workshopContentDir, "${dir.name}.partial").deleteRecursively()
+        }
+        if (removedCount > 0) {
+            Timber.tag(TAG).i("Cleaned up $removedCount unsubscribed workshop items")
         }
         return removedCount
     }
@@ -155,9 +162,21 @@ object WorkshopManager {
             }
 
             val itemDir = File(workshopContentDir, item.publishedFileId.toString())
+            val partialDir = File(workshopContentDir, "${item.publishedFileId}.partial")
             val markerFile = File(itemDir, COMPLETE_MARKER)
+
+            // DepotDownloader оставляет .partial после завершения — чистим stale,
+            // чтобы не было ложного re-download
+            if (markerFile.exists() && partialDir.exists()) {
+                partialDir.deleteRecursively()
+                Timber.tag(TAG).d("Cleaned leftover .partial for ${item.publishedFileId} '${item.title}'")
+            }
+
+            if (!markerFile.exists() || partialDir.exists()) {
+                return@filter true
+            }
             val contentFiles = itemDir.listFiles()?.filter { !it.name.startsWith(".") }.orEmpty()
-            if (!markerFile.exists() || contentFiles.isEmpty()) {
+            if (contentFiles.isEmpty()) {
                 return@filter true
             }
 
@@ -198,6 +217,14 @@ object WorkshopManager {
         val removed = if (fetchResult.isComplete) cleanupUnsubscribedItems(enabledItems, workshopContentDir) else 0
         val itemsToSync = getItemsNeedingSync(enabledItems, workshopContentDir)
 
+        // Проверка места перед sync (x2 с запасом на распаковку)
+        val totalSyncBytes = itemsToSync.sumOf { it.fileSizeBytes }
+        checkDiskSpace(workshopContentDir, totalSyncBytes * 2)?.let { spaceError ->
+            Timber.tag(TAG).e("$spaceError for appId=$appId")
+            onStatus(spaceError)
+            return@withContext WorkshopSyncResult(failedCount = itemsToSync.size, removedCount = removed)
+        }
+
         if (itemsToSync.isEmpty()) {
             updateMarkerTimestamps(enabledItems, workshopContentDir)
             return@withContext WorkshopSyncResult(
@@ -218,6 +245,7 @@ object WorkshopManager {
                     downloadWorkshopItem(item, workshopContentDir)
                     // Download preview image
                     downloadWorkshopPreview(item, workshopContentDir)
+                    writeItemMeta(item, workshopContentDir)
                     syncedCount++
                 } else if (item.manifestId != 0L) {
                     // Try depot-based download via SteamService
@@ -228,6 +256,7 @@ object WorkshopManager {
                         workshopContentDir = workshopContentDir,
                     )
                     if (depotDownloaded) {
+                        writeItemMeta(item, workshopContentDir)
                         syncedCount++
                     } else {
                         unsupportedCount++
@@ -420,6 +449,103 @@ object WorkshopManager {
         return removed
     }
 
+    /**
+     * Проверка свободного места. Возвращает текст ошибки или null если места хватает.
+     * Эталон GameNative WorkshopManager.checkDiskSpace.
+     */
+    fun checkDiskSpace(dir: File, requiredBytes: Long): String? {
+        val spaceDir = generateSequence(dir) { it.parentFile }.firstOrNull { it.exists() }
+        val availableBytes = spaceDir?.usableSpace ?: -1L
+        if (requiredBytes > 0 && availableBytes >= 0 && requiredBytes > availableBytes) {
+            val reqMB = String.format(java.util.Locale.US, "%.0f", requiredBytes / 1_048_576.0)
+            val avlMB = String.format(java.util.Locale.US, "%.0f", availableBytes / 1_048_576.0)
+            return "Not enough space (need $reqMB MB, have $avlMB MB)"
+        }
+        return null
+    }
+
+    /** Per-item meta .workshop_meta.json рядом с контентом (title/size/time/preview). */
+    private fun writeItemMeta(item: WorkshopItem, workshopContentDir: File) {
+        val itemDir = File(workshopContentDir, item.publishedFileId.toString())
+        if (!itemDir.isDirectory) return
+        runCatching {
+            val meta = JSONObject().apply {
+                put("id", item.publishedFileId)
+                put("app_id", item.appId)
+                put("title", item.title)
+                put("file_size", item.fileSizeBytes)
+                put("time_updated", item.timeUpdated)
+                if (item.fileName.isNotBlank()) put("file_name", item.fileName)
+                if (item.previewUrl.isNotBlank()) put("preview_url", item.previewUrl)
+                if (File(itemDir, "preview.jpg").exists()) put("preview_file", "preview.jpg")
+            }
+            File(itemDir, ".workshop_meta.json").writeText(meta.toString(2))
+        }
+    }
+
+    private fun findPreviewImage(itemDir: File): File? =
+        itemDir.listFiles()?.firstOrNull {
+            it.isFile && it.name.startsWith("preview.", ignoreCase = true) &&
+                it.extension.lowercase() in setOf("jpg", "jpeg", "png", "gif")
+        }
+
+    private fun isWorkshopPayloadFile(file: File): Boolean =
+        file.isFile && !file.name.startsWith(".") &&
+            !file.name.startsWith("preview.", ignoreCase = true)
+
+    private fun workshopPayloadFiles(itemDir: File): Sequence<File> =
+        itemDir.walkTopDown().filter { isWorkshopPayloadFile(it) }
+
+    private fun workshopPayloadSize(itemDir: File): Long =
+        if (itemDir.isDirectory) workshopPayloadFiles(itemDir).sumOf { it.length() } else 0L
+
+    /** Результат best-effort проверки обновлений перед запуском (эталон PluviaMain:2328). */
+    data class WorkshopUpdateCheck(
+        val itemsToSync: List<WorkshopItem>,
+        val allItems: List<WorkshopItem>,
+        val workshopContentDir: File,
+        val totalUpdateBytes: Long,
+    )
+
+    /**
+     * Best-effort проверка обновлений воркшопа. Возвращает null когда
+     * обновлений нет (маркеры при этом освежаются) или проверка невозможна.
+     * Никогда не бросает наружу — запуск игры не блочится.
+     */
+    suspend fun checkForWorkshopUpdates(
+        appId: Int,
+        enabledIds: Set<Long>,
+        containerRootPath: String,
+    ): WorkshopUpdateCheck? = withContext(Dispatchers.IO) {
+        if (enabledIds.isEmpty()) return@withContext null
+        val steamClient = SteamService.instance?.steamClient ?: return@withContext null
+        val steamId = SteamService.userSteamId ?: return@withContext null
+
+        val fetchResult = runCatching { getSubscribedItems(appId, steamClient, steamId) }.getOrNull()
+            ?: return@withContext null
+        if (!fetchResult.succeeded || !fetchResult.isComplete) {
+            Timber.tag(TAG).w("Workshop fetch incomplete/failed for appId=$appId; skipping update check")
+            return@withContext null
+        }
+
+        val items = fetchResult.items.filter { it.publishedFileId in enabledIds }
+        val workshopContentDir = getWorkshopContentDir(containerRootPath, appId)
+        if (items.isEmpty()) return@withContext null
+
+        cleanupUnsubscribedItems(items, workshopContentDir)
+        val itemsToSync = getItemsNeedingSync(items, workshopContentDir)
+        if (itemsToSync.isEmpty()) {
+            updateMarkerTimestamps(items, workshopContentDir)
+            return@withContext null
+        }
+        WorkshopUpdateCheck(
+            itemsToSync = itemsToSync,
+            allItems = items,
+            workshopContentDir = workshopContentDir,
+            totalUpdateBytes = itemsToSync.sumOf { it.fileSizeBytes },
+        )
+    }
+
     private fun ensureActiveStatus(
         index: Int,
         total: Int,
@@ -524,20 +650,39 @@ object WorkshopManager {
                     sourceDir.copyRecursively(targetDir, overwrite = true)
                 }
 
-                // Build rich metadata
+                // Кладём preview в steam_settings/mod_images/<id>/ для gbe_fork
+                findPreviewImage(sourceDir)?.let { preview ->
+                    runCatching {
+                        val imagesDir = File(steamSettingsDir, "mod_images/$idStr")
+                        imagesDir.mkdirs()
+                        val dest = File(imagesDir, preview.name)
+                        if (!dest.isFile || dest.length() != preview.length()) {
+                            preview.copyTo(dest, overwrite = true)
+                        }
+                    }
+                }
+
+                // Build rich metadata (эталон GameNative buildModsJson)
+                val payloads = workshopPayloadFiles(sourceDir).toList()
+                val primary = payloads.minByOrNull { it.name }
+                val meta = cachedMeta.optJSONObject(idStr)
                 val modObj = JSONObject().apply {
                     put("id", idStr)
-                    val meta = cachedMeta.optJSONObject(idStr)
+                    put("title", meta?.optString("title")?.takeIf { it.isNotBlank() } ?: "Workshop Item $idStr")
+                    if (primary != null) {
+                        put("primary_filename", primary.name)
+                        put("primary_filesize", primary.length())
+                    }
+                    put("total_files_sizes", workshopPayloadSize(sourceDir))
+                    val timeUpdated = meta?.optLong("time_updated", 0L) ?: 0L
+                    if (timeUpdated > 0) put("time_updated", timeUpdated)
+                    findPreviewImage(sourceDir)?.let { put("preview_filename", it.name) }
                     if (meta != null) {
-                        put("title", meta.optString("title", "Workshop Item $idStr"))
                         if (meta.has("description")) put("description", meta.getString("description"))
                         if (meta.has("preview_url")) put("preview_url", meta.getString("preview_url"))
                         if (meta.has("preview_file")) put("preview_file", meta.getString("preview_file"))
                         if (meta.has("file_size")) put("file_size", meta.getLong("file_size"))
-                        if (meta.has("time_updated")) put("time_updated", meta.getLong("time_updated"))
                         if (meta.has("author")) put("author", meta.getString("author"))
-                    } else {
-                        put("title", "Workshop Item $idStr")
                     }
                 }
                 jsonArray.put(modObj)
@@ -550,6 +695,97 @@ object WorkshopManager {
         } else {
             if (modsJsonFile.exists()) modsJsonFile.delete()
         }
+
+        // Fan-out в папку игры по детекту (SymlinkIntoDir/CopyIntoDir), best-effort
+        runCatching {
+            val gameName = runCatching {
+                com.winlator.cmod.steam.service.SteamService.getAppInfoOf(appId)?.name
+            }.getOrNull().orEmpty()
+            val detection = WorkshopModPathDetector().detect(
+                gameInstallDir = File(gameInstallPath),
+                winePrefix = File(containerRootPath),
+                gameName = gameName,
+            )
+            applyModPathStrategy(detection.strategy, workshopContentDir, enabledIds)
+        }
+    }
+
+    /**
+     * Раскладка модов в папку игры по стратегии детекта.
+     * Трогаем только наши симлинки (в workshop/content) и каталоги с сентинелом.
+     */
+    private fun applyModPathStrategy(
+        strategy: WorkshopModPathStrategy,
+        workshopContentDir: File,
+        enabledIds: Set<Long>,
+    ) {
+        val (targetDirs, useCopy) = when (strategy) {
+            is WorkshopModPathStrategy.Standard -> return
+            is WorkshopModPathStrategy.SymlinkIntoDir -> strategy.effectiveDirs to false
+            is WorkshopModPathStrategy.CopyIntoDir -> strategy.effectiveDirs to true
+        }
+        val activeDirs = enabledIds.mapNotNull { id ->
+            File(workshopContentDir, id.toString())
+                .takeIf { it.isDirectory }
+                ?.let { id.toString() to it }
+        }.toMap()
+        if (activeDirs.isEmpty()) return
+
+        targetDirs.forEach { targetDir ->
+            runCatching { targetDir.mkdirs() }
+            if (!targetDir.isDirectory) return@forEach
+            // Чистим stale наши записи
+            targetDir.listFiles()?.forEach { entry ->
+                val isOurs = when {
+                    java.nio.file.Files.isSymbolicLink(entry.toPath()) -> isWorkshopContentSymlink(entry, workshopContentDir)
+                    entry.isDirectory -> File(entry, COPY_SENTINEL).isFile
+                    else -> false
+                }
+                if (isOurs && entry.name !in activeDirs) {
+                    runCatching { entry.deleteRecursively() }
+                }
+            }
+            // Кладём активные (fan-out по effectiveDirs)
+            activeDirs.forEach { (idStr, srcDir) ->
+                val link = File(targetDir, idStr)
+                if (java.nio.file.Files.isSymbolicLink(link.toPath())) {
+                    if (isWorkshopContentSymlink(link, workshopContentDir)) return@forEach
+                    runCatching { java.nio.file.Files.deleteIfExists(link.toPath()) }
+                } else if (link.exists()) {
+                    if (link.isDirectory && File(link, COPY_SENTINEL).isFile) {
+                        link.deleteRecursively()
+                    } else {
+                        return@forEach // чужое — не трогаем
+                    }
+                }
+                if (useCopy) {
+                    runCatching {
+                        srcDir.copyRecursively(link, overwrite = true)
+                        File(link, COPY_SENTINEL).writeText(srcDir.absolutePath)
+                    }
+                } else {
+                    runCatching { Os.symlink(srcDir.absolutePath, link.absolutePath) }
+                        .onFailure {
+                            runCatching {
+                                srcDir.copyRecursively(link, overwrite = true)
+                                File(link, COPY_SENTINEL).writeText(srcDir.absolutePath)
+                            }
+                        }
+                }
+            }
+        }
+        Timber.tag(TAG).i("Applied workshop strategy ${strategy::class.simpleName} to ${targetDirs.size} dir(s)")
+    }
+
+    private fun isWorkshopContentSymlink(entry: File, workshopContentDir: File): Boolean {
+        if (!java.nio.file.Files.isSymbolicLink(entry.toPath())) return false
+        return runCatching {
+            val raw = java.nio.file.Files.readSymbolicLink(entry.toPath())
+            val resolved = if (raw.isAbsolute) raw else entry.toPath().parent.resolve(raw)
+            val text = runCatching { resolved.toRealPath().toString() }
+                .getOrElse { resolved.normalize().toAbsolutePath().toString() }
+            text.contains("workshop/content/") || text.startsWith(workshopContentDir.absolutePath)
+        }.getOrDefault(false)
     }
 
     /**

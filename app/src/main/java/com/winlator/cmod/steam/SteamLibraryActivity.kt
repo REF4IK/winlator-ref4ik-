@@ -143,6 +143,8 @@ import com.winlator.cmod.steam.enums.PathType
 import com.winlator.cmod.steam.enums.SaveLocation
 import com.winlator.cmod.steam.enums.SyncResult
 import com.winlator.cmod.steam.service.SteamService
+import com.winlator.cmod.steam.achievements.AchievementOverlay
+import com.winlator.cmod.steam.achievements.AchievementWatcherHost
 import com.winlator.cmod.steam.ui.SteamContainerOption
 import androidx.compose.material3.HorizontalDivider
 import com.winlator.cmod.steam.ui.AchievementsSheet
@@ -284,11 +286,12 @@ class SteamLibraryActivity : ComponentActivity() {
                     viewModel.loadContainers()
                 }
 
-                SteamLibraryScreen(
-                    state = state,
+                Box(modifier = Modifier.fillMaxSize()) {
+                    SteamLibraryScreen(
+                        state = state,
                     requestedSelectedGameId = pendingSelectedAppId,
                     onBack = ::finish,
-                    onLogin = { loginLauncher.launch(Intent(this, SteamLoginActivity::class.java)) },
+                    onLogin = { loginLauncher.launch(Intent(activity, SteamLoginActivity::class.java)) },
                     onRefresh = viewModel::refreshLibrary,
                     onLogout = viewModel::logOut,
                     onSetOfflineMode = viewModel::setOfflineMode,
@@ -362,7 +365,10 @@ class SteamLibraryActivity : ComponentActivity() {
                     onSelectedGameRequestConsumed = {
                         pendingSelectedAppId = null
                     },
-                )
+                    )
+                    AchievementWatcherHost(appId = state.selectedGame?.appId)
+                    AchievementOverlay()
+                }
             }
         }
     }
@@ -709,6 +715,39 @@ private fun SteamLibraryScreen(
                         onClick = {
                             wifiOnly = !wifiOnly
                             PrefManager.autoUpdateWifiOnly = wifiOnly
+                        },
+                    )
+                }
+                HorizontalDivider()
+                Text(
+                    text = stringResource(R.string.steam_library_download_speed_title),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                HorizontalDivider()
+                var downloadSpeed by remember { mutableStateOf(PrefManager.downloadSpeed) }
+                val speedOptions = listOf(
+                    8 to stringResource(R.string.steam_library_download_speed_slow),
+                    16 to stringResource(R.string.steam_library_download_speed_medium),
+                    24 to stringResource(R.string.steam_library_download_speed_fast),
+                    32 to stringResource(R.string.steam_library_download_speed_max),
+                )
+                speedOptions.forEach { (value, label) ->
+                    val selected = downloadSpeed == value
+                    SteamMenuRow(
+                        text = label,
+                        bold = selected,
+                        textColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        trailing = {
+                            if (selected) {
+                                Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        onClick = {
+                            downloadSpeed = value
+                            PrefManager.downloadSpeed = value
                         },
                     )
                 }
@@ -2236,7 +2275,12 @@ private fun SteamGameOverlay(
                                 CompactStatCard(
                                     icon = Icons.Filled.Storage,
                                     label = stringResource(R.string.steam_library_size),
-                                    value = "${formatBinarySize(game.downloadSizeBytes)} / ${formatBinarySize(game.installSizeBytes)}",
+                                    value = buildString {
+                                        append("${formatBinarySize(game.downloadSizeBytes)} / ${formatBinarySize(game.installSizeBytes)}")
+                                        game.sizeOnDiskBytes?.takeIf { it > 0L }?.let {
+                                            append(" • ${formatBinarySize(it)}")
+                                        }
+                                    },
                                     modifier = Modifier.weight(1f),
                                 )
                                 CompactStatCard(

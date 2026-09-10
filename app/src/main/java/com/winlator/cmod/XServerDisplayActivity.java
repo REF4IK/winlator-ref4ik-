@@ -4551,8 +4551,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 ((VulkanRenderer) renderer).toggleFullscreen();
             }
 
-            if (renderer instanceof VulkanRenderer) {
-                ((VulkanRenderer) renderer).setUnviewableWMClasses("explorer.exe");
+            if (renderer != null) {
+                renderer.setUnviewableWMClasses("explorer.exe");
             }
 
         }
