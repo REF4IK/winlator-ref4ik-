@@ -224,11 +224,15 @@ fun GameRing(
     Box(modifier = Modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val stroke = 7.dp.toPx()
+            val arcTopLeft = androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2)
+            val arcSize = androidx.compose.ui.geometry.Size(this.size.width - stroke, this.size.height - stroke)
             drawArc(
                 color = Color(0xFF4A4A4A),
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
             drawArc(
@@ -236,6 +240,8 @@ fun GameRing(
                 startAngle = -90f,
                 sweepAngle = (progress.coerceIn(0f, 1f)) * 360f,
                 useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
         }

@@ -596,6 +596,7 @@ fun XPanelTaskManager(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
         }
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 GameRing("$cpuUsage%", "CPU", cpuUsage / 100f)
                 GameRing("$memPct%", "MEM", memPct / 100f, ringColor = Color(0xFF4FC3F7))

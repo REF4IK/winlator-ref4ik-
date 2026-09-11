@@ -113,13 +113,13 @@ fun XServerMenuOverlay(
         val list = mutableListOf<XMenuItem>()
         if (visible("keyboard")) list.add(XMenuItem(R.id.main_menu_keyboard, R.string.keyboard, null, R.drawable.icon_keyboard, false))
         if (visible("input_controls")) list.add(XMenuItem(R.id.main_menu_input_controls, R.string.input_controls, null, R.drawable.icon_input_controls, true))
-        if (visible("toggle_fullscreen")) list.add(XMenuItem(R.id.main_menu_toggle_fullscreen, R.string.toggle_fullscreen, null, R.drawable.icon_fullscreen, false))
-        if (visible("pip_mode")) list.add(XMenuItem(R.id.main_menu_pip_mode, R.string.pip_mode, null, R.drawable.ic_picture_in_picture_alt, false))
-        if (visible("frame_generation")) list.add(XMenuItem(R.id.main_menu_frame_generation, R.string.lsfg_title, null, R.drawable.icon_screen_effect, true))
-        if (visible("screen_effects")) list.add(XMenuItem(R.id.main_menu_screen_effects, R.string.screen_effect, null, R.drawable.icon_screen_effect, true))
         if (visible("task_manager")) list.add(XMenuItem(R.id.main_menu_task_manager, R.string.task_manager, null, R.drawable.icon_task_manager, true))
         if (visible("fps_counter")) list.add(XMenuItem(R.id.main_menu_fps_counter, R.string.fps_counter, null, R.drawable.icon_debug, true))
+        if (visible("frame_generation")) list.add(XMenuItem(R.id.main_menu_frame_generation, R.string.lsfg_title, null, R.drawable.icon_screen_effect, true))
+        if (visible("screen_effects")) list.add(XMenuItem(R.id.main_menu_screen_effects, R.string.screen_effect, null, R.drawable.icon_screen_effect, true))
         if (visible("active_windows")) list.add(XMenuItem(R.id.main_menu_active_windows, R.string.active_windows, null, R.drawable.icon_window_list, true))
+        if (visible("toggle_fullscreen")) list.add(XMenuItem(R.id.main_menu_toggle_fullscreen, R.string.toggle_fullscreen, null, R.drawable.icon_fullscreen, false))
+        if (visible("pip_mode")) list.add(XMenuItem(R.id.main_menu_pip_mode, R.string.pip_mode, null, R.drawable.ic_picture_in_picture_alt, false))
         if (visible("pause")) list.add(
             XMenuItem(
                 R.id.main_menu_pause, null,
