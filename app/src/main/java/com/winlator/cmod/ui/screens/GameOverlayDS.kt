@@ -42,9 +42,6 @@ val GameCardShape = RoundedCornerShape(14.dp)
 
 @Composable
 fun GamePanelShell(
-    title: String,
-    iconRes: Int? = null,
-    onClose: (() -> Unit)? = null,
     footer: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -53,42 +50,6 @@ fun GamePanelShell(
             .fillMaxSize()
             .padding(horizontal = 18.dp, vertical = 14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (iconRes != null) {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    tint = GameOverlayColors.Accent,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-            }
-            Text(
-                text = title,
-                color = GameOverlayColors.TextPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            if (onClose != null) {
-                IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
-                    Text("✕", color = GameOverlayColors.TextSecondary, fontSize = 16.sp)
-                }
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(GameOverlayColors.Track.copy(alpha = 0.6f))
-        )
-        Spacer(Modifier.height(10.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -316,40 +277,61 @@ fun GameFooterOkCancel(
 }
 
 @Composable
-fun GameRailButton(
+fun GameRailItem(
     iconRes: Int,
+    label: String,
     contentDesc: String,
     selected: Boolean,
     dot: Boolean = false,
     onClick: () -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
-            .size(52.dp)
-            .clip(CircleShape)
-            .background(if (selected) GameOverlayColors.Accent else Color.Transparent)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = contentDesc,
-            tint = if (selected) Color.Black else GameOverlayColors.TextPrimary,
-            modifier = Modifier.size(24.dp)
-        )
-        if (dot) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-6).dp, y = 6.dp)
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF4CAF50))
             )
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(if (selected) GameOverlayColors.Accent else Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = contentDesc,
+                tint = if (selected) Color.Black else GameOverlayColors.TextPrimary,
+                modifier = Modifier.size(24.dp)
+            )
+            if (dot) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-6).dp, y = 6.dp)
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4CAF50))
+                )
+            }
         }
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = label,
+            color = if (selected) GameOverlayColors.Accent else GameOverlayColors.TextSecondary,
+            fontSize = 9.sp,
+            lineHeight = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

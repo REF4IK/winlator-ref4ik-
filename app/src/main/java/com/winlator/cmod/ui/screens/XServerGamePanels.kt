@@ -77,9 +77,6 @@ fun XPanelInput(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
     var relativeMouse by remember { mutableStateOf(preferences.getBoolean("relative_mouse_movement", false)) }
 
     GamePanelShell(
-        title = stringResource(R.string.input_controls),
-        iconRes = R.drawable.icon_input_controls,
-        onClose = onDismiss,
         footer = {
             GameFooterOkCancel(
                 onCancel = onDismiss,
@@ -140,7 +137,7 @@ fun XPanelFrameGen(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
     val container = activity.getContainer()
     if (container == null) { onDismiss(); return }
     if (!com.winlator.cmod.core.LsfgNative.isDllAvailable(activity)) {
-        GamePanelShell(title = stringResource(R.string.lsfg_title), iconRes = R.drawable.icon_screen_effect, onClose = onDismiss) {
+        GamePanelShell {
             Text(stringResource(R.string.lsfg_not_in_library), color = GameOverlayColors.TextPrimary, fontSize = 13.sp)
         }
         return
@@ -161,9 +158,6 @@ fun XPanelFrameGen(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
     val multVals = listOf(0, 2, 3, 4)
 
     GamePanelShell(
-        title = stringResource(R.string.lsfg_title),
-        iconRes = R.drawable.icon_screen_effect,
-        onClose = onDismiss,
         footer = {
             GameFooterOkCancel(
                 onCancel = onDismiss,
@@ -331,9 +325,6 @@ fun XPanelEffects(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
     }
 
     GamePanelShell(
-        title = stringResource(R.string.screen_effect),
-        iconRes = R.drawable.icon_screen_effect,
-        onClose = onDismiss,
         footer = {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(onClick = { resetSettings() }) {
@@ -450,9 +441,6 @@ fun XPanelFps(onDismiss: () -> Unit, onConfigChanged: () -> Unit) {
     var whiteFonts by remember { mutableStateOf(config.isWhiteFonts()) }
 
     GamePanelShell(
-        title = stringResource(R.string.fps_counter_settings_title),
-        iconRes = R.drawable.icon_debug,
-        onClose = onDismiss,
         footer = {
             GameFooterOkCancel(
                 onCancel = onDismiss,
@@ -596,9 +584,6 @@ fun XPanelTaskManager(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
     val memPct = if (totalMem > 0) ((usedMem.toDouble() / totalMem) * 100).toInt() else 0
 
     GamePanelShell(
-        title = "${stringResource(R.string.task_manager)} · ${processes.size}",
-        iconRes = R.drawable.icon_task_manager,
-        onClose = onDismiss,
         footer = {
             Button(
                 onClick = {
@@ -751,9 +736,6 @@ fun XPanelActiveWindows(activity: XServerDisplayActivity, onDismiss: () -> Unit)
         }
     }
     GamePanelShell(
-        title = stringResource(R.string.active_windows),
-        iconRes = R.drawable.icon_window_list,
-        onClose = onDismiss
     ) {
         if (windows.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {

@@ -20,7 +20,7 @@ import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.ui.screens.GameOverlayColors
-import com.winlator.cmod.ui.screens.GameRailButton
+import com.winlator.cmod.ui.screens.GameRailItem
 import com.winlator.cmod.ui.screens.XPanelActiveWindows
 import com.winlator.cmod.ui.screens.XPanelEffects
 import com.winlator.cmod.ui.screens.XPanelFps
@@ -147,7 +147,7 @@ fun XServerMenuOverlay(
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val panelWidth = (maxWidth - 110.dp).coerceIn(300.dp, 410.dp)
+        val panelWidth = (maxWidth - 140.dp).coerceIn(300.dp, 410.dp)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -165,10 +165,10 @@ fun XServerMenuOverlay(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
-            // Rail
+            // Rail: иконка + подпись под ней
             Box(
                 modifier = Modifier
-                    .width(68.dp)
+                    .width(96.dp)
                     .fillMaxHeight(0.94f)
                     .clip(RoundedCornerShape(22.dp))
                     .background(GameOverlayColors.RailBg)
@@ -178,13 +178,14 @@ fun XServerMenuOverlay(
             ) {
                 LazyColumn(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp)
                 ) {
                     items(menuItems, key = { it.id }) { item ->
                         val title = item.titleRes?.let { stringResource(it) } ?: item.titleString ?: ""
-                        GameRailButton(
+                        GameRailItem(
                             iconRes = item.iconRes,
+                            label = title,
                             contentDesc = title,
                             selected = selectedId == item.id,
                             dot = item.id == R.id.main_menu_frame_generation && lsfgActive,
