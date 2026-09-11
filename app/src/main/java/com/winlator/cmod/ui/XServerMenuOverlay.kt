@@ -1,33 +1,32 @@
 package com.winlator.cmod.ui
 
 import android.view.View
+import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
-import com.winlator.cmod.container.Container
-import com.winlator.cmod.ui.screens.FpsCounterSettingsDialog
-import com.winlator.cmod.ui.screens.ActiveWindowsDialogCompose
-import com.winlator.cmod.ui.screens.ScreenEffectDialogCompose
-import com.winlator.cmod.ui.screens.FrameGenerationDialogCompose
-import com.winlator.cmod.ui.screens.InputControlsDialogCompose
+import com.winlator.cmod.ui.screens.GameOverlayColors
+import com.winlator.cmod.ui.screens.GameRailButton
+import com.winlator.cmod.ui.screens.XPanelActiveWindows
+import com.winlator.cmod.ui.screens.XPanelEffects
+import com.winlator.cmod.ui.screens.XPanelFps
+import com.winlator.cmod.ui.screens.XPanelFrameGen
+import com.winlator.cmod.ui.screens.XPanelInput
+import com.winlator.cmod.ui.screens.XPanelTaskManager
 
 class XServerMenuController(private val activity: XServerDisplayActivity) {
     private val composeOverlay: ComposeView = activity.findViewById(R.id.ComposeOverlay)
@@ -47,7 +46,6 @@ class XServerMenuController(private val activity: XServerDisplayActivity) {
             }
         }
 
-        // Set ViewTree owners on composeOverlay via reflection
         try {
             val viewClass = Class.forName("android.view.View")
             val viewTreeLifecycleOwnerClass = Class.forName("androidx.lifecycle.ViewTreeLifecycleOwner")
@@ -84,201 +82,149 @@ class XServerMenuController(private val activity: XServerDisplayActivity) {
     }
 }
 
+private data class XMenuItem(
+    val id: Int,
+    val titleRes: Int?,
+    val titleString: String?,
+    val iconRes: Int,
+    val hasPanel: Boolean
+)
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun XServerMenuOverlay(
     activity: XServerDisplayActivity,
     onDismiss: () -> Unit
 ) {
-    val isDark = com.winlator.cmod.contentdialog.ContentDialog.shouldUseDarkDialog(activity)
     val preferences = remember { MmkvPreferences() }
     val enableLogs = remember {
         preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box86_64_logs", false)
     }
 
     var isPaused by remember { mutableStateOf(activity.isPaused) }
-    // Флаг показа Compose-диалога счётчика FPS
-    var showFpsDialog by remember { mutableStateOf(false) }
-    var showActiveWindowsDialog by remember { mutableStateOf(false) }
-    var showScreenEffectDialog by remember { mutableStateOf(false) }
-    var showFrameGenDialog by remember { mutableStateOf(false) }
-    var showInputControlsDialog by remember { mutableStateOf(false) }
+    var selectedId by remember { mutableStateOf<Int?>(null) }
 
-    // Frame-gen status dot: live armed state (launch always starts disarmed).
     val container = remember { activity.getContainer() }
     val lsfgActive = container != null && container.isLsfgNative() && activity.getLastFgMult() >= 2
 
-    // List of menu items to render
-    data class XMenuItem(
-        val id: Int,
-        val titleRes: Int?,
-        val titleString: String?,
-        val iconRes: Int
-    )
-
     val menuItems = remember(isPaused, enableLogs) {
-        // Пункты, скрытые пользователем в настройках (Exit скрыть нельзя)
         val hidden = com.winlator.cmod.core.XServerMenuSettings.hiddenIds()
         fun visible(id: String) = id !in hidden
         val list = mutableListOf<XMenuItem>()
-        if (visible("keyboard")) list.add(XMenuItem(R.id.main_menu_keyboard, R.string.keyboard, null, R.drawable.icon_keyboard))
-        if (visible("input_controls")) list.add(XMenuItem(R.id.main_menu_input_controls, R.string.input_controls, null, R.drawable.icon_input_controls))
-        if (visible("toggle_fullscreen")) list.add(XMenuItem(R.id.main_menu_toggle_fullscreen, R.string.toggle_fullscreen, null, R.drawable.icon_fullscreen))
-        if (visible("pip_mode")) list.add(XMenuItem(R.id.main_menu_pip_mode, R.string.pip_mode, null, R.drawable.ic_picture_in_picture_alt))
-        if (visible("frame_generation")) list.add(XMenuItem(R.id.main_menu_frame_generation, R.string.lsfg_title, null, R.drawable.icon_screen_effect))
-        if (visible("screen_effects")) list.add(XMenuItem(R.id.main_menu_screen_effects, R.string.screen_effect, null, R.drawable.icon_screen_effect))
-        if (visible("task_manager")) list.add(XMenuItem(R.id.main_menu_task_manager, R.string.task_manager, null, R.drawable.icon_task_manager))
-        if (visible("fps_counter")) list.add(XMenuItem(R.id.main_menu_fps_counter, R.string.fps_counter, null, R.drawable.icon_debug))
-        if (visible("active_windows")) list.add(XMenuItem(R.id.main_menu_active_windows, R.string.active_windows, null, R.drawable.icon_window_list))
+        if (visible("keyboard")) list.add(XMenuItem(R.id.main_menu_keyboard, R.string.keyboard, null, R.drawable.icon_keyboard, false))
+        if (visible("input_controls")) list.add(XMenuItem(R.id.main_menu_input_controls, R.string.input_controls, null, R.drawable.icon_input_controls, true))
+        if (visible("toggle_fullscreen")) list.add(XMenuItem(R.id.main_menu_toggle_fullscreen, R.string.toggle_fullscreen, null, R.drawable.icon_fullscreen, false))
+        if (visible("pip_mode")) list.add(XMenuItem(R.id.main_menu_pip_mode, R.string.pip_mode, null, R.drawable.ic_picture_in_picture_alt, false))
+        if (visible("frame_generation")) list.add(XMenuItem(R.id.main_menu_frame_generation, R.string.lsfg_title, null, R.drawable.icon_screen_effect, true))
+        if (visible("screen_effects")) list.add(XMenuItem(R.id.main_menu_screen_effects, R.string.screen_effect, null, R.drawable.icon_screen_effect, true))
+        if (visible("task_manager")) list.add(XMenuItem(R.id.main_menu_task_manager, R.string.task_manager, null, R.drawable.icon_task_manager, true))
+        if (visible("fps_counter")) list.add(XMenuItem(R.id.main_menu_fps_counter, R.string.fps_counter, null, R.drawable.icon_debug, true))
+        if (visible("active_windows")) list.add(XMenuItem(R.id.main_menu_active_windows, R.string.active_windows, null, R.drawable.icon_window_list, true))
         if (visible("pause")) list.add(
             XMenuItem(
-                R.id.main_menu_pause,
-                null,
+                R.id.main_menu_pause, null,
                 if (isPaused) "Resume" else "Pause",
-                if (isPaused) R.drawable.icon_play else R.drawable.icon_pause
+                if (isPaused) R.drawable.icon_play else R.drawable.icon_pause, false
             )
         )
-        if (visible("winetricks")) list.add(XMenuItem(R.id.main_menu_winetricks, null, "Winetricks", R.drawable.icon_wine))
-        if (visible("terminal")) list.add(XMenuItem(R.id.main_menu_terminal, null, "Debug Terminal", R.drawable.icon_env_var))
+        if (visible("winetricks")) list.add(XMenuItem(R.id.main_menu_winetricks, null, "Winetricks", R.drawable.icon_wine, false))
+        if (visible("terminal")) list.add(XMenuItem(R.id.main_menu_terminal, null, "Debug Terminal", R.drawable.icon_env_var, false))
         if (enableLogs && visible("logs")) {
-            list.add(XMenuItem(R.id.main_menu_logs, R.string.logs, null, R.drawable.icon_debug))
+            list.add(XMenuItem(R.id.main_menu_logs, R.string.logs, null, R.drawable.icon_debug, false))
         }
-        list.add(XMenuItem(R.id.main_menu_exit, R.string.exit, null, R.drawable.icon_exit))
+        list.add(XMenuItem(R.id.main_menu_exit, R.string.exit, null, R.drawable.icon_exit, false))
         list
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss
-            )
-    ) {
-        // Sliding Drawer Card
+    fun onItemClick(item: XMenuItem) {
+        if (item.hasPanel) {
+            selectedId = if (selectedId == item.id) null else item.id
+        } else {
+            activity.handleXServerMenuAction(item.id)
+            if (item.id == R.id.main_menu_pause) isPaused = !isPaused
+            onDismiss()
+        }
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val panelWidth = (maxWidth - 110.dp).coerceIn(300.dp, 410.dp)
         Box(
             modifier = Modifier
-                .fillMaxHeight()
-                .width(280.dp)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = if (isDark) {
-                            listOf(Color(0xFF242424), Color(0xFF161616))
-                        } else {
-                            listOf(Color(0xFFFFFFFF), Color(0xFFEEEEEE))
-                        }
-                    )
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.35f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
                 )
-                .clickable(enabled = false) {} // Prevent click propagation
-                .padding(top = 24.dp, bottom = 24.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-
-                // Menu Items List
+            // Rail
+            Box(
+                modifier = Modifier
+                    .width(68.dp)
+                    .fillMaxHeight(0.94f)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(GameOverlayColors.RailBg)
+                    .clickable(enabled = false) {}
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    items(menuItems) { item ->
+                    items(menuItems, key = { it.id }) { item ->
                         val title = item.titleRes?.let { stringResource(it) } ?: item.titleString ?: ""
-                        Surface(
-                            onClick = {
-                                when (item.id) {
-                                    R.id.main_menu_fps_counter -> showFpsDialog = true
-                                    R.id.main_menu_active_windows -> showActiveWindowsDialog = true
-                                    R.id.main_menu_screen_effects -> showScreenEffectDialog = true
-                                    R.id.main_menu_frame_generation -> showFrameGenDialog = true
-                                    R.id.main_menu_input_controls -> showInputControlsDialog = true
-                                    else -> {
-                                        activity.handleXServerMenuAction(item.id)
-                                        if (item.id == R.id.main_menu_pause) {
-                                            isPaused = !isPaused
-                                        }
-                                        onDismiss()
-                                    }
-                                }
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color.Transparent,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(item.iconRes),
-                                    contentDescription = title,
-                                    modifier = Modifier.size(22.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                // LSFG status dot — only visible when active
-                                if (item.id == R.id.main_menu_frame_generation && lsfgActive) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .clip(androidx.compose.foundation.shape.CircleShape)
-                                            .background(Color(0xFF4CAF50))
-                                    )
-                                }
-                            }
-                        }
+                        GameRailButton(
+                            iconRes = item.iconRes,
+                            contentDesc = title,
+                            selected = selectedId == item.id,
+                            dot = item.id == R.id.main_menu_frame_generation && lsfgActive,
+                            onClick = { onItemClick(item) }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            // Panel
+            AnimatedVisibility(
+                visible = selectedId != null,
+                enter = slideInHorizontally(initialOffsetX = { it / 3 }) + fadeIn(),
+                exit = slideOutHorizontally(targetOffsetX = { it / 3 }) + fadeOut()
+            ) {
+                val sid = selectedId
+                Box(
+                    modifier = Modifier
+                        .width(panelWidth)
+                        .fillMaxHeight(0.94f)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(GameOverlayColors.PanelBg)
+                        .clickable(enabled = false) {}
+                ) {
+                    val closePanel = { selectedId = null }
+                    when (sid) {
+                        R.id.main_menu_input_controls -> XPanelInput(activity, onDismiss = closePanel)
+                        R.id.main_menu_frame_generation -> XPanelFrameGen(activity, onDismiss = closePanel)
+                        R.id.main_menu_screen_effects -> XPanelEffects(activity, onDismiss = closePanel)
+                        R.id.main_menu_task_manager -> XPanelTaskManager(activity, onDismiss = closePanel)
+                        R.id.main_menu_fps_counter -> XPanelFps(
+                            onDismiss = closePanel,
+                            onConfigChanged = { activity.onFpsCounterConfigChangedFromCompose() }
+                        )
+                        R.id.main_menu_active_windows -> XPanelActiveWindows(activity, onDismiss = closePanel)
                     }
                 }
             }
         }
-    }
-
-    // Compose-диалог настроек счётчика FPS
-    if (showFpsDialog) {
-        FpsCounterSettingsDialog(
-            onDismiss = { showFpsDialog = false },
-            onConfigChanged = {
-                // Уведомляем Activity обновить видимость и параметры счётчика FPS
-                activity.onFpsCounterConfigChangedFromCompose()
-            }
-        )
-    }
-
-    if (showActiveWindowsDialog) {
-        ActiveWindowsDialogCompose(
-            activity = activity,
-            onDismiss = { showActiveWindowsDialog = false }
-        )
-    }
-
-    if (showScreenEffectDialog) {
-        ScreenEffectDialogCompose(
-            activity = activity,
-            onDismiss = { showScreenEffectDialog = false }
-        )
-    }
-
-    if (showFrameGenDialog) {
-        FrameGenerationDialogCompose(
-            activity = activity,
-            onDismiss = { showFrameGenDialog = false }
-        )
-    }
-
-    if (showInputControlsDialog) {
-        InputControlsDialogCompose(
-            activity = activity,
-            onDismiss = { showInputControlsDialog = false }
-        )
     }
 }
