@@ -32,6 +32,12 @@ object XServerMenuSettings {
 
     const val ID_EXIT = "exit"
 
+    const val ID_PAUSE = "pause"
+    const val ID_WINETRICKS = "winetricks"
+    const val ID_TERMINAL = "terminal"
+
+    val DEFAULT_HIDDEN: Set<String> = setOf(ID_PAUSE, ID_WINETRICKS, ID_TERMINAL)
+
     val items = listOf(
         XServerMenuItem("keyboard", Icons.Filled.Keyboard, "Keyboard"),
         XServerMenuItem("input_controls", Icons.Filled.Gamepad, "Input Controls"),
@@ -42,15 +48,15 @@ object XServerMenuSettings {
         XServerMenuItem("task_manager", Icons.Filled.Memory, "Task Manager"),
         XServerMenuItem("fps_counter", Icons.Filled.BugReport, "FPS Counter"),
         XServerMenuItem("active_windows", Icons.Filled.Window, "Active Windows"),
-        XServerMenuItem("pause", Icons.Filled.Pause, "Pause/Resume"),
-        XServerMenuItem("winetricks", Icons.Filled.WineBar, "Winetricks"),
-        XServerMenuItem("terminal", Icons.Filled.Terminal, "Debug Terminal"),
+        XServerMenuItem(ID_PAUSE, Icons.Filled.Pause, "Pause/Resume"),
+        XServerMenuItem(ID_WINETRICKS, Icons.Filled.WineBar, "Winetricks"),
+        XServerMenuItem(ID_TERMINAL, Icons.Filled.Terminal, "Debug Terminal"),
         XServerMenuItem("logs", Icons.Filled.Description, "Logs"),
         XServerMenuItem(ID_EXIT, Icons.Filled.ExitToApp, "Exit"),
     )
 
     fun hiddenIds(): Set<String> {
-        val stored = MmkvPreferences().getStringSet(PREF_HIDDEN, null) ?: return emptySet()
+        val stored = MmkvPreferences().getStringSet(PREF_HIDDEN, null) ?: return HashSet(DEFAULT_HIDDEN)
         return stored.filterTo(HashSet()) { it != ID_EXIT }
     }
 

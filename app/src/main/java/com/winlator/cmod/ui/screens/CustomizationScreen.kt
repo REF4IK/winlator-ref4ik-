@@ -53,8 +53,8 @@ fun CustomizationScreen(
     // Реактивное наблюдение за текущей темой: секция «Своя тема» мгновенно
     // реагирует на выбор темы во вложенном «Менеджере тем».
     val themeId by prefs.observeString("theme_id", "midnight")
-    var uiScale by remember { mutableStateOf(prefs.getFloat(ThemePrefs.UI_SCALE, 0.9f)) }
-    var fontScale by remember { mutableStateOf(prefs.getFloat(ThemePrefs.FONT_SCALE, 0.95f)) }
+    var uiScale by remember { mutableStateOf(prefs.getFloat(ThemePrefs.UI_SCALE, 0.85f)) }
+    var fontScale by remember { mutableStateOf(prefs.getFloat(ThemePrefs.FONT_SCALE, 0.85f)) }
     var cornerRadius by remember { mutableStateOf(prefs.getString(ThemePrefs.CORNER_RADIUS, "small") ?: "small") }
     var uiWallpaper by remember { mutableStateOf(prefs.getString(ThemePrefs.UI_WALLPAPER, "") ?: "") }
     var uiWallpaperBlur by remember { mutableStateOf(prefs.getInt(ThemePrefs.UI_WALLPAPER_BLUR, 20)) }
@@ -307,8 +307,8 @@ fun CustomizationScreen(
                     icon = Icons.Filled.Restore,
                     title = stringResource(com.winlator.cmod.R.string.xserver_menu_reset),
                     onClick = {
-                        hiddenIds = emptySet()
-                        com.winlator.cmod.core.XServerMenuSettings.setHidden(emptySet())
+                        hiddenIds = com.winlator.cmod.core.XServerMenuSettings.DEFAULT_HIDDEN
+                        com.winlator.cmod.core.XServerMenuSettings.setHidden(com.winlator.cmod.core.XServerMenuSettings.DEFAULT_HIDDEN)
                     }
                 )
             }

@@ -589,8 +589,8 @@ fun WinlatorTheme(
     val themeId by prefs.observeString(ThemePrefs.THEME_ID, "midnight")
     val customColor by prefs.observeInt(ThemePrefs.CUSTOM_THEME_COLOR, 0xFF1A6C59.toInt())
     val dynamicEnabled by prefs.observeBoolean(ThemePrefs.DYNAMIC_COLOR, false)
-    val uiScale by prefs.observeFloat(ThemePrefs.UI_SCALE, 0.9f)
-    val fontScale by prefs.observeFloat(ThemePrefs.FONT_SCALE, 0.95f)
+    val uiScale by prefs.observeFloat(ThemePrefs.UI_SCALE, 0.85f)
+    val fontScale by prefs.observeFloat(ThemePrefs.FONT_SCALE, 0.85f)
     val cornerRadius by prefs.observeString(ThemePrefs.CORNER_RADIUS, "small")
     val customPrimary by prefs.observeInt(
         ThemePrefs.CUSTOM_PRIMARY,
