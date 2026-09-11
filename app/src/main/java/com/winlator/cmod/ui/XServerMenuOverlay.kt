@@ -20,6 +20,7 @@ import com.winlator.cmod.core.MmkvPreferences
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.ui.screens.GameOverlayColors
+import com.winlator.cmod.ui.screens.FpsBadgeIcon
 import com.winlator.cmod.ui.screens.GameRailItem
 import com.winlator.cmod.ui.screens.XPanelActiveWindows
 import com.winlator.cmod.ui.screens.XPanelEffects
@@ -189,7 +190,8 @@ fun XServerMenuOverlay(
                             contentDesc = title,
                             selected = selectedId == item.id,
                             dot = item.id == R.id.main_menu_frame_generation && lsfgActive,
-                            onClick = { onItemClick(item) }
+                            onClick = { onItemClick(item) },
+                            customIcon = if (item.id == R.id.main_menu_fps_counter) ({ FpsBadgeIcon(it) }) else null
                         )
                     }
                 }

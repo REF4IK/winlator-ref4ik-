@@ -3,6 +3,7 @@ package com.winlator.cmod.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -289,7 +290,8 @@ fun GameRailItem(
     contentDesc: String,
     selected: Boolean,
     dot: Boolean = false,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    customIcon: (@Composable (tint: Color) -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -310,12 +312,17 @@ fun GameRailItem(
                 .background(if (selected) GameOverlayColors.Accent else Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = contentDesc,
-                tint = if (selected) Color.Black else GameOverlayColors.TextPrimary,
-                modifier = Modifier.size(24.dp)
-            )
+            val tint = if (selected) Color.Black else GameOverlayColors.TextPrimary
+            if (customIcon != null) {
+                customIcon(tint)
+            } else {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = contentDesc,
+                    tint = tint,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             if (dot) {
                 Box(
                     modifier = Modifier
@@ -338,6 +345,26 @@ fun GameRailItem(
             overflow = TextOverflow.Ellipsis,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+// Иконка FPS из SVG: скруглённая рамка + текст FPS
+@Composable
+fun FpsBadgeIcon(tint: Color) {
+    Box(
+        modifier = Modifier
+            .width(36.dp)
+            .height(22.dp)
+            .border(2.dp, tint, RoundedCornerShape(6.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "FPS",
+            color = tint,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+            maxLines = 1
         )
     }
 }
