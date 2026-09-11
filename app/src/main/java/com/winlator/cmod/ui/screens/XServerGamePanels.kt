@@ -207,7 +207,6 @@ fun XPanelFrameGen(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
                 selectedIndex = targetVals.indexOf(targetRate).coerceAtLeast(0),
                 onSelect = { targetRate = targetVals[it] }
             )
-            Text(stringResource(R.string.lsfg_target_note), color = GameOverlayColors.TextSecondary, fontSize = 11.sp)
             Spacer(Modifier.height(4.dp))
             GameSectionTitle(stringResource(R.string.lsfg_multiplier))
             GameChipGroup(
