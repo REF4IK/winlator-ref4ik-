@@ -27,7 +27,9 @@ import com.winlator.cmod.ui.screens.XPanelEffects
 import com.winlator.cmod.ui.screens.XPanelFps
 import com.winlator.cmod.ui.screens.XPanelFrameGen
 import com.winlator.cmod.ui.screens.XPanelInput
+import com.winlator.cmod.ui.screens.XPanelLogs
 import com.winlator.cmod.ui.screens.XPanelTaskManager
+import com.winlator.cmod.ui.screens.XPanelWinetricks
 
 class XServerMenuController(private val activity: XServerDisplayActivity) {
     private val composeOverlay: ComposeView = activity.findViewById(R.id.ComposeOverlay)
@@ -128,10 +130,10 @@ fun XServerMenuOverlay(
                 if (isPaused) R.drawable.icon_play else R.drawable.icon_pause, false
             )
         )
-        if (visible("winetricks")) list.add(XMenuItem(R.id.main_menu_winetricks, null, "Winetricks", R.drawable.icon_wine, false))
+        if (visible("winetricks")) list.add(XMenuItem(R.id.main_menu_winetricks, null, "Winetricks", R.drawable.icon_wine, true))
         if (visible("terminal")) list.add(XMenuItem(R.id.main_menu_terminal, null, "Debug Terminal", R.drawable.icon_env_var, false))
         if (enableLogs && visible("logs")) {
-            list.add(XMenuItem(R.id.main_menu_logs, R.string.logs, null, R.drawable.icon_debug, false))
+            list.add(XMenuItem(R.id.main_menu_logs, R.string.logs, null, R.drawable.icon_debug, true))
         }
         list.add(XMenuItem(R.id.main_menu_exit, R.string.exit, null, R.drawable.icon_exit, false))
         list
@@ -225,6 +227,8 @@ fun XServerMenuOverlay(
                             onConfigChanged = { activity.onFpsCounterConfigChangedFromCompose() }
                         )
                         R.id.main_menu_active_windows -> XPanelActiveWindows(activity, onDismiss = closePanel)
+                        R.id.main_menu_winetricks -> XPanelWinetricks(activity, onDismiss = closePanel)
+                        R.id.main_menu_logs -> XPanelLogs(activity, onDismiss = closePanel)
                     }
                 }
             }

@@ -3926,6 +3926,45 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
 
 
+    // Compose side-panel wrappers: same actions as WinetricksFloatingView listener
+    public void composeRunWinetricksStable(String verb, TextView outputView) {
+        if (verb == null) verb = "";
+        if (!verb.isEmpty()) {
+            runWinetricksWithVerb(container, contentsManager, verb, outputView);
+        } else {
+            Toast.makeText(this, "Please enter a Winetricks verb", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void composeRunWinetricksFolder(TextView outputView) {
+        runWinetricksFolder(container, contentsManager, outputView);
+    }
+
+    public com.winlator.cmod.contentdialog.DebugDialog getDebugDialog() {
+        return debugDialog;
+    }
+
+    public void composeRestartWineserver(TextView outputView) {
+        try {
+            environment.setWinetricksRunning(true);
+            if (bionicLauncher != null) {
+                bionicLauncher.restartWineServer();
+            } else {
+                runOnUiThread(() -> {
+                    outputView.append("No valid launcher found; cannot restart Wineserver.\n");
+                });
+                return;
+            }
+            setupXEnvironment();
+            runOnUiThread(() -> {
+                outputView.append("Wineserver restarted.\n");
+            });
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to restart wineserver", e);
+        }
+        environment.setWinetricksRunning(false);
+    }
+
     private static final int MAX_LOG_LINES = 1000;
 
     private static final int BATCH_SIZE = 10;

@@ -53,7 +53,7 @@ public class DebugDialog extends ContentDialog implements Callback<String> {
 
     @Override
     public void call(final String line) {
-        if (!getPaused()) logView.append(line+"\n");
+        if (!getPaused()) logView.append(line+"\n");        if (!getPaused()) logView.append(line+"\n");
         try {
             writer.write(line + "\n");
             writer.flush();
@@ -69,5 +69,9 @@ public class DebugDialog extends ContentDialog implements Callback<String> {
     
     public static boolean getPaused() {
         return paused;
+    }
+
+    public java.util.ArrayList<String> getLogLines() {
+        return logView.getLines();
     }
 }

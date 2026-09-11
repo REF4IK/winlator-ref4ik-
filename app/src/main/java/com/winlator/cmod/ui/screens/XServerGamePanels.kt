@@ -6,16 +6,26 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
+import android.text.Editable
+import android.text.TextWatcher
+import android.widget.TextView
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,14 +38,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 import com.winlator.cmod.XServerDisplayActivity
+import com.winlator.cmod.contentdialog.DebugDialog
+import com.winlator.cmod.core.Callback
 import com.winlator.cmod.core.CPUStatus
 import com.winlator.cmod.core.KeyValueSet
 import com.winlator.cmod.core.MmkvPreferences
+import com.winlator.cmod.core.ProcessHelper
 import com.winlator.cmod.core.SensorReader
 import com.winlator.cmod.core.StringUtils
 import com.winlator.cmod.inputcontrols.ControlsProfile
@@ -47,6 +61,8 @@ import com.winlator.cmod.xserver.Window
 import com.winlator.cmod.xserver.XServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 // ---------- INPUT ----------
@@ -774,6 +790,229 @@ fun XPanelActiveWindows(activity: XServerDisplayActivity, onDismiss: () -> Unit)
                             Spacer(Modifier.height(6.dp))
                             Text(title.ifEmpty { w.className ?: "?" }, color = GameOverlayColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             Text(w.className ?: "", color = GameOverlayColors.TextSecondary, fontSize = 11.sp, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------- WINETRICKS ----------
+
+@Composable
+fun XPanelWinetricks(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
+    var verb by remember { mutableStateOf("") }
+    var output by remember { mutableStateOf("") }
+    val outputSink = remember { TextView(activity) }
+    val outputScroll = rememberScrollState()
+    val outputHScroll = rememberScrollState()
+
+    DisposableEffect(outputSink) {
+        val watcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                output = s?.toString() ?: ""
+            }
+        }
+        outputSink.addTextChangedListener(watcher)
+        onDispose { outputSink.removeTextChangedListener(watcher) }
+    }
+
+    LaunchedEffect(output.length) {
+        if (output.isNotEmpty()) {
+            outputScroll.scrollTo(outputScroll.maxValue)
+            outputHScroll.scrollTo(0)
+        }
+    }
+
+    GamePanelShell(
+        footer = {
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                Text("Hide Winetricks", color = GameOverlayColors.TextSecondary)
+            }
+        }
+    ) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Spacer(Modifier.height(4.dp))
+            OutlinedTextField(
+                value = verb,
+                onValueChange = { verb = it },
+                placeholder = { Text("Enter Winetricks verb...", color = GameOverlayColors.TextSecondary) },
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(color = GameOverlayColors.TextPrimary),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = GameOverlayColors.Accent,
+                    unfocusedBorderColor = GameOverlayColors.Track,
+                    cursorColor = GameOverlayColors.Accent
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button(
+                onClick = { activity.composeRunWinetricksStable(verb.trim(), outputSink) },
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = GameOverlayColors.Accent,
+                    contentColor = Color.Black
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Execute Winetricks", fontWeight = FontWeight.Bold) }
+            Button(
+                onClick = { activity.composeRunWinetricksFolder(outputSink) },
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = GameOverlayColors.CardBg,
+                    contentColor = GameOverlayColors.TextPrimary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Open Winetricks Folder") }
+            Button(
+                onClick = { activity.composeRestartWineserver(outputSink) },
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = GameOverlayColors.CardBg,
+                    contentColor = GameOverlayColors.TextPrimary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Restart Wineserver") }
+            Box(
+                Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(10.dp))
+                    .background(Color.Black).padding(8.dp)
+            ) {
+                if (output.isEmpty()) {
+                    Text(
+                        "Output...",
+                        color = GameOverlayColors.TextSecondary, fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                } else {
+                    SelectionContainer {
+                        Text(
+                            text = output,
+                            color = GameOverlayColors.TextPrimary, fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(outputScroll)
+                                .horizontalScroll(outputHScroll)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------- LOGS ----------
+
+@Composable
+fun XPanelLogs(activity: XServerDisplayActivity, onDismiss: () -> Unit) {
+    val lines = remember { mutableStateListOf<String>() }
+    var paused by remember { mutableStateOf(DebugDialog.getPaused()) }
+    val listState = rememberLazyListState()
+    val hScroll = rememberScrollState()
+    val timeFmt = remember { SimpleDateFormat("HH:mm:ss", Locale.US) }
+
+    DisposableEffect(Unit) {
+        val callback = object : Callback<String> {
+            override fun call(line: String) {
+                activity.runOnUiThread {
+                    if (!DebugDialog.getPaused()) {
+                        lines.add("[${timeFmt.format(Date())}]  ${line.replace("\n", "")}")
+                        if (lines.size > 1000) lines.removeRange(0, lines.size - 1000)
+                    }
+                }
+            }
+        }
+        // История, накопленная старым диалогом с запуска
+        try {
+            val history = activity.getDebugDialog()?.getLogLines()
+            if (history != null) {
+                lines.clear()
+                val start = maxOf(0, history.size - 1000)
+                for (i in start until history.size) lines.add(history[i])
+            }
+        } catch (_: Exception) {}
+        ProcessHelper.addDebugCallback(callback)
+        onDispose { ProcessHelper.removeDebugCallback(callback) }
+    }
+
+    LaunchedEffect(lines.size, paused) {
+        if (lines.isNotEmpty() && !paused) listState.scrollToItem(lines.size - 1)
+    }
+
+    GamePanelShell(
+        footer = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { lines.clear() }) {
+                    Icon(Icons.Filled.Delete, "Clear", tint = GameOverlayColors.Accent)
+                }
+                IconButton(onClick = {
+                    paused = !paused
+                    DebugDialog.setPaused(paused)
+                }) {
+                    Icon(
+                        if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        if (paused) "Resume" else "Pause",
+                        tint = GameOverlayColors.Accent
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = GameOverlayColors.Accent,
+                        contentColor = Color.Black
+                    ),
+                    contentPadding = PaddingValues(horizontal = 26.dp, vertical = 10.dp)
+                ) { Text("OK", fontWeight = FontWeight.Bold) }
+            }
+        }
+    ) {
+        Spacer(Modifier.height(4.dp))
+        Box(
+            Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(10.dp))
+                .background(Color.Black).padding(vertical = 4.dp)
+        ) {
+            if (lines.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        stringResource(R.string.no_items_to_display),
+                        color = GameOverlayColors.TextSecondary, fontSize = 12.sp
+                    )
+                }
+            } else {
+                SelectionContainer {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(lines.size) { idx ->
+                            val line = lines[idx]
+                            Text(
+                                text = line,
+                                color = GameOverlayColors.TextPrimary, fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (idx % 2 != 0) Color(0xFF1E2A30)
+                                        else Color.Transparent
+                                    )
+                                    .horizontalScroll(hScroll)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
                         }
                     }
                 }
